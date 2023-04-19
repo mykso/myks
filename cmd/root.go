@@ -22,11 +22,12 @@ var rootCmd = &cobra.Command{
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kwhoosh.yaml)")
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "Set the logging level")
 
 	viper.BindPFlags(rootCmd.PersistentFlags())
 	viper.BindPFlags(rootCmd.Flags())
+
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kwhoosh.yaml)")
 }
 
 func initConfig() {
