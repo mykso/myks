@@ -84,7 +84,6 @@ func (k *Kwhoosh) collectEnvironments(searchPath string) {
 		}
 		return nil
 	})
-
 	if err != nil {
 		log.Fatal().Err(err).Msg("Unable to walk environment directories")
 	}

@@ -24,8 +24,12 @@ func init() {
 
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "Set the logging level")
 
-	viper.BindPFlags(rootCmd.PersistentFlags())
-	viper.BindPFlags(rootCmd.Flags())
+	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
+		log.Fatal().Err(err).Msg("Unable to bind flags")
+	}
+	if err := viper.BindPFlags(rootCmd.Flags()); err != nil {
+		log.Fatal().Err(err).Msg("Unable to bind flags")
+	}
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kwhoosh.yaml)")
 }
