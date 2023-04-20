@@ -10,6 +10,31 @@ vars:
 tasks:
   default: ${GOTASK_BIN:-task} --list
 
+  go:fmt:
+    desc: Format the code
+    cmds:
+      - goimports-reviser -rm-unused -set-alias -format ./...
+      - gofumpt -w .
+
+  go:lint:golangci:
+    cmds:
+      - golangci-lint run
+
+  go:lint:vet:
+    cmds:
+      - go vet ./...
+
+  go:lint:sec:
+    cmds:
+      - gosec ./...
+
+  go:lint:
+    desc: Lint the code
+    deps:
+      - go:lint:golangci
+      - go:lint:vet
+      - go:lint:sec
+
   go:build:
     desc: Build the binary
     cmds:
