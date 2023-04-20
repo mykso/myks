@@ -1,7 +1,6 @@
 package kwhoosh
 
 import (
-	"kwhoosh/internal/environment"
 	"os"
 	"path/filepath"
 
@@ -33,13 +32,13 @@ type Kwhoosh struct {
 	RenderedVendirLockFileName string `default:"rendered/vendir.lock.yaml"`
 
 	// Collected environments for processing
-	environments map[string]*environment.Environment
+	environments map[string]*Environment
 }
 
 func New(rootDir string) *Kwhoosh {
 	k := &Kwhoosh{
 		RootDir:      rootDir,
-		environments: make(map[string]*environment.Environment),
+		environments: make(map[string]*Environment),
 	}
 	if err := defaults.Set(k); err != nil {
 		log.Fatal().Err(err).Msg("Unable to set defaults")
@@ -73,10 +72,14 @@ func (k *Kwhoosh) collectEnvironments(searchPath string) {
 			return err
 		}
 		if info.IsDir() {
-			// Check if the directory contains foo.yaml
 			_, err := os.Stat(filepath.Join(path, k.EnvironmentDataFileName))
 			if err == nil {
-				k.environments[filepath.Dir(path)] = environment.New(path)
+				env := NewEnvironment(k, path)
+				if env != nil {
+					k.environments[filepath.Dir(path)] = env
+				} else {
+					log.Warn().Str("path", path).Msg("Unable to collect environment, skipping")
+				}
 			}
 		}
 		return nil
