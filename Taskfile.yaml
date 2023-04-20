@@ -1,0 +1,26 @@
+# https://taskfile.dev
+
+version: "3"
+
+silent: true
+
+vars:
+  BIN_NAME: "kwhoosh"
+
+tasks:
+  default: ${GOTASK_BIN:-task} --list
+
+  go:build:
+    desc: Build the binary
+    cmds:
+      - go build -o bin/{{.BIN_NAME}} main.go
+      - stat bin/{{.BIN_NAME}}
+
+  go:run:
+    desc: Run the binary
+    deps:
+      - go:build
+    cmds:
+      - |
+        cd examples/project && \
+        ../../bin/{{.BIN_NAME}} {{.CLI_ARGS}}
