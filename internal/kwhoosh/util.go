@@ -1,33 +1,34 @@
 package kwhoosh
 
 import (
-	cmdtpl "github.com/vmware-tanzu/carvel-ytt/pkg/cmd/template"
-	"github.com/vmware-tanzu/carvel-ytt/pkg/cmd/ui"
-	"github.com/vmware-tanzu/carvel-ytt/pkg/files"
+	"bytes"
+	"os/exec"
+
+	"github.com/rs/zerolog/log"
 )
 
-// Process files from the given paths using ytt
-func YttFiles(paths []string) (string, error) {
-	filesToProcess, err := files.NewSortedFilesFromPaths(paths, files.SymlinkAllowOpts{})
-	if err != nil {
-		return "", err
+type CmdResult struct {
+	Stdout string
+	Stderr string
+}
+
+// Process a list of files with ytt and return the result as a string
+func YttFiles(paths []string) (CmdResult, error) {
+	args := []string{}
+	for _, path := range paths {
+		args = append(args, "--file="+path)
 	}
+	log.Debug().Interface("args", args).Msg("ytt args")
+	cmd := exec.Command("ytt", args...)
 
-	ui := ui.NewTTY(false)
-	opts := cmdtpl.NewOptions()
+	var stdoutBs, stderrBs bytes.Buffer
+	cmd.Stdout = &stdoutBs
+	cmd.Stderr = &stderrBs
 
-	out := opts.RunWithFiles(cmdtpl.Input{Files: filesToProcess}, ui)
+	err := cmd.Run()
 
-	if out.Err != nil {
-		return "", out.Err
-	}
-
-	// FIXME: Use library function to output results
-	strOut := ""
-
-	for _, file := range out.Files {
-		strOut += string(file.Bytes())
-	}
-
-	return strOut, nil
+	return CmdResult{
+		Stdout: stdoutBs.String(),
+		Stderr: stderrBs.String(),
+	}, err
 }
