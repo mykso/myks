@@ -71,6 +71,15 @@ func (e *Environment) Init(applicationNames []string) error {
 	return nil
 }
 
+func (e *Environment) Sync() error {
+	for _, app := range e.applications {
+		if err := app.Sync(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (e *Environment) setId() error {
 	yamlBytes, err := os.ReadFile(e.EnvironmentDataFile)
 	if err != nil {
