@@ -124,15 +124,7 @@ func (e *Environment) initManifest() error {
 
 // Get all environment manifest files up to the root directory
 func (e *Environment) getManifestFiles() []string {
-	currentPath := e.k.RootDir
-	manifestFiles := []string{}
-	for _, level := range strings.Split(e.Dir, filepath.FromSlash("/")) {
-		currentPath = filepath.Join(currentPath, level)
-		manifestFile := filepath.Join(currentPath, e.k.EnvironmentManifestFileName)
-		if _, err := os.Stat(manifestFile); err == nil {
-			manifestFiles = append(manifestFiles, manifestFile)
-		}
-	}
+	manifestFiles := e.collectBySubpath(e.k.EnvironmentManifestFileName)
 	log.Debug().Interface("manifestFiles", manifestFiles).Msg("Manifest files")
 	return manifestFiles
 }
@@ -200,4 +192,19 @@ func (e *Environment) initApplications(applicationNames []string) {
 		}
 	}
 	log.Debug().Interface("applications", e.applications).Msg("Applications")
+}
+
+func (e *Environment) collectBySubpath(subpath string) []string {
+	items := []string{}
+	currentPath := e.k.RootDir
+	levels := []string{""}
+	levels = append(levels, strings.Split(e.Dir, filepath.FromSlash("/"))...)
+	for _, level := range levels {
+		currentPath = filepath.Join(currentPath, level)
+		item := filepath.Join(currentPath, subpath)
+		if _, err := os.Stat(item); err == nil {
+			items = append(items, item)
+		}
+	}
+	return items
 }
