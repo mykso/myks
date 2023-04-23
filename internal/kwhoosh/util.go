@@ -32,3 +32,12 @@ func YttFiles(paths []string) (CmdResult, error) {
 		Stderr: stderrBs.String(),
 	}, err
 }
+
+func contains(list []string, item string) bool {
+	for _, listItem := range list {
+		if listItem == item {
+			return true
+		}
+	}
+	return false
+}

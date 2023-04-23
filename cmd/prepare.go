@@ -14,7 +14,10 @@ func init() {
 		Long:  "Prepare vendir configs for syncing",
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Info().Msg("Preparing vendir configs for syncing")
-			kwhoosh.New(".").CollectEnvironments(nil)
+			err := kwhoosh.New(".").Init(nil, nil)
+			if err != nil {
+				log.Fatal().Err(err).Msg("Unable to initialize kwhoosh")
+			}
 		},
 	}
 

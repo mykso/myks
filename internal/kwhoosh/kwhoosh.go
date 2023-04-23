@@ -10,10 +10,14 @@ import (
 
 // Define the main structure
 type Kwhoosh struct {
+	/// Kwhoosh configuration
+
 	// Project root directory
 	RootDir string
 	// Base directory for environments
 	EnvironmentBaseDir string `default:"envs"`
+	// Application prototypes directory
+	PrototypesDir string `default:"prototypes"`
 	// Prefix for kubernetes namespaces
 	NamespacePrefix string `default:""`
 	// ArgoCD namespace
@@ -31,6 +35,15 @@ type Kwhoosh struct {
 	// Rendered vendir lock file name
 	RenderedVendirLockFileName string `default:"rendered/vendir.lock.yaml"`
 
+	/// User input
+
+	// Paths to scan for environments
+	SearchPaths []string
+	// Application names to process
+	ApplicationNames []string
+
+	/// Runtime data
+
 	// Collected environments for processing
 	environments map[string]*Environment
 }
@@ -47,26 +60,34 @@ func New(rootDir string) *Kwhoosh {
 	return k
 }
 
-// CollectEnvironments scans the root directory for environment directories and
-// collects them into the Kwhoosh struct.
-// An environment directory is a directory that contains a file named after
-// the EnvironmentDataFileName field (default: env-data.ytt.yaml).
-// CollectEnvironments accepts a list of paths to scan. If the list is empty,
-// the root directory is scanned.
-// TODO: Better documentation
-func (k *Kwhoosh) CollectEnvironments(searchPaths []string) {
+func (k *Kwhoosh) Init(searchPaths []string, applicationNames []string) error {
+	k.SearchPaths = searchPaths
+	k.ApplicationNames = applicationNames
+
+	k.collectEnvironments(searchPaths)
+
+	for _, env := range k.environments {
+		if err := env.Init(applicationNames); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (k *Kwhoosh) collectEnvironments(searchPaths []string) {
 	if len(searchPaths) == 0 {
 		searchPaths = []string{k.EnvironmentBaseDir}
 	}
 
 	for _, searchPath := range searchPaths {
-		k.collectEnvironments(searchPath)
+		k.collectEnvironmentsInPath(searchPath)
 	}
 
 	log.Debug().Interface("environments", k.environments).Msg("Collected environments")
 }
 
-func (k *Kwhoosh) collectEnvironments(searchPath string) {
+func (k *Kwhoosh) collectEnvironmentsInPath(searchPath string) {
 	err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err

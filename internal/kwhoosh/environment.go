@@ -10,6 +10,15 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+type ManifestApplication struct {
+	Name      string
+	Prototype string
+}
+
+type EnvironmentManifest struct {
+	Applications []ManifestApplication
+}
+
 type Environment struct {
 	// Path to the environment directory
 	Dir string
@@ -17,8 +26,15 @@ type Environment struct {
 	EnvironmentDataFile string
 	// Environment id
 	Id string
+	// Environment manifest
+	Manifest *EnvironmentManifest
+
 	// Kwhoosh instance
 	k *Kwhoosh
+
+	// Runtime data
+	applications             []*Application
+	renderedManifestFilePath string
 }
 
 func NewEnvironment(k *Kwhoosh, dir string) *Environment {
@@ -27,16 +43,17 @@ func NewEnvironment(k *Kwhoosh, dir string) *Environment {
 	env := &Environment{
 		Dir:                 dir,
 		EnvironmentDataFile: envDataFile,
-		k:                   k,
+		Manifest: &EnvironmentManifest{
+			Applications: []ManifestApplication{},
+		},
+		k:                        k,
+		renderedManifestFilePath: filepath.Join(dir, k.RenderedEnvironmentManifestFileName),
 	}
 
+	// Read an environment id from an environment data file.
+	// The environment data file must exist and contain an .environment.id field.
 	if err := env.setId(); err != nil {
 		log.Warn().Err(err).Str("dir", dir).Msg("Unable to set environment id")
-		return nil
-	}
-
-	if err := env.renderManifest(); err != nil {
-		log.Warn().Err(err).Str("dir", dir).Msg("Unable to render environment manifest")
 		return nil
 	}
 
@@ -74,6 +91,37 @@ func (e *Environment) setId() error {
 	return nil
 }
 
+func (e *Environment) Init(applicationNames []string) error {
+	if err := e.initManifest(); err != nil {
+		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to initialize environment manifest")
+		return err
+	}
+
+	e.initApplications(applicationNames)
+
+	return nil
+}
+
+func (e *Environment) initManifest() error {
+	manifestFiles := e.getManifestFiles()
+	manifestYaml, err := e.renderManifest(manifestFiles)
+	if err != nil {
+		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to render environment manifest")
+		return err
+	}
+	err = e.saveRenderedManifest(manifestYaml)
+	if err != nil {
+		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to save rendered environment manifest")
+		return err
+	}
+	err = e.setManifestFromYaml(manifestYaml)
+	if err != nil {
+		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to set environment manifest")
+		return err
+	}
+	return nil
+}
+
 // Get all environment manifest files up to the root directory
 func (e *Environment) getManifestFiles() []string {
 	currentPath := e.k.RootDir
@@ -90,25 +138,66 @@ func (e *Environment) getManifestFiles() []string {
 }
 
 // Render the final manifest file for the environment
-func (e *Environment) renderManifest() error {
-	manifestFiles := e.getManifestFiles()
+func (e *Environment) renderManifest(manifestFiles []string) (manifestYaml []byte, err error) {
 	if len(manifestFiles) == 0 {
-		return errors.New("No manifest files found")
+		return nil, errors.New("No manifest files found")
 	}
 	res, err := YttFiles(manifestFiles)
 	if err != nil {
 		log.Error().Err(err).Str("stderr", res.Stderr).Msg("Unable to render environment manifest")
-		return err
+		return nil, err
 	}
 	if res.Stdout == "" {
-		return errors.New("Empty output from ytt")
+		return nil, errors.New("Empty output from ytt")
 	}
-	renderedManifestFile := filepath.Join(e.Dir, e.k.RenderedEnvironmentManifestFileName)
-	err = os.WriteFile(renderedManifestFile, []byte(res.Stdout), 0o644)
+
+	manifestYaml = []byte(res.Stdout)
+	return manifestYaml, nil
+}
+
+func (e *Environment) saveRenderedManifest(manifestYaml []byte) error {
+	err := os.WriteFile(e.renderedManifestFilePath, manifestYaml, 0o644)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to write rendered manifest file")
 		return err
 	}
-	log.Debug().Str("file", renderedManifestFile).Msg("Wrote rendered manifest file")
+	log.Debug().Str("file", e.renderedManifestFilePath).Msg("Wrote rendered manifest file")
 	return nil
+}
+
+func (e *Environment) setManifestFromYaml(manifestYaml []byte) error {
+	var manifestData struct {
+		Applications map[string]struct {
+			Prototype string
+		} `yaml:"apps"`
+	}
+	err := yaml.Unmarshal(manifestYaml, &manifestData)
+	if err != nil {
+		log.Error().Err(err).Msg("Unable to unmarshal manifest yaml")
+		return err
+	}
+
+	for appName, appData := range manifestData.Applications {
+		e.Manifest.Applications = append(e.Manifest.Applications, ManifestApplication{
+			Name:      appName,
+			Prototype: appData.Prototype,
+		})
+	}
+
+	log.Debug().Interface("manifest", e.Manifest).Msg("Manifest")
+	return nil
+}
+
+func (e *Environment) initApplications(applicationNames []string) {
+	for _, manifestApp := range e.Manifest.Applications {
+		if len(applicationNames) == 0 || contains(applicationNames, manifestApp.Name) {
+			app, err := NewApplication(e, manifestApp.Name, manifestApp.Prototype)
+			if err != nil {
+				log.Warn().Err(err).Str("dir", e.Dir).Interface("app", manifestApp).Msg("Unable to initialize application")
+			} else {
+				e.applications = append(e.applications, app)
+			}
+		}
+	}
+	log.Debug().Interface("applications", e.applications).Msg("Applications")
 }
