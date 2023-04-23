@@ -60,6 +60,17 @@ func NewEnvironment(k *Kwhoosh, dir string) *Environment {
 	return env
 }
 
+func (e *Environment) Init(applicationNames []string) error {
+	if err := e.initManifest(); err != nil {
+		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to initialize environment manifest")
+		return err
+	}
+
+	e.initApplications(applicationNames)
+
+	return nil
+}
+
 func (e *Environment) setId() error {
 	yamlBytes, err := os.ReadFile(e.EnvironmentDataFile)
 	if err != nil {
@@ -87,17 +98,6 @@ func (e *Environment) setId() error {
 	}
 
 	e.Id = envData.Environment.Id
-
-	return nil
-}
-
-func (e *Environment) Init(applicationNames []string) error {
-	if err := e.initManifest(); err != nil {
-		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to initialize environment manifest")
-		return err
-	}
-
-	e.initApplications(applicationNames)
 
 	return nil
 }
