@@ -13,7 +13,7 @@ type CmdResult struct {
 }
 
 // Process a list of files with ytt and return the result as a string
-func YttFiles(paths []string) (CmdResult, error) {
+func runYttWithFiles(paths []string) (CmdResult, error) {
 	args := []string{}
 	for _, path := range paths {
 		args = append(args, "--file="+path)

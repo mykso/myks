@@ -142,7 +142,7 @@ func (e *Environment) renderManifest(manifestFiles []string) (manifestYaml []byt
 	if len(manifestFiles) == 0 {
 		return nil, errors.New("No manifest files found")
 	}
-	res, err := YttFiles(manifestFiles)
+	res, err := runYttWithFiles(manifestFiles)
 	if err != nil {
 		log.Error().Err(err).Str("stderr", res.Stderr).Msg("Unable to render environment manifest")
 		return nil, err
