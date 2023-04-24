@@ -92,6 +92,15 @@ func (k *Kwhoosh) Sync() error {
 	return nil
 }
 
+func (k *Kwhoosh) Render() error {
+	for _, env := range k.environments {
+		if err := env.Render(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (k *Kwhoosh) collectEnvironments(searchPaths []string) {
 	if len(searchPaths) == 0 {
 		searchPaths = []string{k.EnvironmentBaseDir}

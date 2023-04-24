@@ -55,6 +55,24 @@ func (a *Application) Sync() error {
 }
 
 func (a *Application) Render() error {
+	// 1. Collect all ytt data files:
+	//    - environment data files: `envs/**/env-data.ytt.yaml`
+	//    - application prototype data file: `prototypes/<prototype>/app-data.ytt.yaml`
+	//    - application data files: `envs/**/_apps/<app>/add-data.ytt.yaml`
+
+	dataFiles := []string{}
+
+	dataFiles = append(dataFiles, a.e.collectBySubpath(a.e.k.EnvironmentDataFileName)...)
+
+	protoDataFile := filepath.Join(a.Prototype, a.e.k.ApplicationDataFileName)
+	if _, err := os.Stat(protoDataFile); err == nil {
+		dataFiles = append(dataFiles, protoDataFile)
+	}
+
+	dataFiles = append(dataFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.k.ApplicationDataFileName))...)
+
+	log.Debug().Strs("files", dataFiles).Msg("Collected ytt data files")
+
 	return nil
 }
 

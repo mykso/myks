@@ -80,6 +80,15 @@ func (e *Environment) Sync() error {
 	return nil
 }
 
+func (e *Environment) Render() error {
+	for _, app := range e.applications {
+		if err := app.Render(); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (e *Environment) setId() error {
 	yamlBytes, err := os.ReadFile(e.EnvironmentDataFile)
 	if err != nil {
