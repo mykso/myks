@@ -185,7 +185,7 @@ func (e *Environment) setManifestFromYaml(manifestYaml []byte) error {
 	var manifestData struct {
 		Applications map[string]struct {
 			Prototype string
-		} `yaml:"apps"`
+		}
 	}
 	err := yaml.Unmarshal(manifestYaml, &manifestData)
 	if err != nil {
