@@ -88,7 +88,7 @@ func (a *Application) prepareSync() error {
 	}
 
 	// TODO: rename `rendered` to `.kwhoosh` ?
-	vendirConfigFilePath := filepath.Join(a.e.Dir, "_apps", a.Name, "rendered", "vendir.yml")
+	vendirConfigFilePath := filepath.Join(a.e.Dir, "_apps", a.Name, a.e.k.ServiceDirName, a.e.k.VendirConfigFileName)
 	// Create directory if it does not exist
 	err = os.MkdirAll(filepath.Dir(vendirConfigFilePath), 0o755)
 	if err != nil {

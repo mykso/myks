@@ -22,18 +22,23 @@ type Kwhoosh struct {
 	NamespacePrefix string `default:""`
 	// ArgoCD namespace
 	ArgoCDNamespace string `default:"argocd"`
+
+	/// Kwhoosh constants
+
+	// Service directory name
+	ServiceDirName string `default:".kwhoosh"`
 	// Application data file name
 	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
 	// Environment data file name
 	EnvironmentDataFileName string `default:"env-data.ytt.yaml"`
-	// Environment manfiest file name
-	EnvironmentManifestFileName string `default:"manifest.ytt.yaml"`
+	// Environment manfiest template file name
+	EnvironmentManifestTemplateFileName string `default:"manifest.ytt.yaml"`
 	// Rendered environment manifest file name
-	RenderedEnvironmentManifestFileName string `default:"rendered.manifest.yaml"`
+	EnvironmentManifestFileName string `default:"manifest.yaml"`
 	// Rendered vendir config file name
-	RenderedVendirConfigFileName string `default:"rendered/vendir.yaml"`
+	VendirConfigFileName string `default:"vendir.yaml"`
 	// Rendered vendir lock file name
-	RenderedVendirLockFileName string `default:"rendered/vendir.lock.yaml"`
+	VendirLockFileName string `default:"vendir.lock.yaml"`
 
 	/// User input
 

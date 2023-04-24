@@ -47,7 +47,7 @@ func NewEnvironment(k *Kwhoosh, dir string) *Environment {
 			Applications: []ManifestApplication{},
 		},
 		k:                        k,
-		renderedManifestFilePath: filepath.Join(dir, k.RenderedEnvironmentManifestFileName),
+		renderedManifestFilePath: filepath.Join(dir, k.ServiceDirName, k.EnvironmentManifestFileName),
 	}
 
 	// Read an environment id from an environment data file.
@@ -131,9 +131,9 @@ func (e *Environment) initManifest() error {
 	return nil
 }
 
-// Get all environment manifest files up to the root directory
+// Get all environment manifest template files up to the root directory
 func (e *Environment) getManifestFiles() []string {
-	manifestFiles := e.collectBySubpath(e.k.EnvironmentManifestFileName)
+	manifestFiles := e.collectBySubpath(e.k.EnvironmentManifestTemplateFileName)
 	log.Debug().Interface("manifestFiles", manifestFiles).Msg("Manifest files")
 	return manifestFiles
 }
@@ -157,7 +157,13 @@ func (e *Environment) renderManifest(manifestFiles []string) (manifestYaml []byt
 }
 
 func (e *Environment) saveRenderedManifest(manifestYaml []byte) error {
-	err := os.WriteFile(e.renderedManifestFilePath, manifestYaml, 0o644)
+	dir := filepath.Dir(e.renderedManifestFilePath)
+	err := os.MkdirAll(dir, 0o755)
+	if err != nil {
+		log.Error().Err(err).Str("dir", dir).Msg("Unable to create directory for rendered manifest file")
+		return err
+	}
+	err = os.WriteFile(e.renderedManifestFilePath, manifestYaml, 0o644)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to write rendered manifest file")
 		return err
