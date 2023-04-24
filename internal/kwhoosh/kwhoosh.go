@@ -123,7 +123,7 @@ func (k *Kwhoosh) collectEnvironmentsInPath(searchPath string) {
 			if err == nil {
 				env := NewEnvironment(k, path)
 				if env != nil {
-					k.environments[filepath.Dir(path)] = env
+					k.environments[path] = env
 				} else {
 					log.Warn().Str("path", path).Msg("Unable to collect environment, skipping")
 				}
