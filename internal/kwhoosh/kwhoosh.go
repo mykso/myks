@@ -1,6 +1,7 @@
 package kwhoosh
 
 import (
+	"io/fs"
 	"os"
 	"path/filepath"
 
@@ -104,11 +105,11 @@ func (k *Kwhoosh) collectEnvironments(searchPaths []string) {
 }
 
 func (k *Kwhoosh) collectEnvironmentsInPath(searchPath string) {
-	err := filepath.Walk(searchPath, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(searchPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if info.IsDir() {
+		if d != nil && d.IsDir() {
 			_, err := os.Stat(filepath.Join(path, k.EnvironmentDataFileName))
 			if err == nil {
 				env := NewEnvironment(k, path)
