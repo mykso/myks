@@ -92,7 +92,6 @@ func (a *Application) prepareSync() error {
 		return err
 	}
 
-	// TODO: rename `rendered` to `.kwhoosh` ?
 	vendirConfigFilePath := a.expandServicePath(a.e.k.VendirConfigFileName)
 	// Create directory if it does not exist
 	err = os.MkdirAll(filepath.Dir(vendirConfigFilePath), 0o755)
