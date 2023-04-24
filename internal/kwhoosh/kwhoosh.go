@@ -39,6 +39,8 @@ type Kwhoosh struct {
 	VendirConfigFileName string `default:"vendir.yaml"`
 	// Rendered vendir lock file name
 	VendirLockFileName string `default:"vendir.lock.yaml"`
+	// Downloaded third-party sources
+	VendorDirName string `default:"vendor"`
 
 	/// User input
 

@@ -112,15 +112,23 @@ func (a *Application) prepareSync() error {
 func (a *Application) doSync() error {
 	// TODO: implement selective sync
 	// TODO: implement secrets-from-env extraction
-	// TODO: enforce usage of the vendor directory (chdir to it)
 
-	// Paths are relative to the application directory
-	vendirConfigFile := filepath.Join(a.e.k.ServiceDirName, a.e.k.VendirConfigFileName)
-	vendirLockFile := filepath.Join(a.e.k.ServiceDirName, a.e.k.VendirLockFileName)
+	// Paths are relative to the vendor directory (BUG: this will brake with multi-level vendor directory, e.g. `vendor/shmendor`)
+	vendirConfigFile := filepath.Join("..", a.e.k.ServiceDirName, a.e.k.VendirConfigFileName)
+	vendirLockFile := filepath.Join("..", a.e.k.ServiceDirName, a.e.k.VendirLockFileName)
+
+	vendorDir := a.expandPath(a.e.k.VendorDirName)
+	if _, err := os.Stat(vendorDir); err != nil {
+		err := os.MkdirAll(vendorDir, 0o755)
+		if err != nil {
+			log.Warn().Err(err).Msg("Unable to create vendor directory")
+			return err
+		}
+	}
 
 	res, err := runCmd("vendir", []string{
 		"sync",
-		"--chdir=" + a.expandPath(""),
+		"--chdir=" + vendorDir,
 		"--file=" + vendirConfigFile,
 		"--lock-file=" + vendirLockFile,
 	})
