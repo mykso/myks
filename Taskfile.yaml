@@ -47,5 +47,5 @@ tasks:
       - go:build
     cmds:
       - |
-        cd examples/project && \
+        cd examples/more-real && \
         ../../bin/{{.BIN_NAME}} {{.CLI_ARGS}}
