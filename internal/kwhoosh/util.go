@@ -12,14 +12,9 @@ type CmdResult struct {
 	Stderr string
 }
 
-// Process a list of files with ytt and return the result as a string
-func runYttWithFiles(paths []string) (CmdResult, error) {
-	args := []string{}
-	for _, path := range paths {
-		args = append(args, "--file="+path)
-	}
-	log.Debug().Interface("args", args).Msg("ytt args")
-	cmd := exec.Command("ytt", args...)
+func runCmd(name string, args []string) (CmdResult, error) {
+	log.Debug().Str("cmd", name).Interface("args", args).Msg("Running command")
+	cmd := exec.Command(name, args...)
 
 	var stdoutBs, stderrBs bytes.Buffer
 	cmd.Stdout = &stdoutBs
@@ -31,6 +26,15 @@ func runYttWithFiles(paths []string) (CmdResult, error) {
 		Stdout: stdoutBs.String(),
 		Stderr: stderrBs.String(),
 	}, err
+}
+
+// Process a list of files with ytt and return the result as a string
+func runYttWithFiles(paths []string) (CmdResult, error) {
+	args := []string{}
+	for _, path := range paths {
+		args = append(args, "--file="+path)
+	}
+	return runCmd("ytt", args)
 }
 
 func contains(list []string, item string) bool {
