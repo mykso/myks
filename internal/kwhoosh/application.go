@@ -144,6 +144,7 @@ func (a *Application) doSync() error {
 		}
 	}
 
+	log.Info().Str("app", a.Name).Msg("Syncing vendir")
 	res, err := runCmd("vendir", []string{
 		"sync",
 		"--chdir=" + vendorDir,
