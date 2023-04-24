@@ -88,7 +88,7 @@ func (a *Application) prepareSync() error {
 	}
 
 	// TODO: rename `rendered` to `.kwhoosh` ?
-	vendirConfigFilePath := filepath.Join(a.e.Dir, "_apps", a.Name, a.e.k.ServiceDirName, a.e.k.VendirConfigFileName)
+	vendirConfigFilePath := a.expandServicePath(a.e.k.VendirConfigFileName)
 	// Create directory if it does not exist
 	err = os.MkdirAll(filepath.Dir(vendirConfigFilePath), 0o755)
 	if err != nil {
@@ -103,4 +103,12 @@ func (a *Application) prepareSync() error {
 	log.Debug().Str("file", vendirConfigFilePath).Msg("Wrote vendir config file")
 
 	return nil
+}
+
+func (a *Application) expandPath(path string) string {
+	return filepath.Join(a.e.Dir, "_apps", a.Name, path)
+}
+
+func (a *Application) expandServicePath(path string) string {
+	return filepath.Join(a.e.Dir, "_apps", a.Name, a.e.k.ServiceDirName, path)
 }
