@@ -16,7 +16,7 @@ func init() {
 			log.Info().Msg("Syncing vendir configs")
 			kwh := kwhoosh.New(".")
 
-			if err := kwh.Init(nil, nil); err != nil {
+			if err := kwh.Init(targetEnvironments, targetApplications); err != nil {
 				log.Fatal().Err(err).Msg("Unable to initialize kwhoosh")
 			}
 
