@@ -46,6 +46,11 @@ func (a *Application) Sync() error {
 	if err := a.prepareSync(); err != nil {
 		return err
 	}
+
+	if err := a.doSync(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -101,6 +106,29 @@ func (a *Application) prepareSync() error {
 		return err
 	}
 	log.Debug().Str("file", vendirConfigFilePath).Msg("Wrote vendir config file")
+
+	return nil
+}
+
+func (a *Application) doSync() error {
+	// TODO: implement selective sync
+	// TODO: implement secrets-from-env extraction
+	// TODO: enforce usage of the vendor directory (chdir to it)
+
+	// Paths are relative to the application directory
+	vendirConfigFile := filepath.Join(a.e.k.ServiceDirName, a.e.k.VendirConfigFileName)
+	vendirLockFile := filepath.Join(a.e.k.ServiceDirName, a.e.k.VendirLockFileName)
+
+	res, err := runCmd("vendir", []string{
+		"sync",
+		"--chdir=" + a.expandPath(""),
+		"--file=" + vendirConfigFile,
+		"--lock-file=" + vendirLockFile,
+	})
+	if err != nil {
+		log.Warn().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg("Unable to sync vendir")
+		return err
+	}
 
 	return nil
 }
