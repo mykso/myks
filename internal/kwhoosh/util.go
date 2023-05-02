@@ -29,12 +29,13 @@ func runCmd(name string, args []string) (CmdResult, error) {
 }
 
 // Process a list of files with ytt and return the result as a string
-func runYttWithFiles(paths []string) (CmdResult, error) {
-	args := []string{}
+func runYttWithFiles(paths []string, args ...string) (CmdResult, error) {
+	cmdArgs := []string{}
 	for _, path := range paths {
-		args = append(args, "--file="+path)
+		cmdArgs = append(cmdArgs, "--file="+path)
 	}
-	return runCmd("ytt", args)
+	cmdArgs = append(cmdArgs, args...)
+	return runCmd("ytt", cmdArgs)
 }
 
 func contains(list []string, item string) bool {
