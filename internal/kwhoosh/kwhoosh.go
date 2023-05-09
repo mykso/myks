@@ -28,6 +28,8 @@ type Kwhoosh struct {
 
 	// Service directory name
 	ServiceDirName string `default:".kwhoosh"`
+	// Temporary directory name
+	TempDirName string `default:"tmp"`
 	// Application data file name
 	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
 	// Environment data file name
@@ -42,6 +44,8 @@ type Kwhoosh struct {
 	VendirLockFileName string `default:"vendir.lock.yaml"`
 	// Downloaded third-party sources
 	VendorDirName string `default:"vendor"`
+	// Helm charts directory name
+	HelmChartsDirName string `default:"charts"`
 
 	/// User input
 

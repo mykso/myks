@@ -1,10 +1,10 @@
 package cmd
 
 import (
-	"kwhoosh/internal/kwhoosh"
-
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+
+	"kwhoosh/internal/kwhoosh"
 )
 
 func init() {

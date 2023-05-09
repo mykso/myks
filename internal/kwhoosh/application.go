@@ -2,10 +2,13 @@ package kwhoosh
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rs/zerolog/log"
+	yaml "gopkg.in/yaml.v3"
 )
 
 type Application struct {
@@ -15,6 +18,14 @@ type Application struct {
 	Prototype string
 	// Environment
 	e *Environment
+	// YTT data files
+	yttDataFiles []string
+}
+
+type HelmConfig struct {
+	Namespace   string
+	KubeVersion string
+	IncludeCRDs bool
 }
 
 func NewApplication(e *Environment, name string, prototypeName string) (*Application, error) {
@@ -60,18 +71,28 @@ func (a *Application) Render() error {
 	//    - application prototype data file: `prototypes/<prototype>/app-data.ytt.yaml`
 	//    - application data files: `envs/**/_apps/<app>/add-data.ytt.yaml`
 
-	dataFiles := []string{}
+	a.collectDataFiles()
+	log.Debug().Strs("files", a.yttDataFiles).Msg("Collected ytt data files")
 
-	dataFiles = append(dataFiles, a.e.collectBySubpath(a.e.k.EnvironmentDataFileName)...)
+	// 2. Run built-in rendering steps:
+	//   a. helm
+	//   b. ytt
+	//   c. global ytt
+	//   d. format
+	//   e. kube-slice
 
-	protoDataFile := filepath.Join(a.Prototype, a.e.k.ApplicationDataFileName)
-	if _, err := os.Stat(protoDataFile); err == nil {
-		dataFiles = append(dataFiles, protoDataFile)
+	outputYaml, err := a.runHelm()
+	if err != nil {
+		return err
 	}
 
-	dataFiles = append(dataFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.k.ApplicationDataFileName))...)
+	_, err = a.storeStepResult(outputYaml, "helm", 1)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to store helm step result")
+		return err
+	}
 
-	log.Debug().Strs("files", dataFiles).Msg("Collected ytt data files")
+	// 3. Run custom rendering steps: TODO
 
 	return nil
 }
@@ -165,4 +186,233 @@ func (a *Application) expandPath(path string) string {
 
 func (a *Application) expandServicePath(path string) string {
 	return filepath.Join(a.e.Dir, "_apps", a.Name, a.e.k.ServiceDirName, path)
+}
+
+func (a *Application) expandTempPath(path string) string {
+	return a.expandServicePath(filepath.Join(a.e.k.TempDirName, path))
+}
+
+func (a *Application) writeFile(path string, content string) error {
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); err != nil {
+		err := os.MkdirAll(dir, 0o755)
+		if err != nil {
+			log.Warn().Err(err).Msg("Unable to create directory")
+			return err
+		}
+	}
+
+	return os.WriteFile(path, []byte(content), 0o644)
+}
+
+func (a *Application) writeServiceFile(name string, content string) error {
+	return a.writeFile(a.expandServicePath(name), content)
+}
+
+func (a *Application) writeTempFile(name string, content string) error {
+	return a.writeFile(a.expandTempPath(name), content)
+}
+
+func (a *Application) collectDataFiles() {
+	environmentDataFiles := a.e.collectBySubpath(a.e.k.EnvironmentDataFileName)
+	a.yttDataFiles = append(a.yttDataFiles, environmentDataFiles...)
+
+	protoDataFile := filepath.Join(a.Prototype, a.e.k.ApplicationDataFileName)
+	if _, err := os.Stat(protoDataFile); err == nil {
+		a.yttDataFiles = append(a.yttDataFiles, protoDataFile)
+	}
+
+	overrideDataFiles := a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.k.ApplicationDataFileName))
+	a.yttDataFiles = append(a.yttDataFiles, overrideDataFiles...)
+}
+
+func (a *Application) runHelm() (string, error) {
+	chartDirs := a.getHelmChartDirs()
+	if len(chartDirs) == 0 {
+		log.Debug().Str("app", a.Name).Msg("No charts to process")
+		return "", nil
+	}
+
+	helmConfig, err := a.getHelmConfig()
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to get helm config")
+		return "", err
+	}
+
+	commonHelmArgs := []string{}
+
+	// FIXME: move Namespace to a per-chart config
+	if helmConfig.Namespace != "" {
+		commonHelmArgs = append(commonHelmArgs, "--namespace", helmConfig.Namespace)
+	}
+
+	if helmConfig.KubeVersion != "" {
+		commonHelmArgs = append(commonHelmArgs, "--kube-version", helmConfig.KubeVersion)
+	}
+
+	// FIXME: move IncludeCRDs to a per-chart config
+	if helmConfig.IncludeCRDs {
+		commonHelmArgs = append(commonHelmArgs, "--include-crds")
+	}
+
+	outputs := []string{}
+
+	for _, chartDir := range chartDirs {
+		chartName := filepath.Base(chartDir)
+		if err := a.prepareHelm(chartName); err != nil {
+			log.Warn().Err(err).Str("app", a.Name).Msg("Unable to prepare helm values")
+			return "", err
+		}
+
+		// FIXME: replace a.Name with a name of the chart being processed
+		helmArgs := []string{
+			"template",
+			"--skip-tests",
+			chartName,
+			chartDir,
+			"--vaues", a.expandServicePath(a.getHelmValuesFileName(chartName)),
+		}
+
+		res, err := runCmd("helm", append(helmArgs, commonHelmArgs...))
+		if err != nil {
+			log.Warn().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg("Unable to run helm")
+			return "", err
+		}
+
+		if res.Stdout == "" {
+			log.Warn().Str("app", a.Name).Str("chart", chartName).Msg("No helm output")
+			continue
+		}
+
+		outputs = append(outputs, res.Stdout)
+
+	}
+
+	return strings.Join(outputs, "---\n"), nil
+}
+
+func (a *Application) getHelmChartsDir() (string, error) {
+	chartsDir := a.expandPath(filepath.Join(a.e.k.VendorDirName, a.e.k.HelmChartsDirName))
+	if _, err := os.Stat(chartsDir); err != nil {
+		if os.IsNotExist(err) {
+			log.Debug().Str("dir", chartsDir).Msg("Helm charts directory does not exist")
+			return "", nil
+		}
+		log.Warn().Err(err).Str("dir", chartsDir).Msg("Unable to stat helm charts directory")
+		return "", err
+	}
+
+	return chartsDir, nil
+}
+
+func (a *Application) getHelmChartDirs() []string {
+	chartsDir, err := a.getHelmChartsDir()
+	if err != nil || chartsDir == "" {
+		return []string{}
+	}
+
+	chartDirs := []string{}
+	err = filepath.Walk(chartsDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			log.Warn().Err(err).Str("path", path).Msg("Unable to walk helm charts directory")
+			return err
+		}
+
+		if info.IsDir() && path != chartsDir {
+			chartDirs = append(chartDirs, path)
+			return filepath.SkipDir
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Warn().Err(err).Msg("Unable to walk helm charts directory")
+		return []string{}
+	}
+
+	return chartDirs
+}
+
+// prepareHelm generates values.yaml file from ytt data files and ytt templates
+// from the `helm` directories of the prototype and the application.
+func (a *Application) prepareHelm(chartName string) error {
+	helmValuesFileName := a.getHelmValuesFileName(chartName)
+
+	helmYttFiles := []string{}
+
+	prototypeHelmValues := filepath.Join(a.Prototype, helmValuesFileName)
+	if _, err := os.Stat(prototypeHelmValues); err == nil {
+		helmYttFiles = append(helmYttFiles, prototypeHelmValues)
+	}
+
+	helmYttFiles = append(helmYttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, helmValuesFileName))...)
+
+	if len(helmYttFiles) == 0 {
+		log.Debug().Str("app", a.Name).Str("chart", chartName).Msg("No helm values templates found, helm values file will not be generated")
+		return nil
+	}
+
+	log.Debug().Strs("files", helmYttFiles).Str("app", a.Name).Str("chart", chartName).Msg("Collected helm values templates")
+
+	helmValuesYamls, err := runYttWithFiles(append(a.yttDataFiles, helmYttFiles...))
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render helm values templates")
+		return err
+	}
+
+	if helmValuesYamls.Stdout == "" {
+		log.Warn().Str("app", a.Name).Msg("Empty helm values")
+		return nil
+	}
+
+	err = a.writeTempFile(helmValuesFileName, helmValuesYamls.Stdout)
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to write helm values file")
+		return err
+	}
+
+	helmValues, err := runYttWithFiles(nil, "--data-values-file="+a.expandTempPath(helmValuesFileName), "--data-values-inspect")
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render helm values")
+		return err
+	}
+
+	if helmValues.Stdout == "" {
+		log.Warn().Str("app", a.Name).Msg("Empty helm values")
+		return nil
+	}
+
+	return a.writeServiceFile(helmValuesFileName, helmValues.Stdout)
+}
+
+func (a *Application) getHelmConfig() (HelmConfig, error) {
+	dataValuesYaml, err := runYttWithFiles(a.yttDataFiles, "--data-values-inspect")
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to inspect data values")
+		return HelmConfig{}, err
+	}
+
+	var helmConfig struct {
+		Helm HelmConfig
+	}
+	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &helmConfig)
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to unmarshal data values")
+		return HelmConfig{}, err
+	}
+
+	return helmConfig.Helm, nil
+}
+
+func (a *Application) getHelmValuesFileName(chartName string) string {
+	return filepath.Join("helm", chartName+".yaml")
+}
+
+// storeStepResult saves output of a step to a file in the application's temp directory.
+// Returns path to the file or an error.
+func (a *Application) storeStepResult(output string, stepName string, stepNumber uint) (string, error) {
+	fileName := filepath.Join("steps", fmt.Sprintf("%02d-%s.yaml", stepNumber, stepName))
+	file := a.expandTempPath(fileName)
+	return file, a.writeTempFile(fileName, output)
 }
