@@ -270,7 +270,13 @@ func (a *Application) runHelm() (string, error) {
 			"--skip-tests",
 			chartName,
 			chartDir,
-			"--vaues", a.expandServicePath(a.getHelmValuesFileName(chartName)),
+		}
+
+		helmValuesFile := a.expandServicePath(a.getHelmValuesFileName(chartName))
+		if _, err := os.Stat(helmValuesFile); err == nil {
+			helmArgs = append(helmArgs, "--values", helmValuesFile)
+		} else {
+			log.Debug().Str("app", a.Name).Str("chart", chartName).Msg("No helm values file")
 		}
 
 		res, err := runCmd("helm", append(helmArgs, commonHelmArgs...))
