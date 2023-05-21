@@ -35,7 +35,11 @@ func runYttWithFiles(paths []string, args ...string) (CmdResult, error) {
 		cmdArgs = append(cmdArgs, "--file="+path)
 	}
 	cmdArgs = append(cmdArgs, args...)
-	return runCmd("ytt", cmdArgs)
+	res, err := runCmd("ytt", cmdArgs)
+	if err != nil {
+		log.Warn().Str("cmd", "ytt").Interface("args", cmdArgs).Msg("Failed to run command\n" + res.Stderr)
+	}
+	return res, err
 }
 
 func contains(list []string, item string) bool {
