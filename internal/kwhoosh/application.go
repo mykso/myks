@@ -86,9 +86,20 @@ func (a *Application) Render() error {
 		return err
 	}
 
-	_, err = a.storeStepResult(outputYaml, "helm", 1)
+	helmStepOutputFile, err := a.storeStepResult(outputYaml, "helm", 1)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to store helm step result")
+		return err
+	}
+
+	outputYaml, err = a.runYtt(helmStepOutputFile)
+	if err != nil {
+		return err
+	}
+
+	_, err = a.storeStepResult(outputYaml, "ytt", 2)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to store ytt step result")
 		return err
 	}
 
@@ -413,6 +424,43 @@ func (a *Application) getHelmConfig() (HelmConfig, error) {
 
 func (a *Application) getHelmValuesFileName(chartName string) string {
 	return filepath.Join("helm", chartName+".yaml")
+}
+
+func (a *Application) runYtt(previousStepFile string) (string, error) {
+	yttFiles := []string{}
+
+	yttFiles = append(yttFiles, a.yttDataFiles...)
+
+	if previousStepFile != "" {
+		yttFiles = append(yttFiles, previousStepFile)
+	}
+
+	prototypeYttDir := filepath.Join(a.Prototype, "ytt")
+	if _, err := os.Stat(prototypeYttDir); err == nil {
+		yttFiles = append(yttFiles, prototypeYttDir)
+	}
+
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, "ytt"))...)
+
+	if len(yttFiles) == 0 {
+		log.Debug().Str("app", a.Name).Msg("No ytt files found")
+		return "", nil
+	}
+
+	log.Debug().Strs("files", yttFiles).Str("app", a.Name).Msg("Collected ytt files")
+
+	yttOutput, err := runYttWithFiles(yttFiles)
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render ytt files")
+		return "", err
+	}
+
+	if yttOutput.Stdout == "" {
+		log.Warn().Str("app", a.Name).Msg("Empty ytt output")
+		return "", nil
+	}
+
+	return yttOutput.Stdout, nil
 }
 
 // storeStepResult saves output of a step to a file in the application's temp directory.
