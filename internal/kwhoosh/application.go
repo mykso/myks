@@ -97,7 +97,7 @@ func (a *Application) Render() error {
 		return err
 	}
 
-	_, err = a.storeStepResult(outputYaml, "ytt", 2)
+	_, err = a.storeStepResult(outputYaml, a.e.k.YttStepDirName, 2)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to store ytt step result")
 		return err
@@ -435,12 +435,12 @@ func (a *Application) runYtt(previousStepFile string) (string, error) {
 		yttFiles = append(yttFiles, previousStepFile)
 	}
 
-	prototypeYttDir := filepath.Join(a.Prototype, "ytt")
+	prototypeYttDir := filepath.Join(a.Prototype, a.e.k.YttStepDirName)
 	if _, err := os.Stat(prototypeYttDir); err == nil {
 		yttFiles = append(yttFiles, prototypeYttDir)
 	}
 
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, "ytt"))...)
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.k.YttStepDirName))...)
 
 	if len(yttFiles) == 0 {
 		log.Debug().Str("app", a.Name).Msg("No ytt files found")

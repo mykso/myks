@@ -46,6 +46,8 @@ type Kwhoosh struct {
 	VendorDirName string `default:"vendor"`
 	// Helm charts directory name
 	HelmChartsDirName string `default:"charts"`
+	// Ytt step directory name
+	YttStepDirName string `default:"ytt"`
 
 	/// User input
 
