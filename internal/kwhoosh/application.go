@@ -104,6 +104,7 @@ func (a *Application) Render() error {
 	}
 
 	// 3. Run custom rendering steps: TODO
+	// 4. Render ArgoCD resources: TODO
 
 	return nil
 }
