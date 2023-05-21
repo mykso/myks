@@ -97,9 +97,20 @@ func (a *Application) Render() error {
 		return err
 	}
 
-	_, err = a.storeStepResult(outputYaml, a.e.k.YttStepDirName, 2)
+	yttStepOutputFile, err := a.storeStepResult(outputYaml, a.e.k.YttStepDirName, 2)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to store ytt step result")
+		return err
+	}
+
+	outputYaml, err = a.runGlobalYtt(yttStepOutputFile)
+	if err != nil {
+		return err
+	}
+
+	_, err = a.storeStepResult(outputYaml, "global.ytt", 3)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to store global ytt step result")
 		return err
 	}
 
@@ -442,6 +453,38 @@ func (a *Application) runYtt(previousStepFile string) (string, error) {
 	}
 
 	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.k.YttStepDirName))...)
+
+	if len(yttFiles) == 0 {
+		log.Debug().Str("app", a.Name).Msg("No ytt files found")
+		return "", nil
+	}
+
+	log.Debug().Strs("files", yttFiles).Str("app", a.Name).Msg("Collected ytt files")
+
+	yttOutput, err := a.e.k.ytt(yttFiles)
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render ytt files")
+		return "", err
+	}
+
+	if yttOutput.Stdout == "" {
+		log.Warn().Str("app", a.Name).Msg("Empty ytt output")
+		return "", nil
+	}
+
+	return yttOutput.Stdout, nil
+}
+
+func (a *Application) runGlobalYtt(previousStepFile string) (string, error) {
+	yttFiles := []string{}
+
+	yttFiles = append(yttFiles, a.yttDataFiles...)
+
+	if previousStepFile != "" {
+		yttFiles = append(yttFiles, previousStepFile)
+	}
+
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_env", a.e.k.YttStepDirName))...)
 
 	if len(yttFiles) == 0 {
 		log.Debug().Str("app", a.Name).Msg("No ytt files found")
