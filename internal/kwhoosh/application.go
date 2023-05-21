@@ -130,7 +130,7 @@ func (a *Application) prepareSync() error {
 		return err
 	}
 
-	vendirConfig, err := runYttWithFiles(yttFiles)
+	vendirConfig, err := a.e.k.ytt(yttFiles)
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render vendir config")
 		return err
@@ -372,7 +372,7 @@ func (a *Application) prepareHelm(chartName string) error {
 
 	log.Debug().Strs("files", helmYttFiles).Str("app", a.Name).Str("chart", chartName).Msg("Collected helm values templates")
 
-	helmValuesYamls, err := runYttWithFiles(append(a.yttDataFiles, helmYttFiles...))
+	helmValuesYamls, err := a.e.k.ytt(append(a.yttDataFiles, helmYttFiles...))
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render helm values templates")
 		return err
@@ -389,7 +389,7 @@ func (a *Application) prepareHelm(chartName string) error {
 		return err
 	}
 
-	helmValues, err := runYttWithFiles(nil, "--data-values-file="+a.expandTempPath(helmValuesFileName), "--data-values-inspect")
+	helmValues, err := a.e.k.ytt(nil, "--data-values-file="+a.expandTempPath(helmValuesFileName), "--data-values-inspect")
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render helm values")
 		return err
@@ -404,7 +404,7 @@ func (a *Application) prepareHelm(chartName string) error {
 }
 
 func (a *Application) getHelmConfig() (HelmConfig, error) {
-	dataValuesYaml, err := runYttWithFiles(a.yttDataFiles, "--data-values-inspect")
+	dataValuesYaml, err := a.e.k.ytt(a.yttDataFiles, "--data-values-inspect")
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to inspect data values")
 		return HelmConfig{}, err
@@ -449,7 +449,7 @@ func (a *Application) runYtt(previousStepFile string) (string, error) {
 
 	log.Debug().Strs("files", yttFiles).Str("app", a.Name).Msg("Collected ytt files")
 
-	yttOutput, err := runYttWithFiles(yttFiles)
+	yttOutput, err := a.e.k.ytt(yttFiles)
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render ytt files")
 		return "", err

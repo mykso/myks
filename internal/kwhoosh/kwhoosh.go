@@ -48,6 +48,8 @@ type Kwhoosh struct {
 	HelmChartsDirName string `default:"charts"`
 	// Ytt step directory name
 	YttStepDirName string `default:"ytt"`
+	// Ytt library directory name
+	YttLibraryDirName string `default:"lib"`
 
 	/// User input
 
@@ -60,6 +62,9 @@ type Kwhoosh struct {
 
 	// Collected environments for processing
 	environments map[string]*Environment
+
+	// Extra ytt file paths
+	extraYttPaths []string
 }
 
 func New(rootDir string) *Kwhoosh {
@@ -70,6 +75,12 @@ func New(rootDir string) *Kwhoosh {
 	if err := defaults.Set(k); err != nil {
 		log.Fatal().Err(err).Msg("Unable to set defaults")
 	}
+
+	yttLibraryDir := filepath.Join(k.RootDir, k.YttLibraryDirName)
+	if _, err := os.Stat(yttLibraryDir); err == nil {
+		k.extraYttPaths = append(k.extraYttPaths, yttLibraryDir)
+	}
+
 	log.Debug().Interface("kwhoosh", k).Msg("Kwhoosh config")
 	return k
 }
@@ -140,4 +151,8 @@ func (k *Kwhoosh) collectEnvironmentsInPath(searchPath string) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Unable to walk environment directories")
 	}
+}
+
+func (k *Kwhoosh) ytt(paths []string, args ...string) (CmdResult, error) {
+	return runYttWithFiles(append(k.extraYttPaths, paths...), args...)
 }
