@@ -19,6 +19,8 @@ type Kwhoosh struct {
 	EnvironmentBaseDir string `default:"envs"`
 	// Application prototypes directory
 	PrototypesDir string `default:"prototypes"`
+	// Rendered kubernetes manifests directory
+	RenderedDir string `default:"rendered"`
 	// Prefix for kubernetes namespaces
 	NamespacePrefix string `default:""`
 	// ArgoCD namespace

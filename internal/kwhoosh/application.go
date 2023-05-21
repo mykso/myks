@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -78,8 +79,6 @@ func (a *Application) Render() error {
 	//   a. helm
 	//   b. ytt
 	//   c. global ytt
-	//   d. format
-	//   e. kube-slice
 
 	outputYaml, err := a.runHelm()
 	if err != nil {
@@ -108,14 +107,22 @@ func (a *Application) Render() error {
 		return err
 	}
 
-	_, err = a.storeStepResult(outputYaml, "global.ytt", 3)
+	globalYttStepOutputFile, err := a.storeStepResult(outputYaml, "global.ytt", 3)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to store global ytt step result")
 		return err
 	}
 
 	// 3. Run custom rendering steps: TODO
-	// 4. Render ArgoCD resources: TODO
+
+	// 4. Run kube-slice and format
+
+	err = a.runSliceFormatStore(globalYttStepOutputFile)
+	if err != nil {
+		return err
+	}
+
+	// 5. Render ArgoCD resources: TODO
 
 	return nil
 }
@@ -507,10 +514,81 @@ func (a *Application) runGlobalYtt(previousStepFile string) (string, error) {
 	return yttOutput.Stdout, nil
 }
 
+func (a *Application) runSliceFormatStore(previousStepFile string) error {
+	data, err := os.ReadFile(filepath.Clean(previousStepFile))
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Str("file", previousStepFile).Msg("Unable to read previous step file")
+		return err
+	}
+
+	destinationDir := filepath.Join(a.e.k.RootDir, a.e.k.RenderedDir, "envs", a.e.Id, a.Name)
+
+	// Cleanup the destination directory before writing new files
+	err = os.RemoveAll(destinationDir)
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Str("dir", destinationDir).Msg("Unable to remove destination directory")
+		return err
+	}
+	err = os.MkdirAll(destinationDir, os.ModePerm)
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Str("dir", destinationDir).Msg("Unable to create destination directory")
+		return err
+	}
+
+	// Split the document into individual YAML documents
+	rgx := regexp.MustCompile(`(?m)^---\n`)
+	documents := rgx.Split(string(data), -1)
+
+	for _, document := range documents {
+		if document == "" {
+			continue
+		}
+
+		var obj map[string]interface{}
+		err := yaml.Unmarshal([]byte(document), &obj)
+		if err != nil {
+			log.Warn().Err(err).Str("app", a.Name).Str("file", previousStepFile).Msg("Unable to unmarshal yaml")
+			return err
+		}
+		data, err := yaml.Marshal(obj)
+		if err != nil {
+			log.Warn().Err(err).Str("app", a.Name).Str("file", previousStepFile).Msg("Unable to marshal yaml")
+			return err
+		}
+
+		fileName := genRenderedResourceFileName(obj)
+		filePath := filepath.Join(destinationDir, fileName)
+		// FIXME: If a file already exists, we should merge the two documents (probably).
+		//        For now, we just overwrite the file and log a warning.
+		if _, err := os.Stat(filePath); err == nil {
+			log.Warn().Str("app", a.Name).Str("file", filePath).Msg("File already exists, check duplicated resources")
+		}
+		err = a.writeFile(filePath, string(data))
+		if err != nil {
+			log.Warn().Err(err).Str("app", a.Name).Str("file", filePath).Msg("Unable to write file")
+			return err
+		}
+	}
+	return nil
+}
+
 // storeStepResult saves output of a step to a file in the application's temp directory.
 // Returns path to the file or an error.
 func (a *Application) storeStepResult(output string, stepName string, stepNumber uint) (string, error) {
 	fileName := filepath.Join("steps", fmt.Sprintf("%02d-%s.yaml", stepNumber, stepName))
 	file := a.expandTempPath(fileName)
 	return file, a.writeTempFile(fileName, output)
+}
+
+// Generates a file name for each document using kind and name if available
+func genRenderedResourceFileName(resource map[string]interface{}) string {
+	kind := "NO_KIND"
+	if k, ok := resource["kind"]; ok {
+		kind = k.(string)
+	}
+	name := "NO_NAME"
+	if n, ok := resource["metadata"].(map[string]interface{})["name"]; ok {
+		name = n.(string)
+	}
+	return fmt.Sprintf("%s-%s.yaml", strings.ToLower(kind), strings.ToLower(name))
 }
