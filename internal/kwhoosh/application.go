@@ -97,7 +97,7 @@ func (a *Application) Render() error {
 		return err
 	}
 
-	yttStepOutputFile, err := a.storeStepResult(outputYaml, a.e.k.YttStepDirName, 2)
+	yttStepOutputFile, err := a.storeStepResult(outputYaml, "ytt", 2)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to store ytt step result")
 		return err
