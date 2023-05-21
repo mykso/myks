@@ -167,12 +167,12 @@ func (e *Environment) renderManifest(manifestFiles []string) (manifestYaml []byt
 
 func (e *Environment) saveRenderedManifest(manifestYaml []byte) error {
 	dir := filepath.Dir(e.renderedManifestFilePath)
-	err := os.MkdirAll(dir, 0o755)
+	err := os.MkdirAll(dir, 0o750)
 	if err != nil {
 		log.Error().Err(err).Str("dir", dir).Msg("Unable to create directory for rendered manifest file")
 		return err
 	}
-	err = os.WriteFile(e.renderedManifestFilePath, manifestYaml, 0o644)
+	err = os.WriteFile(e.renderedManifestFilePath, manifestYaml, 0o600)
 	if err != nil {
 		log.Error().Err(err).Msg("Unable to write rendered manifest file")
 		return err

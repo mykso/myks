@@ -144,12 +144,12 @@ func (a *Application) prepareSync() error {
 
 	vendirConfigFilePath := a.expandServicePath(a.e.k.VendirConfigFileName)
 	// Create directory if it does not exist
-	err = os.MkdirAll(filepath.Dir(vendirConfigFilePath), 0o755)
+	err = os.MkdirAll(filepath.Dir(vendirConfigFilePath), 0o750)
 	if err != nil {
 		log.Warn().Err(err).Msg("Unable to create directory for vendir config file")
 		return err
 	}
-	err = os.WriteFile(vendirConfigFilePath, []byte(vendirConfig.Stdout), 0o644)
+	err = os.WriteFile(vendirConfigFilePath, []byte(vendirConfig.Stdout), 0o600)
 	if err != nil {
 		log.Warn().Err(err).Msg("Unable to write vendir config file")
 		return err
@@ -169,7 +169,7 @@ func (a *Application) doSync() error {
 
 	vendorDir := a.expandPath(a.e.k.VendorDirName)
 	if _, err := os.Stat(vendorDir); err != nil {
-		err := os.MkdirAll(vendorDir, 0o755)
+		err := os.MkdirAll(vendorDir, 0o750)
 		if err != nil {
 			log.Warn().Err(err).Msg("Unable to create vendor directory")
 			return err
@@ -206,14 +206,14 @@ func (a *Application) expandTempPath(path string) string {
 func (a *Application) writeFile(path string, content string) error {
 	dir := filepath.Dir(path)
 	if _, err := os.Stat(dir); err != nil {
-		err := os.MkdirAll(dir, 0o755)
+		err := os.MkdirAll(dir, 0o750)
 		if err != nil {
 			log.Warn().Err(err).Msg("Unable to create directory")
 			return err
 		}
 	}
 
-	return os.WriteFile(path, []byte(content), 0o644)
+	return os.WriteFile(path, []byte(content), 0o600)
 }
 
 func (a *Application) writeServiceFile(name string, content string) error {
