@@ -1,6 +1,7 @@
 package kwhoosh
 
 import (
+	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -25,6 +26,8 @@ type Kwhoosh struct {
 	NamespacePrefix string `default:""`
 	// ArgoCD namespace
 	ArgoCDNamespace string `default:"argocd"`
+	// ArgoCD project prefix
+	ArgoCDProjectPrefix string `default:"env-"`
 
 	/// Kwhoosh constants
 
@@ -156,5 +159,9 @@ func (k *Kwhoosh) collectEnvironmentsInPath(searchPath string) {
 }
 
 func (k *Kwhoosh) ytt(paths []string, args ...string) (CmdResult, error) {
-	return runYttWithFiles(append(k.extraYttPaths, paths...), args...)
+	return k.yttS(paths, nil, args...)
+}
+
+func (k *Kwhoosh) yttS(paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
+	return runYttWithFilesAndStdin(append(k.extraYttPaths, paths...), stdin, args...)
 }

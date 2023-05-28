@@ -2,6 +2,7 @@ package kwhoosh
 
 import (
 	"bytes"
+	"io"
 	"os/exec"
 
 	"github.com/rs/zerolog/log"
@@ -12,9 +13,13 @@ type CmdResult struct {
 	Stderr string
 }
 
-func runCmd(name string, args []string) (CmdResult, error) {
+func runCmd(name string, stdin io.Reader, args []string) (CmdResult, error) {
 	log.Debug().Str("cmd", name).Interface("args", args).Msg("Running command")
 	cmd := exec.Command(name, args...)
+
+	if stdin != nil {
+		cmd.Stdin = stdin
+	}
 
 	var stdoutBs, stderrBs bytes.Buffer
 	cmd.Stdout = &stdoutBs
@@ -28,17 +33,22 @@ func runCmd(name string, args []string) (CmdResult, error) {
 	}, err
 }
 
-// Process a list of files with ytt and return the result as a string
-func runYttWithFiles(paths []string, args ...string) (CmdResult, error) {
+func runYttWithFilesAndStdin(paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
+	if stdin != nil {
+		paths = append(paths, "-")
+	}
+
 	cmdArgs := []string{}
 	for _, path := range paths {
 		cmdArgs = append(cmdArgs, "--file="+path)
 	}
+
 	cmdArgs = append(cmdArgs, args...)
-	res, err := runCmd("ytt", cmdArgs)
+	res, err := runCmd("ytt", stdin, cmdArgs)
 	if err != nil {
 		log.Warn().Str("cmd", "ytt").Interface("args", cmdArgs).Msg("Failed to run command\n" + res.Stderr)
 	}
+
 	return res, err
 }
 
