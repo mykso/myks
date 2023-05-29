@@ -4,7 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"kwhoosh/internal/kwhoosh"
+	"bruh/internal/bruh"
 )
 
 func init() {
@@ -14,13 +14,13 @@ func init() {
 		Long:  "Sync vendir configs",
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Info().Msg("Syncing vendir configs")
-			kwh := kwhoosh.New(".")
+			g := bruh.New(".")
 
-			if err := kwh.Init(targetEnvironments, targetApplications); err != nil {
-				log.Fatal().Err(err).Msg("Unable to initialize kwhoosh")
+			if err := g.Init(targetEnvironments, targetApplications); err != nil {
+				log.Fatal().Err(err).Msg("Unable to initialize bruh's globe")
 			}
 
-			if err := kwh.Sync(); err != nil {
+			if err := g.Sync(); err != nil {
 				log.Fatal().Err(err).Msg("Unable to sync vendir configs")
 			}
 		},

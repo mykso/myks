@@ -1,11 +1,11 @@
 # https://taskfile.dev
-
+---
 version: "3"
 
 silent: true
 
 vars:
-  BIN_NAME: "kwhoosh"
+  BIN_NAME: "bruh"
 
 tasks:
   default: ${GOTASK_BIN:-task} --list

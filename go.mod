@@ -1,4 +1,4 @@
-module kwhoosh
+module bruh
 
 go 1.20
 

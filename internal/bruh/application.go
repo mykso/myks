@@ -1,4 +1,4 @@
-package kwhoosh
+package bruh
 
 import (
 	"errors"
@@ -34,7 +34,7 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 		prototypeName = name
 	}
 
-	prototype := filepath.Join(e.k.PrototypesDir, prototypeName)
+	prototype := filepath.Join(e.g.PrototypesDir, prototypeName)
 
 	if _, err := os.Stat(prototype); err != nil {
 		return nil, errors.New("Application prototype does not exist")
@@ -147,7 +147,7 @@ func (a *Application) prepareSync() error {
 		return err
 	}
 
-	vendirConfig, err := a.e.k.ytt(yttFiles)
+	vendirConfig, err := a.e.g.ytt(yttFiles)
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render vendir config")
 		return err
@@ -159,7 +159,7 @@ func (a *Application) prepareSync() error {
 		return err
 	}
 
-	vendirConfigFilePath := a.expandServicePath(a.e.k.VendirConfigFileName)
+	vendirConfigFilePath := a.expandServicePath(a.e.g.VendirConfigFileName)
 	// Create directory if it does not exist
 	err = os.MkdirAll(filepath.Dir(vendirConfigFilePath), 0o750)
 	if err != nil {
@@ -181,10 +181,10 @@ func (a *Application) doSync() error {
 	// TODO: implement secrets-from-env extraction
 
 	// Paths are relative to the vendor directory (BUG: this will brake with multi-level vendor directory, e.g. `vendor/shmendor`)
-	vendirConfigFile := filepath.Join("..", a.e.k.ServiceDirName, a.e.k.VendirConfigFileName)
-	vendirLockFile := filepath.Join("..", a.e.k.ServiceDirName, a.e.k.VendirLockFileName)
+	vendirConfigFile := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirConfigFileName)
+	vendirLockFile := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
 
-	vendorDir := a.expandPath(a.e.k.VendorDirName)
+	vendorDir := a.expandPath(a.e.g.VendorDirName)
 	if _, err := os.Stat(vendorDir); err != nil {
 		err := os.MkdirAll(vendorDir, 0o750)
 		if err != nil {
@@ -213,11 +213,11 @@ func (a *Application) expandPath(path string) string {
 }
 
 func (a *Application) expandServicePath(path string) string {
-	return filepath.Join(a.e.Dir, "_apps", a.Name, a.e.k.ServiceDirName, path)
+	return filepath.Join(a.e.Dir, "_apps", a.Name, a.e.g.ServiceDirName, path)
 }
 
 func (a *Application) expandTempPath(path string) string {
-	return a.expandServicePath(filepath.Join(a.e.k.TempDirName, path))
+	return a.expandServicePath(filepath.Join(a.e.g.TempDirName, path))
 }
 
 // TODO: for content, use []byte instead of string
@@ -243,15 +243,15 @@ func (a *Application) writeTempFile(name string, content string) error {
 }
 
 func (a *Application) collectDataFiles() {
-	environmentDataFiles := a.e.collectBySubpath(a.e.k.EnvironmentDataFileName)
+	environmentDataFiles := a.e.collectBySubpath(a.e.g.EnvironmentDataFileName)
 	a.yttDataFiles = append(a.yttDataFiles, environmentDataFiles...)
 
-	protoDataFile := filepath.Join(a.Prototype, a.e.k.ApplicationDataFileName)
+	protoDataFile := filepath.Join(a.Prototype, a.e.g.ApplicationDataFileName)
 	if _, err := os.Stat(protoDataFile); err == nil {
 		a.yttDataFiles = append(a.yttDataFiles, protoDataFile)
 	}
 
-	overrideDataFiles := a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.k.ApplicationDataFileName))
+	overrideDataFiles := a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.ApplicationDataFileName))
 	a.yttDataFiles = append(a.yttDataFiles, overrideDataFiles...)
 }
 
@@ -327,7 +327,7 @@ func (a *Application) runHelm() (string, error) {
 }
 
 func (a *Application) getHelmChartsDir() (string, error) {
-	chartsDir := a.expandPath(filepath.Join(a.e.k.VendorDirName, a.e.k.HelmChartsDirName))
+	chartsDir := a.expandPath(filepath.Join(a.e.g.VendorDirName, a.e.g.HelmChartsDirName))
 	if _, err := os.Stat(chartsDir); err != nil {
 		if os.IsNotExist(err) {
 			log.Debug().Str("dir", chartsDir).Msg("Helm charts directory does not exist")
@@ -390,7 +390,7 @@ func (a *Application) prepareHelm(chartName string) error {
 
 	log.Debug().Strs("files", helmYttFiles).Str("app", a.Name).Str("chart", chartName).Msg("Collected helm values templates")
 
-	helmValuesYamls, err := a.e.k.ytt(append(a.yttDataFiles, helmYttFiles...))
+	helmValuesYamls, err := a.e.g.ytt(append(a.yttDataFiles, helmYttFiles...))
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render helm values templates")
 		return err
@@ -407,7 +407,7 @@ func (a *Application) prepareHelm(chartName string) error {
 		return err
 	}
 
-	helmValues, err := a.e.k.ytt(nil, "--data-values-file="+a.expandTempPath(helmValuesFileName), "--data-values-inspect")
+	helmValues, err := a.e.g.ytt(nil, "--data-values-file="+a.expandTempPath(helmValuesFileName), "--data-values-inspect")
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render helm values")
 		return err
@@ -422,7 +422,7 @@ func (a *Application) prepareHelm(chartName string) error {
 }
 
 func (a *Application) getHelmConfig() (HelmConfig, error) {
-	dataValuesYaml, err := a.e.k.ytt(a.yttDataFiles, "--data-values-inspect")
+	dataValuesYaml, err := a.e.g.ytt(a.yttDataFiles, "--data-values-inspect")
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to inspect data values")
 		return HelmConfig{}, err
@@ -453,12 +453,12 @@ func (a *Application) runYtt(previousStepFile string) (string, error) {
 		yttFiles = append(yttFiles, previousStepFile)
 	}
 
-	prototypeYttDir := filepath.Join(a.Prototype, a.e.k.YttStepDirName)
+	prototypeYttDir := filepath.Join(a.Prototype, a.e.g.YttStepDirName)
 	if _, err := os.Stat(prototypeYttDir); err == nil {
 		yttFiles = append(yttFiles, prototypeYttDir)
 	}
 
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.k.YttStepDirName))...)
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.YttStepDirName))...)
 
 	if len(yttFiles) == 0 {
 		log.Debug().Str("app", a.Name).Msg("No ytt files found")
@@ -467,7 +467,7 @@ func (a *Application) runYtt(previousStepFile string) (string, error) {
 
 	log.Debug().Strs("files", yttFiles).Str("app", a.Name).Msg("Collected ytt files")
 
-	yttOutput, err := a.e.k.ytt(yttFiles)
+	yttOutput, err := a.e.g.ytt(yttFiles)
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render ytt files")
 		return "", err
@@ -490,7 +490,7 @@ func (a *Application) runGlobalYtt(previousStepFile string) (string, error) {
 		yttFiles = append(yttFiles, previousStepFile)
 	}
 
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_env", a.e.k.YttStepDirName))...)
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_env", a.e.g.YttStepDirName))...)
 
 	if len(yttFiles) == 0 {
 		log.Debug().Str("app", a.Name).Msg("No ytt files found")
@@ -499,7 +499,7 @@ func (a *Application) runGlobalYtt(previousStepFile string) (string, error) {
 
 	log.Debug().Strs("files", yttFiles).Str("app", a.Name).Msg("Collected ytt files")
 
-	yttOutput, err := a.e.k.ytt(yttFiles)
+	yttOutput, err := a.e.g.ytt(yttFiles)
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render ytt files")
 		return "", err
@@ -520,7 +520,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		return err
 	}
 
-	destinationDir := filepath.Join(a.e.k.RootDir, a.e.k.RenderedDir, "envs", a.e.Id, a.Name)
+	destinationDir := filepath.Join(a.e.g.RootDir, a.e.g.RenderedDir, "envs", a.e.Id, a.Name)
 
 	// Cleanup the destination directory before writing new files
 	err = os.RemoveAll(destinationDir)
@@ -582,8 +582,8 @@ func (a *Application) storeStepResult(output string, stepName string, stepNumber
 // Generates a file name for each document using kind and name if available
 func genRenderedResourceFileName(resource map[string]interface{}) string {
 	kind := "NO_KIND"
-	if k, ok := resource["kind"]; ok {
-		kind = k.(string)
+	if g, ok := resource["kind"]; ok {
+		kind = g.(string)
 	}
 	name := "NO_NAME"
 	if n, ok := resource["metadata"].(map[string]interface{})["name"]; ok {

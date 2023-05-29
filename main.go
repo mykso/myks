@@ -6,7 +6,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"kwhoosh/cmd"
+	"bruh/cmd"
 )
 
 func main() {

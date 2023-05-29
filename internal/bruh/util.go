@@ -1,4 +1,4 @@
-package kwhoosh
+package bruh
 
 import (
 	"bytes"

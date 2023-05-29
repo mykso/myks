@@ -1,4 +1,4 @@
-package kwhoosh
+package bruh
 
 import (
 	"io"
@@ -11,8 +11,8 @@ import (
 )
 
 // Define the main structure
-type Kwhoosh struct {
-	/// Kwhoosh configuration
+type Globe struct {
+	/// Globe configuration
 
 	// Project root directory
 	RootDir string
@@ -25,10 +25,10 @@ type Kwhoosh struct {
 	// Prefix for kubernetes namespaces
 	NamespacePrefix string `default:""`
 
-	/// Kwhoosh constants
+	/// Globe constants
 
 	// Service directory name
-	ServiceDirName string `default:".kwhoosh"`
+	ServiceDirName string `default:".bruh"`
 	// Temporary directory name
 	TempDirName string `default:"tmp"`
 	// Application data file name
@@ -68,31 +68,31 @@ type Kwhoosh struct {
 	extraYttPaths []string
 }
 
-func New(rootDir string) *Kwhoosh {
-	k := &Kwhoosh{
+func New(rootDir string) *Globe {
+	g := &Globe{
 		RootDir:      rootDir,
 		environments: make(map[string]*Environment),
 	}
-	if err := defaults.Set(k); err != nil {
+	if err := defaults.Set(g); err != nil {
 		log.Fatal().Err(err).Msg("Unable to set defaults")
 	}
 
-	yttLibraryDir := filepath.Join(k.RootDir, k.YttLibraryDirName)
+	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
 	if _, err := os.Stat(yttLibraryDir); err == nil {
-		k.extraYttPaths = append(k.extraYttPaths, yttLibraryDir)
+		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
 	}
 
-	log.Debug().Interface("kwhoosh", k).Msg("Kwhoosh config")
-	return k
+	log.Debug().Interface("globe", g).Msg("Globe config")
+	return g
 }
 
-func (k *Kwhoosh) Init(searchPaths []string, applicationNames []string) error {
-	k.SearchPaths = searchPaths
-	k.ApplicationNames = applicationNames
+func (g *Globe) Init(searchPaths []string, applicationNames []string) error {
+	g.SearchPaths = searchPaths
+	g.ApplicationNames = applicationNames
 
-	k.collectEnvironments(searchPaths)
+	g.collectEnvironments(searchPaths)
 
-	for _, env := range k.environments {
+	for _, env := range g.environments {
 		if err := env.Init(applicationNames); err != nil {
 			return err
 		}
@@ -101,8 +101,8 @@ func (k *Kwhoosh) Init(searchPaths []string, applicationNames []string) error {
 	return nil
 }
 
-func (k *Kwhoosh) Sync() error {
-	for _, env := range k.environments {
+func (g *Globe) Sync() error {
+	for _, env := range g.environments {
 		if err := env.Sync(); err != nil {
 			return err
 		}
@@ -110,8 +110,8 @@ func (k *Kwhoosh) Sync() error {
 	return nil
 }
 
-func (k *Kwhoosh) Render() error {
-	for _, env := range k.environments {
+func (g *Globe) Render() error {
+	for _, env := range g.environments {
 		if err := env.Render(); err != nil {
 			return err
 		}
@@ -119,29 +119,29 @@ func (k *Kwhoosh) Render() error {
 	return nil
 }
 
-func (k *Kwhoosh) collectEnvironments(searchPaths []string) {
+func (g *Globe) collectEnvironments(searchPaths []string) {
 	if len(searchPaths) == 0 {
-		searchPaths = []string{k.EnvironmentBaseDir}
+		searchPaths = []string{g.EnvironmentBaseDir}
 	}
 
 	for _, searchPath := range searchPaths {
-		k.collectEnvironmentsInPath(searchPath)
+		g.collectEnvironmentsInPath(searchPath)
 	}
 
-	log.Debug().Interface("environments", k.environments).Msg("Collected environments")
+	log.Debug().Interface("environments", g.environments).Msg("Collected environments")
 }
 
-func (k *Kwhoosh) collectEnvironmentsInPath(searchPath string) {
+func (g *Globe) collectEnvironmentsInPath(searchPath string) {
 	err := filepath.WalkDir(searchPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d != nil && d.IsDir() {
-			_, err := os.Stat(filepath.Join(path, k.EnvironmentDataFileName))
+			_, err := os.Stat(filepath.Join(path, g.EnvironmentDataFileName))
 			if err == nil {
-				env := NewEnvironment(k, path)
+				env := NewEnvironment(g, path)
 				if env != nil {
-					k.environments[path] = env
+					g.environments[path] = env
 				} else {
 					log.Warn().Str("path", path).Msg("Unable to collect environment, skipping")
 				}
@@ -154,10 +154,10 @@ func (k *Kwhoosh) collectEnvironmentsInPath(searchPath string) {
 	}
 }
 
-func (k *Kwhoosh) ytt(paths []string, args ...string) (CmdResult, error) {
-	return k.yttS(paths, nil, args...)
+func (g *Globe) ytt(paths []string, args ...string) (CmdResult, error) {
+	return g.yttS(paths, nil, args...)
 }
 
-func (k *Kwhoosh) yttS(paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
-	return runYttWithFilesAndStdin(append(k.extraYttPaths, paths...), stdin, args...)
+func (g *Globe) yttS(paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
+	return runYttWithFilesAndStdin(append(g.extraYttPaths, paths...), stdin, args...)
 }

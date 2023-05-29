@@ -19,9 +19,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "kwhoosh",
-	Short: "Kwhoosh helps to manage configuration for kubernetes clusters",
-	Long:  "Kwhoosh TBD",
+	Use:   "bruh",
+	Short: "Bruh helps to manage configuration for kubernetes clusters",
+	Long:  "Bruh TBD",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Check positional arguments:
 		// 1. Comma-separated list of envirmoment search paths or ALL to search everywhere (default: ALL)
@@ -75,18 +75,18 @@ func init() {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
 	}
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kwhoosh.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.bruh.yaml)")
 }
 
 func initConfig() {
-	viper.SetEnvPrefix("KWH")
+	viper.SetEnvPrefix("BRUH")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
-		viper.AddConfigPath("$HOME/.kwhoosh")
+		viper.AddConfigPath("$HOME/.bruh")
 		viper.SetConfigName("config")
 		viper.SetConfigType("yaml")
 
@@ -94,7 +94,7 @@ func initConfig() {
 		if err != nil {
 			log.Warn().Err(err).Msg("Unable to determine XDG_CONFIG_HOME")
 		} else {
-			viper.AddConfigPath(xdgConfigHome + "/kwhoosh")
+			viper.AddConfigPath(xdgConfigHome + "/bruh")
 		}
 	}
 

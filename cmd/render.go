@@ -4,7 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"kwhoosh/internal/kwhoosh"
+	"bruh/internal/bruh"
 )
 
 func init() {
@@ -15,13 +15,13 @@ func init() {
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Info().Msg("Rendering manifests")
 
-			kwh := kwhoosh.New(".")
+			g := bruh.New(".")
 
-			if err := kwh.Init(targetEnvironments, targetApplications); err != nil {
-				log.Fatal().Err(err).Msg("Unable to initialize kwhoosh")
+			if err := g.Init(targetEnvironments, targetApplications); err != nil {
+				log.Fatal().Err(err).Msg("Unable to initialize globe")
 			}
 
-			if err := kwh.Render(); err != nil {
+			if err := g.Render(); err != nil {
 				log.Fatal().Err(err).Msg("Unable to render applications")
 			}
 		},

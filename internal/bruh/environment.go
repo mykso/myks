@@ -1,4 +1,4 @@
-package kwhoosh
+package bruh
 
 import (
 	"errors"
@@ -29,16 +29,16 @@ type Environment struct {
 	// Environment manifest
 	Manifest *EnvironmentManifest
 
-	// Kwhoosh instance
-	k *Kwhoosh
+	// Globe instance
+	g *Globe
 
 	// Runtime data
 	applications             []*Application
 	renderedManifestFilePath string
 }
 
-func NewEnvironment(k *Kwhoosh, dir string) *Environment {
-	envDataFile := filepath.Join(dir, k.EnvironmentDataFileName)
+func NewEnvironment(g *Globe, dir string) *Environment {
+	envDataFile := filepath.Join(dir, g.EnvironmentDataFileName)
 
 	env := &Environment{
 		Dir:                 dir,
@@ -46,8 +46,8 @@ func NewEnvironment(k *Kwhoosh, dir string) *Environment {
 		Manifest: &EnvironmentManifest{
 			Applications: []ManifestApplication{},
 		},
-		k:                        k,
-		renderedManifestFilePath: filepath.Join(dir, k.ServiceDirName, k.EnvironmentManifestFileName),
+		g:                        g,
+		renderedManifestFilePath: filepath.Join(dir, g.ServiceDirName, g.EnvironmentManifestFileName),
 	}
 
 	// Read an environment id from an environment data file.
@@ -142,7 +142,7 @@ func (e *Environment) initManifest() error {
 
 // Get all environment manifest template files up to the root directory
 func (e *Environment) getManifestFiles() []string {
-	manifestFiles := e.collectBySubpath(e.k.EnvironmentManifestTemplateFileName)
+	manifestFiles := e.collectBySubpath(e.g.EnvironmentManifestTemplateFileName)
 	log.Debug().Interface("manifestFiles", manifestFiles).Msg("Manifest files")
 	return manifestFiles
 }
@@ -152,7 +152,7 @@ func (e *Environment) renderManifest(manifestFiles []string) (manifestYaml []byt
 	if len(manifestFiles) == 0 {
 		return nil, errors.New("No manifest files found")
 	}
-	res, err := e.k.ytt(manifestFiles)
+	res, err := e.g.ytt(manifestFiles)
 	if err != nil {
 		log.Error().Err(err).Str("stderr", res.Stderr).Msg("Unable to render environment manifest")
 		return nil, err
@@ -220,7 +220,7 @@ func (e *Environment) initApplications(applicationNames []string) {
 
 func (e *Environment) collectBySubpath(subpath string) []string {
 	items := []string{}
-	currentPath := e.k.RootDir
+	currentPath := e.g.RootDir
 	levels := []string{""}
 	levels = append(levels, strings.Split(e.Dir, filepath.FromSlash("/"))...)
 	for _, level := range levels {
