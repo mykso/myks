@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -75,7 +76,7 @@ func init() {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
 	}
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.bruh.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is the first .bruh.yaml up the directory tree)")
 }
 
 func initConfig() {
@@ -86,15 +87,18 @@ func initConfig() {
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
-		viper.AddConfigPath("$HOME/.bruh")
-		viper.SetConfigName("config")
+		viper.AddConfigPath(".")
+		viper.SetConfigName(".bruh")
 		viper.SetConfigType("yaml")
 
-		xdgConfigHome, err := os.UserConfigDir()
-		if err != nil {
-			log.Warn().Err(err).Msg("Unable to determine XDG_CONFIG_HOME")
-		} else {
-			viper.AddConfigPath(xdgConfigHome + "/bruh")
+		// Add all parent directories to the config search path
+		dir, _ := os.Getwd()
+		for {
+			dir = filepath.Dir(dir)
+			viper.AddConfigPath(dir)
+			if dir == "/" || dir == filepath.Dir(dir) {
+				break
+			}
 		}
 	}
 
