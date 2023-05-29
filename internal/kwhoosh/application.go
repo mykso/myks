@@ -1,11 +1,8 @@
 package kwhoosh
 
 import (
-	"bytes"
-	_ "embed"
 	"errors"
 	"fmt"
-	"html/template"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,9 +11,6 @@ import (
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 )
-
-//go:embed assets/argocd-app.ytt.yaml
-var appYttTemplate []byte
 
 type Application struct {
 	// Name of the application
@@ -125,19 +119,6 @@ func (a *Application) Render() error {
 
 	err = a.runSliceFormatStore(globalYttStepOutputFile)
 	if err != nil {
-		return err
-	}
-
-	// 5. Render ArgoCD resources: TODO
-
-	argocdAppYaml, err := a.generateArgoCDAppYaml()
-	if err != nil {
-		return err
-	}
-
-	err = a.writeFile(filepath.Join(a.e.k.RootDir, a.e.k.RenderedDir, "argocd", a.e.Id, fmt.Sprintf("app-%s.yaml", a.Name)), argocdAppYaml)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to write ArgoCD app YAML")
 		return err
 	}
 
@@ -265,13 +246,6 @@ func (a *Application) collectDataFiles() {
 	environmentDataFiles := a.e.collectBySubpath(a.e.k.EnvironmentDataFileName)
 	a.yttDataFiles = append(a.yttDataFiles, environmentDataFiles...)
 
-	dynamicAppDataFile, err := a.getDynamicAppValuesFile()
-	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to get dynamic app values file")
-	} else {
-		a.yttDataFiles = append(a.yttDataFiles, dynamicAppDataFile)
-	}
-
 	protoDataFile := filepath.Join(a.Prototype, a.e.k.ApplicationDataFileName)
 	if _, err := os.Stat(protoDataFile); err == nil {
 		a.yttDataFiles = append(a.yttDataFiles, protoDataFile)
@@ -279,64 +253,6 @@ func (a *Application) collectDataFiles() {
 
 	overrideDataFiles := a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.k.ApplicationDataFileName))
 	a.yttDataFiles = append(a.yttDataFiles, overrideDataFiles...)
-}
-
-func (a *Application) getDynamicAppValuesFile() (string, error) {
-	file := a.expandServicePath("dynamic-app-data.ytt.yaml")
-	const tmpl = `#@data/values
----
-argocd:
-  app:
-    name: {{ .Name }}
-    project: {{ .Project }}
-    destination:
-      namespace: {{ .Destination.Namespace }}
-    source:
-      path: {{ .Source.Path }}
-      targetRevision: {{ .Source.TargetRevision }}
-`
-	t := template.Must(template.New("dynamic-app-values").Parse(tmpl))
-
-	data := struct {
-		Name        string
-		Namespace   string
-		Project     string
-		Destination struct {
-			Namespace string
-		}
-		Source struct {
-			Path           string
-			TargetRevision string
-		}
-	}{
-		Name:    a.Name,
-		Project: a.e.k.ArgoCDProjectPrefix + a.e.Id,
-		Destination: struct {
-			Namespace string
-		}{
-			Namespace: a.e.k.NamespacePrefix + a.Name,
-		},
-		Source: struct {
-			Path           string
-			TargetRevision string
-		}{
-			Path:           filepath.Join(a.e.k.RenderedDir, "envs", a.e.Id, a.Name),
-			TargetRevision: "main",
-		},
-	}
-
-	var buf bytes.Buffer
-	err := t.Execute(&buf, data)
-	if err != nil {
-		return "", err
-	}
-
-	err = a.writeFile(file, buf.String())
-	if err != nil {
-		return "", err
-	}
-
-	return file, nil
 }
 
 func (a *Application) runHelm() (string, error) {
@@ -661,21 +577,6 @@ func (a *Application) storeStepResult(output string, stepName string, stepNumber
 	fileName := filepath.Join("steps", fmt.Sprintf("%02d-%s.yaml", stepNumber, stepName))
 	file := a.expandTempPath(fileName)
 	return file, a.writeTempFile(fileName, output)
-}
-
-func (a *Application) generateArgoCDAppYaml() (string, error) {
-	yttOutput, err := a.e.k.yttS(a.yttDataFiles, bytes.NewReader(appYttTemplate))
-	if err != nil {
-		log.Error().Err(err).Str("app", a.Name).Msg("Unable to render ArgoCD app yaml")
-		return "", err
-	}
-
-	if yttOutput.Stdout == "" {
-		log.Warn().Str("app", a.Name).Msg("Empty ytt output")
-		return "", nil
-	}
-
-	return yttOutput.Stdout, nil
 }
 
 // Generates a file name for each document using kind and name if available

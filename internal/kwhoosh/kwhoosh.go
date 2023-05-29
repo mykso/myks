@@ -24,10 +24,6 @@ type Kwhoosh struct {
 	RenderedDir string `default:"rendered"`
 	// Prefix for kubernetes namespaces
 	NamespacePrefix string `default:""`
-	// ArgoCD namespace
-	ArgoCDNamespace string `default:"argocd"`
-	// ArgoCD project prefix
-	ArgoCDProjectPrefix string `default:"env-"`
 
 	/// Kwhoosh constants
 
