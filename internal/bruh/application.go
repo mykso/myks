@@ -25,9 +25,9 @@ type Application struct {
 }
 
 type HelmConfig struct {
-	Namespace   string
-	KubeVersion string
-	IncludeCRDs bool
+	Namespace   string `yaml:"namespace"`
+	KubeVersion string `yaml:"kubeVersion"`
+	IncludeCRDs bool   `yaml:"includeCRDs"`
 }
 
 func NewApplication(e *Environment, name string, prototypeName string) (*Application, error) {
