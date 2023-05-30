@@ -458,6 +458,11 @@ func (a *Application) runYtt(previousStepFile string) (string, error) {
 		yttFiles = append(yttFiles, previousStepFile)
 	}
 
+	vendorYttDir := a.expandPath(filepath.Join(a.e.g.VendorDirName, a.e.g.YttStepDirName))
+	if _, err := os.Stat(vendorYttDir); err == nil {
+		yttFiles = append(yttFiles, vendorYttDir)
+	}
+
 	prototypeYttDir := filepath.Join(a.Prototype, a.e.g.YttStepDirName)
 	if _, err := os.Stat(prototypeYttDir); err == nil {
 		yttFiles = append(yttFiles, prototypeYttDir)
