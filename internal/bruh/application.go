@@ -272,9 +272,10 @@ func (a *Application) runHelm() (string, error) {
 	commonHelmArgs := []string{}
 
 	// FIXME: move Namespace to a per-chart config
-	if helmConfig.Namespace != "" {
-		commonHelmArgs = append(commonHelmArgs, "--namespace", helmConfig.Namespace)
+	if helmConfig.Namespace == "" {
+		helmConfig.Namespace = a.e.g.NamespacePrefix + a.Name
 	}
+	commonHelmArgs = append(commonHelmArgs, "--namespace", helmConfig.Namespace)
 
 	if helmConfig.KubeVersion != "" {
 		commonHelmArgs = append(commonHelmArgs, "--kube-version", helmConfig.KubeVersion)
