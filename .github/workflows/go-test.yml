@@ -1,0 +1,52 @@
+---
+name: Go Build and Test
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "main.go"
+      - "go.mod"
+      - "go.sum"
+      - ".goreleaser.yml"
+      - "cmd/**"
+      - "internal/**"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "main.go"
+      - "go.mod"
+      - "go.sum"
+      - ".goreleaser.yml"
+      - "cmd/**"
+      - "internal/**"
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.20"
+      - name: Test
+        run: go test -v ./...
+      - name: Lint
+        run: |
+          gofumpt -l .
+          golangci-lint run
+          go vet ./...
+          gosec ./...
+      - name: Build with GoReleaser
+        uses: goreleaser/goreleaser-action@v4
+        with:
+          version: latest
+          args: build --snapshot --rm-dist
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
