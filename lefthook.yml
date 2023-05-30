@@ -1,14 +1,12 @@
 pre-commit:
   commands:
     govet:
-      files: git ls-files -m
       glob: "*.go"
-      run: go vet {files}
+      run: go vet ./...
     gofumpt:
-      files: git ls-files -m
+      files: git diff --name-only --cached --diff-filter=AM
       glob: "*.go"
-      run: gofumpt -l {files} | rg --invert-match --passthru '.'
+      run: gofumpt -l {files} | tee /dev/stderr | [[ $(wc -l) == 0 ]]
     golangci-lint:
-      files: git ls-files -m
       glob: "*.go"
-      run: golangci-lint run {files}
+      run: golangci-lint run
