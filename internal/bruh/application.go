@@ -1,6 +1,7 @@
 package bruh
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -549,7 +550,11 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 			log.Warn().Err(err).Str("app", a.Name).Str("file", previousStepFile).Msg("Unable to unmarshal yaml")
 			return err
 		}
-		data, err := yaml.Marshal(obj)
+
+		var data bytes.Buffer
+		enc := yaml.NewEncoder(&data)
+		enc.SetIndent(2)
+		err = enc.Encode(obj)
 		if err != nil {
 			log.Warn().Err(err).Str("app", a.Name).Str("file", previousStepFile).Msg("Unable to marshal yaml")
 			return err
@@ -562,7 +567,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		if _, err := os.Stat(filePath); err == nil {
 			log.Warn().Str("app", a.Name).Str("file", filePath).Msg("File already exists, check duplicated resources")
 		}
-		err = a.writeFile(filePath, string(data))
+		err = a.writeFile(filePath, data.String())
 		if err != nil {
 			log.Warn().Err(err).Str("app", a.Name).Str("file", filePath).Msg("Unable to write file")
 			return err
