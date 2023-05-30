@@ -106,6 +106,7 @@ func initConfig() {
 	initLogger()
 
 	if err == nil {
+		// TODO: Make paths in config file relative to the config file
 		log.Info().Msgf("Using config file: %s", viper.ConfigFileUsed())
 	} else {
 		log.Debug().Err(err).Msg("Unable to read config file")
