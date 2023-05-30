@@ -86,10 +86,13 @@ func (a *Application) Render() error {
 		return err
 	}
 
-	helmStepOutputFile, err := a.storeStepResult(outputYaml, "helm", 1)
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to store helm step result")
-		return err
+	helmStepOutputFile := ""
+	if outputYaml != "" {
+		helmStepOutputFile, err = a.storeStepResult(outputYaml, "helm", 1)
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to store helm step result")
+			return err
+		}
 	}
 
 	outputYaml, err = a.runYtt(helmStepOutputFile)
