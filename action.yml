@@ -1,0 +1,47 @@
+name: Set up abracadabruh
+description: Install abracadabruh
+branding:
+  icon: package
+  color: blue
+inputs:
+  BRUH_VERSION:
+    description: 'Version of abracadabruh to install'
+    default: '0.0.1'
+    required: false
+  KBLD_VERSION:
+    description: 'Version of kbld to install'
+    default: 'v0.37.0'
+    required: false
+  YTT_VERSION:
+    description: 'Version of ytt to install'
+    default: 'v0.45.0'
+    required: false
+  KAPP_VERSION:
+    description: 'Version of kapp to install'
+    default: 'v0.55.0'
+    required: false
+  GITHUB_TOKEN:
+    description: 'GitHub token to use for downloading releases'
+    required: true
+  ARCH:
+    description: 'Architecture to use for downloading releases'
+    default: 'x86_64' # x86_64 | arm64 | ...
+    required: false
+runs:
+  using: composite
+  steps:
+    - name: Install dependencies
+      uses: carvel-dev/setup-action@v1
+      with:
+        token: ${{ inputs.GITHUB_TOKEN }}
+        only: ytt, kbld, kapp
+        kbld: ${{ inputs.KBLD_VERSION }}
+        ytt: ${{ inputs.YTT_VERSION }}
+        kapp: ${{ inputs.KAPP_VERSION }}
+    - name: Install abracadabruh
+      shell: bash
+      run: |
+        wget https://github.com/Zebradil/abracadabruh/releases/download/${{ inputs.BRUH_VERSION }}/abracadabruh_${{ inputs.BRUH_VERSION }}_Linux_${{ inputs.ARCH }}.tar.gz
+        tar -xvf abracadabruh_${{ inputs.BRUH_VERSION }}_Linux_${{ inputs.ARCH }}.tar.gz
+        chmod +x abracadabruh
+        mv abracadabruh /usr/local/bin
