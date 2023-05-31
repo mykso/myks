@@ -1,0 +1,12 @@
+name: flow-stage
+
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    uses: ./.github/workflows/job-lint.yml
+  test:
+    uses: ./.github/workflows/job-test.yml

@@ -1,0 +1,9 @@
+name: flow-pr
+
+on: pull_request
+
+jobs:
+  lint:
+    uses: ./.github/workflows/job-lint.yml
+  test:
+    uses: ./.github/workflows/job-test.yml
