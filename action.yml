@@ -23,6 +23,10 @@ inputs:
   GITHUB_TOKEN:
     description: 'GitHub token to use for downloading releases'
     required: true
+  ARCH:
+    description: 'Architecture to use for downloading releases'
+    default: 'x86_64' # x86_64 | arm64 | ...
+    required: false
 runs:
   using: composite
   steps:
@@ -37,7 +41,7 @@ runs:
     - name: Install abracadabruh
       shell: bash
       run: |
-        wget https://github.com/Zebradil/abracadabruh/releases/download/${{ inputs.BRUH_VERSION }}/abracadabruh_${{ inputs.BRUH_VERSION }}_Linux_arm64.tar.gz
-        tar -xvf abracadabruh_${{ inputs.BRUH_VERSION }}_Linux_arm64.tar.gz
+        wget https://github.com/Zebradil/abracadabruh/releases/download/${{ inputs.BRUH_VERSION }}/abracadabruh_${{ inputs.BRUH_VERSION }}_Linux_${{ inputs.ARCH }}.tar.gz
+        tar -xvf abracadabruh_${{ inputs.BRUH_VERSION }}_Linux_${{ inputs.ARCH }}.tar.gz
         chmod +x abracadabruh
         mv abracadabruh /usr/local/bin
