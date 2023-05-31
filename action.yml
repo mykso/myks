@@ -20,13 +20,16 @@ inputs:
     description: 'Version of kapp to install'
     default: 'v0.55.0'
     required: false
+  GITHUB_TOKEN:
+    description: 'GitHub token to use for downloading releases'
+    required: true
 runs:
   using: composite
   steps:
     - name: Install dependencies
       uses: carvel-dev/setup-action@v1
       with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ inputs.GITHUB_TOKEN }}
         only: ytt, kbld, kapp
         kbld: ${{ inputs.KBLD_VERSION }}
         ytt: ${{ inputs.YTT_VERSION }}
