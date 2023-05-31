@@ -1,3 +1,5 @@
+name: job-test-action
+
 on: pull_request
 
 jobs:
