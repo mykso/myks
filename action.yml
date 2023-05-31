@@ -7,7 +7,7 @@ branding:
 inputs:
   BRUH_VERSION:
     description: "Version of abracadabruh to install"
-    default: "0.0.1"
+    default: "0.0.2"
     required: false
   KBLD_VERSION:
     description: "Version of kbld to install"
