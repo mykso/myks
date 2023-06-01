@@ -17,9 +17,9 @@ inputs:
     description: "Version of ytt to install"
     default: "v0.45.0"
     required: false
-  KAPP_VERSION:
-    description: "Version of kapp to install"
-    default: "v0.55.0"
+  VENDIR_VERSION:
+    description: "Version of vendir to install"
+    default: "v0.33.2"
     required: false
   GITHUB_TOKEN:
     description: "GitHub token to use for downloading releases"
@@ -35,10 +35,10 @@ runs:
       uses: carvel-dev/setup-action@v1
       with:
         token: ${{ inputs.GITHUB_TOKEN }}
-        only: ytt, kbld, kapp
+        only: ytt, kbld, vendir
         kbld: ${{ inputs.KBLD_VERSION }}
         ytt: ${{ inputs.YTT_VERSION }}
-        kapp: ${{ inputs.KAPP_VERSION }}
+        vendir: ${{ inputs.VENDIR_VERSION }}
     - name: Install abracadabruh
       shell: bash
       run: |
