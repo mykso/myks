@@ -4,7 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"bruh/internal/bruh"
+	"myks/internal/myks"
 )
 
 func init() {
@@ -15,7 +15,7 @@ func init() {
 		Run: func(cmd *cobra.Command, args []string) {
 			log.Info().Msg("Rendering manifests")
 
-			g := bruh.New(".")
+			g := myks.New(".")
 
 			if err := g.Init(targetEnvironments, targetApplications); err != nil {
 				log.Fatal().Err(err).Msg("Unable to initialize globe")

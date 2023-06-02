@@ -1,4 +1,4 @@
-package bruh
+package myks
 
 import (
 	"io"
@@ -28,7 +28,7 @@ type Globe struct {
 	/// Globe constants
 
 	// Service directory name
-	ServiceDirName string `default:".bruh"`
+	ServiceDirName string `default:".myks"`
 	// Temporary directory name
 	TempDirName string `default:"tmp"`
 	// Application data file name

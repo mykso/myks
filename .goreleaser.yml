@@ -4,7 +4,7 @@ before:
   hooks:
     - go mod tidy
 builds:
-  - binary: bruh
+  - binary: myks
     env:
       - CGO_ENABLED=0
     targets:

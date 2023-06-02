@@ -1,4 +1,4 @@
-package bruh
+package myks
 
 import (
 	"errors"

@@ -1,4 +1,4 @@
-module bruh
+module myks
 
 go 1.20
 

@@ -1,12 +1,12 @@
 ---
-name: Set up abracadabruh
-description: Install abracadabruh
+name: Set up myks
+description: Install myks
 branding:
   icon: package
   color: blue
 inputs:
-  BRUH_VERSION:
-    description: "Version of abracadabruh to install"
+  MYKS_VERSION:
+    description: "Version of myks to install"
     default: "0.0.2"
     required: false
   KBLD_VERSION:
@@ -39,9 +39,9 @@ runs:
         kbld: ${{ inputs.KBLD_VERSION }}
         ytt: ${{ inputs.YTT_VERSION }}
         vendir: ${{ inputs.VENDIR_VERSION }}
-    - name: Install abracadabruh
+    - name: Install myks
       shell: bash
       run: |
-        curl -fsSL https://github.com/Zebradil/abracadabruh/releases/download/${{ inputs.BRUH_VERSION }}/abracadabruh_${{ inputs.BRUH_VERSION }}_Linux_${{ inputs.ARCH }}.tar.gz \
-          | tar -xzf - -C /usr/local/bin bruh
-        chmod +x /usr/local/bin/bruh
+        curl -fsSL https://github.com/Zebradil/myks/releases/download/${{ inputs.MYKS_VERSION }}/myks_${{ inputs.MYKS_VERSION }}_Linux_${{ inputs.ARCH }}.tar.gz \
+          | tar -xzf - -C /usr/local/bin myks
+        chmod +x /usr/local/bin/myks

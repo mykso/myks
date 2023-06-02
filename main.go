@@ -6,7 +6,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 
-	"bruh/cmd"
+	"myks/cmd"
 )
 
 func main() {

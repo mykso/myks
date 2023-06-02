@@ -20,9 +20,9 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "bruh",
-	Short: "Bruh helps to manage configuration for kubernetes clusters",
-	Long:  "Bruh TBD",
+	Use:   "myks",
+	Short: "Myks helps to manage configuration for kubernetes clusters",
+	Long:  "Myks TBD",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Check positional arguments:
 		// 1. Comma-separated list of envirmoment search paths or ALL to search everywhere (default: ALL)
@@ -76,11 +76,11 @@ func init() {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
 	}
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is the first .bruh.yaml up the directory tree)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is the first .myks.yaml up the directory tree)")
 }
 
 func initConfig() {
-	viper.SetEnvPrefix("BRUH")
+	viper.SetEnvPrefix("MYKS")
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
 	viper.AutomaticEnv()
 
@@ -88,7 +88,7 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		viper.AddConfigPath(".")
-		viper.SetConfigName(".bruh")
+		viper.SetConfigName(".myks")
 		viper.SetConfigType("yaml")
 
 		// Add all parent directories to the config search path
