@@ -4,7 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
-	"myks/internal/myks"
+	"github.com/mykso/myks/internal/myks"
 )
 
 func init() {

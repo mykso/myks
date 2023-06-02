@@ -1,4 +1,4 @@
-module myks
+module github.com/mykso/myks
 
 go 1.20
 
