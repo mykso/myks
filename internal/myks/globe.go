@@ -93,51 +93,46 @@ func (g *Globe) Init(searchPaths []string, applicationNames []string) error {
 
 	g.collectEnvironments(searchPaths)
 
-	return processEnvironmentsInParallel(g.environments, func(env *Environment) error {
+	return processItemsInParallel(g.environments, func(item interface{}) error {
+		env, ok := item.(*Environment)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Environment")
+		}
 		return env.Init(applicationNames)
 	})
 }
 
 func (g *Globe) Sync() error {
-	return processEnvironmentsInParallel(g.environments, func(env *Environment) error {
+	return processItemsInParallel(g.environments, func(item interface{}) error {
+		env, ok := item.(*Environment)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Environment")
+		}
 		return env.Sync()
 	})
 }
 
 func (g *Globe) Render() error {
-	return processEnvironmentsInParallel(g.environments, func(env *Environment) error {
+	return processItemsInParallel(g.environments, func(item interface{}) error {
+		env, ok := item.(*Environment)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Environment")
+		}
 		return env.Render()
 	})
 }
 
 func (g *Globe) SyncAndRender() error {
-	return processEnvironmentsInParallel(g.environments, func(env *Environment) error {
+	return processItemsInParallel(g.environments, func(item interface{}) error {
+		env, ok := item.(*Environment)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Environment")
+		}
 		if err := env.Sync(); err != nil {
 			return err
 		}
 		return env.Render()
 	})
-}
-
-func processEnvironmentsInParallel(environments map[string]*Environment, fn func(*Environment) error) error {
-	errChan := make(chan error, len(environments))
-	defer close(errChan)
-
-	for _, env := range environments {
-		go func(env *Environment) {
-			errChan <- fn(env)
-		}(env)
-	}
-
-	// Catch the first error
-	var err error
-	for range environments {
-		if subErr := <-errChan; subErr != nil && err == nil {
-			err = fmt.Errorf("failed to process environment: %w", subErr)
-		}
-	}
-
-	return err
 }
 
 func (g *Globe) collectEnvironments(searchPaths []string) {

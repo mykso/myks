@@ -2,8 +2,10 @@ package myks
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"os/exec"
+	"reflect"
 
 	"github.com/rs/zerolog/log"
 )
@@ -59,4 +61,43 @@ func contains(list []string, item string) bool {
 		}
 	}
 	return false
+}
+
+func processItemsInParallel(collection interface{}, fn func(interface{}) error) error {
+	var items []interface{}
+
+	value := reflect.ValueOf(collection)
+
+	if value.Kind() != reflect.Slice && value.Kind() != reflect.Array && value.Kind() != reflect.Map {
+		return fmt.Errorf("collection must be a slice, array or map, got %s", value.Kind())
+	}
+
+	if value.Kind() == reflect.Map {
+		for _, key := range value.MapKeys() {
+			items = append(items, value.MapIndex(key).Interface())
+		}
+	} else {
+		for i := 0; i < value.Len(); i++ {
+			items = append(items, value.Index(i).Interface())
+		}
+	}
+
+	errChan := make(chan error, len(items))
+	defer close(errChan)
+
+	for _, item := range items {
+		go func(item interface{}) {
+			errChan <- fn(item)
+		}(item)
+	}
+
+	// Catch the first error
+	var err error
+	for range items {
+		if subErr := <-errChan; subErr != nil && err == nil {
+			err = fmt.Errorf("failed to process item: %w", subErr)
+		}
+	}
+
+	return err
 }
