@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -92,31 +93,43 @@ func (g *Globe) Init(searchPaths []string, applicationNames []string) error {
 
 	g.collectEnvironments(searchPaths)
 
-	for _, env := range g.environments {
-		if err := env.Init(applicationNames); err != nil {
-			return err
+	return processItemsInParallel(g.environments, func(item interface{}) error {
+		env, ok := item.(*Environment)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-	}
-
-	return nil
+		return env.Init(applicationNames)
+	})
 }
 
 func (g *Globe) Sync() error {
-	for _, env := range g.environments {
-		if err := env.Sync(); err != nil {
-			return err
+	return processItemsInParallel(g.environments, func(item interface{}) error {
+		env, ok := item.(*Environment)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-	}
-	return nil
+		return env.Sync()
+	})
 }
 
 func (g *Globe) Render() error {
-	for _, env := range g.environments {
-		if err := env.Render(); err != nil {
-			return err
+	return processItemsInParallel(g.environments, func(item interface{}) error {
+		env, ok := item.(*Environment)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-	}
-	return nil
+		return env.Render()
+	})
+}
+
+func (g *Globe) SyncAndRender() error {
+	return processItemsInParallel(g.environments, func(item interface{}) error {
+		env, ok := item.(*Environment)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Environment")
+		}
+		return env.SyncAndRender()
+	})
 }
 
 func (g *Globe) collectEnvironments(searchPaths []string) {

@@ -19,14 +19,9 @@ func init() {
 				log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 			}
 
-			log.Info().Msg("Syncing vendir configs")
-			if err := g.Sync(); err != nil {
+			log.Info().Msg("Syncing and rendering environments")
+			if err := g.SyncAndRender(); err != nil {
 				log.Fatal().Err(err).Msg("Unable to sync vendir configs")
-			}
-
-			log.Info().Msg("Rendering manifests")
-			if err := g.Render(); err != nil {
-				log.Fatal().Err(err).Msg("Unable to render applications")
 			}
 		},
 	}

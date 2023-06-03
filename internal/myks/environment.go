@@ -2,6 +2,7 @@ package myks
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -72,21 +73,36 @@ func (e *Environment) Init(applicationNames []string) error {
 }
 
 func (e *Environment) Sync() error {
-	for _, app := range e.applications {
-		if err := app.Sync(); err != nil {
-			return err
+	return processItemsInParallel(e.applications, func(item interface{}) error {
+		app, ok := item.(*Application)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Application")
 		}
-	}
-	return nil
+		return app.Sync()
+	})
 }
 
 func (e *Environment) Render() error {
-	for _, app := range e.applications {
-		if err := app.Render(); err != nil {
+	return processItemsInParallel(e.applications, func(item interface{}) error {
+		app, ok := item.(*Application)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Application")
+		}
+		return app.Render()
+	})
+}
+
+func (e *Environment) SyncAndRender() error {
+	return processItemsInParallel(e.applications, func(item interface{}) error {
+		app, ok := item.(*Application)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Application")
+		}
+		if err := app.Sync(); err != nil {
 			return err
 		}
-	}
-	return nil
+		return app.Render()
+	})
 }
 
 func (e *Environment) setId() error {
