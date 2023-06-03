@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"fmt"
 	"io"
 	"io/fs"
 	"os"
@@ -92,31 +93,51 @@ func (g *Globe) Init(searchPaths []string, applicationNames []string) error {
 
 	g.collectEnvironments(searchPaths)
 
-	for _, env := range g.environments {
-		if err := env.Init(applicationNames); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return processEnvironmentsInParallel(g.environments, func(env *Environment) error {
+		return env.Init(applicationNames)
+	})
 }
 
 func (g *Globe) Sync() error {
-	for _, env := range g.environments {
-		if err := env.Sync(); err != nil {
-			return err
-		}
-	}
-	return nil
+	return processEnvironmentsInParallel(g.environments, func(env *Environment) error {
+		return env.Sync()
+	})
 }
 
 func (g *Globe) Render() error {
-	for _, env := range g.environments {
-		if err := env.Render(); err != nil {
+	return processEnvironmentsInParallel(g.environments, func(env *Environment) error {
+		return env.Render()
+	})
+}
+
+func (g *Globe) SyncAndRender() error {
+	return processEnvironmentsInParallel(g.environments, func(env *Environment) error {
+		if err := env.Sync(); err != nil {
 			return err
 		}
+		return env.Render()
+	})
+}
+
+func processEnvironmentsInParallel(environments map[string]*Environment, fn func(*Environment) error) error {
+	errChan := make(chan error, len(environments))
+	defer close(errChan)
+
+	for _, env := range environments {
+		go func(env *Environment) {
+			errChan <- fn(env)
+		}(env)
 	}
-	return nil
+
+	// Catch the first error
+	var err error
+	for range environments {
+		if subErr := <-errChan; subErr != nil && err == nil {
+			err = fmt.Errorf("failed to process environment: %w", subErr)
+		}
+	}
+
+	return err
 }
 
 func (g *Globe) collectEnvironments(searchPaths []string) {
