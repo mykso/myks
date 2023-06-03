@@ -1,3 +1,15 @@
+# [1.2.0](https://github.com/mykso/myks/compare/v1.1.0...v1.2.0) (2023-06-03)
+
+
+### Features
+
+* **cli:** add version information ([#27](https://github.com/mykso/myks/issues/27)) ([a6e16f6](https://github.com/mykso/myks/commit/a6e16f62529c3652065bc101f5b64d948b4142c4))
+
+
+### Performance Improvements
+
+* process environments and applications in parallel ([#28](https://github.com/mykso/myks/issues/28)) ([f319827](https://github.com/mykso/myks/commit/f3198276f1b54a38ec59aa5eff81ed871b1a4a0a)), closes [#9](https://github.com/mykso/myks/issues/9)
+
 # [1.1.0](https://github.com/mykso/myks/compare/v1.0.0...v1.1.0) (2023-06-03)
 
 
