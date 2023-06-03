@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,6 +125,12 @@ func initLogger() {
 
 	log.Info().Msgf("Setting log level to: %s", logLevel)
 	zerolog.SetGlobalLevel(logLevel)
+}
+
+func SetVersionInfo(version, commit, date string) {
+	rootCmd.Version = fmt.Sprintf(`%s
+     commit: %s
+     date:   %s`, version, commit, date)
 }
 
 func Execute() {
