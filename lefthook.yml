@@ -10,3 +10,7 @@ pre-commit:
     golangci-lint:
       glob: "*.go"
       run: golangci-lint run
+commit-msg:
+  commands:
+    "lint commit message":
+      run: commitlint --edit {1}
