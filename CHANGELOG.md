@@ -1,3 +1,10 @@
+# [1.1.0](https://github.com/mykso/myks/compare/v1.0.0...v1.1.0) (2023-06-03)
+
+
+### Features
+
+* **cli:** implement `all` subcommand ([#24](https://github.com/mykso/myks/issues/24)) ([ced9961](https://github.com/mykso/myks/commit/ced99618e3399e4d2f177c93caac91463e44496f))
+
 # 1.0.0 (2023-06-03)
 
 
