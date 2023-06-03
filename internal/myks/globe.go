@@ -128,10 +128,7 @@ func (g *Globe) SyncAndRender() error {
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		if err := env.Sync(); err != nil {
-			return err
-		}
-		return env.Render()
+		return env.SyncAndRender()
 	})
 }
 
