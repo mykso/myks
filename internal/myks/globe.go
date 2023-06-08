@@ -1,6 +1,7 @@
 package myks
 
 import (
+	_ "embed"
 	"fmt"
 	"io"
 	"io/fs"
@@ -10,6 +11,9 @@ import (
 	"github.com/creasty/defaults"
 	"github.com/rs/zerolog/log"
 )
+
+//go:embed assets/env-data.ytt.yaml
+var dataSchema []byte
 
 // Define the main structure
 type Globe struct {
@@ -130,6 +134,57 @@ func (g *Globe) SyncAndRender() error {
 		}
 		return env.SyncAndRender()
 	})
+}
+
+// Bootstrap creates the initial directory structure and files
+func (g *Globe) Bootstrap() error {
+	return g.createBaseFileStructure()
+}
+
+func (g *Globe) createBaseFileStructure() error {
+	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
+	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
+	renderedDir := filepath.Join(g.RootDir, g.RenderedDir)
+	dataSchemaFile := filepath.Join(envDir, g.EnvironmentDataFileName)
+
+	log.Debug().
+		Str("environments directory", envDir).
+		Str("prototypes directory", protoDir).
+		Str("rendered directory", renderedDir).
+		Str("data schema file", dataSchemaFile).
+		Msg("Creating base file structure")
+
+	notCleanErr := fmt.Errorf("Target directory is not clean, aborting")
+
+	if _, err := os.Stat(envDir); err == nil {
+		return notCleanErr
+	}
+	if err := os.MkdirAll(envDir, 0o755); err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(protoDir); err == nil {
+		return notCleanErr
+	}
+	if err := os.MkdirAll(protoDir, 0o755); err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(renderedDir); err == nil {
+		return notCleanErr
+	}
+	if err := os.MkdirAll(renderedDir, 0o755); err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(dataSchemaFile); err == nil {
+		return notCleanErr
+	}
+	if err := os.WriteFile(dataSchemaFile, dataSchema, 0o644); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (g *Globe) collectEnvironments(searchPaths []string) {
