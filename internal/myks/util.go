@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 
 	"github.com/rs/zerolog/log"
@@ -98,6 +101,64 @@ func processItemsInParallel(collection interface{}, fn func(interface{}) error) 
 			err = fmt.Errorf("failed to process item: %w", subErr)
 		}
 	}
+
+	return err
+}
+
+func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath string) error {
+	err := fs.WalkDir(source, sourcePath, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip the root directory
+		if path == sourcePath {
+			return nil
+		}
+
+		// Construct the corresponding destination path
+		relPath, err := filepath.Rel(sourcePath, path)
+		if err != nil {
+			// This should never happen
+			return err
+		}
+		destination := filepath.Join(destinationPath, relPath)
+
+		log.Trace().
+			Str("source", path).
+			Str("destination", destination).
+			Bool("isDir", d.IsDir()).
+			Msg("Copying file")
+
+		if d.IsDir() {
+			// Create the destination directory
+			if err := os.MkdirAll(destination, 0o755); err != nil {
+				return err
+			}
+		} else {
+			// Open the source file
+			srcFile, err := source.Open(path)
+			if err != nil {
+				return err
+			}
+			defer srcFile.Close()
+
+			// Create the destination file
+			dstFile, err := os.Create(destination)
+			if err != nil {
+				return err
+			}
+			defer dstFile.Close()
+
+			// Copy the contents of the source file to the destination file
+			_, err = io.Copy(dstFile, srcFile)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 
 	return err
 }

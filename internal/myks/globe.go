@@ -1,7 +1,7 @@
 package myks
 
 import (
-	_ "embed"
+	"embed"
 	"fmt"
 	"io"
 	"io/fs"
@@ -14,6 +14,9 @@ import (
 
 //go:embed assets/env-data.ytt.yaml
 var dataSchema []byte
+
+//go:embed assets/prototypes
+var prototypesFs embed.FS
 
 // Define the main structure
 type Globe struct {
@@ -138,7 +141,17 @@ func (g *Globe) SyncAndRender() error {
 
 // Bootstrap creates the initial directory structure and files
 func (g *Globe) Bootstrap() error {
-	return g.createBaseFileStructure()
+	log.Info().Msg("Creating base file structure")
+	if err := g.createBaseFileStructure(); err != nil {
+		return err
+	}
+
+	log.Info().Msg("Creating sample prototypes")
+	if err := g.createSamplePrototypes(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (g *Globe) createBaseFileStructure() error {
@@ -147,13 +160,12 @@ func (g *Globe) createBaseFileStructure() error {
 	renderedDir := filepath.Join(g.RootDir, g.RenderedDir)
 	dataSchemaFile := filepath.Join(envDir, g.EnvironmentDataFileName)
 
-	log.Debug().
-		Str("environments directory", envDir).
-		Str("prototypes directory", protoDir).
-		Str("rendered directory", renderedDir).
-		Str("data schema file", dataSchemaFile).
-		Msg("Creating base file structure")
+	log.Debug().Str("environments directory", envDir).Msg("")
+	log.Debug().Str("prototypes directory", protoDir).Msg("")
+	log.Debug().Str("rendered directory", renderedDir).Msg("")
+	log.Debug().Str("data schema file", dataSchemaFile).Msg("")
 
+	// TODO: interactively ask for confirmation and overwrite without checking
 	notCleanErr := fmt.Errorf("Target directory is not clean, aborting")
 
 	if _, err := os.Stat(envDir); err == nil {
@@ -185,6 +197,11 @@ func (g *Globe) createBaseFileStructure() error {
 	}
 
 	return nil
+}
+
+func (g *Globe) createSamplePrototypes() error {
+	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
+	return copyFileSystemToPath(prototypesFs, "assets/prototypes", protoDir)
 }
 
 func (g *Globe) collectEnvironments(searchPaths []string) {

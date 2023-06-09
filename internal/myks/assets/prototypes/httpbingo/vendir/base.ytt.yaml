@@ -1,0 +1,13 @@
+#@ load("@ytt:data", "data")
+---
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+  - path: #@ "charts/" + data.values.chart.name
+    contents:
+      - path: .
+        helmChart:
+          name: #@ data.values.chart.name
+          version: #@ data.values.chart.version
+          repository:
+            url: #@ data.values.chart.url
