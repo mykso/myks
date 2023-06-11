@@ -15,8 +15,14 @@ import (
 //go:embed assets/env-data.ytt.yaml
 var dataSchema []byte
 
-//go:embed assets/prototypes
+//go:embed assets/envs_gitignore
+var envsGitignore []byte
+
+//go:embed all:assets/prototypes
 var prototypesFs embed.FS
+
+//go:embed all:assets/envs
+var environmentsFs embed.FS
 
 // Define the main structure
 type Globe struct {
@@ -149,6 +155,11 @@ func (g *Globe) Bootstrap() error {
 		return err
 	}
 
+	log.Info().Msg("Creating sample environment")
+	if err := g.createSampleEnvironment(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -157,11 +168,13 @@ func (g *Globe) createBaseFileStructure() error {
 	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
 	renderedDir := filepath.Join(g.RootDir, g.RenderedDir)
 	dataSchemaFile := filepath.Join(envDir, g.EnvironmentDataFileName)
+	envsGitignoreFile := filepath.Join(envDir, ".gitignore")
 
 	log.Debug().Str("environments directory", envDir).Msg("")
 	log.Debug().Str("prototypes directory", protoDir).Msg("")
 	log.Debug().Str("rendered directory", renderedDir).Msg("")
 	log.Debug().Str("data schema file", dataSchemaFile).Msg("")
+	log.Debug().Str("environments .gitignore file", envsGitignoreFile).Msg("")
 
 	// TODO: interactively ask for confirmation and overwrite without checking
 	notCleanErr := fmt.Errorf("Target directory is not clean, aborting")
@@ -194,12 +207,24 @@ func (g *Globe) createBaseFileStructure() error {
 		return err
 	}
 
+	if _, err := os.Stat(envsGitignoreFile); err == nil {
+		return notCleanErr
+	}
+	if err := os.WriteFile(envsGitignoreFile, envsGitignore, 0o644); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (g *Globe) createSamplePrototypes() error {
 	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
 	return copyFileSystemToPath(prototypesFs, "assets/prototypes", protoDir)
+}
+
+func (g *Globe) createSampleEnvironment() error {
+	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
+	return copyFileSystemToPath(environmentsFs, "assets/envs", envDir)
 }
 
 func (g *Globe) collectEnvironments(searchPaths []string) {
