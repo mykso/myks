@@ -30,6 +30,8 @@ type HelmConfig struct {
 	IncludeCRDs bool   `yaml:"includeCRDs"`
 }
 
+var ErrNoVendirConfig = errors.New("No vendir config found")
+
 func NewApplication(e *Environment, name string, prototypeName string) (*Application, error) {
 	if prototypeName == "" {
 		prototypeName = name
@@ -57,6 +59,9 @@ func (a *Application) Init() error {
 
 func (a *Application) Sync() error {
 	if err := a.prepareSync(); err != nil {
+		if err == ErrNoVendirConfig {
+			return nil
+		}
 		return err
 	}
 
@@ -146,7 +151,7 @@ func (a *Application) prepareSync() error {
 	yttFiles = append(yttFiles, appVendirDirs...)
 
 	if len(yttFiles) == 0 {
-		err := errors.New("No vendir configs found")
+		err := ErrNoVendirConfig
 		log.Warn().Err(err).Str("app", a.Name).Msg("")
 		return err
 	}
