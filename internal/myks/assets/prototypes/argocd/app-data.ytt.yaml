@@ -3,3 +3,5 @@
 #@overlay/match-child-defaults missing_ok=True
 application:
   namespace: argocd
+  #@schema/validation min_len=1
+  gcpServiceAccountEmail: ""
