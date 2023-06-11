@@ -43,10 +43,8 @@ type Globe struct {
 	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
 	// Environment data file name
 	EnvironmentDataFileName string `default:"env-data.ytt.yaml"`
-	// Environment manfiest template file name
-	EnvironmentManifestTemplateFileName string `default:"manifest.ytt.yaml"`
-	// Rendered environment manifest file name
-	EnvironmentManifestFileName string `default:"manifest.yaml"`
+	// Rendered environment data file name
+	RenderedEnvironmentDataFileName string `default:"env-data.yaml"`
 	// Rendered vendir config file name
 	VendirConfigFileName string `default:"vendir.yaml"`
 	// Rendered vendir lock file name

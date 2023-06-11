@@ -27,28 +27,28 @@ type Environment struct {
 	EnvironmentDataFile string
 	// Environment id
 	Id string
-	// Environment manifest
-	Manifest *EnvironmentManifest
+	// Applications
+	Applications []*Application
 
 	// Globe instance
 	g *Globe
 
 	// Runtime data
-	applications             []*Application
-	renderedManifestFilePath string
+	renderedEnvDataFilePath string
+	// Found applications
+	foundApplications map[string]string
 }
 
 func NewEnvironment(g *Globe, dir string) *Environment {
 	envDataFile := filepath.Join(dir, g.EnvironmentDataFileName)
 
 	env := &Environment{
-		Dir:                 dir,
-		EnvironmentDataFile: envDataFile,
-		Manifest: &EnvironmentManifest{
-			Applications: []ManifestApplication{},
-		},
-		g:                        g,
-		renderedManifestFilePath: filepath.Join(dir, g.ServiceDirName, g.EnvironmentManifestFileName),
+		Dir:                     dir,
+		EnvironmentDataFile:     envDataFile,
+		Applications:            []*Application{},
+		g:                       g,
+		renderedEnvDataFilePath: filepath.Join(dir, g.ServiceDirName, g.RenderedEnvironmentDataFileName),
+		foundApplications:       map[string]string{},
 	}
 
 	// Read an environment id from an environment data file.
@@ -62,8 +62,8 @@ func NewEnvironment(g *Globe, dir string) *Environment {
 }
 
 func (e *Environment) Init(applicationNames []string) error {
-	if err := e.initManifest(); err != nil {
-		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to initialize environment manifest")
+	if err := e.initEnvData(); err != nil {
+		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to initialize environment data")
 		return err
 	}
 
@@ -73,7 +73,7 @@ func (e *Environment) Init(applicationNames []string) error {
 }
 
 func (e *Environment) Sync() error {
-	return processItemsInParallel(e.applications, func(item interface{}) error {
+	return processItemsInParallel(e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
@@ -83,7 +83,7 @@ func (e *Environment) Sync() error {
 }
 
 func (e *Environment) Render() error {
-	return processItemsInParallel(e.applications, func(item interface{}) error {
+	return processItemsInParallel(e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
@@ -93,7 +93,7 @@ func (e *Environment) Render() error {
 }
 
 func (e *Environment) SyncAndRender() error {
-	return processItemsInParallel(e.applications, func(item interface{}) error {
+	return processItemsInParallel(e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
@@ -136,102 +136,117 @@ func (e *Environment) setId() error {
 	return nil
 }
 
-func (e *Environment) initManifest() error {
-	manifestFiles := e.getManifestFiles()
-	manifestYaml, err := e.renderManifest(manifestFiles)
+func (e *Environment) initEnvData() error {
+	envDataFiles := e.collectBySubpath(e.g.EnvironmentDataFileName)
+	envDataYaml, err := e.renderEnvData(envDataFiles)
 	if err != nil {
-		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to render environment manifest")
+		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to render environment data")
 		return err
 	}
-	err = e.saveRenderedManifest(manifestYaml)
+	err = e.saveRenderedEnvData(envDataYaml)
 	if err != nil {
-		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to save rendered environment manifest")
+		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to save rendered environment data")
 		return err
 	}
-	err = e.setManifestFromYaml(manifestYaml)
+	err = e.setEnvDataFromYaml(envDataYaml)
 	if err != nil {
-		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to set environment manifest")
+		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to set environment data")
 		return err
 	}
+
 	return nil
 }
 
-// Get all environment manifest template files up to the root directory
-func (e *Environment) getManifestFiles() []string {
-	manifestFiles := e.collectBySubpath(e.g.EnvironmentManifestTemplateFileName)
-	log.Debug().Interface("manifestFiles", manifestFiles).Msg("Manifest files")
-	return manifestFiles
-}
-
-// Render the final manifest file for the environment
-func (e *Environment) renderManifest(manifestFiles []string) (manifestYaml []byte, err error) {
-	if len(manifestFiles) == 0 {
-		return nil, errors.New("No manifest files found")
+func (e *Environment) renderEnvData(envDataFiles []string) ([]byte, error) {
+	if len(envDataFiles) == 0 {
+		return nil, errors.New("No environment data files found")
 	}
-	res, err := e.g.ytt(manifestFiles)
+	res, err := e.g.yttS(envDataFiles, nil, "--data-values-inspect")
 	if err != nil {
-		log.Error().Err(err).Str("stderr", res.Stderr).Msg("Unable to render environment manifest")
+		log.Error().Err(err).Str("stderr", res.Stderr).Msg("Unable to render environment data")
 		return nil, err
 	}
 	if res.Stdout == "" {
 		return nil, errors.New("Empty output from ytt")
 	}
 
-	manifestYaml = []byte(res.Stdout)
-	return manifestYaml, nil
+	envDataYaml := []byte(res.Stdout)
+	return envDataYaml, nil
 }
 
-func (e *Environment) saveRenderedManifest(manifestYaml []byte) error {
-	dir := filepath.Dir(e.renderedManifestFilePath)
+func (e *Environment) saveRenderedEnvData(envDataYaml []byte) error {
+	dir := filepath.Dir(e.renderedEnvDataFilePath)
 	err := os.MkdirAll(dir, 0o750)
 	if err != nil {
-		log.Error().Err(err).Str("dir", dir).Msg("Unable to create directory for rendered manifest file")
+		log.Error().Err(err).Str("dir", dir).Msg("Unable to create directory for rendered envData file")
 		return err
 	}
-	err = os.WriteFile(e.renderedManifestFilePath, manifestYaml, 0o600)
+	err = os.WriteFile(e.renderedEnvDataFilePath, envDataYaml, 0o600)
 	if err != nil {
-		log.Error().Err(err).Msg("Unable to write rendered manifest file")
+		log.Error().Err(err).Msg("Unable to write rendered envData file")
 		return err
 	}
-	log.Debug().Str("file", e.renderedManifestFilePath).Msg("Wrote rendered manifest file")
+	log.Debug().Str("file", e.renderedEnvDataFilePath).Msg("Wrote rendered envData file")
 	return nil
 }
 
-func (e *Environment) setManifestFromYaml(manifestYaml []byte) error {
-	var manifestData struct {
-		Applications map[string]struct {
-			Prototype string
+func (e *Environment) setEnvDataFromYaml(envDataYaml []byte) error {
+	var envDataStruct struct {
+		Environment struct {
+			Applications []struct {
+				Name  string
+				Proto string
+			}
 		}
 	}
-	err := yaml.Unmarshal(manifestYaml, &manifestData)
+	err := yaml.Unmarshal(envDataYaml, &envDataStruct)
 	if err != nil {
-		log.Error().Err(err).Msg("Unable to unmarshal manifest yaml")
+		log.Error().Err(err).Msg("Unable to unmarshal environment data yaml")
 		return err
 	}
 
-	for appName, appData := range manifestData.Applications {
-		e.Manifest.Applications = append(e.Manifest.Applications, ManifestApplication{
-			Name:      appName,
-			Prototype: appData.Prototype,
-		})
+	for _, app := range envDataStruct.Environment.Applications {
+		proto := app.Proto
+		if len(proto) == 0 {
+			log.Error().Interface("app", app).Msg("Application prototype is not set")
+			continue
+		}
+
+		name := app.Name
+		if len(name) == 0 {
+			name = proto
+		}
+
+		if _, ok := e.foundApplications[name]; ok {
+			log.Error().Str("app_name", name).Msg("Duplicated application")
+			continue
+
+		}
+
+		e.foundApplications[name] = proto
 	}
 
-	log.Debug().Interface("manifest", e.Manifest).Msg("Manifest")
+	if len(e.foundApplications) == 0 {
+		log.Warn().Str("dir", e.Dir).Msg("No applications found")
+	} else {
+		log.Debug().Interface("apps", e.foundApplications).Msg("Found applications")
+	}
+
 	return nil
 }
 
 func (e *Environment) initApplications(applicationNames []string) {
-	for _, manifestApp := range e.Manifest.Applications {
-		if len(applicationNames) == 0 || contains(applicationNames, manifestApp.Name) {
-			app, err := NewApplication(e, manifestApp.Name, manifestApp.Prototype)
+	for name, proto := range e.foundApplications {
+		if len(applicationNames) == 0 || contains(applicationNames, name) {
+			app, err := NewApplication(e, name, proto)
 			if err != nil {
-				log.Warn().Err(err).Str("dir", e.Dir).Interface("app", manifestApp).Msg("Unable to initialize application")
+				log.Warn().Err(err).Str("dir", e.Dir).Interface("app", name).Msg("Unable to initialize application")
 			} else {
-				e.applications = append(e.applications, app)
+				e.Applications = append(e.Applications, app)
 			}
 		}
 	}
-	log.Debug().Interface("applications", e.applications).Msg("Applications")
+	log.Debug().Interface("applications", e.Applications).Msg("Applications")
 }
 
 func (e *Environment) collectBySubpath(subpath string) []string {

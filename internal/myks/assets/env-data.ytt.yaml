@@ -12,6 +12,13 @@ environment:
   #! Unique identifier of the environment, required by myks.
   #@schema/validation min_len=1
   id: ""
+  #! List of applications to be deployed in the environment, required by myks.
+  applications:
+    - #! Prototype of the application, required by myks.
+      #@schema/validation min_len=1
+      proto: ""
+      #! Name of the application, used by myks. If not defined, the name of the prototype is used.
+      name: ""
 #! Configuration of the step that renders Helm charts.
 helm:
   #! Used by myks.
