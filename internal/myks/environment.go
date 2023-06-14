@@ -161,7 +161,7 @@ func (e *Environment) renderEnvData(envDataFiles []string) ([]byte, error) {
 	if len(envDataFiles) == 0 {
 		return nil, errors.New("No environment data files found")
 	}
-	res, err := e.g.yttS(envDataFiles, nil, "--data-values-inspect")
+	res, err := e.g.ytt(envDataFiles, "--data-values-inspect")
 	if err != nil {
 		log.Error().Err(err).Str("stderr", res.Stderr).Msg("Unable to render environment data")
 		return nil, err
