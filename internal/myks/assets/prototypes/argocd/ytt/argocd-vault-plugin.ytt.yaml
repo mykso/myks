@@ -2,13 +2,13 @@
 #@ load("@ytt:overlay", "overlay")
 #@ load("@ytt:yaml", "yaml")
 
-#@ cm = "cmp-plugin"
-#@ sa = "argocd-repo-server"
+#@ config_map_name = "cmp-plugin"
+#@ service_account = "argocd-repo-server"
 #@ gcp_sa = data.values.application.gcpServiceAccountEmail
 
 
 #! Modify existing argocd-repo-server service account to use workload identity.
-#@overlay/match by=overlay.subset({"kind": "ServiceAccount", "metadata": {"name": sa}})
+#@overlay/match by=overlay.subset({"kind": "ServiceAccount", "metadata": {"name": service_account}})
 ---
 #@overlay/match-child-defaults missing_ok=True
 metadata:
@@ -28,13 +28,13 @@ metadata:
 spec:
   template:
     spec:
-      serviceAccountName: #@ sa
+      serviceAccountName: #@ service_account
       nodeSelector:
         iam.gke.io/gke-metadata-server-enabled: "true"
       volumes:
         - name: cmp-plugin
           configMap:
-            name: #@ cm
+            name: #@ config_map_name
         - name: custom-tools
           emptyDir: {}
         - name: cmp-tmp
@@ -104,6 +104,6 @@ spec:
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: #@ cm
+  name: #@ config_map_name
 data:
   avp.yaml: #@ yaml.encode(avp_plugin_config())
