@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/creasty/defaults"
 	"github.com/rs/zerolog/log"
@@ -73,6 +74,9 @@ type Globe struct {
 
 	/// Runtime data
 
+	// Git repository URL
+	GitRepoUrl string `yaml:"gitRepoUrl"`
+
 	// Collected environments for processing
 	environments map[string]*Environment
 
@@ -92,6 +96,10 @@ func New(rootDir string) *Globe {
 	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
 	if _, err := os.Stat(yttLibraryDir); err == nil {
 		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
+	}
+
+	if err := g.setGitRepoUrl(); err != nil {
+		log.Warn().Err(err).Msg("Unable to set git repo url")
 	}
 
 	log.Debug().Interface("globe", g).Msg("Globe config")
@@ -260,6 +268,21 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Unable to walk environment directories")
 	}
+}
+
+func (g *Globe) setGitRepoUrl() error {
+	if g.GitRepoUrl == "" {
+		result, err := runCmd("git", nil, []string{"remote", "get-url", "origin"})
+		if err != nil {
+			return err
+		}
+		// Transform ssh url to https url
+		g.GitRepoUrl = strings.Trim(result.Stdout, "\n")
+		g.GitRepoUrl = strings.ReplaceAll(g.GitRepoUrl, ":", "/")
+		g.GitRepoUrl = strings.ReplaceAll(g.GitRepoUrl, "git@", "https://")
+		g.GitRepoUrl = strings.ReplaceAll(g.GitRepoUrl, ".git", "")
+	}
+	return nil
 }
 
 func (g *Globe) ytt(paths []string, args ...string) (CmdResult, error) {
