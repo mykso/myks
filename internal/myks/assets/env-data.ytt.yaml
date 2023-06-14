@@ -30,3 +30,24 @@ helm:
   #! Used by myks.
   #! If defined, passed as a value of `--namespace` for `helm template`.
   namespace: ""
+#! Myks configuration and runtime data.
+myks:
+  applicationDataFileName: ""
+  applicationNames: [""]
+  environmentBaseDir: ""
+  environmentDataFileName: ""
+  gitRepoUrl: ""
+  helmChartsDirName: ""
+  namespacePrefix: ""
+  prototypesDir: ""
+  renderedDir: ""
+  renderedEnvironmentDataFileName: ""
+  rootDir: ""
+  searchPaths: [""]
+  serviceDirName: ""
+  tempDirName: ""
+  vendirConfigFileName: ""
+  vendirLockFileName: ""
+  vendorDirName: ""
+  yttLibraryDirName: ""
+  yttStepDirName: ""

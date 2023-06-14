@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/creasty/defaults"
 	"github.com/rs/zerolog/log"
+	yaml "gopkg.in/yaml.v3"
 )
 
 //go:embed assets/env-data.ytt.yaml
@@ -30,40 +32,42 @@ type Globe struct {
 	/// Globe configuration
 
 	// Project root directory
-	RootDir string
+	RootDir string `default:"." yaml:"rootDir"`
 	// Base directory for environments
-	EnvironmentBaseDir string `default:"envs"`
+	EnvironmentBaseDir string `default:"envs" yaml:"environmentBaseDir"`
 	// Application prototypes directory
-	PrototypesDir string `default:"prototypes"`
+	PrototypesDir string `default:"prototypes" yaml:"prototypesDir"`
 	// Rendered kubernetes manifests directory
-	RenderedDir string `default:"rendered"`
+	RenderedDir string `default:"rendered" yaml:"renderedDir"`
 	// Prefix for kubernetes namespaces
-	NamespacePrefix string `default:""`
+	NamespacePrefix string `default:"" yaml:"namespacePrefix"`
 
 	/// Globe constants
 
 	// Service directory name
-	ServiceDirName string `default:".myks"`
+	ServiceDirName string `default:".myks" yaml:"serviceDirName"`
 	// Temporary directory name
-	TempDirName string `default:"tmp"`
+	TempDirName string `default:"tmp" yaml:"tempDirName"`
 	// Application data file name
-	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
+	ApplicationDataFileName string `default:"app-data.ytt.yaml" yaml:"applicationDataFileName"`
 	// Environment data file name
-	EnvironmentDataFileName string `default:"env-data.ytt.yaml"`
+	EnvironmentDataFileName string `default:"env-data.ytt.yaml" yaml:"environmentDataFileName"`
 	// Rendered environment data file name
-	RenderedEnvironmentDataFileName string `default:"env-data.yaml"`
+	RenderedEnvironmentDataFileName string `default:"env-data.yaml" yaml:"renderedEnvironmentDataFileName"`
 	// Rendered vendir config file name
-	VendirConfigFileName string `default:"vendir.yaml"`
+	VendirConfigFileName string `default:"vendir.yaml" yaml:"vendirConfigFileName"`
 	// Rendered vendir lock file name
-	VendirLockFileName string `default:"vendir.lock.yaml"`
+	VendirLockFileName string `default:"vendir.lock.yaml" yaml:"vendirLockFileName"`
 	// Downloaded third-party sources
-	VendorDirName string `default:"vendor"`
+	VendorDirName string `default:"vendor" yaml:"vendorDirName"`
 	// Helm charts directory name
-	HelmChartsDirName string `default:"charts"`
+	HelmChartsDirName string `default:"charts" yaml:"helmChartsDirName"`
 	// Ytt step directory name
-	YttStepDirName string `default:"ytt"`
+	YttStepDirName string `default:"ytt" yaml:"yttStepDirName"`
 	// Ytt library directory name
-	YttLibraryDirName string `default:"lib"`
+	YttLibraryDirName string `default:"lib" yaml:"yttLibraryDirName"`
+	// Myks runtime config file name
+	MyksDataFileName string `default:"myks-data.ytt.yaml" yaml:"myksDataFileName"`
 
 	/// User input
 
@@ -96,6 +100,12 @@ func New(rootDir string) *Globe {
 	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
 	if _, err := os.Stat(yttLibraryDir); err == nil {
 		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
+	}
+
+	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
+		log.Warn().Err(err).Msg("Unable to dump config as yaml")
+	} else {
+		g.extraYttPaths = append(g.extraYttPaths, configFileName)
 	}
 
 	if err := g.setGitRepoUrl(); err != nil {
@@ -169,6 +179,34 @@ func (g *Globe) Bootstrap() error {
 	}
 
 	return nil
+}
+
+// dumpConfigAsYaml dumps the globe config as yaml to a file and returns the file name
+func (g *Globe) dumpConfigAsYaml() (string, error) {
+	configData := struct {
+		Myks *Globe `yaml:"myks"`
+	}{
+		Myks: g,
+	}
+	var yamlData bytes.Buffer
+	enc := yaml.NewEncoder(&yamlData)
+	enc.SetIndent(2)
+	if err := enc.Encode(configData); err != nil {
+		return "", err
+	}
+	yttData := fmt.Sprintf("#@data/values\n---\n%s", yamlData.String())
+
+	configFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.MyksDataFileName)
+	if err := os.MkdirAll(filepath.Dir(configFileName), 0o755); err != nil {
+		return "", err
+	}
+	if err := os.WriteFile(configFileName, []byte(yttData), 0o644); err != nil {
+		return "", err
+	}
+
+	log.Trace().Str("config file", configFileName).Str("content", yttData).Msg("Dumped config as yaml")
+
+	return configFileName, nil
 }
 
 func (g *Globe) createBaseFileStructure() error {
