@@ -7,8 +7,8 @@ directories:
     contents:
       - path: .
         git:
-          url: #@ data.values.git.url
-          ref: #@ data.values.git.version
+          url: #@ data.values.application.url
+          ref: #@ data.values.application.version
         includePaths:
           - manifests/ha/install.yaml
         newRootPath: manifests/ha

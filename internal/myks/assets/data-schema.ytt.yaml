@@ -11,6 +11,7 @@ application: {}
 environment:
   #! Unique identifier of the environment, required by myks.
   #@schema/validation min_len=1
+  #@schema/nullable
   id: ""
   #! List of applications to be deployed in the environment, required by myks.
   applications:
@@ -34,10 +35,13 @@ helm:
 myks:
   applicationDataFileName: ""
   applicationNames: [""]
+  dataSchemaFileName: ""
   environmentBaseDir: ""
   environmentDataFileName: ""
   gitRepoUrl: ""
+  gitRepoBranch: ""
   helmChartsDirName: ""
+  myksDataFileName: ""
   namespacePrefix: ""
   prototypesDir: ""
   renderedDir: ""

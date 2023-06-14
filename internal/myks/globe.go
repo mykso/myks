@@ -15,7 +15,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-//go:embed assets/env-data.ytt.yaml
+//go:embed assets/data-schema.ytt.yaml
 var dataSchema []byte
 
 //go:embed assets/envs_gitignore
@@ -68,18 +68,22 @@ type Globe struct {
 	YttLibraryDirName string `default:"lib" yaml:"yttLibraryDirName"`
 	// Myks runtime config file name
 	MyksDataFileName string `default:"myks-data.ytt.yaml" yaml:"myksDataFileName"`
+	// Data values schema file name
+	DataSchemaFileName string `default:"data-schema.ytt.yaml" yaml:"dataSchemaFileName"`
 
 	/// User input
 
 	// Paths to scan for environments
-	SearchPaths []string
+	SearchPaths []string `yaml:"searchPaths"`
 	// Application names to process
-	ApplicationNames []string
+	ApplicationNames []string `yaml:"applicationNames"`
 
 	/// Runtime data
 
 	// Git repository URL
 	GitRepoUrl string `yaml:"gitRepoUrl"`
+	// Git repository branch
+	GitRepoBranch string `yaml:"gitRepoBranch"`
 
 	// Collected environments for processing
 	environments map[string]*Environment
@@ -97,19 +101,12 @@ func New(rootDir string) *Globe {
 		log.Fatal().Err(err).Msg("Unable to set defaults")
 	}
 
-	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
-	if _, err := os.Stat(yttLibraryDir); err == nil {
-		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
-	}
-
-	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
-		log.Warn().Err(err).Msg("Unable to dump config as yaml")
-	} else {
-		g.extraYttPaths = append(g.extraYttPaths, configFileName)
-	}
-
 	if err := g.setGitRepoUrl(); err != nil {
 		log.Warn().Err(err).Msg("Unable to set git repo url")
+	}
+
+	if err := g.setGitRepoBranch(); err != nil {
+		log.Warn().Err(err).Msg("Unable to set git repo branch")
 	}
 
 	log.Debug().Interface("globe", g).Msg("Globe config")
@@ -119,6 +116,26 @@ func New(rootDir string) *Globe {
 func (g *Globe) Init(searchPaths []string, applicationNames []string) error {
 	g.SearchPaths = searchPaths
 	g.ApplicationNames = applicationNames
+
+	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
+	if _, err := os.Stat(yttLibraryDir); err == nil {
+		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
+	}
+
+	dataSchemaFileName := filepath.Join(g.RootDir, g.EnvironmentBaseDir, g.DataSchemaFileName)
+	if _, err := os.Stat(dataSchemaFileName); err != nil {
+		log.Warn().Err(err).Msg("Unable to find data schema file, creating one")
+		if err := os.WriteFile(dataSchemaFileName, dataSchema, 0o644); err != nil {
+			log.Fatal().Err(err).Msg("Unable to create data schema file")
+		}
+	}
+	g.extraYttPaths = append(g.extraYttPaths, dataSchemaFileName)
+
+	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
+		log.Warn().Err(err).Msg("Unable to dump config as yaml")
+	} else {
+		g.extraYttPaths = append(g.extraYttPaths, configFileName)
+	}
 
 	g.collectEnvironments(searchPaths)
 
@@ -213,7 +230,7 @@ func (g *Globe) createBaseFileStructure() error {
 	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
 	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
 	renderedDir := filepath.Join(g.RootDir, g.RenderedDir)
-	dataSchemaFile := filepath.Join(envDir, g.EnvironmentDataFileName)
+	dataSchemaFile := filepath.Join(envDir, g.DataSchemaFileName)
 	envsGitignoreFile := filepath.Join(envDir, ".gitignore")
 
 	log.Debug().Str("environments directory", envDir).Msg("")
@@ -315,6 +332,17 @@ func (g *Globe) setGitRepoUrl() error {
 			return err
 		}
 		g.GitRepoUrl = strings.Trim(result.Stdout, "\n")
+	}
+	return nil
+}
+
+func (g *Globe) setGitRepoBranch() error {
+	if g.GitRepoBranch == "" {
+		result, err := runCmd("git", nil, []string{"rev-parse", "--abbrev-ref", "HEAD"})
+		if err != nil {
+			return err
+		}
+		g.GitRepoBranch = strings.Trim(result.Stdout, "\n")
 	}
 	return nil
 }
