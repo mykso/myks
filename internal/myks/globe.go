@@ -314,11 +314,7 @@ func (g *Globe) setGitRepoUrl() error {
 		if err != nil {
 			return err
 		}
-		// Transform ssh url to https url
 		g.GitRepoUrl = strings.Trim(result.Stdout, "\n")
-		g.GitRepoUrl = strings.ReplaceAll(g.GitRepoUrl, ":", "/")
-		g.GitRepoUrl = strings.ReplaceAll(g.GitRepoUrl, "git@", "https://")
-		g.GitRepoUrl = strings.ReplaceAll(g.GitRepoUrl, ".git", "")
 	}
 	return nil
 }
