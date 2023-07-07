@@ -417,7 +417,7 @@ func (a *Application) prepareHelm(chartName string) error {
 		return err
 	}
 
-	helmValues, err := a.e.g.ytt(nil, "--data-values-file="+a.expandTempPath(helmValuesFileName), "--data-values-inspect")
+	helmValues, err := a.e.g.mergeValuesYaml(a.expandTempPath(helmValuesFileName))
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render helm values")
 		return err
