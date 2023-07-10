@@ -31,59 +31,59 @@ var environmentsFs embed.FS
 type Globe struct {
 	/// Globe configuration
 
-	// Project root directory
-	RootDir string `default:"." yaml:"rootDir"`
 	// Base directory for environments
 	EnvironmentBaseDir string `default:"envs" yaml:"environmentBaseDir"`
+	// Prefix for kubernetes namespaces
+	NamespacePrefix string `default:"" yaml:"namespacePrefix"`
 	// Application prototypes directory
 	PrototypesDir string `default:"prototypes" yaml:"prototypesDir"`
 	// Rendered kubernetes manifests directory
 	RenderedDir string `default:"rendered" yaml:"renderedDir"`
-	// Prefix for kubernetes namespaces
-	NamespacePrefix string `default:"" yaml:"namespacePrefix"`
+	// Project root directory
+	RootDir string `default:"." yaml:"rootDir"`
 
 	/// Globe constants
 
+	// Application data file name
+	ApplicationDataFileName string `default:"app-data.ytt.yaml" yaml:"applicationDataFileName"`
+	// Data values schema file name
+	DataSchemaFileName string `default:"data-schema.ytt.yaml" yaml:"dataSchemaFileName"`
+	// Environment data file name
+	EnvironmentDataFileName string `default:"env-data.ytt.yaml" yaml:"environmentDataFileName"`
+	// Helm charts directory name
+	HelmChartsDirName string `default:"charts" yaml:"helmChartsDirName"`
+	// Myks runtime config file name
+	MyksDataFileName string `default:"myks-data.ytt.yaml" yaml:"myksDataFileName"`
+	// Rendered environment data file name
+	RenderedEnvironmentDataFileName string `default:"env-data.yaml" yaml:"renderedEnvironmentDataFileName"`
 	// Service directory name
 	ServiceDirName string `default:".myks" yaml:"serviceDirName"`
 	// Temporary directory name
 	TempDirName string `default:"tmp" yaml:"tempDirName"`
-	// Application data file name
-	ApplicationDataFileName string `default:"app-data.ytt.yaml" yaml:"applicationDataFileName"`
-	// Environment data file name
-	EnvironmentDataFileName string `default:"env-data.ytt.yaml" yaml:"environmentDataFileName"`
-	// Rendered environment data file name
-	RenderedEnvironmentDataFileName string `default:"env-data.yaml" yaml:"renderedEnvironmentDataFileName"`
 	// Rendered vendir config file name
 	VendirConfigFileName string `default:"vendir.yaml" yaml:"vendirConfigFileName"`
 	// Rendered vendir lock file name
 	VendirLockFileName string `default:"vendir.lock.yaml" yaml:"vendirLockFileName"`
 	// Downloaded third-party sources
 	VendorDirName string `default:"vendor" yaml:"vendorDirName"`
-	// Helm charts directory name
-	HelmChartsDirName string `default:"charts" yaml:"helmChartsDirName"`
-	// Ytt step directory name
-	YttStepDirName string `default:"ytt" yaml:"yttStepDirName"`
 	// Ytt library directory name
 	YttLibraryDirName string `default:"lib" yaml:"yttLibraryDirName"`
-	// Myks runtime config file name
-	MyksDataFileName string `default:"myks-data.ytt.yaml" yaml:"myksDataFileName"`
-	// Data values schema file name
-	DataSchemaFileName string `default:"data-schema.ytt.yaml" yaml:"dataSchemaFileName"`
+	// Ytt step directory name
+	YttStepDirName string `default:"ytt" yaml:"yttStepDirName"`
 
 	/// User input
 
-	// Paths to scan for environments
-	SearchPaths []string `yaml:"searchPaths"`
 	// Application names to process
 	ApplicationNames []string `yaml:"applicationNames"`
+	// Paths to scan for environments
+	SearchPaths []string `yaml:"searchPaths"`
 
 	/// Runtime data
 
-	// Git repository URL
-	GitRepoUrl string `yaml:"gitRepoUrl"`
 	// Git repository branch
 	GitRepoBranch string `yaml:"gitRepoBranch"`
+	// Git repository URL
+	GitRepoUrl string `yaml:"gitRepoUrl"`
 
 	// Collected environments for processing
 	environments map[string]*Environment
