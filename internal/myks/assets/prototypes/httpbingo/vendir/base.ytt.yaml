@@ -1,0 +1,15 @@
+#@ load("@ytt:data", "data")
+
+#@ app = data.values.application
+---
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+  - path: #@ "charts/" + app.name
+    contents:
+      - path: .
+        helmChart:
+          name: #@ app.name
+          version: #@ app.version
+          repository:
+            url: #@ app.url

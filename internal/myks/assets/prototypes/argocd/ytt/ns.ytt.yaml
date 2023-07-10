@@ -1,0 +1,16 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:overlay", "overlay")
+
+#@ ns = data.values.application.namespace
+
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: #@ ns
+
+#@overlay/match by=overlay.all, expects="1+"
+---
+metadata:
+  #@overlay/match missing_ok=True
+  namespace: #@ ns

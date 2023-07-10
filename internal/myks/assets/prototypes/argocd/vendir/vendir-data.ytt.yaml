@@ -1,0 +1,10 @@
+#@data/values-schema
+---
+#@overlay/match-child-defaults missing_ok=True
+application:
+  #! WARNING: The order of the keys (alphabetical) is important for renovate.
+  #!          When changed, renovate won't be able to detect the new version.
+  #!          See renovate.json for more details.
+  #! renovate: datasource=git-tags
+  url: https://github.com/argoproj/argo-cd
+  version: v2.7.3

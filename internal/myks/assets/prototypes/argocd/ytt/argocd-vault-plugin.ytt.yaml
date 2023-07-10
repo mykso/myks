@@ -1,0 +1,109 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:yaml", "yaml")
+
+#@ config_map_name = "cmp-plugin"
+#@ service_account = "argocd-repo-server"
+#@ gcp_sa = data.values.application.gcpServiceAccountEmail
+
+
+#! Modify existing argocd-repo-server service account to use workload identity.
+#@overlay/match by=overlay.subset({"kind": "ServiceAccount", "metadata": {"name": service_account}})
+---
+#@overlay/match-child-defaults missing_ok=True
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: #@ gcp_sa
+
+#! The following overlay is used to add the argocd-vault-plugin to ArgoCD.
+#! It is done by patching the argocd-repo-server deployment in the following way:
+#!   1. Mount cmp-plugin configmap, which contains the argocd-vault-plugin configuration.
+#!   2. Add the argocd-vault-plugin container, which will run the argocd-vault-plugin binary.
+#!      Additional volumes are mounted to make it work with ArgoCD.
+#!   3. Add the download-tools initContainer to download the argocd-vault-plugin binary,
+#!      which is shared with the argocd-vault-plugin container via the download-tools emptyDir volume.
+#@overlay/match by=overlay.subset({"kind": "Deployment", "metadata": {"name": "argocd-repo-server"}})
+---
+#@overlay/match-child-defaults missing_ok=True
+spec:
+  template:
+    spec:
+      serviceAccountName: #@ service_account
+      nodeSelector:
+        iam.gke.io/gke-metadata-server-enabled: "true"
+      volumes:
+        - name: cmp-plugin
+          configMap:
+            name: #@ config_map_name
+        - name: custom-tools
+          emptyDir: {}
+        - name: cmp-tmp
+          emptyDir: {}
+      initContainers:
+        - name: download-tools
+          image: registry.access.redhat.com/ubi8
+          env:
+            - name: AVP_VERSION
+              value: 1.14.0
+          command: [sh, -c]
+          args:
+            - '
+              curl https://github.com/argoproj-labs/argocd-vault-plugin/releases/download/v$(AVP_VERSION)/argocd-vault-plugin_$(AVP_VERSION)_linux_amd64
+                --location
+                --output /custom-tools/argocd-vault-plugin
+              && chmod 0755 /custom-tools/argocd-vault-plugin'
+          volumeMounts:
+            - name: custom-tools
+              mountPath: /custom-tools
+      containers:
+        - name: argocd-vault-plugin
+          command: [/var/run/argocd/argocd-cmp-server]
+          image: registry.access.redhat.com/ubi8
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+          volumeMounts:
+            - name: var-files
+              mountPath: /var/run/argocd
+            - name: plugins
+              mountPath: /home/argocd/cmp-server/plugins
+            - name: cmp-tmp
+              mountPath: /tmp
+
+            #! Register plugins into sidecar
+            - name: cmp-plugin
+              mountPath: /home/argocd/cmp-server/config/plugin.yaml
+              subPath: avp.yaml
+
+            #! Important: Mount tools into $PATH
+            - name: custom-tools
+              mountPath: /usr/local/bin/argocd-vault-plugin
+              subPath: argocd-vault-plugin
+
+#@ def avp_plugin_config():
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: argocd-vault-plugin
+spec:
+  version: v1.0.0
+  generate:
+    command: ['bash', '-c']
+    args:
+      - |-
+        export AVP_TYPE=gcpsecretmanager
+        find . \
+          -regextype egrep \
+          -iregex '.*\.(yaml|yml)' \
+          -printf '---\n' \
+          -exec cat {} \; \
+        | argocd-vault-plugin generate -
+#@ end
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: #@ config_map_name
+data:
+  avp.yaml: #@ yaml.encode(avp_plugin_config())

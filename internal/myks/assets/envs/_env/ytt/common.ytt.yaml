@@ -1,0 +1,17 @@
+#! This file contains YTT overlays for common modifications to Kubernetes resources.
+
+#@ load("@ytt:data", "data")
+#@ load("@ytt:overlay", "overlay")
+
+#! Add common labels and annotations to all resources.
+#! ------------------------------------------------------------
+#@overlay/match by=lambda i, l, r: "metadata" in l, when="1+"
+---
+#@overlay/match-child-defaults missing_ok=True
+metadata:
+  #! See https://ambassadorlabs.github.io/k8s-for-humans/
+  annotations:
+    a8r.io/repository: #@ data.values.myks.gitRepoUrl
+    #! More examples:
+    #! a8r.io/owner: https://github.com/mykso
+    #! a8r.io/chat: #@ data.values.application.chat
