@@ -354,7 +354,3 @@ func (g *Globe) ytt(paths []string, args ...string) (CmdResult, error) {
 func (g *Globe) yttS(paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
 	return runYttWithFilesAndStdin(append(g.extraYttPaths, paths...), stdin, args...)
 }
-
-func (g *Globe) mergeValuesYaml(valueFilesYaml string) (CmdResult, error) {
-	return runYttWithFilesAndStdin(nil, nil, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
-}
