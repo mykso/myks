@@ -162,3 +162,7 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 
 	return err
 }
+
+func mergeValuesYaml(valueFilesYaml string) (CmdResult, error) {
+	return runYttWithFilesAndStdin(nil, nil, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
+}
