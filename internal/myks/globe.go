@@ -64,6 +64,8 @@ type Globe struct {
 	VendirConfigFileName string `default:"vendir.yaml" yaml:"vendirConfigFileName"`
 	// Rendered vendir lock file name
 	VendirLockFileName string `default:"vendir.lock.yaml" yaml:"vendirLockFileName"`
+	// Rendered vendir sync file name
+	VendirSyncFileName string `default:"vendir.sync.yaml" yaml:"vendirSyncFileName"`
 	// Downloaded third-party sources
 	VendorDirName string `default:"vendor" yaml:"vendorDirName"`
 	// Ytt library directory name

@@ -26,7 +26,7 @@ var rootCmd = &cobra.Command{
 	Long:  "Myks TBD",
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Check positional arguments:
-		// 1. Comma-separated list of envirmoment search paths or ALL to search everywhere (default: ALL)
+		// 1. Comma-separated list of environment search paths or ALL to search everywhere (default: ALL)
 		// 2. Comma-separated list of application names or none to process all applications (default: none)
 
 		targetEnvironments = nil

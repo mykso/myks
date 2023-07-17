@@ -22,6 +22,7 @@ type Application struct {
 	e *Environment
 	// YTT data files
 	yttDataFiles []string
+	cached       bool
 }
 
 type HelmConfig struct {
@@ -48,12 +49,41 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 		Prototype: prototype,
 		e:         e,
 	}
+	err := app.Init()
+	if err != nil {
+		return nil, err
+	}
 
 	return app, nil
 }
 
 func (a *Application) Init() error {
-	// TODO: create application directory if it does not exist
+	// 1. Collect all ytt data files:
+	//    - environment data files: `envs/**/env-data.ytt.yaml`
+	//    - application prototype data file: `prototypes/<prototype>/app-data.ytt.yaml`
+	//    - application data files: `envs/**/_apps/<app>/add-data.ytt.yaml`
+
+	a.collectDataFiles()
+
+	dataYaml, err := renderDataYaml(append(a.e.g.extraYttPaths, a.yttDataFiles...))
+	if err != nil {
+		return err
+	}
+
+	var applicationData struct {
+		Application struct {
+			Cache struct {
+				Enabled bool
+			}
+		}
+	}
+
+	err = yaml.Unmarshal(dataYaml, &applicationData)
+	if err != nil {
+		return err
+	}
+	a.cached = applicationData.Application.Cache.Enabled
+
 	return nil
 }
 
@@ -73,12 +103,7 @@ func (a *Application) Sync() error {
 }
 
 func (a *Application) Render() error {
-	// 1. Collect all ytt data files:
-	//    - environment data files: `envs/**/env-data.ytt.yaml`
-	//    - application prototype data file: `prototypes/<prototype>/app-data.ytt.yaml`
-	//    - application data files: `envs/**/_apps/<app>/add-data.ytt.yaml`
 
-	a.collectDataFiles()
 	log.Debug().Strs("files", a.yttDataFiles).Msg("Collected ytt data files")
 
 	// 2. Run built-in rendering steps:
@@ -181,38 +206,6 @@ func (a *Application) prepareSync() error {
 		return err
 	}
 	log.Debug().Str("file", vendirConfigFilePath).Msg("Wrote vendir config file")
-
-	return nil
-}
-
-func (a *Application) doSync() error {
-	// TODO: implement selective sync
-	// TODO: implement secrets-from-env extraction
-
-	// Paths are relative to the vendor directory (BUG: this will brake with multi-level vendor directory, e.g. `vendor/shmendor`)
-	vendirConfigFile := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirConfigFileName)
-	vendirLockFile := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
-
-	vendorDir := a.expandPath(a.e.g.VendorDirName)
-	if _, err := os.Stat(vendorDir); err != nil {
-		err := os.MkdirAll(vendorDir, 0o750)
-		if err != nil {
-			log.Warn().Err(err).Msg("Unable to create vendor directory")
-			return err
-		}
-	}
-
-	log.Info().Str("app", a.Name).Msg("Syncing vendir")
-	res, err := runCmd("vendir", nil, []string{
-		"sync",
-		"--chdir=" + vendorDir,
-		"--file=" + vendirConfigFile,
-		"--lock-file=" + vendirLockFile,
-	})
-	if err != nil {
-		log.Warn().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg("Unable to sync vendir")
-		return err
-	}
 
 	return nil
 }
