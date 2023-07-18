@@ -104,7 +104,7 @@ func (a *Application) writeSyncFile(directories []Directory) error {
 	if err != nil {
 		return err
 	}
-	a.writeTempFile(a.e.g.VendirSyncFileName, string(bytes))
+	err = a.writeTempFile(a.e.g.VendirSyncFileName, string(bytes))
 	if err != nil {
 		return err
 	}
@@ -168,7 +168,7 @@ func readLockFile(vendirLockFile string) ([]Directory, error) {
 func findDirectories(config map[string]interface{}) ([]Directory, error) {
 	// check if directories key exists
 	if _, ok := config["directories"]; !ok {
-		return nil, errors.New("No directories found in vendir config")
+		return nil, errors.New("no directories found in vendir config")
 	}
 	var directories = make(map[string]string)
 	for _, dir := range config["directories"].([]interface{}) {

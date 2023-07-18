@@ -198,7 +198,7 @@ func sortYaml(yaml map[string]interface{}) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return string(sorted.Bytes()), nil
+	return sorted.String(), nil
 }
 
 // hash string
