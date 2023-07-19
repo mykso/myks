@@ -1,0 +1,8 @@
+#@data/values-schema
+
+#@overlay/match-child-defaults missing_ok=True
+---
+application:
+  cache:
+    enabled: true
+  name: cert-manager

@@ -1,0 +1,11 @@
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+  - path: vendor/charts/loki-stack
+    contents:
+      - path: .
+        helmChart:
+          name: loki-stack
+          version: 2.9.10
+          repository:
+            url: https://grafana.github.io/helm-charts

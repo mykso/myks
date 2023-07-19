@@ -2,13 +2,18 @@ package myks
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
 	"fmt"
+	"gopkg.in/yaml.v3"
 	"io"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 )
@@ -19,7 +24,8 @@ type CmdResult struct {
 }
 
 func runCmd(name string, stdin io.Reader, args []string) (CmdResult, error) {
-	log.Debug().Str("cmd", name).Interface("args", args).Msg("Running command")
+	// make this copy-n-pastable
+	log.Debug().Msg("Running command:\n" + name + " " + strings.Join(args, " "))
 	cmd := exec.Command(name, args...)
 
 	if stdin != nil {
@@ -163,6 +169,72 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 	return err
 }
 
+func unmarshalYamlToMap(filePath string) (map[string]interface{}, error) {
+
+	if _, err := os.Stat(filePath); err != nil {
+		log.Debug().Str("filePath", filePath).Msg("Yaml not found.")
+		return make(map[string]interface{}), nil
+	}
+
+	file, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var config map[string]interface{}
+	err = yaml.Unmarshal(file, &config)
+	if err != nil {
+		return nil, err
+	}
+	return config, nil
+}
+
+func sortYaml(yaml map[string]interface{}) (string, error) {
+	if yaml == nil {
+		return "", nil
+	}
+	var sorted bytes.Buffer
+	_, err := fmt.Fprint(&sorted, yaml)
+	if err != nil {
+		return "", err
+	}
+	return sorted.String(), nil
+}
+
+// hash string
+func hash(s string) string {
+	hash := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(hash[:])
+}
+
+func renderDataYaml(dataFiles []string) ([]byte, error) {
+	if len(dataFiles) == 0 {
+		return nil, errors.New("No data files found")
+	}
+	res, err := runYttWithFilesAndStdin(dataFiles, nil, "--data-values-inspect")
+	if err != nil {
+		log.Error().Err(err).Str("stderr", res.Stderr).Msg("Unable to render data")
+		return nil, err
+	}
+	if res.Stdout == "" {
+		return nil, errors.New("Empty output from ytt")
+	}
+
+	dataYaml := []byte(res.Stdout)
+	return dataYaml, nil
+}
+
 func mergeValuesYaml(valueFilesYaml string) (CmdResult, error) {
 	return runYttWithFilesAndStdin(nil, nil, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
+}
+
+func createDirectory(dir string) error {
+	if _, err := os.Stat(dir); err != nil {
+		err := os.MkdirAll(dir, 0o750)
+		if err != nil {
+			log.Error().Err(err).Msg("Unable to create directory: " + dir)
+			return err
+		}
+	}
+	return nil
 }
