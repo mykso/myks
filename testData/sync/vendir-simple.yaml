@@ -9,3 +9,5 @@ directories:
           version: 2.9.10
           repository:
             url: https://grafana.github.io/helm-charts
+            secretRef:
+              name: loki-secret
