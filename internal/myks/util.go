@@ -222,7 +222,7 @@ func hash(s string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func renderDataYaml(dataFiles []string) ([]byte, error) {
+func renderDataYaml(app string, dataFiles []string) ([]byte, error) {
 	if len(dataFiles) == 0 {
 		return nil, errors.New("No data files found")
 	}

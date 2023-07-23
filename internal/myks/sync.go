@@ -17,6 +17,72 @@ type Directory struct {
 	Secret      string `yaml:"-"`
 }
 
+func (a *Application) Sync() error {
+	if err := a.prepareSync(); err != nil {
+		if err == ErrNoVendirConfig {
+			return nil
+		}
+		return err
+	}
+
+	if err := a.doSync(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (a *Application) prepareSync() error {
+	// Collect ytt arguments following the following steps:
+	// 1. If exists, use the `apps/<prototype>/vendir` directory.
+	// 2. If exists, for every level of environments use `<env>/_apps/<app>/vendir` directory.
+
+	var yttFiles []string
+
+	protoVendirDir := filepath.Join(a.Prototype, "vendir")
+	if _, err := os.Stat(protoVendirDir); err == nil {
+		yttFiles = append(yttFiles, protoVendirDir)
+		log.Debug().Str("dir", protoVendirDir).Msg("Using prototype vendir directory")
+	}
+
+	appVendirDirs := a.e.collectBySubpath(filepath.Join("_apps", a.Name, "vendir"))
+	yttFiles = append(yttFiles, appVendirDirs...)
+
+	if len(yttFiles) == 0 {
+		err := ErrNoVendirConfig
+		log.Warn().Err(err).Str("app", a.Name).Msg("")
+		return err
+	}
+
+	vendirConfig, err := a.e.g.ytt(yttFiles)
+	if err != nil {
+		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render vendir config")
+		return err
+	}
+
+	if vendirConfig.Stdout == "" {
+		err = errors.New("Empty vendir config")
+		log.Warn().Err(err).Msg("")
+		return err
+	}
+
+	vendirConfigFilePath := a.expandServicePath(a.e.g.VendirConfigFileName)
+	// Create directory if it does not exist
+	err = os.MkdirAll(filepath.Dir(vendirConfigFilePath), 0o750)
+	if err != nil {
+		log.Warn().Err(err).Msg("Unable to create directory for vendir config file")
+		return err
+	}
+	err = os.WriteFile(vendirConfigFilePath, []byte(vendirConfig.Stdout), 0o600)
+	if err != nil {
+		log.Warn().Err(err).Msg("Unable to write vendir config file")
+		return err
+	}
+	log.Debug().Str("app", a.Name).Str("file", vendirConfigFilePath).Msg("Wrote vendir config file")
+
+	return nil
+}
+
 func (a *Application) doSync() error {
 	// Paths are relative to the vendor directory (BUG: this will brake with multi-level vendor directory, e.g. `vendor/shmendor`)
 	vendirConfigFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirConfigFileName)
@@ -70,7 +136,7 @@ func (a *Application) doSync() error {
 				"--file=" + vendirConfigFileRelativePath,
 				"--lock-file=" + vendirLockFileRelativePath,
 			}
-			args, secretFilePath, err := handleVendirSecret(dir, a.expandTempPath(""), filepath.Join("..", a.e.g.ServiceDirName, a.e.g.TempDirName), args)
+			args, secretFilePath, err := handleVendirSecret(a.Name, dir, a.expandTempPath(""), filepath.Join("..", a.e.g.ServiceDirName, a.e.g.TempDirName), args)
 			if err != nil {
 				log.Error().Err(err).Str("app", a.Name).Msg("Unable to create secret for: " + dir.Path)
 				return err
@@ -96,7 +162,7 @@ func (a *Application) doSync() error {
 		}
 		for _, dir := range vendirDirs {
 			var secretFilePath string
-			args, secretFilePath, err = handleVendirSecret(dir, a.expandTempPath(""), filepath.Join("..", a.e.g.ServiceDirName, a.e.g.TempDirName), args)
+			args, secretFilePath, err = handleVendirSecret(a.Name, dir, a.expandTempPath(""), filepath.Join("..", a.e.g.ServiceDirName, a.e.g.TempDirName), args)
 			if err != nil {
 				log.Error().Err(err).Str("app", a.Name).Msg("Unable to create secret for: " + dir.Path)
 				return err
@@ -150,7 +216,7 @@ func writeSyncFile(syncFilePath string, directories []Directory) error {
 	return nil
 }
 
-func handleVendirSecret(dir Directory, tempPath string, tempRelativePath string, vendirArgs []string) ([]string, string, error) {
+func handleVendirSecret(app string, dir Directory, tempPath string, tempRelativePath string, vendirArgs []string) ([]string, string, error) {
 	if dir.Secret != "" {
 		username, password, err := getEnvCreds(dir.Secret)
 		if err != nil {

@@ -108,7 +108,7 @@ func Test_renderDataYaml(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := renderDataYaml(tt.args.dataFiles)
+			got, err := renderDataYaml("", tt.args.dataFiles)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("renderDataYaml() error = %v, wantErr %v", err, tt.wantErr)
 				return
