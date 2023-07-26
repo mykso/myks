@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"regexp"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -24,8 +25,11 @@ type CmdResult struct {
 }
 
 func runCmd(name string, stdin io.Reader, args []string) (CmdResult, error) {
-	// make this copy-n-pastable
-	log.Debug().Msg("Running command:\n" + name + " " + strings.Join(args, " "))
+	if log.Debug().Enabled() {
+		logArgs := reductSecrets(args)
+		// make this copy-n-pastable
+		log.Debug().Msg("Running command:\n" + name + " " + strings.Join(logArgs, " "))
+	}
 	cmd := exec.Command(name, args...)
 
 	if stdin != nil {
@@ -42,6 +46,17 @@ func runCmd(name string, stdin io.Reader, args []string) (CmdResult, error) {
 		Stdout: stdoutBs.String(),
 		Stderr: stderrBs.String(),
 	}, err
+}
+
+func reductSecrets(args []string) []string {
+	sensitiveFields := []string{"password", "secret", "token"}
+	var logArgs []string
+	for _, arg := range args {
+		pattern := "(" + strings.Join(sensitiveFields, "|") + ")=(\\S+)"
+		regex := regexp.MustCompile(pattern)
+		logArgs = append(logArgs, regex.ReplaceAllString(arg, "$1=[REDACTED]"))
+	}
+	return logArgs
 }
 
 func runYttWithFilesAndStdin(paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
@@ -237,4 +252,27 @@ func createDirectory(dir string) error {
 		}
 	}
 	return nil
+}
+
+func writeFile(path string, content []byte) error {
+	dir := filepath.Dir(path)
+	if _, err := os.Stat(dir); err != nil {
+		err := os.MkdirAll(dir, 0o750)
+		if err != nil {
+			log.Warn().Err(err).Msg("Unable to create directory")
+			return err
+		}
+	}
+
+	return os.WriteFile(path, content, 0o600)
+}
+
+func appendIfNotExists(slice []string, element string) ([]string, bool) {
+	for _, item := range slice {
+		if item == element {
+			return slice, false
+		}
+	}
+
+	return append(slice, element), true
 }

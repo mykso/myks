@@ -1,0 +1,10 @@
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+  - path: vendor/ytt/grafana
+    contents:
+      - path: .
+        imgpkgBundle:
+          image: registry/docker/apps/grafana:1.4.0
+          secretRef:
+            name: grafana-secret

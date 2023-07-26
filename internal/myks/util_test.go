@@ -17,7 +17,7 @@ func Test_hash(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.a, func(t *testing.T) {
 			if got := hash(tt.b); got != tt.want {
-				t.Errorf("hash() = %v, want %v", got, tt.want)
+				t.Errorf("hash() = %v, wantArgs %v", got, tt.want)
 			}
 		})
 	}
@@ -58,7 +58,7 @@ func Test_sortYaml(t *testing.T) {
 				return
 			}
 			if got != tt.want {
-				t.Errorf("sortYaml() got = %v, want %v", got, tt.want)
+				t.Errorf("sortYaml() got = %v, wantArgs %v", got, tt.want)
 			}
 		})
 	}
@@ -85,7 +85,7 @@ func Test_unmarshalYaml(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("unmarshalYamlToMap() got = %v, want %v", got, tt.want)
+				t.Errorf("unmarshalYamlToMap() got = %v, wantArgs %v", got, tt.want)
 			}
 		})
 	}
@@ -114,7 +114,7 @@ func Test_renderDataYaml(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(string(got), tt.want) {
-				t.Errorf("renderDataYaml() got = %v, want %v", string(got), tt.want)
+				t.Errorf("renderDataYaml() got = %v, wantArgs %v", string(got), tt.want)
 			}
 		})
 	}
@@ -136,6 +136,81 @@ func Test_createDirectory(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if err := createDirectory(tt.args.dir); (err != nil) != tt.wantErr {
 				t.Errorf("createDirectory() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func Test_writeFile(t *testing.T) {
+	type args struct {
+		path    string
+		content []byte
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"happy path", args{"/tmp/test-file", []byte("test")}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if err := writeFile(tt.args.path, tt.args.content); (err != nil) != tt.wantErr {
+				t.Errorf("writeFile() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			file, err := os.ReadFile(tt.args.path)
+			if err != nil {
+				t.Errorf("writeFile() error = %v", err)
+			}
+			if string(file) != string(tt.args.content) {
+				t.Errorf("writeFile() got = %v, wantArgs %v", string(file), string(tt.args.content))
+			}
+		})
+	}
+}
+
+func Test_appendIfNotExists(t *testing.T) {
+	type args struct {
+		slice   []string
+		element string
+	}
+	tests := []struct {
+		name      string
+		args      args
+		wantArgs  []string
+		wantAdded bool
+	}{
+		{"add dup", args{[]string{"test"}, "test"}, []string{"test"}, false},
+		{"add new element", args{[]string{"test"}, "test2"}, []string{"test", "test2"}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, added := appendIfNotExists(tt.args.slice, tt.args.element)
+			if !reflect.DeepEqual(got, tt.wantArgs) {
+				t.Errorf("appendIfNotExists() = %v, wantArgs %v", got, tt.wantArgs)
+			}
+			if !added == tt.wantAdded {
+				t.Errorf("appendIfNotExists() = %v, wantAdded %v", got, tt.wantArgs)
+			}
+		})
+	}
+}
+
+func Test_reductSecrets(t *testing.T) {
+	type args struct {
+		args []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{"happy path", args{[]string{"password=verysecret", "secret=verysecret", "token=verysecret"}}, []string{"password=[REDACTED]", "secret=[REDACTED]", "token=[REDACTED]"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := reductSecrets(tt.args.args); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("reductSecrets() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -31,7 +31,7 @@ type HelmConfig struct {
 	IncludeCRDs bool   `yaml:"includeCRDs"`
 }
 
-var ErrNoVendirConfig = errors.New("No vendir config found")
+var ErrNoVendirConfig = errors.New("no vendir config found")
 
 func NewApplication(e *Environment, name string, prototypeName string) (*Application, error) {
 	if prototypeName == "" {
@@ -41,7 +41,7 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 	prototype := filepath.Join(e.g.PrototypesDir, prototypeName)
 
 	if _, err := os.Stat(prototype); err != nil {
-		return nil, errors.New("Application prototype does not exist")
+		return nil, errors.New("application prototype does not exist")
 	}
 
 	app := &Application{
@@ -164,7 +164,7 @@ func (a *Application) prepareSync() error {
 	// 1. If exists, use the `apps/<prototype>/vendir` directory.
 	// 2. If exists, for every level of environments use `<env>/_apps/<app>/vendir` directory.
 
-	yttFiles := []string{}
+	var yttFiles []string
 
 	protoVendirDir := filepath.Join(a.Prototype, "vendir")
 	if _, err := os.Stat(protoVendirDir); err == nil {
@@ -222,26 +222,12 @@ func (a *Application) expandTempPath(path string) string {
 	return a.expandServicePath(filepath.Join(a.e.g.TempDirName, path))
 }
 
-// TODO: for content, use []byte instead of string
-func (a *Application) writeFile(path string, content string) error {
-	dir := filepath.Dir(path)
-	if _, err := os.Stat(dir); err != nil {
-		err := os.MkdirAll(dir, 0o750)
-		if err != nil {
-			log.Warn().Err(err).Msg("Unable to create directory")
-			return err
-		}
-	}
-
-	return os.WriteFile(path, []byte(content), 0o600)
-}
-
 func (a *Application) writeServiceFile(name string, content string) error {
-	return a.writeFile(a.expandServicePath(name), content)
+	return writeFile(a.expandServicePath(name), []byte(content))
 }
 
 func (a *Application) writeTempFile(name string, content string) error {
-	return a.writeFile(a.expandTempPath(name), content)
+	return writeFile(a.expandTempPath(name), []byte(content))
 }
 
 func (a *Application) collectDataFiles() {
@@ -270,7 +256,7 @@ func (a *Application) runHelm() (string, error) {
 		return "", err
 	}
 
-	commonHelmArgs := []string{}
+	var commonHelmArgs []string
 
 	// FIXME: move Namespace to a per-chart config
 	if helmConfig.Namespace == "" {
@@ -287,7 +273,7 @@ func (a *Application) runHelm() (string, error) {
 		commonHelmArgs = append(commonHelmArgs, "--include-crds")
 	}
 
-	outputs := []string{}
+	var outputs []string
 
 	for _, chartDir := range chartDirs {
 		chartName := filepath.Base(chartDir)
@@ -349,7 +335,7 @@ func (a *Application) getHelmChartDirs() []string {
 		return []string{}
 	}
 
-	chartDirs := []string{}
+	var chartDirs []string
 	err = filepath.Walk(chartsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			log.Warn().Err(err).Str("path", path).Msg("Unable to walk helm charts directory")
@@ -377,7 +363,7 @@ func (a *Application) getHelmChartDirs() []string {
 func (a *Application) prepareHelm(chartName string) error {
 	helmValuesFileName := a.getHelmValuesFileName(chartName)
 
-	helmYttFiles := []string{}
+	var helmYttFiles []string
 
 	prototypeHelmValues := filepath.Join(a.Prototype, helmValuesFileName)
 	if _, err := os.Stat(prototypeHelmValues); err == nil {
@@ -448,7 +434,7 @@ func (a *Application) getHelmValuesFileName(chartName string) string {
 }
 
 func (a *Application) runYtt(previousStepFile string) (string, error) {
-	yttFiles := []string{}
+	var yttFiles []string
 
 	yttFiles = append(yttFiles, a.yttDataFiles...)
 
@@ -490,7 +476,7 @@ func (a *Application) runYtt(previousStepFile string) (string, error) {
 }
 
 func (a *Application) runGlobalYtt(previousStepFile string) (string, error) {
-	yttFiles := []string{}
+	var yttFiles []string
 
 	yttFiles = append(yttFiles, a.yttDataFiles...)
 
@@ -574,7 +560,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		if _, err := os.Stat(filePath); err == nil {
 			log.Warn().Str("app", a.Name).Str("file", filePath).Msg("File already exists, check duplicated resources")
 		}
-		err = a.writeFile(filePath, data.String())
+		err = writeFile(filePath, data.Bytes())
 		if err != nil {
 			log.Warn().Err(err).Str("app", a.Name).Str("file", filePath).Msg("Unable to write file")
 			return err
