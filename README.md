@@ -45,3 +45,12 @@ $ find
 $ # Sync and render everything
 $ myks all envs --log-level debug
 ```
+
+### Run
+
+#### Running `sync` against protected repositories and registries
+
+Vendir uses `secret` resources to authenticate against protected repositories. These are references by the `vendir.yaml` with the `secretRef` key. 
+
+Myks dynamically creates these secrets based on environment variables prefixed with `VENDIR_SECRET_`.
+For example, if you reference a secret named "mycreds" in your `vendir.yaml, you need to define the environment variables VENDIR_SECRET_MYCREDS_USERNAME` and `VENDIR_SECRET_MYCREDS_PASSWORD`. The secrets are cleaned up automatically after the sync is complete.
