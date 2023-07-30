@@ -36,32 +36,32 @@ func (a *Application) Render() error {
 		}
 	}
 
-	outputYaml, err = a.runYtt()
+	outputYaml, err = a.runYttPkg()
 	if err != nil {
 		return err
 	}
 
-	yttStepOutputFile := ""
+	yttPkgStepOutputFile := ""
 	if outputYaml != "" {
-		yttStepOutputFile, err = a.storeStepResult(outputYaml, "ytt", 1, helmStepOutputFile)
+		yttPkgStepOutputFile, err = a.storeStepResult(outputYaml, "ytt-pkg", 1, helmStepOutputFile)
 		if err != nil {
 			log.Error().Err(err).Msg("Failed to store ytt step result")
 			return err
 		}
 	}
 
-	outputYaml, err = a.runLocalYaml(yttStepOutputFile)
+	outputYaml, err = a.runYtt(yttPkgStepOutputFile)
 	if err != nil {
 		return err
 	}
 
-	yamlStepOutputFile, err := a.storeStepResult(outputYaml, "yaml", 2, "")
+	yttStepOutput, err := a.storeStepResult(outputYaml, "ytt", 2, "")
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to store ytt step result")
 		return err
 	}
 
-	outputYaml, err = a.runGlobalYtt(yamlStepOutputFile)
+	outputYaml, err = a.runGlobalYtt(yttStepOutput)
 	if err != nil {
 		return err
 	}
@@ -84,7 +84,7 @@ func (a *Application) Render() error {
 	return nil
 }
 
-func (a *Application) runLocalYaml(previousStepFile string) (string, error) {
+func (a *Application) runYtt(previousStepFile string) (string, error) {
 
 	var yttFiles []string
 	yttFiles = append(yttFiles, a.yttDataFiles...)
@@ -93,38 +93,37 @@ func (a *Application) runLocalYaml(previousStepFile string) (string, error) {
 		yttFiles = append(yttFiles, previousStepFile)
 	}
 
-	// TODO Do we need this? If ytt files are vendored in, they are likely to come with their own schmema definition.
-	//vendorYttDir := a.expandPath(filepath.Join(a.e.g.VendorDirName, a.e.g.YttStepDirName))
-	//if _, err := os.Stat(vendorYttDir); err == nil {
-	//	yttFiles = append(yttFiles, vendorYttDir)
-	//}
-
-	prototypeYamlDir := filepath.Join(a.Prototype, a.e.g.YamlStepDirName)
-	if _, err := os.Stat(prototypeYamlDir); err == nil {
-		yttFiles = append(yttFiles, prototypeYamlDir)
+	vendorYttDir := a.expandPath(filepath.Join(a.e.g.VendorDirName, a.e.g.YttStepDirName))
+	if _, err := os.Stat(vendorYttDir); err == nil {
+		yttFiles = append(yttFiles, vendorYttDir)
 	}
 
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.YamlStepDirName))...)
+	prototypeYttDir := filepath.Join(a.Prototype, a.e.g.YttStepDirName)
+	if _, err := os.Stat(prototypeYttDir); err == nil {
+		yttFiles = append(yttFiles, prototypeYttDir)
+	}
+
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.YttStepDirName))...)
 
 	if len(yttFiles) == 0 {
-		log.Debug().Str("app", a.Name).Msg("No ytt files found")
+		log.Debug().Str("app", a.Name).Msg("No yaml files found")
 		return "", nil
 	}
 
 	log.Debug().Strs("files", yttFiles).Str("app", a.Name).Msg("Collected ytt files")
 
-	yttOutput, err := a.e.g.ytt(yttFiles)
+	yamlOutput, err := a.e.g.ytt(yttFiles)
 	if err != nil {
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render ytt files")
 		return "", err
 	}
 
-	if yttOutput.Stdout == "" {
+	if yamlOutput.Stdout == "" {
 		log.Warn().Str("app", a.Name).Msg("Empty ytt output")
 		return "", nil
 	}
 
-	return yttOutput.Stdout, nil
+	return yamlOutput.Stdout, nil
 }
 
 func (a *Application) runGlobalYtt(previousStepFile string) (string, error) {
@@ -136,7 +135,7 @@ func (a *Application) runGlobalYtt(previousStepFile string) (string, error) {
 		yttFiles = append(yttFiles, previousStepFile)
 	}
 
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_env", a.e.g.YttStepDirName))...)
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_env", a.e.g.YttPkgStepDirName))...)
 
 	if len(yttFiles) == 0 {
 		log.Debug().Str("app", a.Name).Msg("No ytt files found")
@@ -244,47 +243,26 @@ func genRenderedResourceFileName(resource map[string]interface{}) string {
 		kind = g.(string)
 	}
 	name := "NO_NAME"
-	if n, ok := resource["metadata"].(map[string]interface{})["name"]; ok {
-		name = n.(string)
+	if n, ok := resource["metadata"]; ok {
+		metadata := n.(map[string]interface{})
+		name = metadata["name"].(string)
 	}
 	return fmt.Sprintf("%s-%s.yaml", strings.ToLower(kind), strings.ToLower(name))
 }
 
-func (a *Application) getVendoredResourceDir(dirname string) (string, error) {
+func (a *Application) getVendoredDir(dirname string) (string, error) {
 	resourceDir := a.expandPath(filepath.Join(a.e.g.VendorDirName, dirname))
 	if _, err := os.Stat(resourceDir); err != nil {
 		if os.IsNotExist(err) {
 			log.Debug().Str("app", a.Name).Msg("Vendored directory directory does not exist: " + resourceDir)
 			return "", nil
 		}
+
 		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to stat helm charts directory: " + resourceDir)
 		return "", err
 	}
 
 	return resourceDir, nil
-}
-
-func getVendoredResourceDirs(resourceDir string) []string {
-	var resourceDirs []string
-	err := filepath.Walk(resourceDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() && path != resourceDir {
-			resourceDirs = append(resourceDirs, path)
-			return filepath.SkipDir
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		log.Warn().Err(err).Msg("Unable to walk vendor resource directory")
-		return []string{}
-	}
-
-	return resourceDirs
 }
 
 // prepareValuesFile generates values.yaml file from ytt data files and ytt templates

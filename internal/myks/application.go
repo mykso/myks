@@ -17,6 +17,7 @@ type Application struct {
 	// YTT data files
 	yttDataFiles []string
 	cached       bool
+	yttPkgDirs   []string
 }
 
 type HelmConfig struct {
@@ -64,11 +65,17 @@ func (a *Application) Init() error {
 		return err
 	}
 
+	type Cache struct {
+		Enabled bool
+	}
+	type YttPkg struct {
+		Dirs []string `yaml:"dirs"`
+	}
+
 	var applicationData struct {
 		Application struct {
-			Cache struct {
-				Enabled bool
-			}
+			Cache  Cache  `yaml:"cache"`
+			YttPkg YttPkg `yaml:"yttPkg"`
 		}
 	}
 
@@ -77,6 +84,7 @@ func (a *Application) Init() error {
 		return err
 	}
 	a.cached = applicationData.Application.Cache.Enabled
+	a.yttPkgDirs = applicationData.Application.YttPkg.Dirs
 
 	return nil
 }

@@ -9,12 +9,12 @@ import (
 )
 
 func (a *Application) runHelm() (string, error) {
-	chartDir, err := a.getVendoredResourceDir(a.e.g.HelmChartsDirName)
+	chartDir, err := a.getVendoredDir(a.e.g.HelmChartsDirName)
 	if err != nil {
 		log.Err(err).Str("app", a.Name).Msg("Unable to get helm charts dir")
 		return "", err
 	}
-	chartDirs := getVendoredResourceDirs(chartDir)
+	chartDirs := getSubDirs(chartDir)
 	if len(chartDirs) == 0 {
 		log.Debug().Str("app", a.Name).Msg("No charts to process")
 		return "", nil
