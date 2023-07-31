@@ -249,8 +249,8 @@ func Test_getEnvCreds(t *testing.T) {
 		want1   string
 		wantErr bool
 	}{
-		{"happy path", args{"loki-secret", secretEnvPrefix + "LOKI-SECRET_USERNAME", "username", secretEnvPrefix + "LOKI-SECRET_PASSWORD", "password"}, "username", "password", false},
-		{"sad path", args{"loki-secret", secretEnvPrefix + "LOKI-SECRET_USERNAME", "", secretEnvPrefix + "LOKI-SECRET_PASSWORD", ""}, "", "", true},
+		{"happy path", args{"loki-secret", envPrefix + "LOKI-SECRET_USERNAME", "username", envPrefix + "LOKI-SECRET_PASSWORD", "password"}, "username", "password", false},
+		{"sad path", args{"loki-secret", envPrefix + "LOKI-SECRET_USERNAME", "", envPrefix + "LOKI-SECRET_PASSWORD", ""}, "", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

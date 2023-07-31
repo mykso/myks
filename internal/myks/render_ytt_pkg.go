@@ -1,21 +1,34 @@
 package myks
 
 import (
+	"github.com/rs/zerolog/log"
 	"path/filepath"
 	"strings"
-
-	"github.com/rs/zerolog/log"
 )
 
-func (a *Application) runYttPkg() (string, error) {
-	yttPkgRootDir, err := a.getVendoredDir(a.e.g.YttPkgStepDirName)
+type YttPkg struct {
+	ident    string
+	app      *Application
+	additive bool
+}
+
+func (y *YttPkg) IsAdditive() bool {
+	return y.additive
+}
+
+func (y *YttPkg) Ident() string {
+	return y.ident
+}
+
+func (y *YttPkg) Render(_ string) (string, error) {
+	yttPkgRootDir, err := y.app.getVendoredDir(y.app.e.g.YttPkgStepDirName)
 	if err != nil {
-		log.Err(err).Str("app", a.Name).Msg("Unable to get ytt package dir")
+		log.Err(err).Str("app", y.app.Name).Msg("Unable to get ytt package dir")
 		return "", err
 	}
 	yttPkgSubDirs := getSubDirs(yttPkgRootDir)
 	if len(yttPkgSubDirs) == 0 {
-		log.Debug().Str("app", a.Name).Msg("No packages to process")
+		log.Debug().Str("app", y.app.Name).Msg("No packages to process")
 		return "", nil
 	}
 
@@ -24,13 +37,13 @@ func (a *Application) runYttPkg() (string, error) {
 	for _, pkgDir := range yttPkgSubDirs {
 		pkgName := filepath.Base(pkgDir)
 		var pkgValuesFile string
-		if pkgValuesFile, err = a.prepareValuesFile("ytt-pkg", pkgName); err != nil {
-			log.Warn().Err(err).Str("app", a.Name).Msg("Unable to prepare vendir packages value files")
+		if pkgValuesFile, err = y.app.prepareValuesFile("ytt-pkg", pkgName); err != nil {
+			log.Warn().Err(err).Str("app", y.app.Name).Msg("Unable to prepare vendir packages value files")
 			return "", err
 		}
 
 		var yttFiles []string
-		for _, yttFile := range a.yttPkgDirs {
+		for _, yttFile := range y.app.yttPkgDirs {
 			yttFiles = append(yttFiles, filepath.Join(pkgDir, yttFile))
 		}
 		if len(yttFiles) == 0 {
@@ -44,12 +57,12 @@ func (a *Application) runYttPkg() (string, error) {
 
 		res, err := runYttWithFilesAndStdin(yttFiles, nil, yttArgs...)
 		if err != nil {
-			log.Error().Err(err).Str("app", a.Name).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg("Unable to run ytt")
+			log.Error().Err(err).Str("app", y.app.Name).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg("Unable to run ytt")
 			return "", err
 		}
 
 		if res.Stdout == "" {
-			log.Warn().Str("app", a.Name).Str("pkgName", pkgName).Msg("No ytt package output")
+			log.Warn().Str("app", y.app.Name).Str("pkgName", pkgName).Msg("No ytt package output")
 			continue
 		}
 

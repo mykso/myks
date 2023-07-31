@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-const secretEnvPrefix = "VENDIR_SECRET_"
+const envPrefix = "VENDIR_SECRET_"
 
 type Directory struct {
 	Path        string
@@ -376,8 +376,8 @@ func checkLockFileMatch(vendirDirs []Directory, lockFileDirs []Directory) bool {
 }
 
 func getEnvCreds(secretName string) (string, string, error) {
-	username := os.Getenv(secretEnvPrefix + strings.ToUpper(secretName) + "_USERNAME")
-	password := os.Getenv(secretEnvPrefix + strings.ToUpper(secretName) + "_PASSWORD")
+	username := os.Getenv(envPrefix + strings.ToUpper(secretName) + "_USERNAME")
+	password := os.Getenv(envPrefix + strings.ToUpper(secretName) + "_PASSWORD")
 	if username == "" || password == "" {
 		return "", "", errors.New("no credentials found in environment for secret: " + secretName)
 	}

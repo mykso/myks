@@ -8,21 +8,35 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-func (a *Application) runHelm() (string, error) {
-	chartDir, err := a.getVendoredDir(a.e.g.HelmChartsDirName)
+type Helm struct {
+	ident    string
+	app      *Application
+	additive bool
+}
+
+func (h *Helm) IsAdditive() bool {
+	return h.additive
+}
+
+func (h *Helm) Ident() string {
+	return h.ident
+}
+
+func (h *Helm) Render(_ string) (string, error) {
+	chartDir, err := h.app.getVendoredDir(h.app.e.g.HelmChartsDirName)
 	if err != nil {
-		log.Err(err).Str("app", a.Name).Msg("Unable to get helm charts dir")
+		log.Err(err).Str("app", h.app.Name).Msg("Unable to get helm charts dir")
 		return "", err
 	}
 	chartDirs := getSubDirs(chartDir)
 	if len(chartDirs) == 0 {
-		log.Debug().Str("app", a.Name).Msg("No charts to process")
+		log.Debug().Str("app", h.app.Name).Msg("No charts to process")
 		return "", nil
 	}
 
-	helmConfig, err := a.getHelmConfig()
+	helmConfig, err := h.getHelmConfig()
 	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to get helm config")
+		log.Warn().Err(err).Str("app", h.app.Name).Msg("Unable to get helm config")
 		return "", err
 	}
 
@@ -30,7 +44,7 @@ func (a *Application) runHelm() (string, error) {
 
 	// FIXME: move Namespace to a per-chart config
 	if helmConfig.Namespace == "" {
-		helmConfig.Namespace = a.e.g.NamespacePrefix + a.Name
+		helmConfig.Namespace = h.app.e.g.NamespacePrefix + h.app.Name
 	}
 	commonHelmArgs = append(commonHelmArgs, "--namespace", helmConfig.Namespace)
 
@@ -48,12 +62,12 @@ func (a *Application) runHelm() (string, error) {
 	for _, chartDir := range chartDirs {
 		chartName := filepath.Base(chartDir)
 		var helmValuesFile string
-		if helmValuesFile, err = a.prepareValuesFile("helm", chartName); err != nil {
-			log.Warn().Err(err).Str("app", a.Name).Msg("Unable to prepare helm values")
+		if helmValuesFile, err = h.app.prepareValuesFile("helm", chartName); err != nil {
+			log.Warn().Err(err).Str("app", h.app.Name).Msg("Unable to prepare helm values")
 			return "", err
 		}
 
-		// FIXME: replace a.Name with a name of the chart being processed
+		// FIXME: replace h.app.Name with a name of the chart being processed
 		helmArgs := []string{
 			"template",
 			"--skip-tests",
@@ -72,7 +86,7 @@ func (a *Application) runHelm() (string, error) {
 		}
 
 		if res.Stdout == "" {
-			log.Warn().Str("app", a.Name).Str("chart", chartName).Msg("No helm output")
+			log.Warn().Str("app", h.app.Name).Str("chart", chartName).Msg("No helm output")
 			continue
 		}
 
@@ -83,10 +97,10 @@ func (a *Application) runHelm() (string, error) {
 	return strings.Join(outputs, "---\n"), nil
 }
 
-func (a *Application) getHelmConfig() (HelmConfig, error) {
-	dataValuesYaml, err := a.e.g.ytt(a.yttDataFiles, "--data-values-inspect")
+func (h *Helm) getHelmConfig() (HelmConfig, error) {
+	dataValuesYaml, err := h.app.e.g.ytt(h.app.yttDataFiles, "--data-values-inspect")
 	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to inspect data values")
+		log.Warn().Err(err).Str("app", h.app.Name).Msg("Unable to inspect data values")
 		return HelmConfig{}, err
 	}
 
@@ -95,7 +109,7 @@ func (a *Application) getHelmConfig() (HelmConfig, error) {
 	}
 	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &helmConfig)
 	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to unmarshal data values")
+		log.Warn().Err(err).Str("app", h.app.Name).Msg("Unable to unmarshal data values")
 		return HelmConfig{}, err
 	}
 
