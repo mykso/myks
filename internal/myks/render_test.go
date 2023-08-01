@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"os"
 	"testing"
 )
 
@@ -102,6 +103,13 @@ func TestApplication_Render(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("Render() got = %v, want %v", got, tt.want)
+			}
+			// check actual step file content
+			file, err := os.ReadFile(tt.want)
+			if err == nil {
+				if string(file) != tt.wantYaml {
+					t.Errorf("Render() got = %v, want %v", string(file), tt.wantYaml)
+				}
 			}
 		})
 	}

@@ -47,6 +47,10 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 			outputYaml = stepOutputYaml
 		}
 		lastStepOutputFile, err = a.storeStepResult(outputYaml, yamlTool.Ident(), 1)
+		if err != nil {
+			log.Error().Str("app", a.Name).Err(err).Msg("Failed to store step result for: " + yamlTool.Ident())
+			return "", err
+		}
 	}
 	return lastStepOutputFile, nil
 }
