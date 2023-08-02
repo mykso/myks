@@ -1,8 +1,9 @@
 package myks
 
 import (
-	"github.com/rs/zerolog/log"
 	"path/filepath"
+
+	"github.com/rs/zerolog/log"
 )
 
 type GlobalYtt struct {
@@ -20,7 +21,6 @@ func (g *GlobalYtt) IsAdditive() bool {
 }
 
 func (g *GlobalYtt) Render(previousStepFile string) (string, error) {
-
 	var yttFiles []string
 
 	yttFiles = append(yttFiles, g.app.yttDataFiles...)

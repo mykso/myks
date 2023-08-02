@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"gopkg.in/yaml.v3"
 	"io"
 	"io/fs"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	yaml "gopkg.in/yaml.v3"
 )
 
 type CmdResult struct {
@@ -188,7 +188,6 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 }
 
 func unmarshalYamlToMap(filePath string) (map[string]interface{}, error) {
-
 	if _, err := os.Stat(filePath); err != nil {
 		log.Debug().Str("filePath", filePath).Msg("Yaml not found.")
 		return make(map[string]interface{}), nil
@@ -297,7 +296,6 @@ func getSubDirs(rootDir string) []string {
 
 		return nil
 	})
-
 	if err != nil {
 		log.Warn().Err(err).Msg("Unable to walk vendor package directory")
 		return []string{}

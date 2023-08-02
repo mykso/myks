@@ -2,11 +2,12 @@ package myks
 
 import (
 	"errors"
-	"github.com/rs/zerolog/log"
-	"gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/rs/zerolog/log"
+	yaml "gopkg.in/yaml.v3"
 )
 
 const envPrefix = "VENDIR_SECRET_"
@@ -120,7 +121,7 @@ func (a *Application) doSync() error {
 	}
 
 	var secretFilePaths []string
-	//TODO sync retry
+	// TODO sync retry
 	// only sync vendir with directory flag, if the lock file matches the vendir config file and caching is enabled
 	if a.cached && checkLockFileMatch(vendirDirs, lockFileDirs) {
 		for _, dir := range vendirDirs {
@@ -151,7 +152,6 @@ func (a *Application) doSync() error {
 				return err
 			}
 		}
-
 	} else {
 		log.Info().Str("app", a.Name).Msg("Syncing vendir completely for: " + vendirConfigFilePath)
 		args := []string{
@@ -203,7 +203,6 @@ func (a *Application) doSync() error {
 }
 
 func writeSyncFile(syncFilePath string, directories []Directory) error {
-
 	bytes, err := yaml.Marshal(directories)
 	if err != nil {
 		return err
@@ -255,7 +254,6 @@ func readVendirConfig(vendirConfigFilePath string) ([]Directory, error) {
 }
 
 func readSyncFile(vendirSyncFile string) ([]Directory, error) {
-
 	if _, err := os.Stat(vendirSyncFile); err != nil {
 		return []Directory{}, nil
 	}
@@ -275,7 +273,6 @@ func readSyncFile(vendirSyncFile string) ([]Directory, error) {
 }
 
 func readLockFile(vendirLockFile string) ([]Directory, error) {
-
 	config, err := unmarshalYamlToMap(vendirLockFile)
 	if err != nil {
 		return nil, err

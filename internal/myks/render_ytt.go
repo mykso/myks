@@ -1,9 +1,10 @@
 package myks
 
 import (
-	"github.com/rs/zerolog/log"
 	"os"
 	"path/filepath"
+
+	"github.com/rs/zerolog/log"
 )
 
 type Ytt struct {
@@ -21,7 +22,6 @@ func (y *Ytt) Ident() string {
 }
 
 func (y *Ytt) Render(previousStepFile string) (string, error) {
-
 	var yttFiles []string
 	yttFiles = append(yttFiles, y.app.yttDataFiles...)
 

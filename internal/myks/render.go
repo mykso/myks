@@ -157,7 +157,6 @@ func (a *Application) getVendoredDir(dirname string) (string, error) {
 // prepareValuesFile generates values.yaml file from ytt data files and ytt templates
 // from the `helm` or `ytt` directories of the prototype and the application.
 func (a *Application) prepareValuesFile(dirName string, resourceName string) (string, error) {
-
 	valuesFileName := filepath.Join(dirName, resourceName+".yaml")
 
 	var valuesFiles []string

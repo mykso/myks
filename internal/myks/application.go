@@ -2,9 +2,10 @@ package myks
 
 import (
 	"errors"
-	yaml "gopkg.in/yaml.v3"
 	"os"
 	"path/filepath"
+
+	yaml "gopkg.in/yaml.v3"
 )
 
 type Application struct {

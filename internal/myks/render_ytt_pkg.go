@@ -1,9 +1,10 @@
 package myks
 
 import (
-	"github.com/rs/zerolog/log"
 	"path/filepath"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 type YttPkg struct {

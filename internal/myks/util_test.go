@@ -24,7 +24,6 @@ func Test_hash(t *testing.T) {
 }
 
 func Test_sortYaml(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		args    map[string]interface{}

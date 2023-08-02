@@ -219,7 +219,8 @@ func Test_readVendirConfig(t *testing.T) {
 		{"happy path", args{"../../testData/sync/vendir-simple.yaml"}, []Directory{{Path: "vendor/charts/loki-stack", ContentHash: "6fc0b0703de83385531372f85eae1763ae6af7068ec0b420abd5562adec2a01f", Secret: "loki-secret"}}, false},
 		{"oci image", args{"../../testData/sync/vendir-oci.yaml"}, []Directory{{Path: "vendor/ytt/grafana", ContentHash: "11b1e2b989d81bb8daffc10f7be4d059bc0eec684913732fbfdadabbe79c7fb2", Secret: "grafana-secret"}}, false},
 		{"file not exist", args{"file-not-exist.yaml"}, nil, true},
-		{"no vendir file", args{"../../testData/sync/simple.yaml"}, nil, true}}
+		{"no vendir file", args{"../../testData/sync/simple.yaml"}, nil, true},
+	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := readVendirConfig(tt.args.vendirConfigFilePath)

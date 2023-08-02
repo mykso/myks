@@ -10,7 +10,6 @@ import (
 var templateFs embed.FS
 
 func writeSecretFile(secretName string, secretFilePath string, username string, password string) error {
-
 	err := copyFileSystemToPath(templateFs, "templates", filepath.Join(os.TempDir(), "templates"))
 	if err != nil {
 		return err
