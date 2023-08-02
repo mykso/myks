@@ -129,7 +129,7 @@ func (g *Globe) Init(searchPaths []string, applicationNames []string) error {
 	dataSchemaFileName := filepath.Join(g.RootDir, g.EnvironmentBaseDir, g.DataSchemaFileName)
 	if _, err := os.Stat(dataSchemaFileName); err != nil {
 		log.Warn().Err(err).Msg("Unable to find data schema file, creating one")
-		if err := os.WriteFile(dataSchemaFileName, dataSchema, 0o644); err != nil {
+		if err := os.WriteFile(dataSchemaFileName, dataSchema, 0o600); err != nil {
 			log.Fatal().Err(err).Msg("Unable to create data schema file")
 		}
 	}
@@ -218,10 +218,10 @@ func (g *Globe) dumpConfigAsYaml() (string, error) {
 	yttData := fmt.Sprintf("#@data/values\n---\n%s", yamlData.String())
 
 	configFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.MyksDataFileName)
-	if err := os.MkdirAll(filepath.Dir(configFileName), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(configFileName), 0o750); err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(configFileName, []byte(yttData), 0o644); err != nil {
+	if err := os.WriteFile(configFileName, []byte(yttData), 0o600); err != nil {
 		return "", err
 	}
 
@@ -249,35 +249,35 @@ func (g *Globe) createBaseFileStructure() error {
 	if _, err := os.Stat(envDir); err == nil {
 		return notCleanErr
 	}
-	if err := os.MkdirAll(envDir, 0o755); err != nil {
+	if err := os.MkdirAll(envDir, 0o750); err != nil {
 		return err
 	}
 
 	if _, err := os.Stat(protoDir); err == nil {
 		return notCleanErr
 	}
-	if err := os.MkdirAll(protoDir, 0o755); err != nil {
+	if err := os.MkdirAll(protoDir, 0o750); err != nil {
 		return err
 	}
 
 	if _, err := os.Stat(renderedDir); err == nil {
 		return notCleanErr
 	}
-	if err := os.MkdirAll(renderedDir, 0o755); err != nil {
+	if err := os.MkdirAll(renderedDir, 0o750); err != nil {
 		return err
 	}
 
 	if _, err := os.Stat(dataSchemaFile); err == nil {
 		return notCleanErr
 	}
-	if err := os.WriteFile(dataSchemaFile, dataSchema, 0o644); err != nil {
+	if err := os.WriteFile(dataSchemaFile, dataSchema, 0o600); err != nil {
 		return err
 	}
 
 	if _, err := os.Stat(envsGitignoreFile); err == nil {
 		return notCleanErr
 	}
-	if err := os.WriteFile(envsGitignoreFile, envsGitignore, 0o644); err != nil {
+	if err := os.WriteFile(envsGitignoreFile, envsGitignore, 0o600); err != nil {
 		return err
 	}
 

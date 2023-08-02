@@ -127,7 +127,7 @@ func processItemsInParallel(collection interface{}, fn func(interface{}) error) 
 }
 
 func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath string) error {
-	if err := os.MkdirAll(destinationPath, 0o755); err != nil {
+	if err := os.MkdirAll(destinationPath, 0o750); err != nil {
 		return err
 	}
 	err := fs.WalkDir(source, sourcePath, func(path string, d fs.DirEntry, err error) error {
@@ -156,7 +156,7 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 
 		if d.IsDir() {
 			// Create the destination directory
-			if err := os.MkdirAll(destination, 0o755); err != nil {
+			if err := os.MkdirAll(destination, 0o750); err != nil {
 				return err
 			}
 		} else {
