@@ -108,7 +108,7 @@ func Test_renderDataYaml(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := renderDataYaml(tt.args.dataFiles)
+			got, err := renderDataYaml("", tt.args.dataFiles)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("renderDataYaml() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -211,6 +211,27 @@ func Test_reductSecrets(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := reductSecrets(tt.args.args); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("reductSecrets() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_getSubDirs(t *testing.T) {
+	type args struct {
+		resourceDir string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{"happy path", args{"../../testData/vendor/charts"}, []string{"../../testData/vendor/charts/test-chart"}},
+		{"empty", args{""}, []string{}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := getSubDirs(tt.args.resourceDir); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("getSubDirs() = %v, want %v", got, tt.want)
 			}
 		})
 	}

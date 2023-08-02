@@ -71,6 +71,8 @@ type Globe struct {
 	// Ytt library directory name
 	YttLibraryDirName string `default:"lib" yaml:"yttLibraryDirName"`
 	// Ytt step directory name
+	YttPkgStepDirName string `default:"ytt-pkg" yaml:"yttPkgStepDirName"`
+	// Ytt step directory name
 	YttStepDirName string `default:"ytt" yaml:"yttStepDirName"`
 
 	/// User input

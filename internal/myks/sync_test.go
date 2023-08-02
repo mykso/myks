@@ -249,8 +249,8 @@ func Test_getEnvCreds(t *testing.T) {
 		want1   string
 		wantErr bool
 	}{
-		{"happy path", args{"loki-secret", secretEnvPrefix + "LOKI-SECRET_USERNAME", "username", secretEnvPrefix + "LOKI-SECRET_PASSWORD", "password"}, "username", "password", false},
-		{"sad path", args{"loki-secret", secretEnvPrefix + "LOKI-SECRET_USERNAME", "", secretEnvPrefix + "LOKI-SECRET_PASSWORD", ""}, "", "", true},
+		{"happy path", args{"loki-secret", envPrefix + "LOKI-SECRET_USERNAME", "username", envPrefix + "LOKI-SECRET_PASSWORD", "password"}, "username", "password", false},
+		{"sad path", args{"loki-secret", envPrefix + "LOKI-SECRET_USERNAME", "", envPrefix + "LOKI-SECRET_PASSWORD", ""}, "", "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -340,7 +340,7 @@ func Test_handleVendirSecret(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setEnvSafely(tt.args.envUsernameKey, tt.args.envUsernameValue, t)
 			setEnvSafely(tt.args.envPasswordKey, tt.args.envPasswordValue, t)
-			got, secretPath, err := handleVendirSecret(tt.args.dir, tt.args.tempPath, tt.args.tempRelativePath, tt.args.vendirArgs)
+			got, secretPath, err := handleVendirSecret("", tt.args.dir, tt.args.tempPath, tt.args.tempRelativePath, tt.args.vendirArgs)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("handleVendirSecret() error = %v, wantErr %v", err, tt.wantErr)
 				return

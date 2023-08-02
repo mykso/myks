@@ -88,7 +88,13 @@ func (e *Environment) Render() error {
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
 		}
-		return app.Render()
+		yamlTemplatingTools := []YamlTemplatingTool{
+			&Helm{ident: "helm", app: app, additive: true},
+			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
+			&Ytt{ident: "ytt", app: app, additive: false},
+			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
+		}
+		return app.RenderAndSlice(yamlTemplatingTools)
 	})
 }
 
@@ -101,7 +107,13 @@ func (e *Environment) SyncAndRender() error {
 		if err := app.Sync(); err != nil {
 			return err
 		}
-		return app.Render()
+		yamlTemplatingTools := []YamlTemplatingTool{
+			&Helm{ident: "helm", app: app, additive: true},
+			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
+			&Ytt{ident: "ytt", app: app, additive: false},
+			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
+		}
+		return app.RenderAndSlice(yamlTemplatingTools)
 	})
 }
 

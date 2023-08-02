@@ -127,6 +127,9 @@ func processItemsInParallel(collection interface{}, fn func(interface{}) error) 
 }
 
 func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath string) error {
+	if err := os.MkdirAll(destinationPath, 0o755); err != nil {
+		return err
+	}
 	err := fs.WalkDir(source, sourcePath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -222,7 +225,7 @@ func hash(s string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func renderDataYaml(dataFiles []string) ([]byte, error) {
+func renderDataYaml(app string, dataFiles []string) ([]byte, error) {
 	if len(dataFiles) == 0 {
 		return nil, errors.New("No data files found")
 	}
@@ -275,4 +278,30 @@ func appendIfNotExists(slice []string, element string) ([]string, bool) {
 	}
 
 	return append(slice, element), true
+}
+
+func getSubDirs(rootDir string) []string {
+	if rootDir == "" {
+		return []string{}
+	}
+	var resourceDirs []string
+	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if info.IsDir() && path != rootDir {
+			resourceDirs = append(resourceDirs, path)
+			return filepath.SkipDir
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Warn().Err(err).Msg("Unable to walk vendor package directory")
+		return []string{}
+	}
+
+	return resourceDirs
 }
