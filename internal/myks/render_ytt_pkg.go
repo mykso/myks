@@ -24,12 +24,12 @@ func (y *YttPkg) Ident() string {
 func (y *YttPkg) Render(_ string) (string, error) {
 	yttPkgRootDir, err := y.app.getVendoredDir(y.app.e.g.YttPkgStepDirName)
 	if err != nil {
-		log.Err(err).Str("app", y.app.Name).Msg("Unable to get ytt package dir")
+		log.Err(err).Msg(y.app.Msg(yttPkgStepName, "Unable to get ytt package dir"))
 		return "", err
 	}
 	yttPkgSubDirs := getSubDirs(yttPkgRootDir)
 	if len(yttPkgSubDirs) == 0 {
-		log.Debug().Str("app", y.app.Name).Msg("No packages to process")
+		log.Debug().Msg(y.app.Msg(yttPkgStepName, "No ytt package found"))
 		return "", nil
 	}
 
@@ -39,7 +39,7 @@ func (y *YttPkg) Render(_ string) (string, error) {
 		pkgName := filepath.Base(pkgDir)
 		var pkgValuesFile string
 		if pkgValuesFile, err = y.app.prepareValuesFile("ytt-pkg", pkgName); err != nil {
-			log.Warn().Err(err).Str("app", y.app.Name).Msg("Unable to prepare vendir packages value files")
+			log.Warn().Err(err).Msg(y.app.Msg(globalYttStepName, "Unable to prepare vendir packages value files"))
 			return "", err
 		}
 
@@ -56,19 +56,24 @@ func (y *YttPkg) Render(_ string) (string, error) {
 			yttArgs = append(yttArgs, "--data-values-file="+pkgValuesFile)
 		}
 
-		res, err := runYttWithFilesAndStdin(yttFiles, nil, yttArgs...)
+		res, err := runYttWithFilesAndStdin(yttFiles, nil, func(name string, args []string) {
+			// make this copy-n-pastable
+			log.Debug().Msg(msgRunCmd("ytt-pkg render step", name, args))
+		}, yttArgs...)
 		if err != nil {
-			log.Error().Err(err).Str("app", y.app.Name).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg("Unable to run ytt")
+			log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(y.app.Msg(globalYttStepName, "Unable to run ytt"))
 			return "", err
 		}
 
 		if res.Stdout == "" {
-			log.Warn().Str("app", y.app.Name).Str("pkgName", pkgName).Msg("No ytt package output")
+			log.Warn().Str("pkgName", pkgName).Msg(y.app.Msg(globalYttStepName, "No ytt package output"))
 			continue
 		}
 
 		outputs = append(outputs, res.Stdout)
 	}
+
+	log.Info().Msg(y.app.Msg(helmStepName, "Ytt package rendered"))
 
 	return strings.Join(outputs, "---\n"), nil
 }

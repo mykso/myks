@@ -67,7 +67,6 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	cobra.OnInitialize(initConfig)
-
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "Set the logging level")
 
 	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {

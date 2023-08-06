@@ -13,7 +13,6 @@ func init() {
 		Short: "Render manifests",
 		Long:  "Render manifests",
 		Run: func(cmd *cobra.Command, args []string) {
-			log.Info().Msg("Rendering manifests")
 
 			g := myks.New(".")
 

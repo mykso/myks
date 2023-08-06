@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -24,30 +23,6 @@ type CmdResult struct {
 	Stderr string
 }
 
-func runCmd(name string, stdin io.Reader, args []string) (CmdResult, error) {
-	if log.Debug().Enabled() {
-		logArgs := reductSecrets(args)
-		// make this copy-n-pastable
-		log.Debug().Msg("Running command:\n" + name + " " + strings.Join(logArgs, " "))
-	}
-	cmd := exec.Command(name, args...)
-
-	if stdin != nil {
-		cmd.Stdin = stdin
-	}
-
-	var stdoutBs, stderrBs bytes.Buffer
-	cmd.Stdout = &stdoutBs
-	cmd.Stderr = &stderrBs
-
-	err := cmd.Run()
-
-	return CmdResult{
-		Stdout: stdoutBs.String(),
-		Stderr: stderrBs.String(),
-	}, err
-}
-
 func reductSecrets(args []string) []string {
 	sensitiveFields := []string{"password", "secret", "token"}
 	var logArgs []string
@@ -57,34 +32,6 @@ func reductSecrets(args []string) []string {
 		logArgs = append(logArgs, regex.ReplaceAllString(arg, "$1=[REDACTED]"))
 	}
 	return logArgs
-}
-
-func runYttWithFilesAndStdin(paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
-	if stdin != nil {
-		paths = append(paths, "-")
-	}
-
-	cmdArgs := []string{}
-	for _, path := range paths {
-		cmdArgs = append(cmdArgs, "--file="+path)
-	}
-
-	cmdArgs = append(cmdArgs, args...)
-	res, err := runCmd("ytt", stdin, cmdArgs)
-	if err != nil {
-		log.Warn().Str("cmd", "ytt").Interface("args", cmdArgs).Msg("Failed to run command\n" + res.Stderr)
-	}
-
-	return res, err
-}
-
-func contains(list []string, item string) bool {
-	for _, listItem := range list {
-		if listItem == item {
-			return true
-		}
-	}
-	return false
 }
 
 func processItemsInParallel(collection interface{}, fn func(interface{}) error) error {
@@ -224,27 +171,6 @@ func hash(s string) string {
 	return hex.EncodeToString(hash[:])
 }
 
-func renderDataYaml(app string, dataFiles []string) ([]byte, error) {
-	if len(dataFiles) == 0 {
-		return nil, errors.New("No data files found")
-	}
-	res, err := runYttWithFilesAndStdin(dataFiles, nil, "--data-values-inspect")
-	if err != nil {
-		log.Error().Err(err).Str("stderr", res.Stderr).Msg("Unable to render data")
-		return nil, err
-	}
-	if res.Stdout == "" {
-		return nil, errors.New("Empty output from ytt")
-	}
-
-	dataYaml := []byte(res.Stdout)
-	return dataYaml, nil
-}
-
-func mergeValuesYaml(valueFilesYaml string) (CmdResult, error) {
-	return runYttWithFilesAndStdin(nil, nil, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
-}
-
 func createDirectory(dir string) error {
 	if _, err := os.Stat(dir); err != nil {
 		err := os.MkdirAll(dir, 0o750)
@@ -302,4 +228,51 @@ func getSubDirs(rootDir string) []string {
 	}
 
 	return resourceDirs
+}
+
+func runCmd(name string, stdin io.Reader, args []string, log func(name string, args []string)) (CmdResult, error) {
+	cmd := exec.Command(name, args...)
+
+	if stdin != nil {
+		cmd.Stdin = stdin
+	}
+
+	var stdoutBs, stderrBs bytes.Buffer
+	cmd.Stdout = &stdoutBs
+	cmd.Stderr = &stderrBs
+
+	err := cmd.Run()
+
+	if log != nil {
+		log(name, args)
+	}
+
+	return CmdResult{
+		Stdout: stdoutBs.String(),
+		Stderr: stderrBs.String(),
+	}, err
+}
+
+func msgRunCmd(purpose string, cmd string, args []string) string {
+	msg := cmd + " " + strings.Join(reductSecrets(args), " ")
+	return "Running \u001B[34m" + cmd + "\u001B[0m to: \u001B[3m" + purpose + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
+}
+
+func runYttWithFilesAndStdin(paths []string, stdin io.Reader, log func(name string, args []string), args ...string) (CmdResult, error) {
+	if stdin != nil {
+		paths = append(paths, "-")
+	}
+
+	cmdArgs := []string{}
+	for _, path := range paths {
+		cmdArgs = append(cmdArgs, "--file="+path)
+	}
+
+	cmdArgs = append(cmdArgs, args...)
+	res, err := runCmd("ytt", stdin, cmdArgs, log)
+	if err != nil {
+		return res, err
+	}
+
+	return res, err
 }

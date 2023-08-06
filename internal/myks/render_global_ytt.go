@@ -32,22 +32,22 @@ func (g *GlobalYtt) Render(previousStepFile string) (string, error) {
 	yttFiles = append(yttFiles, g.app.e.collectBySubpath(filepath.Join("_env", g.app.e.g.YttPkgStepDirName))...)
 
 	if len(yttFiles) == 0 {
-		log.Debug().Str("app", g.app.Name).Msg("No ytt files found")
+		log.Debug().Msg(g.app.Msg(globalYttStepName, "No ytt files found"))
 		return "", nil
 	}
 
-	log.Debug().Str("step", "global-ytt").Strs("files", yttFiles).Str("app", g.app.Name).Msg("Collected ytt files")
-
-	yttOutput, err := g.app.e.g.ytt(yttFiles)
+	yttOutput, err := g.app.ytt(globalYttStepName, "render global ytt directory", yttFiles)
 	if err != nil {
-		log.Warn().Err(err).Str("app", g.app.Name).Msg("Unable to render ytt files")
+		log.Warn().Err(err).Msg(g.app.Msg(globalYttStepName, "Unable to render ytt files"))
 		return "", err
 	}
 
 	if yttOutput.Stdout == "" {
-		log.Warn().Str("app", g.app.Name).Msg("Empty ytt output")
+		log.Warn().Msg(g.app.Msg(globalYttStepName, "Empty ytt output"))
 		return "", nil
 	}
+
+	log.Debug().Msg(g.app.Msg(helmStepName, "Global ytt applied"))
 
 	return yttOutput.Stdout, nil
 }

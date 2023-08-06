@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 
@@ -42,22 +43,20 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 	yttFiles = append(yttFiles, y.app.e.collectBySubpath(filepath.Join("_apps", y.app.Name, y.app.e.g.YttStepDirName))...)
 
 	if len(yttFiles) == 0 {
-		log.Debug().Str("app", y.app.Name).Msg("No yaml files found")
+		log.Debug().Msg(y.app.Msg(yttStepName, "No local ytt directory found"))
 		return "", nil
 	}
 
-	log.Debug().Strs("files", yttFiles).Str("app", y.app.Name).Msg("Collected ytt files")
-
-	yamlOutput, err := y.app.e.g.ytt(yttFiles)
+	yamlOutput, err := y.app.ytt(yttStepName, "render local ytt", yttFiles)
 	if err != nil {
-		log.Warn().Err(err).Str("app", y.app.Name).Msg("Unable to render ytt files")
 		return "", err
 	}
 
 	if yamlOutput.Stdout == "" {
-		log.Warn().Str("app", y.app.Name).Msg("Empty ytt output")
-		return "", nil
+		return "", errors.New("empty ytt output")
 	}
+
+	log.Info().Msg(y.app.Msg(yttStepName, "Local YTT rendered"))
 
 	return yamlOutput.Stdout, nil
 }

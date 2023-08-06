@@ -3,6 +3,7 @@ package myks
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -10,6 +11,8 @@ import (
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 )
+
+var EnvLogFormat = "\033[1m[%s > %s]\033[0m %s"
 
 type ManifestApplication struct {
 	Name      string
@@ -63,11 +66,15 @@ func NewEnvironment(g *Globe, dir string) *Environment {
 
 func (e *Environment) Init(applicationNames []string) error {
 	if err := e.initEnvData(); err != nil {
-		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to initialize environment data")
+		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to initialize environment data"))
 		return err
 	}
 
-	e.initApplications(applicationNames)
+	err := e.initApplications(applicationNames)
+	if err != nil {
+		log.Error().Err(err).Msg(e.Msg("Unable to initialize applications"))
+		return err
+	}
 
 	return nil
 }
@@ -120,7 +127,7 @@ func (e *Environment) SyncAndRender() error {
 func (e *Environment) setId() error {
 	yamlBytes, err := os.ReadFile(e.EnvironmentDataFile)
 	if err != nil {
-		log.Debug().Err(err).Msg("Unable to read environment data file")
+		log.Debug().Err(err).Msg(e.Msg("Unable to read environment data file"))
 		return err
 	}
 
@@ -131,11 +138,9 @@ func (e *Environment) setId() error {
 	}
 	err = yaml.Unmarshal(yamlBytes, &envData)
 	if err != nil {
-		log.Debug().Err(err).Msg("Unable to unmarshal environment data file")
+		log.Debug().Err(err).Msg(e.Msg("Unable to unmarshal environment data file"))
 		return err
 	}
-
-	log.Debug().Interface("envData", envData).Msg("Environment data")
 
 	if envData.Environment.Id == "" {
 		err = errors.New("Environment data file missing id")
@@ -145,6 +150,8 @@ func (e *Environment) setId() error {
 
 	e.Id = envData.Environment.Id
 
+	log.Debug().Interface("envData", envData).Msg(e.Msg("Environment data"))
+
 	return nil
 }
 
@@ -152,17 +159,17 @@ func (e *Environment) initEnvData() error {
 	envDataFiles := e.collectBySubpath(e.g.EnvironmentDataFileName)
 	envDataYaml, err := e.renderEnvData(envDataFiles)
 	if err != nil {
-		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to render environment data")
+		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to render environment data"))
 		return err
 	}
 	err = e.saveRenderedEnvData(envDataYaml)
 	if err != nil {
-		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to save rendered environment data")
+		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to save rendered environment data"))
 		return err
 	}
 	err = e.setEnvDataFromYaml(envDataYaml)
 	if err != nil {
-		log.Warn().Err(err).Str("dir", e.Dir).Msg("Unable to set environment data")
+		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to set environment data"))
 		return err
 	}
 
@@ -173,9 +180,9 @@ func (e *Environment) renderEnvData(envDataFiles []string) ([]byte, error) {
 	if len(envDataFiles) == 0 {
 		return nil, errors.New("No environment data files found")
 	}
-	res, err := e.g.ytt(envDataFiles, "--data-values-inspect")
+	res, err := e.ytt("render environment data values file", envDataFiles, "--data-values-inspect")
 	if err != nil {
-		log.Error().Err(err).Str("stderr", res.Stderr).Msg("Unable to render environment data")
+		log.Error().Err(err).Str("stderr", res.Stderr).Msg(e.Msg("Unable to render environment data"))
 		return nil, err
 	}
 	if res.Stdout == "" {
@@ -190,15 +197,14 @@ func (e *Environment) saveRenderedEnvData(envDataYaml []byte) error {
 	dir := filepath.Dir(e.renderedEnvDataFilePath)
 	err := os.MkdirAll(dir, 0o750)
 	if err != nil {
-		log.Error().Err(err).Str("dir", dir).Msg("Unable to create directory for rendered envData file")
+		log.Error().Err(err).Str("dir", dir).Msg(e.Msg("Unable to create directory for rendered envData file"))
 		return err
 	}
 	err = os.WriteFile(e.renderedEnvDataFilePath, envDataYaml, 0o600)
 	if err != nil {
-		log.Error().Err(err).Msg("Unable to write rendered envData file")
+		log.Error().Err(err).Msg(e.Msg("Unable to write rendered envData file"))
 		return err
 	}
-	log.Debug().Str("file", e.renderedEnvDataFilePath).Msg("Wrote rendered envData file")
 	return nil
 }
 
@@ -213,14 +219,14 @@ func (e *Environment) setEnvDataFromYaml(envDataYaml []byte) error {
 	}
 	err := yaml.Unmarshal(envDataYaml, &envDataStruct)
 	if err != nil {
-		log.Error().Err(err).Msg("Unable to unmarshal environment data yaml")
+		log.Error().Err(err).Msg(e.Msg("Unable to unmarshal environment data yaml"))
 		return err
 	}
 
 	for _, app := range envDataStruct.Environment.Applications {
 		proto := app.Proto
 		if len(proto) == 0 {
-			log.Error().Interface("app", app).Msg("Application prototype is not set")
+			log.Error().Interface("app", app).Msg(e.Msg("Application prototype is not set"))
 			continue
 		}
 
@@ -230,7 +236,7 @@ func (e *Environment) setEnvDataFromYaml(envDataYaml []byte) error {
 		}
 
 		if _, ok := e.foundApplications[name]; ok {
-			log.Error().Str("app_name", name).Msg("Duplicated application")
+			log.Error().Str("app_name", name).Msg(e.Msg("Duplicated application"))
 			continue
 
 		}
@@ -241,24 +247,36 @@ func (e *Environment) setEnvDataFromYaml(envDataYaml []byte) error {
 	if len(e.foundApplications) == 0 {
 		log.Warn().Str("dir", e.Dir).Msg("No applications found")
 	} else {
-		log.Debug().Interface("apps", e.foundApplications).Msg("Found applications")
+		log.Debug().Interface("apps", e.foundApplications).Msg(e.Msg("Found applications"))
 	}
 
 	return nil
 }
 
-func (e *Environment) initApplications(applicationNames []string) {
-	for name, proto := range e.foundApplications {
-		if len(applicationNames) == 0 || contains(applicationNames, name) {
+func (e *Environment) initApplications(applicationNames []string) error {
+	if len(applicationNames) == 0 {
+		for name, proto := range e.foundApplications {
 			app, err := NewApplication(e, name, proto)
 			if err != nil {
-				log.Warn().Err(err).Str("dir", e.Dir).Interface("app", name).Msg("Unable to initialize application")
+				log.Warn().Err(err).Str("dir", e.Dir).Interface("app", name).Msg(e.Msg("Unable to initialize application"))
 			} else {
 				e.Applications = append(e.Applications, app)
 			}
 		}
 	}
-	log.Debug().Interface("applications", e.Applications).Msg("Applications")
+	for _, appName := range applicationNames {
+		proto := e.foundApplications[appName]
+		if proto == "" {
+			return errors.New("Application not found: " + appName)
+		}
+		app, err := NewApplication(e, appName, proto)
+		if err != nil {
+			log.Warn().Err(err).Str("dir", e.Dir).Interface("app", appName).Msg(e.Msg("Unable to initialize application"))
+		} else {
+			e.Applications = append(e.Applications, app)
+		}
+	}
+	return nil
 }
 
 func (e *Environment) collectBySubpath(subpath string) []string {
@@ -274,4 +292,19 @@ func (e *Environment) collectBySubpath(subpath string) []string {
 		}
 	}
 	return items
+}
+
+func (e *Environment) Msg(msg string) string {
+	formattedMessage := fmt.Sprintf(EnvLogFormat, e.Id, initStepName, msg)
+	return formattedMessage
+}
+
+func (e *Environment) ytt(purpose string, paths []string, args ...string) (CmdResult, error) {
+	return e.yttS(purpose, paths, nil, args...)
+}
+
+func (e *Environment) yttS(purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
+	return runYttWithFilesAndStdin(append(e.g.extraYttPaths, paths...), stdin, func(name string, args []string) {
+		log.Debug().Msg(e.Msg(msgRunCmd(purpose, name, args)))
+	}, args...)
 }

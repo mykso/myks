@@ -2,10 +2,23 @@ package myks
 
 import (
 	"errors"
+	"fmt"
+	"github.com/rs/zerolog/log"
+	yaml "gopkg.in/yaml.v3"
+	"io"
 	"os"
 	"path/filepath"
+)
 
-	yaml "gopkg.in/yaml.v3"
+const (
+	renderStepName    = "render"
+	syncStepName      = "sync"
+	globalYttStepName = "global-ytt"
+	yttStepName       = "ytt"
+	yttPkgStepName    = "ytt-pkg"
+	helmStepName      = "helm"
+	sliceStepName     = "slice"
+	initStepName      = "init"
 )
 
 type Application struct {
@@ -28,6 +41,7 @@ type HelmConfig struct {
 }
 
 var ErrNoVendirConfig = errors.New("no vendir config found")
+var ApplicationLogFormat = "\033[1m[%s > %s > %s]\033[0m %s"
 
 func NewApplication(e *Environment, name string, prototypeName string) (*Application, error) {
 	if prototypeName == "" {
@@ -61,7 +75,7 @@ func (a *Application) Init() error {
 
 	a.collectDataFiles()
 
-	dataYaml, err := renderDataYaml(a.Name, append(a.e.g.extraYttPaths, a.yttDataFiles...))
+	dataYaml, err := a.renderDataYaml(append(a.e.g.extraYttPaths, a.yttDataFiles...))
 	if err != nil {
 		return err
 	}
@@ -121,4 +135,50 @@ func (a *Application) collectDataFiles() {
 
 	overrideDataFiles := a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.ApplicationDataFileName))
 	a.yttDataFiles = append(a.yttDataFiles, overrideDataFiles...)
+}
+
+func (a *Application) Msg(step string, msg string) string {
+	formattedMessage := fmt.Sprintf(ApplicationLogFormat, a.e.Id, a.Name, step, msg)
+	return formattedMessage
+}
+
+func (a *Application) runCmd(purpose string, cmd string, stdin io.Reader, args []string) (CmdResult, error) {
+	return runCmd(cmd, stdin, args, func(cmd string, args []string) {
+		log.Debug().Msg(msgRunCmd(purpose, cmd, args))
+	})
+}
+
+func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
+	if len(dataFiles) == 0 {
+		return nil, errors.New("No data files found")
+	}
+	res, err := runYttWithFilesAndStdin(dataFiles, nil, func(name string, args []string) {
+		log.Debug().Msg(a.Msg("init", msgRunCmd("render application data values file", name, args)))
+	}, "--data-values-inspect")
+	if err != nil {
+		log.Error().Err(err).Str("stderr", res.Stderr).Msg(a.Msg("init", "Unable to render data"))
+		return nil, err
+	}
+	if res.Stdout == "" {
+		return nil, errors.New("Empty output from ytt")
+	}
+
+	dataYaml := []byte(res.Stdout)
+	return dataYaml, nil
+}
+
+func (a *Application) mergeValuesYaml(valueFilesYaml string) (CmdResult, error) {
+	return runYttWithFilesAndStdin(nil, nil, func(name string, args []string) {
+		log.Debug().Msg(msgRunCmd("merge data values file", name, args))
+	}, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
+}
+
+func (a *Application) ytt(step string, purpose string, paths []string, args ...string) (CmdResult, error) {
+	return a.yttS(step, purpose, paths, nil, args...)
+}
+
+func (a *Application) yttS(step string, purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
+	return runYttWithFilesAndStdin(append(a.e.g.extraYttPaths, paths...), stdin, func(name string, args []string) {
+		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, name, args)))
+	}, args...)
 }

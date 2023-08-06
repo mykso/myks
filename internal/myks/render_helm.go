@@ -25,18 +25,18 @@ func (h *Helm) Ident() string {
 func (h *Helm) Render(_ string) (string, error) {
 	chartDir, err := h.app.getVendoredDir(h.app.e.g.HelmChartsDirName)
 	if err != nil {
-		log.Err(err).Str("app", h.app.Name).Msg("Unable to get helm charts dir")
+		log.Err(err).Msg(h.app.Msg(helmStepName, "Unable to get helm charts dir"))
 		return "", err
 	}
 	chartDirs := getSubDirs(chartDir)
 	if len(chartDirs) == 0 {
-		log.Debug().Str("app", h.app.Name).Msg("No charts to process")
+		log.Debug().Msg(h.app.Msg(helmStepName, "No Helm charts found"))
 		return "", nil
 	}
 
 	helmConfig, err := h.getHelmConfig()
 	if err != nil {
-		log.Warn().Err(err).Str("app", h.app.Name).Msg("Unable to get helm config")
+		log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to get helm config"))
 		return "", err
 	}
 
@@ -63,7 +63,7 @@ func (h *Helm) Render(_ string) (string, error) {
 		chartName := filepath.Base(chartDir)
 		var helmValuesFile string
 		if helmValuesFile, err = h.app.prepareValuesFile("helm", chartName); err != nil {
-			log.Warn().Err(err).Str("app", h.app.Name).Msg("Unable to prepare helm values")
+			log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to prepare helm values"))
 			return "", err
 		}
 
@@ -79,14 +79,14 @@ func (h *Helm) Render(_ string) (string, error) {
 			helmArgs = append(helmArgs, "--values", helmValuesFile)
 		}
 
-		res, err := runCmd("helm", nil, append(helmArgs, commonHelmArgs...))
+		res, err := h.app.runCmd("helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
 		if err != nil {
-			log.Warn().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg("Unable to run helm")
+			log.Warn().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(h.app.Msg(helmStepName, "Unable to run helm"))
 			return "", err
 		}
 
 		if res.Stdout == "" {
-			log.Warn().Str("app", h.app.Name).Str("chart", chartName).Msg("No helm output")
+			log.Warn().Str("chart", chartName).Msg(h.app.Msg(helmStepName, "No helm output"))
 			continue
 		}
 
@@ -94,13 +94,15 @@ func (h *Helm) Render(_ string) (string, error) {
 
 	}
 
+	log.Info().Msg(h.app.Msg(helmStepName, "Helm chart rendered"))
+
 	return strings.Join(outputs, "---\n"), nil
 }
 
 func (h *Helm) getHelmConfig() (HelmConfig, error) {
-	dataValuesYaml, err := h.app.e.g.ytt(h.app.yttDataFiles, "--data-values-inspect")
+	dataValuesYaml, err := h.app.ytt(helmStepName, "get helm config", h.app.yttDataFiles, "--data-values-inspect")
 	if err != nil {
-		log.Warn().Err(err).Str("app", h.app.Name).Msg("Unable to inspect data values")
+		log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to inspect data values"))
 		return HelmConfig{}, err
 	}
 
@@ -109,7 +111,7 @@ func (h *Helm) getHelmConfig() (HelmConfig, error) {
 	}
 	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &helmConfig)
 	if err != nil {
-		log.Warn().Err(err).Str("app", h.app.Name).Msg("Unable to unmarshal data values")
+		log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to unmarshal data values"))
 		return HelmConfig{}, err
 	}
 

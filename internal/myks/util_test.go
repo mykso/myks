@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"io"
 	"os"
 	"reflect"
 	"testing"
@@ -85,35 +86,6 @@ func Test_unmarshalYaml(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("unmarshalYamlToMap() got = %v, wantArgs %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_renderDataYaml(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skip("Skipping in pipeline since ytt is not installed")
-	}
-	type args struct {
-		dataFiles []string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{"happy path", args{[]string{"../../testData/ytt/data-file-schema.yaml", "../../testData/ytt/data-file-schema-2.yaml", "../../testData/ytt/data-file-values.yaml"}}, "application:\n  cache:\n    enabled: true\n  name: cert-manager\n", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := renderDataYaml("", tt.args.dataFiles)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("renderDataYaml() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !reflect.DeepEqual(string(got), tt.want) {
-				t.Errorf("renderDataYaml() got = %v, wantArgs %v", string(got), tt.want)
 			}
 		})
 	}
@@ -231,6 +203,68 @@ func Test_getSubDirs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := getSubDirs(tt.args.resourceDir); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getSubDirs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_runCmd(t *testing.T) {
+	type args struct {
+		name  string
+		stdin io.Reader
+		args  []string
+		log   func(name string, args []string)
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    CmdResult
+		wantErr bool
+	}{
+		{"happy path", args{"echo", nil, []string{"test"}, nil}, CmdResult{"test\n", ""}, false},
+		{"said path", args{"sure-to-fail", nil, []string{}, nil}, CmdResult{"", ""}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := runCmd(tt.args.name, tt.args.stdin, tt.args.args, tt.args.log)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("runCmd() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("runCmd() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_runYttWithFilesAndStdin(t *testing.T) {
+	type args struct {
+		paths []string
+		stdin io.Reader
+		log   func(name string, args []string)
+		args  []string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    CmdResult
+		wantErr bool
+	}{
+		{"happy path", args{[]string{"../../testData/ytt/simple.yaml"}, nil, nil, []string{}}, CmdResult{"key1: A\n", ""}, false},
+		{"said path", args{[]string{"does-not-exist.yaml"}, nil, nil, []string{}}, CmdResult{"", ""}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := runYttWithFilesAndStdin(tt.args.paths, tt.args.stdin, tt.args.log, tt.args.args...)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("runYttWithFilesAndStdin() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if err == nil {
+				if !reflect.DeepEqual(got, tt.want) {
+					t.Errorf("runYttWithFilesAndStdin() got = %v, want %v", got, tt.want)
+				}
 			}
 		})
 	}
