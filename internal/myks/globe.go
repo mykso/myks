@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"embed"
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -26,6 +25,8 @@ var prototypesFs embed.FS
 
 //go:embed all:assets/envs
 var environmentsFs embed.FS
+
+var GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
 // Define the main structure
 type Globe struct {
@@ -303,7 +304,7 @@ func (g *Globe) collectEnvironments(searchPaths []string) {
 		g.collectEnvironmentsInPath(searchPath)
 	}
 
-	log.Debug().Interface("environments", g.environments).Msg("Collected environments")
+	log.Debug().Interface("environments", g.environments).Msg(g.Msg("Collected environments"))
 }
 
 func (g *Globe) collectEnvironmentsInPath(searchPath string) {
@@ -331,7 +332,9 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) {
 
 func (g *Globe) setGitRepoUrl() error {
 	if g.GitRepoUrl == "" {
-		result, err := runCmd("git", nil, []string{"remote", "get-url", "origin"})
+		result, err := runCmd("git", nil, []string{"remote", "get-url", "origin"}, func(name string, args []string) {
+			log.Debug().Msg(msgRunCmd("set git repository url", name, args))
+		})
 		if err != nil {
 			return err
 		}
@@ -342,7 +345,9 @@ func (g *Globe) setGitRepoUrl() error {
 
 func (g *Globe) setGitRepoBranch() error {
 	if g.GitRepoBranch == "" {
-		result, err := runCmd("git", nil, []string{"rev-parse", "--abbrev-ref", "HEAD"})
+		result, err := runCmd("git", nil, []string{"rev-parse", "--abbrev-ref", "HEAD"}, func(name string, args []string) {
+			log.Debug().Msg(msgRunCmd("set git repository branch", name, args))
+		})
 		if err != nil {
 			return err
 		}
@@ -351,10 +356,7 @@ func (g *Globe) setGitRepoBranch() error {
 	return nil
 }
 
-func (g *Globe) ytt(paths []string, args ...string) (CmdResult, error) {
-	return g.yttS(paths, nil, args...)
-}
-
-func (g *Globe) yttS(paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
-	return runYttWithFilesAndStdin(append(g.extraYttPaths, paths...), stdin, args...)
+func (g *Globe) Msg(msg string) string {
+	formattedMessage := fmt.Sprintf(GlobalLogFormat, msg)
+	return formattedMessage
 }

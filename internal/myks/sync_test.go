@@ -341,7 +341,7 @@ func Test_handleVendirSecret(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			setEnvSafely(tt.args.envUsernameKey, tt.args.envUsernameValue, t)
 			setEnvSafely(tt.args.envPasswordKey, tt.args.envPasswordValue, t)
-			got, secretPath, err := handleVendirSecret("", tt.args.dir, tt.args.tempPath, tt.args.tempRelativePath, tt.args.vendirArgs)
+			got, secretPath, err := handleVendirSecret(tt.args.dir, tt.args.tempPath, tt.args.tempRelativePath, tt.args.vendirArgs)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("handleVendirSecret() error = %v, wantErr %v", err, tt.wantErr)
 				return

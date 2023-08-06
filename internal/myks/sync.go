@@ -19,8 +19,10 @@ type Directory struct {
 }
 
 func (a *Application) Sync() error {
+	log.Debug().Msg(a.Msg(syncStepName, "Starting"))
 	if err := a.prepareSync(); err != nil {
 		if err == ErrNoVendirConfig {
+			log.Info().Msg(a.Msg(syncStepName, "No vendir config found"))
 			return nil
 		}
 		return err
@@ -43,7 +45,6 @@ func (a *Application) prepareSync() error {
 	protoVendirDir := filepath.Join(a.Prototype, "vendir")
 	if _, err := os.Stat(protoVendirDir); err == nil {
 		yttFiles = append(yttFiles, protoVendirDir)
-		log.Debug().Str("dir", protoVendirDir).Msg("Using prototype vendir directory")
 	}
 
 	appVendirDirs := a.e.collectBySubpath(filepath.Join("_apps", a.Name, "vendir"))
@@ -51,19 +52,17 @@ func (a *Application) prepareSync() error {
 
 	if len(yttFiles) == 0 {
 		err := ErrNoVendirConfig
-		log.Warn().Err(err).Str("app", a.Name).Msg("")
 		return err
 	}
 
-	vendirConfig, err := a.e.g.ytt(yttFiles)
+	vendirConfig, err := a.ytt(syncStepName, "creating vendir config", yttFiles)
 	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render vendir config")
+		log.Warn().Err(err).Msg(a.Msg(syncStepName, "Unable to render vendir config"))
 		return err
 	}
 
 	if vendirConfig.Stdout == "" {
 		err = errors.New("Empty vendir config")
-		log.Warn().Err(err).Msg("")
 		return err
 	}
 
@@ -71,15 +70,14 @@ func (a *Application) prepareSync() error {
 	// Create directory if it does not exist
 	err = os.MkdirAll(filepath.Dir(vendirConfigFilePath), 0o750)
 	if err != nil {
-		log.Warn().Err(err).Msg("Unable to create directory for vendir config file")
+		log.Warn().Err(err).Msg(a.Msg(syncStepName, "Unable to create directory for vendir config file"))
 		return err
 	}
 	err = os.WriteFile(vendirConfigFilePath, []byte(vendirConfig.Stdout), 0o600)
 	if err != nil {
-		log.Warn().Err(err).Msg("Unable to write vendir config file")
+		log.Warn().Err(err).Msg(a.Msg(syncStepName, "Unable to write vendir config file"))
 		return err
 	}
-	log.Debug().Str("app", a.Name).Str("file", vendirConfigFilePath).Msg("Wrote vendir config file")
 
 	return nil
 }
@@ -95,28 +93,25 @@ func (a *Application) doSync() error {
 
 	vendirDirs, err := readVendirConfig(vendirConfigFilePath)
 	if err != nil {
-		log.Error().Err(err).Str("app", a.Name).Msg("Error while trying to find directories in vendir config: " + vendirConfigFilePath)
+		log.Error().Err(err).Msg(a.Msg(syncStepName, "Error while trying to find directories in vendir config: "+vendirConfigFilePath))
 		return err
 	}
 
 	syncFileDirs, err := readSyncFile(vendirSyncFilePath)
 	if err != nil {
-		log.Error().Err(err).Str("app", a.Name).Msg("Unable to read Vendir Sync file: " + vendirSyncFilePath)
+		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to read Vendir Sync file: "+vendirSyncFilePath))
 		return err
-	}
-	if len(syncFileDirs) == 0 {
-		log.Debug().Str("app", a.Name).Msg("Vendir sync file not found. First sync..")
 	}
 
 	lockFileDirs, err := readLockFile(vendirLockFilePath)
 	if err != nil {
-		log.Error().Err(err).Str("app", a.Name).Msg("Unable to read Vendir Lock file: " + vendirLockFilePath)
+		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to read Vendir Lock file: "+vendirLockFilePath))
 		return err
 	}
 
 	err = createDirectory(vendorDir)
 	if err != nil {
-		log.Error().Err(err).Str("app", a.Name).Msg("Unable to create vendor dir: " + vendorDir)
+		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create vendor dir: "+vendorDir))
 		return err
 	}
 
@@ -126,10 +121,9 @@ func (a *Application) doSync() error {
 	if a.cached && checkLockFileMatch(vendirDirs, lockFileDirs) {
 		for _, dir := range vendirDirs {
 			if checkVersionMatch(dir.Path, dir.ContentHash, syncFileDirs) {
-				log.Debug().Str("app", a.Name).Msg("Skipping vendir sync for: " + dir.Path)
+				log.Info().Msg(a.Msg(syncStepName, "Resource already synced"))
 				continue
 			}
-			log.Info().Str("app", a.Name).Msg("Syncing vendir for: " + dir.Path)
 			args := []string{
 				"sync",
 				"--chdir=" + vendorDir,
@@ -137,23 +131,23 @@ func (a *Application) doSync() error {
 				"--file=" + vendirConfigFileRelativePath,
 				"--lock-file=" + vendirLockFileRelativePath,
 			}
-			args, secretFilePath, err := handleVendirSecret(a.Name, dir, a.expandTempPath(""), filepath.Join("..", a.e.g.ServiceDirName, a.e.g.TempDirName), args)
+			args, secretFilePath, err := handleVendirSecret(dir, a.expandTempPath(""), filepath.Join("..", a.e.g.ServiceDirName, a.e.g.TempDirName), args)
 			if err != nil {
-				log.Error().Err(err).Str("app", a.Name).Msg("Unable to create secret for: " + dir.Path)
+				log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create secret for: "+dir.Path))
 				return err
 			}
 			if secretFilePath != "" {
 				secretFilePaths, _ = appendIfNotExists(secretFilePaths, secretFilePath)
 			}
 
-			res, err := runCmd("vendir", nil, args)
+			res, err := a.runCmd("vendir directory sync", "vendir", nil, args)
 			if err != nil {
-				log.Warn().Err(err).Str("app", a.Name).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg("Unable to sync vendir")
+				log.Warn().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(a.Msg(syncStepName, "Unable to sync vendir"))
 				return err
 			}
+			log.Info().Msg(a.Msg(syncStepName, "Synced"))
 		}
 	} else {
-		log.Info().Str("app", a.Name).Msg("Syncing vendir completely for: " + vendirConfigFilePath)
 		args := []string{
 			"sync",
 			"--chdir=" + vendorDir,
@@ -162,9 +156,9 @@ func (a *Application) doSync() error {
 		}
 		for _, dir := range vendirDirs {
 			var secretFilePath string
-			args, secretFilePath, err = handleVendirSecret(a.Name, dir, a.expandTempPath(""), filepath.Join("..", a.e.g.ServiceDirName, a.e.g.TempDirName), args)
+			args, secretFilePath, err = handleVendirSecret(dir, a.expandTempPath(""), filepath.Join("..", a.e.g.ServiceDirName, a.e.g.TempDirName), args)
 			if err != nil {
-				log.Error().Err(err).Str("app", a.Name).Msg("Unable to create secret for: " + dir.Path)
+				log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create secret for: "+dir.Path))
 				return err
 			}
 			if secretFilePath != "" {
@@ -172,32 +166,30 @@ func (a *Application) doSync() error {
 			}
 
 		}
-		res, err := runCmd("vendir", nil, args)
+		res, err := a.runCmd("vendir full sync", "vendir", nil, args)
 		if err != nil {
-			log.Error().Err(err).Str("app", a.Name).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg("Unable to sync vendir")
+			log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(a.Msg(syncStepName, "Unable to sync vendir"))
 			return err
 		}
+		log.Info().Msg(a.Msg(syncStepName, "Synced"))
 	}
 
 	// make sure secrets do not linger on disk
 	for _, secretFilePath := range secretFilePaths {
 		defer func(name string) {
-			log.Debug().Str("app", a.Name).Msg("delete secret file: " + name)
+			log.Debug().Msg(a.Msg(syncStepName, "delete secret file: "+name))
 			err := os.Remove(name)
 			if err != nil {
-				log.Error().Err(err).Str("app", a.Name).Msg("unable to delete secret file: " + name)
+				log.Error().Err(err).Msg(a.Msg(syncStepName, "unable to delete secret file: "+name))
 			}
 		}(secretFilePath)
 	}
 
 	err = writeSyncFile(a.expandTempPath(a.e.g.VendirSyncFileName), vendirDirs)
 	if err != nil {
-		log.Error().Str("app", a.Name).Err(err).Msg("Unable to write sync file")
+		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to write sync file"))
 		return err
 	}
-
-	log.Debug().Str("app", a.Name).Msg("Vendir sync file written: " + vendirSyncFilePath)
-	log.Info().Str("app", a.Name).Msg("Vendir sync completed!")
 
 	return nil
 }
@@ -215,7 +207,7 @@ func writeSyncFile(syncFilePath string, directories []Directory) error {
 	return nil
 }
 
-func handleVendirSecret(app string, dir Directory, tempPath string, tempRelativePath string, vendirArgs []string) ([]string, string, error) {
+func handleVendirSecret(dir Directory, tempPath string, tempRelativePath string, vendirArgs []string) ([]string, string, error) {
 	if dir.Secret != "" {
 		username, password, err := getEnvCreds(dir.Secret)
 		if err != nil {

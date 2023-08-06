@@ -1,10 +1,9 @@
 package main
 
 import (
-	"os"
-
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"os"
 
 	"github.com/mykso/myks/cmd"
 )

@@ -22,24 +22,26 @@ func (a *Application) RenderAndSlice(yamlTemplatingTools []YamlTemplatingTool) e
 	var lastStepOutputFile string
 	var err error
 	if lastStepOutputFile, err = a.Render(yamlTemplatingTools); err != nil {
-		log.Error().Str("app", a.Name).Str("env", a.e.Id).Err(err).Msg("Failed to render")
+		log.Error().Str("env", a.e.Id).Err(err).Msg("Failed to render")
 	}
 	err = a.runSliceFormatStore(lastStepOutputFile)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to slice the output yaml")
 		return err
 	}
+	log.Info().Msg(a.Msg(renderStepName, "Completed"))
 	return nil
 }
 
 func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, error) {
+	log.Debug().Msg(a.Msg(renderStepName, "Starting"))
 	outputYaml := ""
 	lastStepOutputFile := ""
 	for _, yamlTool := range yamlTemplatingTools {
-		log.Debug().Str("app", a.Name).Str("env", a.e.Id).Msg("Rendering: " + yamlTool.Ident())
+		log.Debug().Msg(a.Msg(yamlTool.Ident(), "Starting"))
 		stepOutputYaml, err := yamlTool.Render(lastStepOutputFile)
 		if err != nil {
-			log.Error().Err(err).Msg("Failed during render step: " + yamlTool.Ident())
+			log.Error().Err(err).Msg(a.Msg(yamlTool.Ident(), "Failed during render step: "+yamlTool.Ident()))
 		}
 		if yamlTool.IsAdditive() {
 			outputYaml = outputYaml + "\n---\n" + stepOutputYaml
@@ -48,7 +50,7 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 		}
 		lastStepOutputFile, err = a.storeStepResult(outputYaml, yamlTool.Ident(), 1)
 		if err != nil {
-			log.Error().Str("app", a.Name).Err(err).Msg("Failed to store step result for: " + yamlTool.Ident())
+			log.Error().Err(err).Msg(a.Msg(yamlTool.Ident(), "Failed to store step result for: "+yamlTool.Ident()))
 			return "", err
 		}
 	}
@@ -56,9 +58,10 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 }
 
 func (a *Application) runSliceFormatStore(previousStepFile string) error {
+	log.Debug().Msg(a.Msg(renderStepName, "Slicing"))
 	data, err := os.ReadFile(filepath.Clean(previousStepFile))
 	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Str("file", previousStepFile).Msg("Unable to read previous step file")
+		log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to read previous step file"))
 		return err
 	}
 
@@ -67,12 +70,12 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 	// Cleanup the destination directory before writing new files
 	err = os.RemoveAll(destinationDir)
 	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Str("dir", destinationDir).Msg("Unable to remove destination directory")
+		log.Warn().Err(err).Str("dir", destinationDir).Msg(a.Msg(sliceStepName, "Unable to remove destination directory"))
 		return err
 	}
 	err = os.MkdirAll(destinationDir, os.ModePerm)
 	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Str("dir", destinationDir).Msg("Unable to create destination directory")
+		log.Warn().Err(err).Str("dir", destinationDir).Msg(a.Msg(sliceStepName, "Unable to create destination directory"))
 		return err
 	}
 
@@ -88,7 +91,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		var obj map[string]interface{}
 		err := yaml.Unmarshal([]byte(document), &obj)
 		if err != nil {
-			log.Warn().Err(err).Str("app", a.Name).Str("file", previousStepFile).Msg("Unable to unmarshal yaml")
+			log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to unmarshal yaml"))
 			return err
 		}
 
@@ -97,7 +100,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		enc.SetIndent(2)
 		err = enc.Encode(obj)
 		if err != nil {
-			log.Warn().Err(err).Str("app", a.Name).Str("file", previousStepFile).Msg("Unable to marshal yaml")
+			log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to marshal yaml"))
 			return err
 		}
 
@@ -106,11 +109,11 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		// FIXME: If a file already exists, we should merge the two documents (probably).
 		//        For now, we just overwrite the file and log a warning.
 		if _, err := os.Stat(filePath); err == nil {
-			log.Warn().Str("app", a.Name).Str("file", filePath).Msg("File already exists, check duplicated resources")
+			log.Warn().Str("file", filePath).Msg(a.Msg(sliceStepName, "File already exists, check duplicated resources"))
 		}
 		err = writeFile(filePath, data.Bytes())
 		if err != nil {
-			log.Warn().Err(err).Str("app", a.Name).Str("file", filePath).Msg("Unable to write file")
+			log.Warn().Err(err).Str("file", filePath).Msg(a.Msg(renderStepName, "Unable to write file"))
 			return err
 		}
 	}
@@ -143,11 +146,10 @@ func (a *Application) getVendoredDir(dirname string) (string, error) {
 	resourceDir := a.expandPath(filepath.Join(a.e.g.VendorDirName, dirname))
 	if _, err := os.Stat(resourceDir); err != nil {
 		if os.IsNotExist(err) {
-			log.Debug().Str("app", a.Name).Msg("Vendored directory directory does not exist: " + resourceDir)
 			return "", nil
 		}
 
-		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to stat helm charts directory: " + resourceDir)
+		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to find vendor directory: "+resourceDir))
 		return "", err
 	}
 
@@ -169,37 +171,35 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 	valuesFiles = append(valuesFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, valuesFileName))...)
 
 	if len(valuesFiles) == 0 {
-		log.Debug().Str("app", a.Name).Str("resource", resourceName).Msg("No values files found")
+		log.Debug().Str("resource", resourceName).Msg(a.Msg(renderStepName, "No values files found"))
 		return "", nil
 	}
 
-	log.Debug().Strs("files", valuesFiles).Str("app", a.Name).Str("resourceName", resourceName).Msg("Collected resource values templates")
-
-	resourceValuesYaml, err := a.e.g.ytt(append(a.yttDataFiles, valuesFiles...))
+	resourceValuesYaml, err := a.ytt(renderStepName, "collect data values file", append(a.yttDataFiles, valuesFiles...))
 	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render resource values templates")
+		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to render resource values templates"))
 		return "", err
 	}
 
 	if resourceValuesYaml.Stdout == "" {
-		log.Warn().Str("app", a.Name).Msg("Empty resource values")
+		log.Warn().Msg(a.Msg(renderStepName, "Empty resource values"))
 		return "", nil
 	}
 
 	err = a.writeTempFile(valuesFileName, resourceValuesYaml.Stdout)
 	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to write resource values file")
+		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to write resource values file"))
 		return "", err
 	}
 
-	resourceValues, err := mergeValuesYaml(a.expandTempPath(valuesFileName))
+	resourceValues, err := a.mergeValuesYaml(a.expandTempPath(valuesFileName))
 	if err != nil {
-		log.Warn().Err(err).Str("app", a.Name).Msg("Unable to render resource values")
+		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to render resource values"))
 		return "", err
 	}
 
 	if resourceValues.Stdout == "" {
-		log.Warn().Str("app", a.Name).Msg("Empty resource values")
+		log.Warn().Msg(a.Msg(renderStepName, "Empty resource values"))
 		return "", nil
 	}
 

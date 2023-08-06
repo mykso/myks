@@ -2,6 +2,7 @@ package myks
 
 import (
 	"embed"
+	"github.com/rs/zerolog/log"
 	"os"
 	"path/filepath"
 )
@@ -14,8 +15,9 @@ func writeSecretFile(secretName string, secretFilePath string, username string, 
 	if err != nil {
 		return err
 	}
-
-	res, err := runYttWithFilesAndStdin([]string{filepath.Join(os.TempDir(), "templates", "secret.yaml")}, nil, "--data-value=secret_name="+secretName, "--data-value=username="+username, "--data-value=password="+password)
+	res, err := runYttWithFilesAndStdin([]string{filepath.Join(os.TempDir(), "templates", "secret.yaml")}, nil, func(name string, args []string) {
+		log.Debug().Msg(msgRunCmd("render vendir secret yaml", name, args))
+	}, "--data-value=secret_name="+secretName, "--data-value=username="+username, "--data-value=password="+password)
 	if err != nil {
 		return err
 	}
