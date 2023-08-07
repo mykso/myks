@@ -26,7 +26,7 @@ var prototypesFs embed.FS
 //go:embed all:assets/envs
 var environmentsFs embed.FS
 
-var GlobalLogFormat = "\033[1m[global]\033[0m %s"
+const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
 // Define the main structure
 type Globe struct {
