@@ -101,7 +101,11 @@ func (e *Environment) Render() error {
 			&Ytt{ident: "ytt", app: app, additive: false},
 			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
 		}
-		return app.RenderAndSlice(yamlTemplatingTools)
+		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
+			return err
+		}
+
+		return app.renderArgoCD()
 	})
 }
 
@@ -120,7 +124,10 @@ func (e *Environment) SyncAndRender() error {
 			&Ytt{ident: "ytt", app: app, additive: false},
 			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
 		}
-		return app.RenderAndSlice(yamlTemplatingTools)
+		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
+			return err
+		}
+		return app.renderArgoCD()
 	})
 }
 

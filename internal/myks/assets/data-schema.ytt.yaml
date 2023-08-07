@@ -8,6 +8,30 @@
 ---
 #! Add here any application-specific data.
 application: {}
+argocd:
+  #! Namespace of the ArgoCD server.
+  namespace: argocd
+  app:
+    #! If not set, the name of the currently rendered application is used.
+    name: ""
+  destination:
+    #! spec.destination.name of the ArgoCD application.
+    name: in-cluster
+    #! spec.destination.server of the ArgoCD application.
+    #! If set, used instead of spec.destination.name.
+    server: ""
+    #! spec.destination.namespace of the ArgoCD application.
+    #! If not set, defaults to argocd.app.name.
+    namespace: ""
+  source:
+    #! spec.source.path of the ArgoCD application.
+    #! If not set, defaults to the destination path of the currently rendered application.
+    #! With the default myks configuration: `rendered/envs/<environment.id>/<app.name>`
+    path: ""
+    #! spec.source.repoURL of the ArgoCD application.
+    repoURL: ""
+    #! spec.source.targetRevision of the ArgoCD application.
+    targetRevision: main
 environment:
   #! Unique identifier of the environment, required by myks.
   #@schema/validation min_len=1
