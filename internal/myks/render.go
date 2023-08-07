@@ -65,7 +65,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		return err
 	}
 
-	destinationDir := filepath.Join(a.e.g.RootDir, a.e.g.RenderedDir, "envs", a.e.Id, a.Name)
+	destinationDir := a.getDestinationDir()
 
 	// Cleanup the destination directory before writing new files
 	err = os.RemoveAll(destinationDir)
@@ -126,6 +126,10 @@ func (a *Application) storeStepResult(output string, stepName string, stepNumber
 	fileName := filepath.Join("steps", fmt.Sprintf("%02d-%s.yaml", stepNumber, stepName))
 	file := a.expandTempPath(fileName)
 	return file, a.writeTempFile(fileName, output)
+}
+
+func (a *Application) getDestinationDir() string {
+	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedDir, "envs", a.e.Id, a.Name)
 }
 
 // Generates a file name for each document using kind and name if available
