@@ -3,11 +3,12 @@ package myks
 import (
 	"errors"
 	"fmt"
-	"github.com/rs/zerolog/log"
-	yaml "gopkg.in/yaml.v3"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/rs/zerolog/log"
+	yaml "gopkg.in/yaml.v3"
 )
 
 const (
@@ -41,6 +42,7 @@ type HelmConfig struct {
 }
 
 var ErrNoVendirConfig = errors.New("no vendir config found")
+
 var ApplicationLogFormat = "\033[1m[%s > %s > %s]\033[0m %s"
 
 func NewApplication(e *Environment, name string, prototypeName string) (*Application, error) {
