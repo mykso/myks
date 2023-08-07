@@ -16,7 +16,7 @@ func writeSecretFile(secretName string, secretFilePath string, username string, 
 	if err != nil {
 		return err
 	}
-	res, err := runYttWithFilesAndStdin([]string{filepath.Join(os.TempDir(), "templates", "secret.yaml")}, nil, func(name string, args []string) {
+	res, err := runYttWithFilesAndStdin([]string{filepath.Join(os.TempDir(), "templates", "vendir_secret.ytt.yaml")}, nil, func(name string, args []string) {
 		log.Debug().Msg(msgRunCmd("render vendir secret yaml", name, args))
 	}, "--data-value=secret_name="+secretName, "--data-value=username="+username, "--data-value=password="+password)
 	if err != nil {
