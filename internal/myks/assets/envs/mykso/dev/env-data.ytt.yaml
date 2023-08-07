@@ -4,5 +4,4 @@ environment:
   id: mykso-dev
   applications:
     - proto: argocd
-    - proto: argocd-apps
     - proto: httpbingo

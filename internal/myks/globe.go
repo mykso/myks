@@ -1,7 +1,6 @@
 package myks
 
 import (
-	"bytes"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -11,7 +10,6 @@ import (
 
 	"github.com/creasty/defaults"
 	"github.com/rs/zerolog/log"
-	yaml "gopkg.in/yaml.v3"
 )
 
 //go:embed assets/data-schema.ytt.yaml
@@ -136,12 +134,6 @@ func (g *Globe) Init(searchPaths []string, applicationNames []string) error {
 	}
 	g.extraYttPaths = append(g.extraYttPaths, dataSchemaFileName)
 
-	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
-		log.Warn().Err(err).Msg("Unable to dump config as yaml")
-	} else {
-		g.extraYttPaths = append(g.extraYttPaths, configFileName)
-	}
-
 	g.collectEnvironments(searchPaths)
 
 	return processItemsInParallel(g.environments, func(item interface{}) error {
@@ -201,34 +193,6 @@ func (g *Globe) Bootstrap() error {
 	}
 
 	return nil
-}
-
-// dumpConfigAsYaml dumps the globe config as yaml to a file and returns the file name
-func (g *Globe) dumpConfigAsYaml() (string, error) {
-	configData := struct {
-		Myks *Globe `yaml:"myks"`
-	}{
-		Myks: g,
-	}
-	var yamlData bytes.Buffer
-	enc := yaml.NewEncoder(&yamlData)
-	enc.SetIndent(2)
-	if err := enc.Encode(configData); err != nil {
-		return "", err
-	}
-	yttData := fmt.Sprintf("#@data/values\n---\n%s", yamlData.String())
-
-	configFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.MyksDataFileName)
-	if err := os.MkdirAll(filepath.Dir(configFileName), 0o750); err != nil {
-		return "", err
-	}
-	if err := os.WriteFile(configFileName, []byte(yttData), 0o600); err != nil {
-		return "", err
-	}
-
-	log.Trace().Str("config file", configFileName).Str("content", yttData).Msg("Dumped config as yaml")
-
-	return configFileName, nil
 }
 
 func (g *Globe) createBaseFileStructure() error {
