@@ -18,6 +18,7 @@ var (
 	cfgFile            string
 	targetEnvironments []string
 	targetApplications []string
+	runSynchronously   bool
 )
 
 var rootCmd = &cobra.Command{
@@ -68,6 +69,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "Set the logging level")
+	rootCmd.PersistentFlags().BoolVarP(&runSynchronously, "synchronous", "s", false, "Run synchronously. Takes longer, but is easier to debug.")
 
 	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to bind flags")

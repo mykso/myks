@@ -118,7 +118,7 @@ func New(rootDir string) *Globe {
 	return g
 }
 
-func (g *Globe) Init(searchPaths []string, applicationNames []string) error {
+func (g *Globe) Init(async bool, searchPaths []string, applicationNames []string) error {
 	g.SearchPaths = searchPaths
 	g.ApplicationNames = applicationNames
 
@@ -144,7 +144,7 @@ func (g *Globe) Init(searchPaths []string, applicationNames []string) error {
 
 	g.collectEnvironments(searchPaths)
 
-	return processItemsInParallel(g.environments, func(item interface{}) error {
+	return process(async, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
@@ -153,33 +153,33 @@ func (g *Globe) Init(searchPaths []string, applicationNames []string) error {
 	})
 }
 
-func (g *Globe) Sync() error {
-	return processItemsInParallel(g.environments, func(item interface{}) error {
+func (g *Globe) Sync(async bool) error {
+	return process(async, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.Sync()
+		return env.Sync(async)
 	})
 }
 
-func (g *Globe) Render() error {
-	return processItemsInParallel(g.environments, func(item interface{}) error {
+func (g *Globe) Render(async bool) error {
+	return process(async, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.Render()
+		return env.Render(async)
 	})
 }
 
-func (g *Globe) SyncAndRender() error {
-	return processItemsInParallel(g.environments, func(item interface{}) error {
+func (g *Globe) SyncAndRender(async bool) error {
+	return process(async, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.SyncAndRender()
+		return env.SyncAndRender(async)
 	})
 }
 

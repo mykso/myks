@@ -239,6 +239,9 @@ func Test_runCmd(t *testing.T) {
 }
 
 func Test_runYttWithFilesAndStdin(t *testing.T) {
+	if os.Getenv("CI") == "true" {
+		t.Skip("Skipping in pipeline since ytt is not installed")
+	}
 	type args struct {
 		paths []string
 		stdin io.Reader

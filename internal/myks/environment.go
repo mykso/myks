@@ -79,8 +79,8 @@ func (e *Environment) Init(applicationNames []string) error {
 	return nil
 }
 
-func (e *Environment) Sync() error {
-	return processItemsInParallel(e.Applications, func(item interface{}) error {
+func (e *Environment) Sync(async bool) error {
+	return process(async, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
@@ -89,8 +89,8 @@ func (e *Environment) Sync() error {
 	})
 }
 
-func (e *Environment) Render() error {
-	return processItemsInParallel(e.Applications, func(item interface{}) error {
+func (e *Environment) Render(async bool) error {
+	return process(async, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
@@ -105,8 +105,8 @@ func (e *Environment) Render() error {
 	})
 }
 
-func (e *Environment) SyncAndRender() error {
-	return processItemsInParallel(e.Applications, func(item interface{}) error {
+func (e *Environment) SyncAndRender(async bool) error {
+	return process(async, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")

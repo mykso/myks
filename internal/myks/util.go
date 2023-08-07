@@ -34,7 +34,7 @@ func reductSecrets(args []string) []string {
 	return logArgs
 }
 
-func processItemsInParallel(collection interface{}, fn func(interface{}) error) error {
+func process(async bool, collection interface{}, fn func(interface{}) error) error {
 	var items []interface{}
 
 	value := reflect.ValueOf(collection)
@@ -53,20 +53,28 @@ func processItemsInParallel(collection interface{}, fn func(interface{}) error) 
 		}
 	}
 
-	errChan := make(chan error, len(items))
-	defer close(errChan)
-
-	for _, item := range items {
-		go func(item interface{}) {
-			errChan <- fn(item)
-		}(item)
-	}
-
-	// Catch the first error
 	var err error
-	for range items {
-		if subErr := <-errChan; subErr != nil && err == nil {
-			err = fmt.Errorf("failed to process item: %w", subErr)
+	if async {
+		errChan := make(chan error, len(items))
+		defer close(errChan)
+
+		for _, item := range items {
+			go func(item interface{}) {
+				errChan <- fn(item)
+			}(item)
+		}
+
+		// Catch the first error
+		for range items {
+			if subErr := <-errChan; subErr != nil && err == nil {
+				err = fmt.Errorf("failed to process item: %w", subErr)
+			}
+		}
+	} else {
+		for _, item := range items {
+			if err = fn(item); err != nil {
+				break
+			}
 		}
 	}
 
