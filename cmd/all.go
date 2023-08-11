@@ -14,11 +14,11 @@ func init() {
 		Run: func(cmd *cobra.Command, args []string) {
 			g := myks.New(".")
 
-			if err := g.Init(!runSynchronously, targetEnvironments, targetApplications); err != nil {
+			if err := g.Init(asyncLevel, targetEnvironments, targetApplications); err != nil {
 				log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 			}
 
-			if err := g.SyncAndRender(!runSynchronously); err != nil {
+			if err := g.SyncAndRender(asyncLevel); err != nil {
 				log.Fatal().Err(err).Msg("Unable to sync vendir configs")
 			}
 		},

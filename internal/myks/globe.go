@@ -118,7 +118,7 @@ func New(rootDir string) *Globe {
 	return g
 }
 
-func (g *Globe) Init(async bool, searchPaths []string, applicationNames []string) error {
+func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []string) error {
 	g.SearchPaths = searchPaths
 	g.ApplicationNames = applicationNames
 
@@ -144,7 +144,7 @@ func (g *Globe) Init(async bool, searchPaths []string, applicationNames []string
 
 	g.collectEnvironments(searchPaths)
 
-	return process(async, g.environments, func(item interface{}) error {
+	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
@@ -153,33 +153,33 @@ func (g *Globe) Init(async bool, searchPaths []string, applicationNames []string
 	})
 }
 
-func (g *Globe) Sync(async bool) error {
-	return process(async, g.environments, func(item interface{}) error {
+func (g *Globe) Sync(asyncLevel int) error {
+	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.Sync(async)
+		return env.Sync(asyncLevel)
 	})
 }
 
-func (g *Globe) Render(async bool) error {
-	return process(async, g.environments, func(item interface{}) error {
+func (g *Globe) Render(asyncLevel int) error {
+	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.Render(async)
+		return env.Render(asyncLevel)
 	})
 }
 
-func (g *Globe) SyncAndRender(async bool) error {
-	return process(async, g.environments, func(item interface{}) error {
+func (g *Globe) SyncAndRender(asyncLevel int) error {
+	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.SyncAndRender(async)
+		return env.SyncAndRender(asyncLevel)
 	})
 }
 

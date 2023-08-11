@@ -34,7 +34,7 @@ func reductSecrets(args []string) []string {
 	return logArgs
 }
 
-func process(async bool, collection interface{}, fn func(interface{}) error) error {
+func process(asyncLevel int, collection interface{}, fn func(interface{}) error) error {
 	var items []interface{}
 
 	value := reflect.ValueOf(collection)
@@ -54,7 +54,13 @@ func process(async bool, collection interface{}, fn func(interface{}) error) err
 	}
 
 	var err error
-	if async {
+	if asyncLevel == 0 {
+		for _, item := range items {
+			if err = fn(item); err != nil {
+				break
+			}
+		}
+	} else {
 		errChan := make(chan error, len(items))
 		defer close(errChan)
 
@@ -70,15 +76,17 @@ func process(async bool, collection interface{}, fn func(interface{}) error) err
 				err = fmt.Errorf("failed to process item: %w", subErr)
 			}
 		}
-	} else {
-		for _, item := range items {
-			if err = fn(item); err != nil {
-				break
-			}
-		}
 	}
 
 	return err
+}
+
+// Ensure potential errors during file closing are logged
+func saveClose(file fs.File) {
+	closeErr := file.Close()
+	if closeErr != nil {
+		log.Error().Err(closeErr).Msg("Failure to close file")
+	}
 }
 
 func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath string) error {
@@ -115,19 +123,20 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 				return err
 			}
 		} else {
+
 			// Open the source file
 			srcFile, err := source.Open(path)
 			if err != nil {
 				return err
 			}
-			defer srcFile.Close()
+			defer saveClose(srcFile)
 
 			// Create the destination file
 			dstFile, err := os.Create(destination)
 			if err != nil {
 				return err
 			}
-			defer dstFile.Close()
+			defer saveClose(dstFile)
 
 			// Copy the contents of the source file to the destination file
 			_, err = io.Copy(dstFile, srcFile)
