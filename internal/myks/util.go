@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -38,47 +39,45 @@ func process(asyncLevel int, collection interface{}, fn func(interface{}) error)
 	var items []interface{}
 
 	value := reflect.ValueOf(collection)
-
-	if value.Kind() != reflect.Slice && value.Kind() != reflect.Array && value.Kind() != reflect.Map {
-		return fmt.Errorf("collection must be a slice, array or map, got %s", value.Kind())
-	}
-
-	if value.Kind() == reflect.Map {
-		for _, key := range value.MapKeys() {
-			items = append(items, value.MapIndex(key).Interface())
-		}
-	} else {
+	switch value.Kind() {
+	case reflect.Slice, reflect.Array:
 		for i := 0; i < value.Len(); i++ {
 			items = append(items, value.Index(i).Interface())
 		}
+	case reflect.Map:
+		for _, key := range value.MapKeys() {
+			items = append(items, value.MapIndex(key).Interface())
+		}
+	default:
+		return fmt.Errorf("collection must be a slice, array or map, got %s", value.Kind())
 	}
 
-	var err error
-	if asyncLevel == 0 {
-		for _, item := range items {
-			if err = fn(item); err != nil {
-				break
-			}
-		}
-	} else {
-		errChan := make(chan error, len(items))
-		defer close(errChan)
+	// run async
+	if asyncLevel > 0 {
+		var eg errgroup.Group
+		semaphore := make(chan struct{}, asyncLevel)
 
 		for _, item := range items {
-			go func(item interface{}) {
-				errChan <- fn(item)
-			}(item)
+			item := item // Create a new variable to avoid capturing the same item in the closure
+			eg.Go(func() error {
+				semaphore <- struct{}{}
+				err := fn(item)
+				<-semaphore
+				return err
+			})
 		}
 
-		// Catch the first error
-		for range items {
-			if subErr := <-errChan; subErr != nil && err == nil {
-				err = fmt.Errorf("failed to process item: %w", subErr)
-			}
-		}
+		return eg.Wait()
 	}
 
-	return err
+	// synchronous run
+	for _, item := range items {
+		if err := fn(item); err != nil {
+			return err
+		}
+	}
+	return nil
+
 }
 
 // Ensure potential errors during file closing are logged

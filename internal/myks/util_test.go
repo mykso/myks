@@ -1,9 +1,12 @@
 package myks
 
 import (
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"reflect"
+	"sync"
 	"testing"
 )
 
@@ -265,6 +268,124 @@ func Test_runYttWithFilesAndStdin(t *testing.T) {
 				if !reflect.DeepEqual(got, tt.want) {
 					t.Errorf("runYttWithFilesAndStdin() got = %v, want %v", got, tt.want)
 				}
+			}
+		})
+	}
+}
+
+func TestProcess(t *testing.T) {
+	testCases := []struct {
+		name            string
+		asyncLevel      int
+		collection      interface{}
+		expectedFnCalls int
+		fn              func(interface{}) error
+		expectedErr     error
+	}{
+		{
+			name:            "Successful async processing of slice",
+			asyncLevel:      2,
+			collection:      []int{1, 2, 3, 4, 5},
+			expectedFnCalls: 5,
+			fn: func(item interface{}) error {
+				return nil
+			},
+			expectedErr: nil,
+		},
+		{
+			name:            "Successful async processing of map",
+			asyncLevel:      2,
+			collection:      map[string]int{"one": 1, "two": 2, "three": 3},
+			expectedFnCalls: 3,
+			fn: func(item interface{}) error {
+				return nil
+			},
+			expectedErr: nil,
+		},
+		{
+			name:            "Successful sync processing of slice",
+			asyncLevel:      0,
+			collection:      []int{1, 2, 3, 4, 5},
+			expectedFnCalls: 5,
+			fn: func(item interface{}) error {
+				return nil
+			},
+			expectedErr: nil,
+		},
+		{
+			name:            "Successful sync processing of map",
+			asyncLevel:      0,
+			collection:      map[string]int{"one": 1, "two": 2, "three": 3},
+			expectedFnCalls: 3,
+			fn: func(item interface{}) error {
+				return nil
+			},
+			expectedErr: nil,
+		},
+		{
+			name:            "Successful async processing of slice with high async level",
+			asyncLevel:      222,
+			collection:      []int{1, 2, 3, 4, 5},
+			expectedFnCalls: 5,
+			fn: func(item interface{}) error {
+				return nil
+			},
+			expectedErr: nil,
+		},
+		{
+			name:       "Error in processing slice",
+			asyncLevel: 2,
+			collection: []int{1, 2, 3, 4, 5},
+			fn: func(item interface{}) error {
+				if item.(int) == 3 {
+					return errors.New("error processing item")
+				}
+				return nil
+			},
+			expectedErr: errors.New("error processing item"),
+		},
+		{
+			name:       "Error in processing map",
+			asyncLevel: 2,
+			collection: map[string]int{"one": 1, "two": 2, "three": 3},
+			fn: func(item interface{}) error {
+				if item.(int) == 2 {
+					return errors.New("error processing item")
+				}
+				return nil
+			},
+			expectedErr: errors.New("error processing item"),
+		},
+		{
+			name:       "Invalid collection type",
+			asyncLevel: 2,
+			collection: 42,
+			fn: func(item interface{}) error {
+				return nil
+			},
+			expectedErr: fmt.Errorf("collection must be a slice, array or map, got %s", reflect.Int),
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var counter int
+			var mu sync.Mutex
+
+			fnWrapper := func(item interface{}) error {
+				mu.Lock()
+				counter++
+				mu.Unlock()
+				return tc.fn(item)
+			}
+
+			err := process(tc.asyncLevel, tc.collection, fnWrapper)
+			if fmt.Sprint(err) != fmt.Sprint(tc.expectedErr) {
+				t.Errorf("Expected error: %v, got: %v", tc.expectedErr, err)
+			}
+
+			if tc.expectedFnCalls > 0 && counter != tc.expectedFnCalls {
+				t.Errorf("Expected fn to be called %d times, got: %d", tc.expectedFnCalls, counter)
 			}
 		})
 	}
