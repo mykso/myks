@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -80,21 +81,13 @@ func process(asyncLevel int, collection interface{}, fn func(interface{}) error)
 
 }
 
-// Ensure potential errors during file closing are logged
-func saveClose(file fs.File) {
-	closeErr := file.Close()
-	if closeErr != nil {
-		log.Error().Err(closeErr).Msg("Failure to close file")
-	}
-}
-
-func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath string) error {
-	if err := os.MkdirAll(destinationPath, 0o750); err != nil {
+func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath string) (err error) {
+	if err = os.MkdirAll(destinationPath, 0o750); err != nil {
 		return err
 	}
-	err := fs.WalkDir(source, sourcePath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	err = fs.WalkDir(source, sourcePath, func(path string, d fs.DirEntry, ferr error) error {
+		if ferr != nil {
+			return ferr
 		}
 
 		// Skip the root directory
@@ -103,10 +96,10 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 		}
 
 		// Construct the corresponding destination path
-		relPath, err := filepath.Rel(sourcePath, path)
-		if err != nil {
+		relPath, ferr := filepath.Rel(sourcePath, path)
+		if ferr != nil {
 			// This should never happen
-			return err
+			return ferr
 		}
 		destination := filepath.Join(destinationPath, relPath)
 
@@ -118,29 +111,41 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 
 		if d.IsDir() {
 			// Create the destination directory
-			if err := os.MkdirAll(destination, 0o750); err != nil {
-				return err
+			if ferr = os.MkdirAll(destination, 0o750); ferr != nil {
+				return ferr
 			}
 		} else {
 
 			// Open the source file
-			srcFile, err := source.Open(path)
-			if err != nil {
-				return err
+			srcFile, ferr := source.Open(path)
+			if ferr != nil {
+				return ferr
 			}
+
+			saveClose := func(srcFile fs.File) {
+				closeErr := srcFile.Close()
+				if closeErr != nil {
+					if err == nil {
+						err = closeErr
+					} else {
+						err = errors.Join(err, closeErr)
+					}
+				}
+			}
+
 			defer saveClose(srcFile)
 
 			// Create the destination file
-			dstFile, err := os.Create(destination)
-			if err != nil {
-				return err
+			dstFile, ferr := os.Create(destination)
+			if ferr != nil {
+				return ferr
 			}
 			defer saveClose(dstFile)
 
 			// Copy the contents of the source file to the destination file
-			_, err = io.Copy(dstFile, srcFile)
-			if err != nil {
-				return err
+			_, ferr = io.Copy(dstFile, srcFile)
+			if ferr != nil {
+				return ferr
 			}
 		}
 
