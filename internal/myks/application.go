@@ -36,14 +36,16 @@ type Application struct {
 }
 
 type HelmConfig struct {
-	Namespace   string `yaml:"namespace"`
-	KubeVersion string `yaml:"kubeVersion"`
-	IncludeCRDs bool   `yaml:"includeCRDs"`
+	Namespace    string   `yaml:"namespace"`
+	KubeVersion  string   `yaml:"kubeVersion"`
+	IncludeCRDs  bool     `yaml:"includeCRDs"`
+	Capabilities []string `yaml:"capabilities"`
 }
 
-var ErrNoVendirConfig = errors.New("no vendir config found")
-
-var ApplicationLogFormat = "\033[1m[%s > %s > %s]\033[0m %s"
+var (
+	ErrNoVendirConfig    = errors.New("no vendir config found")
+	ApplicationLogFormat = "\033[1m[%s > %s > %s]\033[0m %s"
+)
 
 func NewApplication(e *Environment, name string, prototypeName string) (*Application, error) {
 	if prototypeName == "" {

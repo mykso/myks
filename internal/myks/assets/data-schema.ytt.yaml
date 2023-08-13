@@ -47,6 +47,10 @@ environment:
 #! Configuration of the step that renders Helm charts.
 helm:
   #! Used by myks.
+  #! If defined, passed as `--api-version` for `helm-template`.
+  capabilities:
+    - "" #! e.g. "monitoring.coreos.com/v1"
+  #! Used by myks.
   #! If true, adds `--include-crds` flag to `helm template`.
   includeCRDs: true
   #! Used by myks.
