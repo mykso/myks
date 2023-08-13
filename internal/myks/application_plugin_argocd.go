@@ -11,7 +11,7 @@ import (
 
 const ArgoCDStepName = "argocd"
 
-//go:embed templates/argocd_application.ytt.yaml
+//go:embed templates/argocd/application.ytt.yaml
 var argocd_application_template []byte
 
 const argocd_data_values_schema = `
