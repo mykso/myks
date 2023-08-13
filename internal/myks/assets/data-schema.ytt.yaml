@@ -9,6 +9,7 @@
 #! Add here any application-specific data.
 application: {}
 argocd:
+  enabled: true
   #! Namespace of the ArgoCD server.
   namespace: argocd
   app:

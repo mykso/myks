@@ -21,6 +21,10 @@ argocd:
 `
 
 func (a *Application) renderArgoCD() (err error) {
+	if !a.argoCDEnabled {
+		return
+	}
+
 	schemaFile, err := a.argoCDPrepareSchema()
 	if err != nil {
 		return
