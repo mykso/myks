@@ -47,6 +47,8 @@ type Globe struct {
 
 	// Application data file name
 	ApplicationDataFileName string `default:"app-data.ytt.yaml" yaml:"applicationDataFileName"`
+	// ArgoCD data directory name
+	ArgoCDDataDirName string `default:"argocd" yaml:"argoCDDataDirName"`
 	// Data values schema file name
 	DataSchemaFileName string `default:"data-schema.ytt.yaml" yaml:"dataSchemaFileName"`
 	// Environment data file name

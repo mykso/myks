@@ -5,13 +5,17 @@ import (
 	_ "embed"
 	"path/filepath"
 	"text/template"
+
+	"github.com/rs/zerolog/log"
 )
+
+const ArgoCDStepName = "argocd"
 
 //go:embed templates/argocd_application.ytt.yaml
 var argocd_application_template []byte
 
 const argocd_data_values_schema = `
-#@data/values-schema
+#@data/values
 ---
 argocd:
   app:
@@ -22,6 +26,7 @@ argocd:
 
 func (a *Application) renderArgoCD() (err error) {
 	if !a.argoCDEnabled {
+		log.Debug().Msg(a.Msg(ArgoCDStepName, "ArgoCD is disabled"))
 		return
 	}
 
@@ -30,10 +35,20 @@ func (a *Application) renderArgoCD() (err error) {
 		return
 	}
 
+	// 0. Global data values schema and library files are added later in the a.yttS call
+	// 1. Dynamyc ArgoCD data values
+	yttFiles := []string{schemaFile}
+	// 2. Collection of application-specific data values and schemas
+	yttFiles = append(yttFiles, a.yttDataFiles...)
+	// 3. Collection of environment-specific data values and schemas, and overlays
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_env", a.e.g.ArgoCDDataDirName))...)
+	// 4. Collection of application-specific data values and schemas, and overlays
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.ArgoCDDataDirName))...)
+
 	res, err := a.yttS(
 		"argocd",
 		"create ArgoCD application yaml",
-		[]string{schemaFile},
+		yttFiles,
 		bytes.NewReader(argocd_application_template),
 	)
 	if err != nil {

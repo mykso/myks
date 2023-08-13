@@ -1,0 +1,10 @@
+#@ load("@ytt:overlay", "overlay")
+#@ load("@ytt:data", "data")
+
+#@overlay/match by=overlay.subset({"kind": "Application"})
+---
+#@overlay/match missing_ok=True
+#@overlay/match-child-defaults missing_ok=True
+metadata:
+  annotations:
+    myks.dev/environment: #@ data.values.environment.id

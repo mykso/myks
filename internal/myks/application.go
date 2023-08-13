@@ -84,10 +84,10 @@ func (a *Application) Init() error {
 	}
 
 	type ArgoCD struct {
-		Enabled bool
+		Enabled bool `yaml:"enabled"`
 	}
 	type Cache struct {
-		Enabled bool
+		Enabled bool `yaml:"enabled"`
 	}
 	type YttPkg struct {
 		Dirs []string `yaml:"dirs"`
@@ -95,17 +95,17 @@ func (a *Application) Init() error {
 
 	var applicationData struct {
 		Application struct {
-			ArgoCD ArgoCD `yaml:"argocd"`
 			Cache  Cache  `yaml:"cache"`
 			YttPkg YttPkg `yaml:"yttPkg"`
 		}
+		ArgoCD ArgoCD `yaml:"argocd"`
 	}
 
 	err = yaml.Unmarshal(dataYaml, &applicationData)
 	if err != nil {
 		return err
 	}
-	a.argoCDEnabled = applicationData.Application.ArgoCD.Enabled
+	a.argoCDEnabled = applicationData.ArgoCD.Enabled
 	a.cached = applicationData.Application.Cache.Enabled
 	a.yttPkgDirs = applicationData.Application.YttPkg.Dirs
 

@@ -1,0 +1,9 @@
+#@ load("@ytt:overlay", "overlay")
+
+#@overlay/match by=overlay.subset({"kind": "Application"})
+---
+spec:
+  syncPolicy:
+    automated:
+      #! Disable self-healing of the application to allow manual changes.
+      selfHeal: false
