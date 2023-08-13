@@ -31,6 +31,10 @@ helm:
   #! Used by myks.
   #! If defined, passed as a value of `--namespace` for `helm template`.
   namespace: ""
+  #! Used by myks.
+  #! If defined, passed as `--api-version` for `helm-template`.
+  capabilities:
+  - "" #! e.g. "monitoring.coreos.com/v1"
 #! Myks configuration and runtime data.
 myks:
   applicationDataFileName: ""
