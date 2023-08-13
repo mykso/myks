@@ -57,6 +57,9 @@ func (h *Helm) Render(_ string) (string, error) {
 		commonHelmArgs = append(commonHelmArgs, "--include-crds")
 	}
 
+	for _, capa := range helmConfig.Capabilities {
+		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
+	}
 	var outputs []string
 
 	for _, chartDir := range chartDirs {
