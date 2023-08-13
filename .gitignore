@@ -2,4 +2,4 @@ bin/*
 dist
 .idea
 .run
-myks
+/myks
