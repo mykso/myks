@@ -36,6 +36,7 @@ type Environment struct {
 	// Globe instance
 	g *Globe
 
+	argoCDEnabled bool
 	// Runtime data
 	renderedEnvDataFilePath string
 	// Found applications
@@ -90,6 +91,9 @@ func (e *Environment) Sync() error {
 }
 
 func (e *Environment) Render() error {
+	if err := e.renderArgoCD(); err != nil {
+		return err
+	}
 	return processItemsInParallel(e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
@@ -110,6 +114,9 @@ func (e *Environment) Render() error {
 }
 
 func (e *Environment) SyncAndRender() error {
+	if err := e.renderArgoCD(); err != nil {
+		return err
+	}
 	return processItemsInParallel(e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
@@ -217,6 +224,9 @@ func (e *Environment) saveRenderedEnvData(envDataYaml []byte) error {
 
 func (e *Environment) setEnvDataFromYaml(envDataYaml []byte) error {
 	var envDataStruct struct {
+		ArgoCD struct {
+			Enabled bool
+		}
 		Environment struct {
 			Applications []struct {
 				Name  string
@@ -229,6 +239,8 @@ func (e *Environment) setEnvDataFromYaml(envDataYaml []byte) error {
 		log.Error().Err(err).Msg(e.Msg("Unable to unmarshal environment data yaml"))
 		return err
 	}
+
+	e.argoCDEnabled = envDataStruct.ArgoCD.Enabled
 
 	for _, app := range envDataStruct.Environment.Applications {
 		proto := app.Proto

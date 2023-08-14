@@ -1,0 +1,24 @@
+#@ load("@ytt:data", "data")
+
+#@ a = data.values.argocd
+#@ e = data.values.environment
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: #@ e.id
+  namespace: #@ a.namespace
+spec:
+  description: #@ 'Project for "{}" environment'.format(e.id)
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  destinations:
+    - name: #@ a.destination.name
+      namespace: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  sourceRepos:
+    - "*"
