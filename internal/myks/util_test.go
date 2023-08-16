@@ -222,7 +222,7 @@ func Test_runCmd(t *testing.T) {
 		wantErr bool
 	}{
 		{"happy path", args{"echo", nil, []string{"test"}, nil}, CmdResult{"test\n", ""}, false},
-		{"said path", args{"sure-to-fail", nil, []string{}, nil}, CmdResult{"", ""}, true},
+		{"sad path", args{"sure-to-fail", nil, []string{}, nil}, CmdResult{"", ""}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -252,7 +252,7 @@ func Test_runYttWithFilesAndStdin(t *testing.T) {
 		wantErr bool
 	}{
 		{"happy path", args{[]string{"../../testData/ytt/simple.yaml"}, nil, nil, []string{}}, CmdResult{"key1: A\n", ""}, false},
-		{"said path", args{[]string{"does-not-exist.yaml"}, nil, nil, []string{}}, CmdResult{"", ""}, true},
+		{"sad path", args{[]string{"does-not-exist.yaml"}, nil, nil, []string{}}, CmdResult{"", ""}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
