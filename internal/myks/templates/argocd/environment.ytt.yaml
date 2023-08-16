@@ -1,0 +1,41 @@
+#@ load("@ytt:data", "data")
+
+#@ a = data.values.argocd
+#@ e = data.values.environment
+
+#@ env_name = a.env.prefix + (a.env.name or e.id)
+#@ project_name = a.project.prefix + (a.env.name or e.id)
+
+---
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: #@ project_name
+  namespace: #@ a.namespace
+spec:
+  description: #@ 'Project for "{}" environment'.format(env_name)
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  destinations:
+    - name: #@ env_name
+      namespace: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  sourceRepos:
+    - "*"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  name: #@ env_name
+  namespace: #@ a.namespace
+stringData:
+  config: ARGOCD_CLUSTER_CONNECT_CONFIG
+  name: #@ env_name
+  project: #@ project_name
+  server: ARGOCD_CLUSTER_SERVER_URL

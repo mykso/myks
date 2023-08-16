@@ -20,8 +20,8 @@ const argocd_data_values_schema = `
 argocd:
   app:
     name: "{{ .AppName }}"
-  source:
-    path: "{{ .AppPath }}"
+    source:
+      path: "{{ .AppPath }}"
 `
 
 func (a *Application) renderArgoCD() (err error) {

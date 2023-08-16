@@ -8,7 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-//go:embed templates/argocd/appproject.ytt.yaml
+//go:embed templates/argocd/environment.ytt.yaml
 var argocd_appproject_template []byte
 
 func (e *Environment) renderArgoCD() (err error) {

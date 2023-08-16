@@ -1,27 +1,30 @@
 #@ load("@ytt:data", "data")
 
-#@ v = data.values
-#@ a = v.argocd
+#@ a = data.values.argocd
+#@ e = data.values.environment
+
+#@ app_name = a.app.prefix + a.app.name
+#@ env_name = a.env.prefix + (a.env.name or e.id)
 
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: #@ a.app.name
+  name: #@ app_name
   namespace: #@ a.namespace
 spec:
   project: default
   destination:
-    #@ if a.destination.server:
-    server: #@ a.destination.server
+    #@ if a.app.destination.server:
+    server: #@ a.app.destination.server
     #@ else:
-    name: #@ a.destination.name
+    name: #@ a.app.destination.name or env_name
     #@ end
-    namespace: #@ a.destination.namespace or a.app.name
+    namespace: #@ a.app.destination.namespace or a.app.name
   source:
-    path: #@ a.source.path
-    repoURL: #@ a.source.repoURL
-    targetRevision: #@ a.source.targetRevision
+    path: #@ a.app.source.path
+    repoURL: #@ a.app.source.repoURL
+    targetRevision: #@ a.app.source.targetRevision
   syncPolicy:
     automated:
       prune: true
