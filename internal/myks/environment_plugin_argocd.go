@@ -33,7 +33,7 @@ func (e *Environment) renderArgoCD() (err error) {
 		return
 	}
 
-	filepath := filepath.Join(e.getArgoCDDestinationDir(), "appproject.yaml")
+	filepath := filepath.Join(e.getArgoCDDestinationDir(), "env-"+e.Id+".yaml")
 	err = writeFile(filepath, []byte(res.Stdout))
 	if err != nil {
 		return
