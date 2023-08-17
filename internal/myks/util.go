@@ -53,32 +53,20 @@ func process(asyncLevel int, collection interface{}, fn func(interface{}) error)
 		return fmt.Errorf("collection must be a slice, array or map, got %s", value.Kind())
 	}
 
-	// run async
-	if asyncLevel > 0 {
-		var eg errgroup.Group
-		semaphore := make(chan struct{}, asyncLevel)
-
-		for _, item := range items {
-			item := item // Create a new variable to avoid capturing the same item in the closure
-			eg.Go(func() error {
-				semaphore <- struct{}{}
-				err := fn(item)
-				<-semaphore
-				return err
-			})
-		}
-
-		return eg.Wait()
+	var eg errgroup.Group
+	if asyncLevel == 0 { // no limit
+		asyncLevel = -1
 	}
+	eg.SetLimit(asyncLevel)
 
-	// synchronous run
 	for _, item := range items {
-		if err := fn(item); err != nil {
-			return err
-		}
+		item := item // Create a new variable to avoid capturing the same item in the closure
+		eg.Go(func() error {
+			return fn(item)
+		})
 	}
-	return nil
 
+	return eg.Wait()
 }
 
 func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath string) (err error) {
@@ -124,13 +112,7 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 
 			saveClose := func(srcFile fs.File) {
 				closeErr := srcFile.Close()
-				if closeErr != nil {
-					if err == nil {
-						err = closeErr
-					} else {
-						err = errors.Join(err, closeErr)
-					}
-				}
+				err = errors.Join(err, closeErr)
 			}
 
 			defer saveClose(srcFile)
