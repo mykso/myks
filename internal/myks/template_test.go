@@ -6,9 +6,6 @@ import (
 )
 
 func Test_writeSecretFile(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skip("Skipping in pipeline since ytt is not installed")
-	}
 	type args struct {
 		secretName string
 		username   string

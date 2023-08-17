@@ -1,15 +1,11 @@
 package myks
 
 import (
-	"os"
 	"reflect"
 	"testing"
 )
 
 func TestApplication_renderDataYaml(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skip("Skipping in pipeline since ytt is not installed")
-	}
 	type args struct {
 		dataFiles []string
 	}
