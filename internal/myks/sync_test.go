@@ -307,9 +307,6 @@ func Test_writeSyncFile(t *testing.T) {
 }
 
 func Test_handleVendirSecret(t *testing.T) {
-	if os.Getenv("CI") == "true" {
-		t.Skip("Skipping in pipeline since ytt is not installed")
-	}
 	type args struct {
 		dir              Directory
 		tempPath         string
