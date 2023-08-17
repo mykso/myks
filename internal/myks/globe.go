@@ -28,6 +28,8 @@ var environmentsFs embed.FS
 
 var GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
+var ErrNotClean = fmt.Errorf("target directory is not clean, aborting")
+
 // Define the main structure
 type Globe struct {
 	/// Globe configuration
@@ -184,9 +186,9 @@ func (g *Globe) SyncAndRender(asyncLevel int) error {
 }
 
 // Bootstrap creates the initial directory structure and files
-func (g *Globe) Bootstrap() error {
+func (g *Globe) Bootstrap(force bool) error {
 	log.Info().Msg("Creating base file structure")
-	if err := g.createBaseFileStructure(); err != nil {
+	if err := g.createBaseFileStructure(force); err != nil {
 		return err
 	}
 
@@ -231,7 +233,7 @@ func (g *Globe) dumpConfigAsYaml() (string, error) {
 	return configFileName, nil
 }
 
-func (g *Globe) createBaseFileStructure() error {
+func (g *Globe) createBaseFileStructure(force bool) error {
 	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
 	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
 	renderedDir := filepath.Join(g.RootDir, g.RenderedDir)
@@ -244,40 +246,40 @@ func (g *Globe) createBaseFileStructure() error {
 	log.Debug().Str("data schema file", dataSchemaFile).Msg("")
 	log.Debug().Str("environments .gitignore file", envsGitignoreFile).Msg("")
 
-	// TODO: interactively ask for confirmation and overwrite without checking
-	notCleanErr := fmt.Errorf("Target directory is not clean, aborting")
-
-	if _, err := os.Stat(envDir); err == nil {
-		return notCleanErr
+	if !force {
+		if _, err := os.Stat(envDir); err == nil {
+			return ErrNotClean
+		}
+		if _, err := os.Stat(protoDir); err == nil {
+			return ErrNotClean
+		}
+		if _, err := os.Stat(renderedDir); err == nil {
+			return ErrNotClean
+		}
+		if _, err := os.Stat(dataSchemaFile); err == nil {
+			return ErrNotClean
+		}
+		if _, err := os.Stat(envsGitignoreFile); err == nil {
+			return ErrNotClean
+		}
 	}
+
 	if err := os.MkdirAll(envDir, 0o750); err != nil {
 		return err
 	}
 
-	if _, err := os.Stat(protoDir); err == nil {
-		return notCleanErr
-	}
 	if err := os.MkdirAll(protoDir, 0o750); err != nil {
 		return err
 	}
 
-	if _, err := os.Stat(renderedDir); err == nil {
-		return notCleanErr
-	}
 	if err := os.MkdirAll(renderedDir, 0o750); err != nil {
 		return err
 	}
 
-	if _, err := os.Stat(dataSchemaFile); err == nil {
-		return notCleanErr
-	}
 	if err := os.WriteFile(dataSchemaFile, dataSchema, 0o600); err != nil {
 		return err
 	}
 
-	if _, err := os.Stat(envsGitignoreFile); err == nil {
-		return notCleanErr
-	}
 	if err := os.WriteFile(envsGitignoreFile, envsGitignore, 0o600); err != nil {
 		return err
 	}
