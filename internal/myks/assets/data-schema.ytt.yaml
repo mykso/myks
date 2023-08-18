@@ -19,7 +19,8 @@ argocd:
     prefix: ""
     destination:
       #! spec.destination.name of the ArgoCD application.
-      name: in-cluster
+      #! If not set, defaults to the name of the current environment.
+      name: ""
       #! spec.destination.server of the ArgoCD application.
       #! If set, used instead of spec.destination.name.
       server: ""
