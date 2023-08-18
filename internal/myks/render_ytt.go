@@ -56,7 +56,7 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 		return "", errors.New("empty ytt output")
 	}
 
-	log.Info().Msg(y.app.Msg(yttStepName, "Local YTT rendered"))
+	log.Info().Msg(y.app.Msg(yttStepName, "Local ytt rendered"))
 
 	return yamlOutput.Stdout, nil
 }
