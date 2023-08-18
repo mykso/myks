@@ -14,15 +14,6 @@ import (
 
 var EnvLogFormat = "\033[1m[%s > %s]\033[0m %s"
 
-type ManifestApplication struct {
-	Name      string
-	Prototype string
-}
-
-type EnvironmentManifest struct {
-	Applications []ManifestApplication
-}
-
 type Environment struct {
 	// Path to the environment directory
 	Dir string
