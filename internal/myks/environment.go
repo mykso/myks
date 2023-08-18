@@ -147,8 +147,8 @@ func (e *Environment) setId() error {
 
 	var envData struct {
 		Environment struct {
-			Id string
-		}
+			Id string `yaml:"id"`
+		} `yaml:"environment"`
 	}
 	err = yaml.Unmarshal(yamlBytes, &envData)
 	if err != nil {
@@ -225,14 +225,14 @@ func (e *Environment) saveRenderedEnvData(envDataYaml []byte) error {
 func (e *Environment) setEnvDataFromYaml(envDataYaml []byte) error {
 	var envDataStruct struct {
 		ArgoCD struct {
-			Enabled bool
-		}
+			Enabled bool `yaml:"enabled"`
+		} `yaml:"argocd"`
 		Environment struct {
 			Applications []struct {
-				Name  string
-				Proto string
-			}
-		}
+				Name  string `yaml:"name"`
+				Proto string `yaml:"proto"`
+			} `yaml:"applications"`
+		} `yaml:"environment"`
 	}
 	err := yaml.Unmarshal(envDataYaml, &envDataStruct)
 	if err != nil {
