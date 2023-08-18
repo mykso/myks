@@ -5,8 +5,8 @@
 
 #@ app_name = a.app.prefix + a.app.name
 #@ env_name = a.env.prefix + (a.env.name or e.id)
-#@ env_name = a.env.prefix + (a.env.name or e.id)
 #@ project_name = a.project.prefix + (a.env.name or e.id)
+
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
