@@ -18,6 +18,7 @@ var (
 	cfgFile            string
 	targetEnvironments []string
 	targetApplications []string
+	asyncLevel         int
 )
 
 var rootCmd = &cobra.Command{
@@ -68,6 +69,7 @@ var rootCmd = &cobra.Command{
 func init() {
 	cobra.OnInitialize(initConfig)
 	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "Set the logging level")
+	rootCmd.PersistentFlags().IntVarP(&asyncLevel, "async", "a", 0, "Sets the number of concurrent processed applications. The default is no limit.")
 
 	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to bind flags")

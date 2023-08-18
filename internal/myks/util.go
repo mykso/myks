@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
@@ -15,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -34,52 +36,46 @@ func reductSecrets(args []string) []string {
 	return logArgs
 }
 
-func processItemsInParallel(collection interface{}, fn func(interface{}) error) error {
+func process(asyncLevel int, collection interface{}, fn func(interface{}) error) error {
 	var items []interface{}
 
 	value := reflect.ValueOf(collection)
-
-	if value.Kind() != reflect.Slice && value.Kind() != reflect.Array && value.Kind() != reflect.Map {
-		return fmt.Errorf("collection must be a slice, array or map, got %s", value.Kind())
-	}
-
-	if value.Kind() == reflect.Map {
-		for _, key := range value.MapKeys() {
-			items = append(items, value.MapIndex(key).Interface())
-		}
-	} else {
+	switch value.Kind() {
+	case reflect.Slice, reflect.Array:
 		for i := 0; i < value.Len(); i++ {
 			items = append(items, value.Index(i).Interface())
 		}
+	case reflect.Map:
+		for _, key := range value.MapKeys() {
+			items = append(items, value.MapIndex(key).Interface())
+		}
+	default:
+		return fmt.Errorf("collection must be a slice, array or map, got %s", value.Kind())
 	}
 
-	errChan := make(chan error, len(items))
-	defer close(errChan)
+	var eg errgroup.Group
+	if asyncLevel == 0 { // no limit
+		asyncLevel = -1
+	}
+	eg.SetLimit(asyncLevel)
 
 	for _, item := range items {
-		go func(item interface{}) {
-			errChan <- fn(item)
-		}(item)
+		item := item // Create a new variable to avoid capturing the same item in the closure
+		eg.Go(func() error {
+			return fn(item)
+		})
 	}
 
-	// Catch the first error
-	var err error
-	for range items {
-		if subErr := <-errChan; subErr != nil && err == nil {
-			err = fmt.Errorf("failed to process item: %w", subErr)
-		}
-	}
-
-	return err
+	return eg.Wait()
 }
 
-func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath string) error {
-	if err := os.MkdirAll(destinationPath, 0o750); err != nil {
+func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath string) (err error) {
+	if err = os.MkdirAll(destinationPath, 0o750); err != nil {
 		return err
 	}
-	err := fs.WalkDir(source, sourcePath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
+	err = fs.WalkDir(source, sourcePath, func(path string, d fs.DirEntry, ferr error) error {
+		if ferr != nil {
+			return ferr
 		}
 
 		// Skip the root directory
@@ -88,10 +84,10 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 		}
 
 		// Construct the corresponding destination path
-		relPath, err := filepath.Rel(sourcePath, path)
-		if err != nil {
+		relPath, ferr := filepath.Rel(sourcePath, path)
+		if ferr != nil {
 			// This should never happen
-			return err
+			return ferr
 		}
 		destination := filepath.Join(destinationPath, relPath)
 
@@ -103,28 +99,35 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 
 		if d.IsDir() {
 			// Create the destination directory
-			if err := os.MkdirAll(destination, 0o750); err != nil {
-				return err
+			if ferr = os.MkdirAll(destination, 0o750); ferr != nil {
+				return ferr
 			}
 		} else {
+
 			// Open the source file
-			srcFile, err := source.Open(path)
-			if err != nil {
-				return err
+			srcFile, ferr := source.Open(path)
+			if ferr != nil {
+				return ferr
 			}
-			defer srcFile.Close()
+
+			saveClose := func(srcFile fs.File) {
+				closeErr := srcFile.Close()
+				err = errors.Join(err, closeErr)
+			}
+
+			defer saveClose(srcFile)
 
 			// Create the destination file
-			dstFile, err := os.Create(destination)
-			if err != nil {
-				return err
+			dstFile, ferr := os.Create(destination)
+			if ferr != nil {
+				return ferr
 			}
-			defer dstFile.Close()
+			defer saveClose(dstFile)
 
 			// Copy the contents of the source file to the destination file
-			_, err = io.Copy(dstFile, srcFile)
-			if err != nil {
-				return err
+			_, ferr = io.Copy(dstFile, srcFile)
+			if ferr != nil {
+				return ferr
 			}
 		}
 

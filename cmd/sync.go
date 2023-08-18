@@ -20,11 +20,11 @@ For example, if you reference a secret named "mycreds" in your vendir.yaml, you 
 			log.Info().Msg("Syncing vendir configs")
 			g := myks.New(".")
 
-			if err := g.Init(targetEnvironments, targetApplications); err != nil {
+			if err := g.Init(asyncLevel, targetEnvironments, targetApplications); err != nil {
 				log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 			}
 
-			if err := g.Sync(); err != nil {
+			if err := g.Sync(asyncLevel); err != nil {
 				log.Fatal().Err(err).Msg("Unable to sync vendir configs")
 			}
 		},

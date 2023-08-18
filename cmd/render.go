@@ -16,11 +16,11 @@ func init() {
 
 			g := myks.New(".")
 
-			if err := g.Init(targetEnvironments, targetApplications); err != nil {
+			if err := g.Init(asyncLevel, targetEnvironments, targetApplications); err != nil {
 				log.Fatal().Err(err).Msg("Unable to initialize globe")
 			}
 
-			if err := g.Render(); err != nil {
+			if err := g.Render(asyncLevel); err != nil {
 				log.Fatal().Err(err).Msg("Unable to render applications")
 			}
 		},
