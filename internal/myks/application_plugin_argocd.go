@@ -22,6 +22,8 @@ argocd:
     name: "{{ .AppName }}"
     source:
       path: "{{ .AppPath }}"
+      repoURL: "{{ .RepoURL }}"
+      targetRevision: "{{ .TargetRevision }}"
 `
 
 func (a *Application) renderArgoCD() (err error) {
@@ -52,6 +54,10 @@ func (a *Application) renderArgoCD() (err error) {
 		bytes.NewReader(argocd_application_template),
 	)
 	if err != nil {
+		log.Error().Err(err).
+			Str("stdout", res.Stdout).
+			Str("stderr", res.Stderr).
+			Msg(a.Msg("argocd", "failed to render ArgoCD Application yaml"))
 		return
 	}
 
@@ -73,13 +79,17 @@ func (a *Application) argoCDPrepareSchema() (filename string, err error) {
 	}
 
 	type Data struct {
-		AppName string
-		AppPath string
+		AppName        string
+		AppPath        string
+		RepoURL        string
+		TargetRevision string
 	}
 
 	data := Data{
-		AppName: a.Name,
-		AppPath: a.getDestinationDir(),
+		AppName:        a.Name,
+		AppPath:        a.getDestinationDir(),
+		RepoURL:        a.e.g.GitRepoUrl,
+		TargetRevision: a.e.g.GitRepoBranch,
 	}
 
 	buf := &bytes.Buffer{}

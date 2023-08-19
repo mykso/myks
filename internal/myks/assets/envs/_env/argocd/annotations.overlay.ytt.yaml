@@ -9,4 +9,4 @@
 metadata:
   annotations:
     myks.dev/environment: #@ data.values.environment.id
-    app.kubernetes.io/source: #@ data.values.argocd.app.source.repoURL
+    app.kubernetes.io/source: #@ data.values.myks.gitRepoUrl
