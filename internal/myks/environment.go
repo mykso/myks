@@ -258,16 +258,19 @@ func (e *Environment) initApplications(applicationNames []string) error {
 		for name, proto := range e.foundApplications {
 			app, err := NewApplication(e, name, proto)
 			if err != nil {
-				log.Warn().Err(err).Str("dir", e.Dir).Interface("app", name).Msg(e.Msg("Unable to initialize application"))
+				return fmt.Errorf("unable to initialize application %s for env %s. Err: %w", name, e.Dir, err)
 			} else {
 				e.Applications = append(e.Applications, app)
 			}
 		}
+		return nil
 	}
+	// applicationNames provided via commandline. Be more friendly
 	for _, appName := range applicationNames {
 		proto := e.foundApplications[appName]
 		if proto == "" {
-			return errors.New("Application not found: " + appName)
+			log.Warn().Str("dir", e.Dir).Interface("app", appName).Msg(e.Msg("Application not found"))
+			continue
 		}
 		app, err := NewApplication(e, appName, proto)
 		if err != nil {
