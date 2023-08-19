@@ -8,6 +8,51 @@
 ---
 #! Add here any application-specific data.
 application: {}
+argocd:
+  enabled: true
+  #! Namespace of the ArgoCD server.
+  namespace: argocd
+  app:
+    #! If not set, the name of the currently rendered application is used.
+    name: ""
+    #! Prefix of the ArgoCD application name.
+    prefix: ""
+    destination:
+      #! spec.destination.name of the ArgoCD application.
+      #! If not set, defaults to the name of the current environment.
+      name: ""
+      #! spec.destination.server of the ArgoCD application.
+      #! If set, used instead of spec.destination.name.
+      server: ""
+      #! spec.destination.namespace of the ArgoCD application.
+      #! If not set, defaults to argocd.app.name.
+      namespace: ""
+    source:
+      #! spec.source.path of the ArgoCD application.
+      #! If not set, defaults to the destination path of the currently rendered application.
+      #! With the default myks configuration: `rendered/envs/<environment.id>/<app.name>`
+      path: ""
+      #! spec.source.repoURL of the ArgoCD application.
+      #! If not set, defaults to the current git repository URL.
+      repoURL: ""
+      #! spec.source.targetRevision of the ArgoCD application.
+      #! If not set, defaults to the current git branch.
+      targetRevision: ""
+  env:
+    #! If not set, the name of the currently rendered environment is used (environment.id).
+    name: ""
+    #! Prefix of a target cluster name.
+    prefix: ""
+    #! If set to true, a dummy secret is generated for the target cluster.
+    #! The user has to create an overlay to set correct values for the secret.
+    #! See https://argo-cd.readthedocs.io/en/release-2.8/operator-manual/declarative-setup/#clusters
+    #! TODO: add link to the example overlay.
+    generateSecret: true
+  project:
+    #! If not set, the name of the currently rendered environment is used (environment.id).
+    name: ""
+    #! Prefix of the ArgoCD project name.
+    prefix: ""
 environment:
   #! Unique identifier of the environment, required by myks.
   #@schema/validation min_len=1
@@ -23,6 +68,10 @@ environment:
 #! Configuration of the step that renders Helm charts.
 helm:
   #! Used by myks.
+  #! If defined, passed as `--api-version` for `helm-template`.
+  capabilities:
+    - "" #! e.g. "monitoring.coreos.com/v1"
+  #! Used by myks.
   #! If true, adds `--include-crds` flag to `helm template`.
   includeCRDs: true
   #! Used by myks.
@@ -31,33 +80,11 @@ helm:
   #! Used by myks.
   #! If defined, passed as a value of `--namespace` for `helm template`.
   namespace: ""
-  #! Used by myks.
-  #! If defined, passed as `--api-version` for `helm-template`.
-  capabilities:
-  - "" #! e.g. "monitoring.coreos.com/v1"
 #! Myks configuration and runtime data.
 myks:
-  applicationDataFileName: ""
-  applicationNames: [""]
-  dataSchemaFileName: ""
-  environmentBaseDir: ""
-  environmentDataFileName: ""
+  #! Set by myks.
+  #! Set to the current git branch if available.
   gitRepoBranch: ""
+  #! Set by myks.
+  #! Set to the current git repository URL if available.
   gitRepoUrl: ""
-  helmChartsDirName: ""
-  myksDataFileName: ""
-  namespacePrefix: ""
-  prototypesDir: ""
-  renderedDir: ""
-  renderedEnvironmentDataFileName: ""
-  rootDir: ""
-  searchPaths: [""]
-  serviceDirName: ""
-  tempDirName: ""
-  vendirConfigFileName: ""
-  vendirLockFileName: ""
-  vendirSyncFileName: ""
-  vendorDirName: ""
-  yttLibraryDirName: ""
-  yttPkgStepDirName: ""
-  yttStepDirName: ""

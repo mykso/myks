@@ -14,15 +14,6 @@ import (
 
 var EnvLogFormat = "\033[1m[%s > %s]\033[0m %s"
 
-type ManifestApplication struct {
-	Name      string
-	Prototype string
-}
-
-type EnvironmentManifest struct {
-	Applications []ManifestApplication
-}
-
 type Environment struct {
 	// Path to the environment directory
 	Dir string
@@ -36,6 +27,7 @@ type Environment struct {
 	// Globe instance
 	g *Globe
 
+	argoCDEnabled bool
 	// Runtime data
 	renderedEnvDataFilePath string
 	// Found applications
@@ -90,6 +82,9 @@ func (e *Environment) Sync(asyncLevel int) error {
 }
 
 func (e *Environment) Render(asyncLevel int) error {
+	if err := e.renderArgoCD(); err != nil {
+		return err
+	}
 	return process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
@@ -101,11 +96,18 @@ func (e *Environment) Render(asyncLevel int) error {
 			&Ytt{ident: "ytt", app: app, additive: false},
 			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
 		}
-		return app.RenderAndSlice(yamlTemplatingTools)
+		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
+			return err
+		}
+
+		return app.renderArgoCD()
 	})
 }
 
 func (e *Environment) SyncAndRender(asyncLevel int) error {
+	if err := e.renderArgoCD(); err != nil {
+		return err
+	}
 	return process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
@@ -120,7 +122,10 @@ func (e *Environment) SyncAndRender(asyncLevel int) error {
 			&Ytt{ident: "ytt", app: app, additive: false},
 			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
 		}
-		return app.RenderAndSlice(yamlTemplatingTools)
+		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
+			return err
+		}
+		return app.renderArgoCD()
 	})
 }
 
@@ -133,8 +138,8 @@ func (e *Environment) setId() error {
 
 	var envData struct {
 		Environment struct {
-			Id string
-		}
+			Id string `yaml:"id"`
+		} `yaml:"environment"`
 	}
 	err = yaml.Unmarshal(yamlBytes, &envData)
 	if err != nil {
@@ -210,18 +215,23 @@ func (e *Environment) saveRenderedEnvData(envDataYaml []byte) error {
 
 func (e *Environment) setEnvDataFromYaml(envDataYaml []byte) error {
 	var envDataStruct struct {
+		ArgoCD struct {
+			Enabled bool `yaml:"enabled"`
+		} `yaml:"argocd"`
 		Environment struct {
 			Applications []struct {
-				Name  string
-				Proto string
-			}
-		}
+				Name  string `yaml:"name"`
+				Proto string `yaml:"proto"`
+			} `yaml:"applications"`
+		} `yaml:"environment"`
 	}
 	err := yaml.Unmarshal(envDataYaml, &envDataStruct)
 	if err != nil {
 		log.Error().Err(err).Msg(e.Msg("Unable to unmarshal environment data yaml"))
 		return err
 	}
+
+	e.argoCDEnabled = envDataStruct.ArgoCD.Enabled
 
 	for _, app := range envDataStruct.Environment.Applications {
 		proto := app.Proto

@@ -23,16 +23,15 @@ const (
 )
 
 type Application struct {
-	// Name of the application
-	Name string
-	// Application prototype directory
+	Name      string
 	Prototype string
-	// Environment
+
 	e *Environment
-	// YTT data files
-	yttDataFiles []string
-	cached       bool
-	yttPkgDirs   []string
+
+	argoCDEnabled bool
+	cached        bool
+	yttDataFiles  []string
+	yttPkgDirs    []string
 }
 
 type HelmConfig struct {
@@ -84,8 +83,11 @@ func (a *Application) Init() error {
 		return err
 	}
 
+	type ArgoCD struct {
+		Enabled bool `yaml:"enabled"`
+	}
 	type Cache struct {
-		Enabled bool
+		Enabled bool `yaml:"enabled"`
 	}
 	type YttPkg struct {
 		Dirs []string `yaml:"dirs"`
@@ -96,12 +98,14 @@ func (a *Application) Init() error {
 			Cache  Cache  `yaml:"cache"`
 			YttPkg YttPkg `yaml:"yttPkg"`
 		}
+		ArgoCD ArgoCD `yaml:"argocd"`
 	}
 
 	err = yaml.Unmarshal(dataYaml, &applicationData)
 	if err != nil {
 		return err
 	}
+	a.argoCDEnabled = applicationData.ArgoCD.Enabled
 	a.cached = applicationData.Application.Cache.Enabled
 	a.yttPkgDirs = applicationData.Application.YttPkg.Dirs
 

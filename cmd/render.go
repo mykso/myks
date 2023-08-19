@@ -13,7 +13,6 @@ func init() {
 		Short: "Render manifests",
 		Long:  "Render manifests",
 		Run: func(cmd *cobra.Command, args []string) {
-
 			g := myks.New(".")
 
 			if err := g.Init(asyncLevel, targetEnvironments, targetApplications); err != nil {

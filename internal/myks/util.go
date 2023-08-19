@@ -272,10 +272,5 @@ func runYttWithFilesAndStdin(paths []string, stdin io.Reader, log func(name stri
 	}
 
 	cmdArgs = append(cmdArgs, args...)
-	res, err := runCmd("ytt", stdin, cmdArgs, log)
-	if err != nil {
-		return res, err
-	}
-
-	return res, err
+	return runCmd("ytt", stdin, cmdArgs, log)
 }

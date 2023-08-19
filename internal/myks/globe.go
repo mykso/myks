@@ -26,7 +26,7 @@ var prototypesFs embed.FS
 //go:embed all:assets/envs
 var environmentsFs embed.FS
 
-var GlobalLogFormat = "\033[1m[global]\033[0m %s"
+const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
 var ErrNotClean = fmt.Errorf("target directory is not clean, aborting")
 
@@ -35,68 +35,76 @@ type Globe struct {
 	/// Globe configuration
 
 	// Base directory for environments
-	EnvironmentBaseDir string `default:"envs" yaml:"environmentBaseDir"`
+	EnvironmentBaseDir string `default:"envs"`
 	// Prefix for kubernetes namespaces
-	NamespacePrefix string `default:"" yaml:"namespacePrefix"`
+	NamespacePrefix string `default:""`
 	// Application prototypes directory
-	PrototypesDir string `default:"prototypes" yaml:"prototypesDir"`
+	PrototypesDir string `default:"prototypes"`
 	// Rendered kubernetes manifests directory
-	RenderedDir string `default:"rendered" yaml:"renderedDir"`
+	RenderedDir string `default:"rendered"`
 	// Project root directory
-	RootDir string `default:"." yaml:"rootDir"`
+	RootDir string `default:"."`
 
 	/// Globe constants
 
 	// Application data file name
-	ApplicationDataFileName string `default:"app-data.ytt.yaml" yaml:"applicationDataFileName"`
+	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
+	// ArgoCD data directory name
+	ArgoCDDataDirName string `default:"argocd"`
 	// Data values schema file name
-	DataSchemaFileName string `default:"data-schema.ytt.yaml" yaml:"dataSchemaFileName"`
+	DataSchemaFileName string `default:"data-schema.ytt.yaml"`
 	// Environment data file name
-	EnvironmentDataFileName string `default:"env-data.ytt.yaml" yaml:"environmentDataFileName"`
+	EnvironmentDataFileName string `default:"env-data.ytt.yaml"`
 	// Helm charts directory name
-	HelmChartsDirName string `default:"charts" yaml:"helmChartsDirName"`
-	// Myks runtime config file name
-	MyksDataFileName string `default:"myks-data.ytt.yaml" yaml:"myksDataFileName"`
+	HelmChartsDirName string `default:"charts"`
+	// Myks runtime data file name
+	MyksDataFileName string `default:"myks-data.ytt.yaml"`
 	// Rendered environment data file name
-	RenderedEnvironmentDataFileName string `default:"env-data.yaml" yaml:"renderedEnvironmentDataFileName"`
+	RenderedEnvironmentDataFileName string `default:"env-data.yaml"`
 	// Service directory name
-	ServiceDirName string `default:".myks" yaml:"serviceDirName"`
+	ServiceDirName string `default:".myks"`
 	// Temporary directory name
-	TempDirName string `default:"tmp" yaml:"tempDirName"`
+	TempDirName string `default:"tmp"`
 	// Rendered vendir config file name
-	VendirConfigFileName string `default:"vendir.yaml" yaml:"vendirConfigFileName"`
+	VendirConfigFileName string `default:"vendir.yaml"`
 	// Rendered vendir lock file name
-	VendirLockFileName string `default:"vendir.lock.yaml" yaml:"vendirLockFileName"`
+	VendirLockFileName string `default:"vendir.lock.yaml"`
 	// Rendered vendir sync file name
-	VendirSyncFileName string `default:"vendir.sync.yaml" yaml:"vendirSyncFileName"`
+	VendirSyncFileName string `default:"vendir.sync.yaml"`
 	// Downloaded third-party sources
-	VendorDirName string `default:"vendor" yaml:"vendorDirName"`
+	VendorDirName string `default:"vendor"`
 	// Ytt library directory name
-	YttLibraryDirName string `default:"lib" yaml:"yttLibraryDirName"`
+	YttLibraryDirName string `default:"lib"`
 	// Ytt step directory name
-	YttPkgStepDirName string `default:"ytt-pkg" yaml:"yttPkgStepDirName"`
+	YttPkgStepDirName string `default:"ytt-pkg"`
 	// Ytt step directory name
-	YttStepDirName string `default:"ytt" yaml:"yttStepDirName"`
+	YttStepDirName string `default:"ytt"`
 
 	/// User input
 
 	// Application names to process
-	ApplicationNames []string `yaml:"applicationNames"`
+	ApplicationNames []string
 	// Paths to scan for environments
-	SearchPaths []string `yaml:"searchPaths"`
+	SearchPaths []string
 
 	/// Runtime data
 
 	// Git repository branch
-	GitRepoBranch string `yaml:"gitRepoBranch"`
+	GitRepoBranch string
 	// Git repository URL
-	GitRepoUrl string `yaml:"gitRepoUrl"`
+	GitRepoUrl string
 
 	// Collected environments for processing
 	environments map[string]*Environment
 
 	// Extra ytt file paths
 	extraYttPaths []string
+}
+
+// YttGlobe controls runtime data available to ytt templates
+type YttGlobeData struct {
+	GitRepoBranch string `yaml:"gitRepoBranch"`
+	GitRepoUrl    string `yaml:"gitRepoUrl"`
 }
 
 func New(rootDir string) *Globe {
@@ -208,9 +216,12 @@ func (g *Globe) Bootstrap(force bool) error {
 // dumpConfigAsYaml dumps the globe config as yaml to a file and returns the file name
 func (g *Globe) dumpConfigAsYaml() (string, error) {
 	configData := struct {
-		Myks *Globe `yaml:"myks"`
+		Myks *YttGlobeData `yaml:"myks"`
 	}{
-		Myks: g,
+		Myks: &YttGlobeData{
+			GitRepoBranch: g.GitRepoBranch,
+			GitRepoUrl:    g.GitRepoUrl,
+		},
 	}
 	var yamlData bytes.Buffer
 	enc := yaml.NewEncoder(&yamlData)
