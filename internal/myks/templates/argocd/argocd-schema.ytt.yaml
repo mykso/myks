@@ -1,0 +1,22 @@
+#@data/values-schema
+#@overlay/match-child-defaults missing_ok=True
+---
+argocd:
+  namespace: argocd
+  app:
+    prefix: ""
+    name: ""
+    source:
+      path: ""
+      repoURL: ""
+      targetRevision: ""
+    destination:
+      name: ""
+      server: ""
+      namespace: ""
+  env:
+    prefix: ""
+    name: ""
+  project:
+    prefix: ""
+    name: ""

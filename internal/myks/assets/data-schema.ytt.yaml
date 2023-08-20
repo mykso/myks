@@ -5,6 +5,7 @@
 #! However, more keys can be added to these scopes.
 
 #@data/values-schema
+#@overlay/match-child-defaults missing_ok=True
 ---
 #! Add here any application-specific data.
 application: {}

@@ -82,7 +82,7 @@ func (e *Environment) Sync(asyncLevel int) error {
 }
 
 func (e *Environment) Render(asyncLevel int) error {
-	if err := e.renderArgoCD(); err != nil {
+	if err := e.renderArgoCDEnvironment(); err != nil {
 		return err
 	}
 	return process(asyncLevel, e.Applications, func(item interface{}) error {
@@ -100,12 +100,12 @@ func (e *Environment) Render(asyncLevel int) error {
 			return err
 		}
 
-		return app.renderArgoCD()
+		return app.renderArgoCDApplication()
 	})
 }
 
 func (e *Environment) SyncAndRender(asyncLevel int) error {
-	if err := e.renderArgoCD(); err != nil {
+	if err := e.renderArgoCDEnvironment(); err != nil {
 		return err
 	}
 	return process(asyncLevel, e.Applications, func(item interface{}) error {
@@ -125,7 +125,7 @@ func (e *Environment) SyncAndRender(asyncLevel int) error {
 		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
 			return err
 		}
-		return app.renderArgoCD()
+		return app.renderArgoCDApplication()
 	})
 }
 
@@ -313,11 +313,15 @@ func (e *Environment) Msg(msg string) string {
 }
 
 func (e *Environment) ytt(purpose string, paths []string, args ...string) (CmdResult, error) {
-	return e.yttS(purpose, paths, nil, args...)
+	return e.yttS(purpose, nil, paths, nil, args...)
 }
 
-func (e *Environment) yttS(purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
-	return runYttWithFilesAndStdin(append(e.g.extraYttPaths, paths...), stdin, func(name string, args []string) {
+func (e *Environment) yttS(purpose string, schemaPaths []string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
+	paths = append(e.g.extraYttPaths, paths...)
+	if schemaPaths != nil {
+		paths = append(schemaPaths, paths...)
+	}
+	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
 		log.Debug().Msg(e.Msg(msgRunCmd(purpose, name, args)))
 	}, args...)
 }
