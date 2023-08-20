@@ -22,6 +22,7 @@ func writeSecretFile(secretName string, secretFilePath string, username string, 
 		"--data-value=password="+password,
 	)
 	if err != nil {
+		log.Error().Err(err).Msg(res.Stderr)
 		return err
 	}
 
