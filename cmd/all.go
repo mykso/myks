@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"github.com/mykso/myks/internal/myks"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+
+	"github.com/mykso/myks/internal/myks"
 )
 
 func init() {

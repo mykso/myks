@@ -26,6 +26,10 @@ argocd:
     name: ""
     #! Prefix of the ArgoCD application name.
     prefix: ""
+    #! List of finalizers of the ArgoCD application.
+    #! See https://github.com/argoproj/argo-cd/blob/dc8d729078df6fe9d4c480df0e67b2402af75e0b/docs/user-guide/app_deletion.md
+    #@schema/default ["resources-finalizer.argocd.argoproj.io"]
+    finalizers: [""]
     destination:
       #! spec.destination.name of the ArgoCD application.
       #! If not set, defaults to the name of the current environment.
@@ -41,6 +45,9 @@ argocd:
       #! If not set, defaults to the destination path of the currently rendered application.
       #! With the default myks configuration: `rendered/envs/<environment.id>/<app.name>`
       path: ""
+      #! spec.source.plugin of the ArgoCD application.
+      #@schema/type any=True
+      plugin: {}
       #! spec.source.repoURL of the ArgoCD application.
       #! If not set, defaults to the current git repository URL.
       repoURL: ""

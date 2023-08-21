@@ -13,6 +13,7 @@ kind: Application
 metadata:
   name: #@ env_name + "-" + app_name
   namespace: #@ a.namespace
+  finalizers: #@ a.app.finalizers or []
 spec:
   project: #@ project_name
   destination:
@@ -24,6 +25,7 @@ spec:
     namespace: #@ a.app.destination.namespace or a.app.name
   source:
     path: #@ a.app.source.path
+    plugin: #@ a.app.source.plugin
     repoURL: #@ a.app.source.repoURL
     targetRevision: #@ a.app.source.targetRevision
   syncPolicy:

@@ -3,9 +3,10 @@ package myks
 import (
 	"bytes"
 	_ "embed"
-	"github.com/rs/zerolog/log"
 	"path/filepath"
 	"text/template"
+
+	"github.com/rs/zerolog/log"
 )
 
 const ArgoCDStepName = "argocd"
