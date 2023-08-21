@@ -208,21 +208,19 @@ func appendIfNotExists(slice []string, element string) ([]string, bool) {
 	return append(slice, element), true
 }
 
-func getSubDirs(dir string) []string {
+func getSubDirs(dir string) (subDirs []string, err error) {
 	files, err := os.ReadDir(dir)
 	if err != nil {
-		log.Error().Err(err).Msg("Unable to read directory: " + dir)
-		return []string{}
+		return
 	}
 
-	var subDirs []string
 	for _, file := range files {
 		if file.IsDir() {
 			subDirs = append(subDirs, filepath.Join(dir, file.Name()))
 		}
 	}
 
-	return subDirs
+	return
 }
 
 func runCmd(name string, stdin io.Reader, args []string, log func(name string, args []string)) (CmdResult, error) {
