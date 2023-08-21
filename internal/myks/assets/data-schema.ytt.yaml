@@ -68,33 +68,28 @@ environment:
   #@schema/validation min_len=1
   #@schema/nullable
   id: ""
-  #! List of applications to be deployed in the environment, required by myks.
+  #! List of applications to be deployed in the environment.
   applications:
-    - #! Prototype of the application, required by myks.
+    - #! Prototype of the application.
       #@schema/validation min_len=1
       proto: ""
-      #! Name of the application, used by myks. If not defined, the name of the prototype is used.
+      #! Name of the application. If not defined, the name of the prototype is used.
       name: ""
 #! Configuration of the step that renders Helm charts.
 helm:
-  #! Used by myks.
   #! If defined, passed as `--api-version` for `helm-template`.
   capabilities:
     - "" #! e.g. "monitoring.coreos.com/v1"
-  #! Used by myks.
   #! If true, adds `--include-crds` flag to `helm template`.
   includeCRDs: true
-  #! Used by myks.
   #! If defined, passed as a value of `--kube-version` for `helm template`.
   kubeVersion: ""
-  #! Used by myks.
   #! If defined, passed as a value of `--namespace` for `helm template`.
   namespace: ""
 #! Myks configuration and runtime data.
+#! Default values for these options are set by myks.
 myks:
-  #! Set by myks.
   #! Set to the current git branch if available.
   gitRepoBranch: ""
-  #! Set by myks.
   #! Set to the current git repository URL if available.
   gitRepoUrl: ""
