@@ -208,29 +208,21 @@ func appendIfNotExists(slice []string, element string) ([]string, bool) {
 	return append(slice, element), true
 }
 
-func getSubDirs(rootDir string) []string {
-	if rootDir == "" {
-		return []string{}
-	}
-	var resourceDirs []string
-	err := filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if info.IsDir() && path != rootDir {
-			resourceDirs = append(resourceDirs, path)
-			return filepath.SkipDir
-		}
-
-		return nil
-	})
+func getSubDirs(dir string) []string {
+	files, err := os.ReadDir(dir)
 	if err != nil {
-		log.Warn().Err(err).Msg("Unable to walk vendor package directory")
+		log.Error().Err(err).Msg("Unable to read directory: " + dir)
 		return []string{}
 	}
 
-	return resourceDirs
+	var subDirs []string
+	for _, file := range files {
+		if file.IsDir() {
+			subDirs = append(subDirs, filepath.Join(dir, file.Name()))
+		}
+	}
+
+	return subDirs
 }
 
 func runCmd(name string, stdin io.Reader, args []string, log func(name string, args []string)) (CmdResult, error) {
