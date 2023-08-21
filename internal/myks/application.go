@@ -86,14 +86,11 @@ func (a *Application) Init() error {
 	type ArgoCD struct {
 		Enabled bool `yaml:"enabled"`
 	}
-	type YttPkg struct {
-		Dirs []string `yaml:"dirs"`
-	}
 
 	var applicationData struct {
-		Application struct {
-			YttPkg YttPkg `yaml:"yttPkg"`
-		}
+		YttPkg struct {
+			Dirs []string `yaml:"dirs"`
+		} `yaml:"yttPkg"`
 		ArgoCD ArgoCD `yaml:"argocd"`
 		Sync   struct {
 			UseCache bool `yaml:"useCache"`
@@ -106,7 +103,7 @@ func (a *Application) Init() error {
 	}
 	a.argoCDEnabled = applicationData.ArgoCD.Enabled
 	a.useCache = applicationData.Sync.UseCache
-	a.yttPkgDirs = applicationData.Application.YttPkg.Dirs
+	a.yttPkgDirs = applicationData.YttPkg.Dirs
 
 	return nil
 }
