@@ -30,6 +30,7 @@ jobs:
           gofumpt -l $( \
               git diff-tree -r --no-commit-id --name-only --diff-filter=ACMRT \
                 "origin/$GITHUB_BASE_REF..origin/$GITHUB_HEAD_REF" \
+              | grep '\.go$' \
             ) \
             | tee /dev/stderr \
             | test $(wc -l) -eq 0
