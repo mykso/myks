@@ -397,8 +397,8 @@ func (g *Globe) Msg(msg string) string {
 func (g *Globe) collectVendirSecrets() map[string]*VendirCredentials {
 	vendirCredentials := make(map[string]*VendirCredentials)
 
-	usrRgx := regexp.MustCompile(g.VendirSecretEnvPrefix + "(.+)_USERNAME=(.*)$")
-	pswRgx := regexp.MustCompile(g.VendirSecretEnvPrefix + "(.+)_PASSWORD=(.*)$")
+	usrRgx := regexp.MustCompile("^" + g.VendirSecretEnvPrefix + "(.+)_USERNAME=(.*)$")
+	pswRgx := regexp.MustCompile("^" + g.VendirSecretEnvPrefix + "(.+)_PASSWORD=(.*)$")
 
 	envvars := os.Environ()
 	// Sort envvars to produce deterministic output for testing
@@ -434,7 +434,7 @@ func (g *Globe) collectVendirSecrets() map[string]*VendirCredentials {
 	for secretName := range vendirCredentials {
 		secretNames = append(secretNames, secretName)
 	}
-	log.Debug().Msg("Found vendir secrets: " + strings.Join(secretNames, ", "))
+	log.Debug().Msg(g.Msg("Found vendir secrets: " + strings.Join(secretNames, ", ")))
 
 	return vendirCredentials
 }
@@ -444,7 +444,7 @@ func (g *Globe) generateVendirSecretYamls() (string, error) {
 
 	var secretYamls string
 	for secretName, credentials := range vendirCredentials {
-		secretYaml, err := generateVendirSecretYaml(secretName, credentials.Username, credentials.Password)
+		secretYaml, err := g.generateVendirSecretYaml(secretName, credentials.Username, credentials.Password)
 		if err != nil {
 			return secretYamls, err
 		}
@@ -454,19 +454,19 @@ func (g *Globe) generateVendirSecretYamls() (string, error) {
 	return secretYamls, nil
 }
 
-func generateVendirSecretYaml(secretName string, username string, password string) (string, error) {
+func (g *Globe) generateVendirSecretYaml(secretName string, username string, password string) (string, error) {
 	res, err := runYttWithFilesAndStdin(
 		nil,
 		bytes.NewReader(vendirSecretTemplate),
 		func(name string, args []string) {
-			log.Debug().Msg(msgRunCmd("render vendir secret yaml", name, args))
+			log.Debug().Msg(g.Msg(msgRunCmd("render vendir secret yaml", name, args)))
 		},
 		"--data-value=secret_name="+secretName,
 		"--data-value=username="+username,
 		"--data-value=password="+password,
 	)
 	if err != nil {
-		log.Error().Err(err).Msg(res.Stderr)
+		log.Error().Err(err).Msg(g.Msg(res.Stderr))
 		return "", err
 	}
 
