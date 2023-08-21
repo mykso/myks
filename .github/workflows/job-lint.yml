@@ -18,6 +18,9 @@ jobs:
           repo: mvdan/gofumpt
           tag: v0.5.0
           cache: enable
+          extension-matching: nah
+          rename-to: gofumpt
+          chmod: 0700
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
