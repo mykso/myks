@@ -28,8 +28,9 @@ jobs:
         run: |
           set -euo pipefail
           gofumpt -l $( \
-              git diff-tree -r --no-commit-id --name-only --diff-filter=ACMRT $GITHUB_BASE_REF..$GITHUB_HEAD_REF \
+              git diff-tree -r --no-commit-id --name-only --diff-filter=ACMRT \
+                "origin/$GITHUB_BASE_REF..origin/$GITHUB_HEAD_REF" \
             ) \
-              | tee /dev/stderr \
-              | test $(wc -l) -eq 0
+            | tee /dev/stderr \
+            | test $(wc -l) -eq 0
       - uses: golangci/golangci-lint-action@v3
