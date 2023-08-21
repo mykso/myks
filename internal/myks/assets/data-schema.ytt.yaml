@@ -5,18 +5,9 @@
 #! However, more keys can be added to these scopes.
 
 #@data/values-schema
-#@overlay/match-child-defaults missing_ok=True
 ---
 #! Add here any application-specific data.
-application:
-  #! Enable sync caching for application
-  cache:
-    enabled: true
-  #! List of ytt packages to be rendered for the application.
-  yttPkg:
-    #@overlay/replace
-    dirs:
-      - ""
+application: {}
 argocd:
   enabled: true
   #! Namespace of the ArgoCD server.
@@ -75,7 +66,6 @@ environment:
   #@schema/nullable
   id: ""
   #! List of applications to be deployed in the environment, required by myks.
-  #@overlay/replace
   applications:
     - #! Prototype of the application, required by myks.
       #@schema/validation min_len=1
@@ -86,7 +76,6 @@ environment:
 helm:
   #! Used by myks.
   #! If defined, passed as `--api-version` for `helm-template`.
-  #@overlay/replace
   capabilities:
     - "" #! e.g. "monitoring.coreos.com/v1"
   #! Used by myks.
