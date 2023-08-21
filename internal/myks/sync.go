@@ -116,7 +116,7 @@ func (a *Application) doSync(vendirSecrets string) error {
 
 	// TODO sync retry
 	// only sync vendir with directory flag, if the lock file matches the vendir config file and caching is enabled
-	if a.cached && checkLockFileMatch(vendirDirs, lockFileDirs) {
+	if a.useCache && checkLockFileMatch(vendirDirs, lockFileDirs) {
 		for _, dir := range vendirDirs {
 			if checkVersionMatch(dir.Path, dir.ContentHash, syncFileDirs) {
 				log.Info().Msg(a.Msg(syncStepName, "Resource already synced"))

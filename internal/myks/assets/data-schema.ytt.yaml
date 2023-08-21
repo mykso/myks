@@ -86,6 +86,14 @@ helm:
   kubeVersion: ""
   #! If defined, passed as a value of `--namespace` for `helm template`.
   namespace: ""
+#! Configuration options for the sync step.
+sync:
+  #! If true, the sync step is performed only if the vendir.yaml file is changed after the previous sync.
+  #! Decision whether to sync or not is done on a per-directory basis. This allows to completely skip running
+  #! `vendir sync` for directories that are not changed.
+  #! /!\ Be careful when using this option with dynamic versions (e.g. `latest`, or a branch name).
+  #!     If the upstream is updated, but the vendir config is not changed, the sync step will not be performed.
+  useCache: true
 #! Myks configuration and runtime data.
 #! Default values for these options are set by myks.
 myks:
