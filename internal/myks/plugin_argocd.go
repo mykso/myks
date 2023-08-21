@@ -36,11 +36,9 @@ func (e *Environment) renderArgoCD() (err error) {
 	}
 
 	// 0. Global data values schema and library files are added later in the a.yttS call
-	// 1. ArgoCD data value schema
-	yttFiles := []string{}
-	// 2. Collection of environment main data values and schemas
-	yttFiles = append(yttFiles, e.collectBySubpath(e.g.EnvironmentDataFileName)...)
-	// 3. Collection of environment argocd-specific data values and schemas, and overlays
+	// 1. Collection of environment main data values and schemas
+	yttFiles := e.collectBySubpath(e.g.EnvironmentDataFileName)
+	// 2. Collection of environment argocd-specific data values and schemas, and overlays
 	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join("_env", e.g.ArgoCDDataDirName))...)
 
 	res, err := e.yttS(
@@ -54,12 +52,7 @@ func (e *Environment) renderArgoCD() (err error) {
 	}
 
 	argoDestinationPath := filepath.Join(e.getArgoCDDestinationDir(), "env-"+e.Id+".yaml")
-	err = writeFile(argoDestinationPath, []byte(res.Stdout))
-	if err != nil {
-		return
-	}
-
-	return
+	return writeFile(argoDestinationPath, []byte(res.Stdout))
 }
 
 func (e *Environment) getArgoCDDestinationDir() string {
@@ -103,12 +96,7 @@ func (a *Application) renderArgoCD() (err error) {
 	}
 
 	argoDestinationPath := filepath.Join(a.getArgoCDDestinationDir(), "app-"+a.Name+".yaml")
-	err = writeFile(argoDestinationPath, []byte(res.Stdout))
-	if err != nil {
-		return
-	}
-
-	return
+	return writeFile(argoDestinationPath, []byte(res.Stdout))
 }
 
 func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
