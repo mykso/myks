@@ -26,7 +26,9 @@ jobs:
           fetch-depth: 0
       - name: Check code formatting
         run: |
-          gofumpt -l $(git diff-tree -r --no-commit-id --name-only --diff-filter=ACMRT HEAD) \
-            | tee /dev/stderr \
-            | test $(wc -l) -eq 0
+          gofumpt -l $( \
+              git diff-tree -r --no-commit-id --name-only --diff-filter=ACMRT $GITHUB_BASE_REF..$GITHUB_HEAD_REF \
+            ) \
+              | tee /dev/stderr \
+              | test $(wc -l) -eq 0
       - uses: golangci/golangci-lint-action@v3
