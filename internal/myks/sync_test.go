@@ -3,7 +3,6 @@ package myks
 import (
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 )
 
@@ -33,11 +32,9 @@ func TestApplication_readSyncFile(t *testing.T) {
 			var dirs []Directory
 			var err error
 			if dirs, err = readSyncFile(tt.filePath); (err != nil) != tt.wantErr {
-				t.Errorf("writeSyncFile() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
 			}
-			if !reflect.DeepEqual(dirs, tt.want) {
-				t.Errorf("got = %v, wantArgs %v", dirs, tt.want)
-			}
+			assertEqual(t, dirs, tt.want)
 		})
 	}
 }
@@ -126,9 +123,7 @@ func Test_findDirectories(t *testing.T) {
 				t.Errorf("findDirectories() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("findDirectories() got = %v, wantArgs %v", got, tt.want)
-			}
+			assertEqual(t, got, tt.want)
 		})
 	}
 }
@@ -151,12 +146,10 @@ func Test_readLockFile(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := readLockFile(tt.args.vendirLockFile)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("readLockFile() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("readLockFile() got = %v, wantArgs %v", got, tt.want)
-			}
+			assertEqual(t, got, tt.want)
 		})
 	}
 }
@@ -225,49 +218,10 @@ func Test_readVendirConfig(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := readVendirConfig(tt.args.vendirConfigFilePath)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("readVendirConfig() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("readVendirConfig() got = %v, wantArgs %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_getEnvCreds(t *testing.T) {
-	type args struct {
-		secretName       string
-		envUsernameKey   string
-		envUsernameValue string
-		envPasswordKey   string
-		envPasswordValue string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		want1   string
-		wantErr bool
-	}{
-		{"happy path", args{"loki-secret", envPrefix + "LOKI-SECRET_USERNAME", "username", envPrefix + "LOKI-SECRET_PASSWORD", "password"}, "username", "password", false},
-		{"sad path", args{"loki-secret", envPrefix + "LOKI-SECRET_USERNAME", "", envPrefix + "LOKI-SECRET_PASSWORD", ""}, "", "", true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			setEnvSafely(tt.args.envUsernameKey, tt.args.envUsernameValue, t)
-			setEnvSafely(tt.args.envPasswordKey, tt.args.envPasswordValue, t)
-			got, got1, err := getEnvCreds(tt.args.secretName)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getEnvCreds() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("getEnvCreds() got = %v, wantArgs %v", got, tt.want)
-			}
-			if got1 != tt.want1 {
-				t.Errorf("getEnvCreds() got1 = %v, wantArgs %v", got1, tt.want1)
-			}
+			assertEqual(t, got, tt.want)
 		})
 	}
 }
@@ -303,62 +257,5 @@ func Test_writeSyncFile(t *testing.T) {
 				t.Errorf("writeSecretFile() got = %v, wantArgs %v", file, tt.want)
 			}
 		})
-	}
-}
-
-func Test_handleVendirSecret(t *testing.T) {
-	type args struct {
-		dir              Directory
-		tempPath         string
-		tempRelativePath string
-		vendirArgs       []string
-		envUsernameKey   string
-		envUsernameValue string
-		envPasswordKey   string
-		envPasswordValue string
-	}
-	tests := []struct {
-		name     string
-		args     args
-		wantArgs []string
-		wantPath string
-		wantErr  bool
-	}{
-		{"no secret", args{Directory{}, "", "", []string{}, "", "", "", ""}, []string{}, "", false},
-		{"no credentials", args{Directory{Secret: "test-secret"}, "", "", []string{}, "", "", "", ""}, []string{}, "", true},
-		{
-			"secret",
-			args{Directory{Secret: "test-secret"}, os.TempDir(), os.TempDir(), []string{}, "VENDIR_SECRET_TEST-SECRET_USERNAME", "test", "VENDIR_SECRET_TEST-SECRET_PASSWORD", "test"},
-			[]string{"--file=" + filepath.Join(os.TempDir(), "test-secret.yaml")},
-			filepath.Join(os.TempDir(), "test-secret.yaml"),
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			setEnvSafely(tt.args.envUsernameKey, tt.args.envUsernameValue, t)
-			setEnvSafely(tt.args.envPasswordKey, tt.args.envPasswordValue, t)
-			got, secretPath, err := handleVendirSecret(tt.args.dir, tt.args.tempPath, tt.args.tempRelativePath, tt.args.vendirArgs)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("handleVendirSecret() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if secretPath != tt.wantPath {
-				t.Errorf("handleVendirSecret() secretPath = %v, wantPath %v", secretPath, tt.wantPath)
-			}
-			if !reflect.DeepEqual(got, tt.wantArgs) {
-				t.Errorf("handleVendirSecret() got = %v, wantArgs %v", got, tt.wantArgs)
-			}
-		})
-	}
-}
-
-func setEnvSafely(key string, value string, t *testing.T) {
-	if key == "" {
-		return
-	}
-	err := os.Setenv(key, value)
-	if err != nil {
-		t.Errorf("failed to set env variable %s", key)
 	}
 }

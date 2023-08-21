@@ -7,6 +7,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/creasty/defaults"
@@ -25,6 +27,9 @@ var prototypesFs embed.FS
 
 //go:embed all:assets/envs
 var environmentsFs embed.FS
+
+//go:embed templates/vendir/secret.ytt.yaml
+var vendirSecretTemplate []byte
 
 const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
@@ -71,6 +76,8 @@ type Globe struct {
 	VendirLockFileName string `default:"vendir.lock.yaml"`
 	// Rendered vendir sync file name
 	VendirSyncFileName string `default:"vendir.sync.yaml"`
+	// Prefix for vendir secret environment variables
+	VendirSecretEnvPrefix string `default:"VENDIR_SECRET_"`
 	// Downloaded third-party sources
 	VendorDirName string `default:"vendor"`
 	// Ytt library directory name
@@ -105,6 +112,11 @@ type Globe struct {
 type YttGlobeData struct {
 	GitRepoBranch string `yaml:"gitRepoBranch"`
 	GitRepoUrl    string `yaml:"gitRepoUrl"`
+}
+
+type VendirCredentials struct {
+	Username string
+	Password string
 }
 
 func New(rootDir string) *Globe {
@@ -164,12 +176,16 @@ func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []st
 }
 
 func (g *Globe) Sync(asyncLevel int) error {
+	vendirSecrets, err := g.generateVendirSecretYamls()
+	if err != nil {
+		return err
+	}
 	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.Sync(asyncLevel)
+		return env.Sync(asyncLevel, vendirSecrets)
 	})
 }
 
@@ -184,12 +200,16 @@ func (g *Globe) Render(asyncLevel int) error {
 }
 
 func (g *Globe) SyncAndRender(asyncLevel int) error {
+	vendirSecrets, err := g.generateVendirSecretYamls()
+	if err != nil {
+		return err
+	}
 	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.SyncAndRender(asyncLevel)
+		return env.SyncAndRender(asyncLevel, vendirSecrets)
 	})
 }
 
@@ -372,4 +392,83 @@ func (g *Globe) setGitRepoBranch() error {
 func (g *Globe) Msg(msg string) string {
 	formattedMessage := fmt.Sprintf(GlobalLogFormat, msg)
 	return formattedMessage
+}
+
+func (g *Globe) collectVendirSecrets() map[string]*VendirCredentials {
+	vendirCredentials := make(map[string]*VendirCredentials)
+
+	usrRgx := regexp.MustCompile("^" + g.VendirSecretEnvPrefix + "(.+)_USERNAME=(.*)$")
+	pswRgx := regexp.MustCompile("^" + g.VendirSecretEnvPrefix + "(.+)_PASSWORD=(.*)$")
+
+	envvars := os.Environ()
+	// Sort envvars to produce deterministic output for testing
+	sort.Strings(envvars)
+	for _, envPair := range envvars {
+		if usrRgx.MatchString(envPair) {
+			match := usrRgx.FindStringSubmatch(envPair)
+			secretName := strings.ToLower(match[1])
+			username := match[2]
+			if vendirCredentials[secretName] == nil {
+				vendirCredentials[secretName] = &VendirCredentials{}
+			}
+			vendirCredentials[secretName].Username = username
+		} else if pswRgx.MatchString(envPair) {
+			match := pswRgx.FindStringSubmatch(envPair)
+			secretName := strings.ToLower(match[1])
+			password := match[2]
+			if vendirCredentials[secretName] == nil {
+				vendirCredentials[secretName] = &VendirCredentials{}
+			}
+			vendirCredentials[secretName].Password = password
+		}
+	}
+
+	for secretName, credentials := range vendirCredentials {
+		if credentials.Username == "" || credentials.Password == "" {
+			log.Warn().Msg("Incomplete credentials for secret: " + secretName)
+			delete(vendirCredentials, secretName)
+		}
+	}
+
+	var secretNames []string
+	for secretName := range vendirCredentials {
+		secretNames = append(secretNames, secretName)
+	}
+	log.Debug().Msg(g.Msg("Found vendir secrets: " + strings.Join(secretNames, ", ")))
+
+	return vendirCredentials
+}
+
+func (g *Globe) generateVendirSecretYamls() (string, error) {
+	vendirCredentials := g.collectVendirSecrets()
+
+	var secretYamls string
+	for secretName, credentials := range vendirCredentials {
+		secretYaml, err := g.generateVendirSecretYaml(secretName, credentials.Username, credentials.Password)
+		if err != nil {
+			return secretYamls, err
+		}
+		secretYamls += "---\n" + secretYaml
+	}
+
+	return secretYamls, nil
+}
+
+func (g *Globe) generateVendirSecretYaml(secretName string, username string, password string) (string, error) {
+	res, err := runYttWithFilesAndStdin(
+		nil,
+		bytes.NewReader(vendirSecretTemplate),
+		func(name string, args []string) {
+			log.Debug().Msg(g.Msg(msgRunCmd("render vendir secret yaml", name, args)))
+		},
+		"--data-value=secret_name="+secretName,
+		"--data-value=username="+username,
+		"--data-value=password="+password,
+	)
+	if err != nil {
+		log.Error().Err(err).Msg(g.Msg(res.Stderr))
+		return "", err
+	}
+
+	return res.Stdout, nil
 }

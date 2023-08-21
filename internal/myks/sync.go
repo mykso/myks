@@ -1,6 +1,7 @@
 package myks
 
 import (
+	_ "embed"
 	"errors"
 	"os"
 	"path/filepath"
@@ -10,15 +11,13 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-const envPrefix = "VENDIR_SECRET_"
-
 type Directory struct {
 	Path        string
 	ContentHash string `yaml:"contentHash"`
 	Secret      string `yaml:"-"`
 }
 
-func (a *Application) Sync() error {
+func (a *Application) Sync(vendirSecrets string) error {
 	log.Debug().Msg(a.Msg(syncStepName, "Starting"))
 	if err := a.prepareSync(); err != nil {
 		if err == ErrNoVendirConfig {
@@ -28,7 +27,7 @@ func (a *Application) Sync() error {
 		return err
 	}
 
-	if err := a.doSync(); err != nil {
+	if err := a.doSync(vendirSecrets); err != nil {
 		return err
 	}
 
@@ -82,7 +81,7 @@ func (a *Application) prepareSync() error {
 	return nil
 }
 
-func (a *Application) doSync() error {
+func (a *Application) doSync(vendirSecrets string) error {
 	// Paths are relative to the vendor directory (BUG: this will brake with multi-level vendor directory, e.g. `vendor/shmendor`)
 	vendirConfigFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirConfigFileName)
 	vendirLockFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
@@ -115,7 +114,6 @@ func (a *Application) doSync() error {
 		return err
 	}
 
-	var secretFilePaths []string
 	// TODO sync retry
 	// only sync vendir with directory flag, if the lock file matches the vendir config file and caching is enabled
 	if a.cached && checkLockFileMatch(vendirDirs, lockFileDirs) {
@@ -124,65 +122,14 @@ func (a *Application) doSync() error {
 				log.Info().Msg(a.Msg(syncStepName, "Resource already synced"))
 				continue
 			}
-			args := []string{
-				"sync",
-				"--chdir=" + vendorDir,
-				"--directory=" + dir.Path,
-				"--file=" + vendirConfigFileRelativePath,
-				"--lock-file=" + vendirLockFileRelativePath,
-			}
-			args, secretFilePath, err := handleVendirSecret(dir, a.expandTempPath(""), filepath.Join("..", a.e.g.ServiceDirName, a.e.g.TempDirName), args)
-			if err != nil {
-				log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create secret for: "+dir.Path))
+			if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, dir.Path); err != nil {
 				return err
 			}
-			if secretFilePath != "" {
-				secretFilePaths, _ = appendIfNotExists(secretFilePaths, secretFilePath)
-			}
-
-			res, err := a.runCmd("vendir directory sync", "vendir", nil, args)
-			if err != nil {
-				log.Warn().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(a.Msg(syncStepName, "Unable to sync vendir"))
-				return err
-			}
-			log.Info().Msg(a.Msg(syncStepName, "Synced"))
 		}
 	} else {
-		args := []string{
-			"sync",
-			"--chdir=" + vendorDir,
-			"--file=" + vendirConfigFileRelativePath,
-			"--lock-file=" + vendirLockFileRelativePath,
-		}
-		for _, dir := range vendirDirs {
-			var secretFilePath string
-			args, secretFilePath, err = handleVendirSecret(dir, a.expandTempPath(""), filepath.Join("..", a.e.g.ServiceDirName, a.e.g.TempDirName), args)
-			if err != nil {
-				log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create secret for: "+dir.Path))
-				return err
-			}
-			if secretFilePath != "" {
-				secretFilePaths, _ = appendIfNotExists(secretFilePaths, secretFilePath)
-			}
-
-		}
-		res, err := a.runCmd("vendir full sync", "vendir", nil, args)
-		if err != nil {
-			log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(a.Msg(syncStepName, "Unable to sync vendir"))
+		if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, ""); err != nil {
 			return err
 		}
-		log.Info().Msg(a.Msg(syncStepName, "Synced"))
-	}
-
-	// make sure secrets do not linger on disk
-	for _, secretFilePath := range secretFilePaths {
-		defer func(name string) {
-			log.Debug().Msg(a.Msg(syncStepName, "delete secret file: "+name))
-			err := os.Remove(name)
-			if err != nil {
-				log.Error().Err(err).Msg(a.Msg(syncStepName, "unable to delete secret file: "+name))
-			}
-		}(secretFilePath)
 	}
 
 	err = writeSyncFile(a.expandTempPath(a.e.g.VendirSyncFileName), vendirDirs)
@@ -191,6 +138,26 @@ func (a *Application) doSync() error {
 		return err
 	}
 
+	return nil
+}
+
+func (a *Application) runVendirSync(targetDir string, vendirConfig string, vendirLock string, vendirSecrets string, directory string) error {
+	args := []string{
+		"sync",
+		"--chdir=" + targetDir,
+		"--file=" + vendirConfig,
+		"--lock-file=" + vendirLock,
+		"--file=-",
+	}
+	if directory != "" {
+		args = append(args, "--directory="+directory)
+	}
+	res, err := a.runCmd("vendir sync", "vendir", strings.NewReader(vendirSecrets), args)
+	if err != nil {
+		log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(a.Msg(syncStepName, "Unable to sync vendir"))
+		return err
+	}
+	log.Info().Msg(a.Msg(syncStepName, "Synced"))
 	return nil
 }
 
@@ -205,30 +172,6 @@ func writeSyncFile(syncFilePath string, directories []Directory) error {
 	}
 
 	return nil
-}
-
-func handleVendirSecret(dir Directory, tempPath string, tempRelativePath string, vendirArgs []string) ([]string, string, error) {
-	if dir.Secret != "" {
-		username, password, err := getEnvCreds(dir.Secret)
-		if err != nil {
-			return vendirArgs, "", err
-		}
-		secretFileName := dir.Secret + ".yaml"
-		secretFilePath := filepath.Join(tempPath, secretFileName)
-		err = writeSecretFile(dir.Secret, secretFilePath, username, password)
-		if err != nil {
-			return vendirArgs, "", err
-		}
-		secretRelativePath := filepath.Join(tempRelativePath, secretFileName)
-		var addedSecret bool
-		vendirArgs, addedSecret = appendIfNotExists(vendirArgs, "--file="+secretRelativePath)
-		if addedSecret {
-			return vendirArgs, secretFilePath, nil
-		} else {
-			return vendirArgs, "", nil
-		}
-	}
-	return vendirArgs, "", nil
 }
 
 func readVendirConfig(vendirConfigFilePath string) ([]Directory, error) {
@@ -362,13 +305,4 @@ func checkLockFileMatch(vendirDirs []Directory, lockFileDirs []Directory) bool {
 		}
 	}
 	return true
-}
-
-func getEnvCreds(secretName string) (string, string, error) {
-	username := os.Getenv(envPrefix + strings.ToUpper(secretName) + "_USERNAME")
-	password := os.Getenv(envPrefix + strings.ToUpper(secretName) + "_PASSWORD")
-	if username == "" || password == "" {
-		return "", "", errors.New("no credentials found in environment for secret: " + secretName)
-	}
-	return username, password, nil
 }
