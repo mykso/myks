@@ -182,14 +182,11 @@ func (a *Application) mergeValuesYaml(valueFilesYaml string) (CmdResult, error) 
 }
 
 func (a *Application) ytt(step string, purpose string, paths []string, args ...string) (CmdResult, error) {
-	return a.yttS(step, purpose, nil, paths, nil, args...)
+	return a.yttS(step, purpose, paths, nil, args...)
 }
 
-func (a *Application) yttS(step string, purpose string, schemaPaths []string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
+func (a *Application) yttS(step string, purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
 	paths = append(a.e.g.extraYttPaths, paths...)
-	if schemaPaths != nil {
-		paths = append(schemaPaths, paths...)
-	}
 	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
 		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, name, args)))
 	}, args...)

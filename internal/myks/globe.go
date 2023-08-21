@@ -26,6 +26,9 @@ var prototypesFs embed.FS
 //go:embed all:assets/envs
 var environmentsFs embed.FS
 
+//go:embed assets/data-schema.ytt.yaml
+var data_schema []byte
+
 const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
 var ErrNotClean = fmt.Errorf("target directory is not clean, aborting")
@@ -136,6 +139,12 @@ func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []st
 	if _, err := os.Stat(yttLibraryDir); err == nil {
 		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
 	}
+	baseDataSchemaFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, "base-data-schema.ytt.yaml")
+	err := os.WriteFile(baseDataSchemaFileName, data_schema, 0o600)
+	if err != nil {
+		return err
+	}
+	g.extraYttPaths = append(g.extraYttPaths, baseDataSchemaFileName)
 
 	dataSchemaFileName := filepath.Join(g.RootDir, g.EnvironmentBaseDir, g.DataSchemaFileName)
 	if _, err := os.Stat(dataSchemaFileName); err != nil {

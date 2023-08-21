@@ -4,7 +4,6 @@ import (
 	"bytes"
 	_ "embed"
 	"github.com/rs/zerolog/log"
-	"os"
 	"path/filepath"
 	"text/template"
 )
@@ -16,9 +15,6 @@ var argocd_appproject_template []byte
 
 //go:embed templates/argocd/application.ytt.yaml
 var argocd_application_template []byte
-
-//go:embed templates/argocd/argocd-schema.ytt.yaml
-var argocd_schema []byte
 
 const argocd_data_values_schema = `
 #@data/values
@@ -32,14 +28,10 @@ argocd:
       targetRevision: "{{ .TargetRevision }}"
 `
 
-func (e *Environment) renderArgoCDEnvironment() (err error) {
+func (e *Environment) renderArgoCD() (err error) {
 	if !e.argoCDEnabled {
 		log.Debug().Msg(e.Msg("ArgoCD is disabled"))
 		return
-	}
-	schemaPath, err := argoCDPrepareSchema()
-	if err != nil {
-		return err
 	}
 
 	// 0. Global data values schema and library files are added later in the a.yttS call
@@ -52,7 +44,6 @@ func (e *Environment) renderArgoCDEnvironment() (err error) {
 
 	res, err := e.yttS(
 		"create ArgoCD project yaml",
-		[]string{schemaPath},
 		yttFiles,
 		bytes.NewReader(argocd_appproject_template),
 	)
@@ -74,15 +65,10 @@ func (e *Environment) getArgoCDDestinationDir() string {
 	return filepath.Join(e.g.RootDir, e.g.RenderedDir, "argocd", e.Id)
 }
 
-func (a *Application) renderArgoCDApplication() (err error) {
+func (a *Application) renderArgoCD() (err error) {
 	if !a.argoCDEnabled {
 		log.Debug().Msg(a.Msg(ArgoCDStepName, "ArgoCD is disabled"))
 		return
-	}
-
-	schemaPath, err := argoCDPrepareSchema()
-	if err != nil {
-		return err
 	}
 
 	defaultsPath, err := a.argoCDPrepareDefaults()
@@ -104,7 +90,6 @@ func (a *Application) renderArgoCDApplication() (err error) {
 	res, err := a.yttS(
 		"argocd",
 		"create ArgoCD application yaml",
-		[]string{schemaPath},
 		yttFiles,
 		bytes.NewReader(argocd_application_template),
 	)
@@ -128,7 +113,7 @@ func (a *Application) renderArgoCDApplication() (err error) {
 func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 	const name = "argocd_defaults.ytt.yaml"
 
-	tmpl, err := template.New(name).Parse(string(argocd_data_values_schema))
+	tmpl, err := template.New(name).Parse(argocd_data_values_schema)
 	if err != nil {
 		return
 	}
@@ -158,15 +143,6 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 	filename = a.expandTempPath(name)
 
 	return
-}
-
-func argoCDPrepareSchema() (filename string, err error) {
-	path := filepath.Join(os.TempDir(), "argocd-schema.ytt.yaml")
-	err = os.WriteFile(path, argocd_schema, 0o600)
-	if err != nil {
-		return "", err
-	}
-	return path, nil
 }
 
 func (a *Application) getArgoCDDestinationDir() string {
