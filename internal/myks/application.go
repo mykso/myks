@@ -59,7 +59,7 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 
 	app := &Application{
 
-		Name:   name,    
+		Name:  name,    
 		Prototype: prototype,  
 		e:   e,
 	}
