@@ -11,6 +11,9 @@ import (
 
 const ArgoCDStepName = "argocd"
 
+//go:embed templates/argocd/environment.ytt.yaml
+var argocd_appproject_template []byte
+
 //go:embed templates/argocd/application.ytt.yaml
 var argocd_application_template []byte
 
@@ -26,20 +29,51 @@ argocd:
       targetRevision: "{{ .TargetRevision }}"
 `
 
+func (e *Environment) renderArgoCD() (err error) {
+	if !e.argoCDEnabled {
+		log.Debug().Msg(e.Msg("ArgoCD is disabled"))
+		return
+	}
+
+	// 0. Global data values schema and library files are added later in the a.yttS call
+	// 1. Collection of environment main data values and schemas
+	yttFiles := e.collectBySubpath(e.g.EnvironmentDataFileName)
+	// 2. Collection of environment argocd-specific data values and schemas, and overlays
+	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join("_env", e.g.ArgoCDDataDirName))...)
+
+	res, err := e.yttS(
+		"create ArgoCD project yaml",
+		yttFiles,
+		bytes.NewReader(argocd_appproject_template),
+	)
+	if err != nil {
+		log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(e.Msg("failed to render ArgoCD project yaml"))
+		return
+	}
+
+	argoDestinationPath := filepath.Join(e.getArgoCDDestinationDir(), "env-"+e.Id+".yaml")
+	return writeFile(argoDestinationPath, []byte(res.Stdout))
+}
+
+func (e *Environment) getArgoCDDestinationDir() string {
+	return filepath.Join(e.g.RootDir, e.g.RenderedDir, "argocd", e.Id)
+}
+
 func (a *Application) renderArgoCD() (err error) {
 	if !a.argoCDEnabled {
 		log.Debug().Msg(a.Msg(ArgoCDStepName, "ArgoCD is disabled"))
 		return
 	}
 
-	schemaFile, err := a.argoCDPrepareSchema()
+	defaultsPath, err := a.argoCDPrepareDefaults()
 	if err != nil {
 		return
 	}
 
 	// 0. Global data values schema and library files are added later in the a.yttS call
-	// 1. Dynamyc ArgoCD data values
-	yttFiles := []string{schemaFile}
+	// 1. ArgoCD data schema
+	// 2. Dynamic ArgoCD default values
+	yttFiles := []string{defaultsPath}
 	// 2. Collection of application main data values and schemas
 	yttFiles = append(yttFiles, a.yttDataFiles...)
 	// 3. Collection of environment argocd-specific data values and schemas, and overlays
@@ -61,19 +95,14 @@ func (a *Application) renderArgoCD() (err error) {
 		return
 	}
 
-	filepath := filepath.Join(a.getArgoCDDestinationDir(), "app-"+a.Name+".yaml")
-	err = writeFile(filepath, []byte(res.Stdout))
-	if err != nil {
-		return
-	}
-
-	return
+	argoDestinationPath := filepath.Join(a.getArgoCDDestinationDir(), "app-"+a.Name+".yaml")
+	return writeFile(argoDestinationPath, []byte(res.Stdout))
 }
 
-func (a *Application) argoCDPrepareSchema() (filename string, err error) {
-	const name = "argocd_data_schema.ytt.yaml"
+func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
+	const name = "argocd_defaults.ytt.yaml"
 
-	tmpl, err := template.New(name).Parse(string(argocd_data_values_schema))
+	tmpl, err := template.New(name).Parse(argocd_data_values_schema)
 	if err != nil {
 		return
 	}

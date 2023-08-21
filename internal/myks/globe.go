@@ -149,7 +149,7 @@ func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []st
 		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
 	}
 
-	dataSchemaFileName := filepath.Join(g.RootDir, g.EnvironmentBaseDir, g.DataSchemaFileName)
+	dataSchemaFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.DataSchemaFileName)
 	if _, err := os.Stat(dataSchemaFileName); err != nil {
 		log.Warn().Err(err).Msg("Unable to find data schema file, creating one")
 		if err := os.WriteFile(dataSchemaFileName, dataSchema, 0o600); err != nil {

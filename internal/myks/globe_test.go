@@ -144,7 +144,7 @@ func Test_generateVendirSecretYamls(t *testing.T) {
 }
 
 func Test_generateVendirSecretYaml(t *testing.T) {
-        g := New(".")
+	g := New(".")
 	type args struct {
 		secretName string
 		username   string

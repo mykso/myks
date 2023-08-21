@@ -317,7 +317,8 @@ func (e *Environment) ytt(purpose string, paths []string, args ...string) (CmdRe
 }
 
 func (e *Environment) yttS(purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
-	return runYttWithFilesAndStdin(append(e.g.extraYttPaths, paths...), stdin, func(name string, args []string) {
+	paths = append(e.g.extraYttPaths, paths...)
+	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
 		log.Debug().Msg(e.Msg(msgRunCmd(purpose, name, args)))
 	}, args...)
 }
