@@ -8,6 +8,8 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+
+	"github.com/pmezard/go-difflib/difflib"
 )
 
 func Test_hash(t *testing.T) {
@@ -389,4 +391,23 @@ func TestProcess(t *testing.T) {
 			}
 		})
 	}
+}
+
+func assertEqual(t *testing.T, got, want interface{}) {
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("Expected:\n%v\nGot:\n%v\nDifference:\n%v", want, got, diff(got, want))
+	}
+}
+
+func diff(a, b interface{}) string {
+	diff := difflib.UnifiedDiff{
+		A:        difflib.SplitLines(fmt.Sprintf("%v", a)),
+		B:        difflib.SplitLines(fmt.Sprintf("%v", b)),
+		FromFile: "Expected",
+		ToFile:   "Actual",
+		Context:  3,
+	}
+
+	text, _ := difflib.GetUnifiedDiffString(diff)
+	return text
 }

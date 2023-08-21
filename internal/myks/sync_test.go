@@ -1,13 +1,9 @@
 package myks
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
-
-	"github.com/pmezard/go-difflib/difflib"
 )
 
 func TestApplication_readSyncFile(t *testing.T) {
@@ -230,77 +226,6 @@ func Test_readVendirConfig(t *testing.T) {
 	}
 }
 
-func Test_collectVendirSecrets(t *testing.T) {
-	type args struct {
-		secretName string
-		envvars    map[string]string
-	}
-	tests := []struct {
-		name string
-		args args
-		want map[string]*VendirCredentials
-	}{
-		{
-			"correct secret",
-			args{
-				"loki-secret",
-				map[string]string{
-					vendirSecretEnvPrefix + "LOKI-SECRET_USERNAME": "username",
-					vendirSecretEnvPrefix + "LOKI-SECRET_PASSWORD": "password",
-				},
-			},
-			map[string]*VendirCredentials{
-				"loki-secret": {
-					Username: "username",
-					Password: "password",
-				},
-			},
-		},
-		{
-			"empty username and password",
-			args{
-				"loki-secret",
-				map[string]string{
-					vendirSecretEnvPrefix + "LOKI-SECRET_USERNAME": "",
-					vendirSecretEnvPrefix + "LOKI-SECRET_PASSWORD": "",
-				},
-			},
-			map[string]*VendirCredentials{},
-		},
-		{
-			"empty username",
-			args{
-				"loki-secret",
-				map[string]string{
-					vendirSecretEnvPrefix + "LOKI-SECRET_USERNAME": "",
-					vendirSecretEnvPrefix + "LOKI-SECRET_PASSWORD": "password",
-				},
-			},
-			map[string]*VendirCredentials{},
-		},
-		{
-			"no password envvar",
-			args{
-				"loki-secret",
-				map[string]string{
-					vendirSecretEnvPrefix + "LOKI-SECRET_USERNAME": "username",
-				},
-			},
-			map[string]*VendirCredentials{},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Logf("Running test %s", tt.name)
-			for k, v := range tt.args.envvars {
-				t.Setenv(k, v)
-			}
-			got := collectVendirSecrets()
-			assertEqual(t, got, tt.want)
-		})
-	}
-}
-
 func Test_writeSyncFile(t *testing.T) {
 	type args struct {
 		syncFilePath string
@@ -333,115 +258,4 @@ func Test_writeSyncFile(t *testing.T) {
 			}
 		})
 	}
-}
-
-func Test_generateVendirSecretYamls(t *testing.T) {
-	type args struct {
-		envvars map[string]string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{
-			"one secret",
-			args{map[string]string{
-				vendirSecretEnvPrefix + "LOKI-SECRET_USERNAME": "username",
-				vendirSecretEnvPrefix + "LOKI-SECRET_PASSWORD": "password",
-			}},
-			"---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: loki-secret\ndata:\n  username: dXNlcm5hbWU=\n  password: cGFzc3dvcmQ=\n",
-			false,
-		},
-		{
-			"two secrets",
-			args{map[string]string{
-				vendirSecretEnvPrefix + "LOKI-SECRET_USERNAME": "username1",
-				vendirSecretEnvPrefix + "LOKI-SECRET_PASSWORD": "password1",
-				vendirSecretEnvPrefix + "IKOL-SECRET_USERNAME": "username2",
-				vendirSecretEnvPrefix + "IKOL-SECRET_PASSWORD": "password2",
-			}},
-			"---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: ikol-secret\ndata:\n  username: dXNlcm5hbWUy\n  password: cGFzc3dvcmQy\n" +
-				"---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: loki-secret\ndata:\n  username: dXNlcm5hbWUx\n  password: cGFzc3dvcmQx\n",
-			false,
-		},
-		{
-			"one good secret, one incomplete secret",
-			args{map[string]string{
-				vendirSecretEnvPrefix + "LOKI-SECRET_USERNAME": "username1",
-				vendirSecretEnvPrefix + "LOKI-SECRET_PASSWORD": "password1",
-				vendirSecretEnvPrefix + "IKOL-SECRET_USERNAME": "username2",
-			}},
-			"---\napiVersion: v1\nkind: Secret\nmetadata:\n  name: loki-secret\ndata:\n  username: dXNlcm5hbWUx\n  password: cGFzc3dvcmQx\n",
-			false,
-		},
-		{
-			"two incomplete secrets",
-			args{map[string]string{
-				vendirSecretEnvPrefix + "LOKI-SECRET_USERNAME": "username1",
-				vendirSecretEnvPrefix + "IKOL-SECRET_PASSWORD": "password2",
-			}},
-			"",
-			false,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			for k, v := range tt.args.envvars {
-				t.Setenv(k, v)
-			}
-			got, err := generateVendirSecretYamls()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			assertEqual(t, got, tt.want)
-		})
-	}
-}
-
-func Test_generateVendirSecretYaml(t *testing.T) {
-	type args struct {
-		secretName string
-		username   string
-		password   string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr bool
-	}{
-		{"happy args", args{"artifactory", "username", "password"}, "apiVersion: v1\nkind: Secret\nmetadata:\n  name: artifactory\ndata:\n  username: dXNlcm5hbWU=\n  password: cGFzc3dvcmQ=\n", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := generateVendirSecretYaml(tt.args.secretName, tt.args.username, tt.args.password)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("generateVendirSecretYaml() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			assertEqual(t, string(got), tt.want)
-		})
-	}
-}
-
-func assertEqual(t *testing.T, got, want interface{}) {
-	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Expected:\n%v\nGot:\n%v\nDifference:\n%v", want, got, diff(got, want))
-	}
-}
-
-func diff(a, b interface{}) string {
-	diff := difflib.UnifiedDiff{
-		A:        difflib.SplitLines(fmt.Sprintf("%v", a)),
-		B:        difflib.SplitLines(fmt.Sprintf("%v", b)),
-		FromFile: "Expected",
-		ToFile:   "Actual",
-		Context:  3,
-	}
-
-	text, _ := difflib.GetUnifiedDiffString(diff)
-	return text
 }

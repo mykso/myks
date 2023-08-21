@@ -1,24 +1,15 @@
 package myks
 
 import (
-	"bytes"
 	_ "embed"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 )
-
-//go:embed templates/vendir/secret.ytt.yaml
-var vendirSecretTemplate []byte
-
-const vendirSecretEnvPrefix = "VENDIR_SECRET_"
 
 type Directory struct {
 	Path        string
@@ -26,12 +17,7 @@ type Directory struct {
 	Secret      string `yaml:"-"`
 }
 
-type VendirCredentials struct {
-	Username string
-	Password string
-}
-
-func (a *Application) Sync() error {
+func (a *Application) Sync(vendirSecrets string) error {
 	log.Debug().Msg(a.Msg(syncStepName, "Starting"))
 	if err := a.prepareSync(); err != nil {
 		if err == ErrNoVendirConfig {
@@ -41,7 +27,7 @@ func (a *Application) Sync() error {
 		return err
 	}
 
-	if err := a.doSync(); err != nil {
+	if err := a.doSync(vendirSecrets); err != nil {
 		return err
 	}
 
@@ -95,7 +81,7 @@ func (a *Application) prepareSync() error {
 	return nil
 }
 
-func (a *Application) doSync() error {
+func (a *Application) doSync(vendirSecrets string) error {
 	// Paths are relative to the vendor directory (BUG: this will brake with multi-level vendor directory, e.g. `vendor/shmendor`)
 	vendirConfigFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirConfigFileName)
 	vendirLockFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
@@ -125,12 +111,6 @@ func (a *Application) doSync() error {
 	err = createDirectory(vendorDir)
 	if err != nil {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create vendor dir: "+vendorDir))
-		return err
-	}
-
-	vendirSecrets, err := generateVendirSecretYamls()
-	if err != nil {
-		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to collect vendir secrets"))
 		return err
 	}
 
@@ -192,87 +172,6 @@ func writeSyncFile(syncFilePath string, directories []Directory) error {
 	}
 
 	return nil
-}
-
-func collectVendirSecrets() map[string]*VendirCredentials {
-	vendirCredentials := make(map[string]*VendirCredentials)
-
-	usrRgx := regexp.MustCompile(vendirSecretEnvPrefix + "(.+)_USERNAME=(.*)$")
-	pswRgx := regexp.MustCompile(vendirSecretEnvPrefix + "(.+)_PASSWORD=(.*)$")
-
-	envvars := os.Environ()
-	// Sort envvars to produce deterministic output for testing
-	sort.Strings(envvars)
-	for _, envPair := range envvars {
-		if usrRgx.MatchString(envPair) {
-			match := usrRgx.FindStringSubmatch(envPair)
-			secretName := strings.ToLower(match[1])
-			username := match[2]
-			if vendirCredentials[secretName] == nil {
-				vendirCredentials[secretName] = &VendirCredentials{}
-			}
-			vendirCredentials[secretName].Username = username
-		} else if pswRgx.MatchString(envPair) {
-			match := pswRgx.FindStringSubmatch(envPair)
-			secretName := strings.ToLower(match[1])
-			password := match[2]
-			if vendirCredentials[secretName] == nil {
-				vendirCredentials[secretName] = &VendirCredentials{}
-			}
-			vendirCredentials[secretName].Password = password
-		}
-	}
-
-	log.Debug().Msg("vendirCredentials: " + fmt.Sprintf("%+v", vendirCredentials))
-
-	for secretName, credentials := range vendirCredentials {
-		if credentials.Username == "" || credentials.Password == "" {
-			log.Warn().Msg("Incomplete credentials for secret: " + secretName)
-			delete(vendirCredentials, secretName)
-		}
-	}
-
-	var secretNames []string
-	for secretName := range vendirCredentials {
-		secretNames = append(secretNames, secretName)
-	}
-	log.Debug().Msg("Found vendir secrets: " + strings.Join(secretNames, ", "))
-
-	return vendirCredentials
-}
-
-func generateVendirSecretYamls() (string, error) {
-	vendirCredentials := collectVendirSecrets()
-
-	var secretYamls string
-	for secretName, credentials := range vendirCredentials {
-		secretYaml, err := generateVendirSecretYaml(secretName, credentials.Username, credentials.Password)
-		if err != nil {
-			return secretYamls, err
-		}
-		secretYamls += "---\n" + secretYaml
-	}
-
-	return secretYamls, nil
-}
-
-func generateVendirSecretYaml(secretName string, username string, password string) (string, error) {
-	res, err := runYttWithFilesAndStdin(
-		nil,
-		bytes.NewReader(vendirSecretTemplate),
-		func(name string, args []string) {
-			log.Debug().Msg(msgRunCmd("render vendir secret yaml", name, args))
-		},
-		"--data-value=secret_name="+secretName,
-		"--data-value=username="+username,
-		"--data-value=password="+password,
-	)
-	if err != nil {
-		log.Error().Err(err).Msg(res.Stderr)
-		return "", err
-	}
-
-	return res.Stdout, nil
 }
 
 func readVendirConfig(vendirConfigFilePath string) ([]Directory, error) {
