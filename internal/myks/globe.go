@@ -28,9 +28,6 @@ var prototypesFs embed.FS
 //go:embed all:assets/envs
 var environmentsFs embed.FS
 
-//go:embed assets/data-schema.ytt.yaml
-var data_schema []byte
-
 //go:embed templates/vendir/secret.ytt.yaml
 var vendirSecretTemplate []byte
 
@@ -151,14 +148,8 @@ func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []st
 	if _, err := os.Stat(yttLibraryDir); err == nil {
 		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
 	}
-	baseDataSchemaFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, "base-data-schema.ytt.yaml")
-	err := os.WriteFile(baseDataSchemaFileName, data_schema, 0o600)
-	if err != nil {
-		return err
-	}
-	g.extraYttPaths = append(g.extraYttPaths, baseDataSchemaFileName)
 
-	dataSchemaFileName := filepath.Join(g.RootDir, g.EnvironmentBaseDir, g.DataSchemaFileName)
+	dataSchemaFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.DataSchemaFileName)
 	if _, err := os.Stat(dataSchemaFileName); err != nil {
 		log.Warn().Err(err).Msg("Unable to find data schema file, creating one")
 		if err := os.WriteFile(dataSchemaFileName, dataSchema, 0o600); err != nil {
