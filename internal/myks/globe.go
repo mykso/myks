@@ -268,13 +268,11 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
 	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
 	renderedDir := filepath.Join(g.RootDir, g.RenderedDir)
-	dataSchemaFile := filepath.Join(envDir, g.DataSchemaFileName)
 	envsGitignoreFile := filepath.Join(envDir, ".gitignore")
 
 	log.Debug().Str("environments directory", envDir).Msg("")
 	log.Debug().Str("prototypes directory", protoDir).Msg("")
 	log.Debug().Str("rendered directory", renderedDir).Msg("")
-	log.Debug().Str("data schema file", dataSchemaFile).Msg("")
 	log.Debug().Str("environments .gitignore file", envsGitignoreFile).Msg("")
 
 	if !force {
@@ -285,9 +283,6 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 			return ErrNotClean
 		}
 		if _, err := os.Stat(renderedDir); err == nil {
-			return ErrNotClean
-		}
-		if _, err := os.Stat(dataSchemaFile); err == nil {
 			return ErrNotClean
 		}
 		if _, err := os.Stat(envsGitignoreFile); err == nil {
@@ -304,10 +299,6 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 	}
 
 	if err := os.MkdirAll(renderedDir, 0o750); err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(dataSchemaFile, dataSchema, 0o600); err != nil {
 		return err
 	}
 
