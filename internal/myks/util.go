@@ -187,12 +187,15 @@ func createDirectory(dir string) error {
 
 func writeFile(path string, content []byte) error {
 	dir := filepath.Dir(path)
-	if _, err := os.Stat(dir); err != nil {
+	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
 		err := os.MkdirAll(dir, 0o750)
 		if err != nil {
-			log.Warn().Err(err).Msg("Unable to create directory")
+			log.Error().Err(err).Msg("Unable to create directory")
 			return err
 		}
+	} else if err != nil {
+		log.Error().Err(err).Msg("Unable to stat directory")
+		return err
 	}
 
 	return os.WriteFile(path, content, 0o600)
