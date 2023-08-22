@@ -21,7 +21,7 @@ argocd:
     #! Prefix of the ArgoCD application name.
     prefix: ""
     #! List of finalizers of the ArgoCD application.
-    #! See https://github.com/argoproj/argo-cd/blob/dc8d729078df6fe9d4c480df0e67b2402af75e0b/docs/user-guide/app_deletion.md
+    #! See https://github.com/argoproj/argo-cd/blob/dc8d7290/docs/user-guide/app_deletion.md
     #@schema/default ["resources-finalizer.argocd.argoproj.io"]
     finalizers: [""]
     destination:
