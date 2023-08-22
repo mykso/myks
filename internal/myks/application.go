@@ -29,7 +29,7 @@ type Application struct {
 	e *Environment
 
 	argoCDEnabled bool
-	cached        bool
+	useCache      bool
 	yttDataFiles  []string
 	yttPkgDirs    []string
 }
@@ -86,19 +86,18 @@ func (a *Application) Init() error {
 	type ArgoCD struct {
 		Enabled bool `yaml:"enabled"`
 	}
-	type Cache struct {
-		Enabled bool `yaml:"enabled"`
-	}
 	type YttPkg struct {
 		Dirs []string `yaml:"dirs"`
 	}
 
 	var applicationData struct {
 		Application struct {
-			Cache  Cache  `yaml:"cache"`
 			YttPkg YttPkg `yaml:"yttPkg"`
 		}
 		ArgoCD ArgoCD `yaml:"argocd"`
+		Sync   struct {
+			UseCache bool `yaml:"useCache"`
+		} `yaml:"sync"`
 	}
 
 	err = yaml.Unmarshal(dataYaml, &applicationData)
@@ -106,7 +105,7 @@ func (a *Application) Init() error {
 		return err
 	}
 	a.argoCDEnabled = applicationData.ArgoCD.Enabled
-	a.cached = applicationData.Application.Cache.Enabled
+	a.useCache = applicationData.Sync.UseCache
 	a.yttPkgDirs = applicationData.Application.YttPkg.Dirs
 
 	return nil

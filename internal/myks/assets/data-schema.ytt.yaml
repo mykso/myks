@@ -1,8 +1,11 @@
 #! This file define a schema for all ytt data files. It can also contain default values.
 #! Top-level keys are scopes, e.g. application, argocd, environment, helm.
+#!
 #! Content of the `application` scope can be freely modified. More scopes can be added.
-#! The `environment`, `helm` and `argocd` scopes are used by myks and should not be modified.
-#! However, more keys can be added to these scopes.
+#!
+#! All other scopes and their keys defined in this file are used by myks.
+#! Values of these keys can be modified, but the keys should not be removed.
+#! It is fine, however, to add new keys to these scopes.
 
 #@data/values-schema
 ---
@@ -65,33 +68,36 @@ environment:
   #@schema/validation min_len=1
   #@schema/nullable
   id: ""
-  #! List of applications to be deployed in the environment, required by myks.
+  #! List of applications to be deployed in the environment.
   applications:
-    - #! Prototype of the application, required by myks.
+    - #! Prototype of the application.
       #@schema/validation min_len=1
       proto: ""
-      #! Name of the application, used by myks. If not defined, the name of the prototype is used.
+      #! Name of the application. If not defined, the name of the prototype is used.
       name: ""
 #! Configuration of the step that renders Helm charts.
 helm:
-  #! Used by myks.
   #! If defined, passed as `--api-version` for `helm-template`.
   capabilities:
     - "" #! e.g. "monitoring.coreos.com/v1"
-  #! Used by myks.
   #! If true, adds `--include-crds` flag to `helm template`.
   includeCRDs: true
-  #! Used by myks.
   #! If defined, passed as a value of `--kube-version` for `helm template`.
   kubeVersion: ""
-  #! Used by myks.
   #! If defined, passed as a value of `--namespace` for `helm template`.
   namespace: ""
+#! Configuration options for the sync step.
+sync:
+  #! If true, the sync step is performed only if the vendir.yaml file is changed after the previous sync.
+  #! Decision whether to sync or not is done on a per-directory basis. This allows to completely skip running
+  #! `vendir sync` for directories that are not changed.
+  #! /!\ Be careful when using this option with dynamic versions (e.g. `latest`, or a branch name).
+  #!     If the upstream is updated, but the vendir config is not changed, the sync step will not be performed.
+  useCache: true
 #! Myks configuration and runtime data.
+#! Default values for these options are set by myks.
 myks:
-  #! Set by myks.
   #! Set to the current git branch if available.
   gitRepoBranch: ""
-  #! Set by myks.
   #! Set to the current git repository URL if available.
   gitRepoUrl: ""
