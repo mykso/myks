@@ -27,7 +27,11 @@ func (y *YttPkg) Render(_ string) (string, error) {
 		log.Err(err).Msg(y.app.Msg(yttPkgStepName, "Unable to get ytt package dir"))
 		return "", err
 	}
-	yttPkgSubDirs := getSubDirs(yttPkgRootDir)
+	yttPkgSubDirs, err := getSubDirs(yttPkgRootDir)
+	if err != nil {
+		log.Err(err).Msg(y.app.Msg(yttPkgStepName, "Unable to get ytt package sub dirs"))
+		return "", err
+	}
 	if len(yttPkgSubDirs) == 0 {
 		log.Debug().Msg(y.app.Msg(yttPkgStepName, "No ytt package found"))
 		return "", nil
