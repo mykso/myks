@@ -86,6 +86,14 @@ helm:
   kubeVersion: ""
   #! If defined, passed as a value of `--namespace` for `helm template`.
   namespace: ""
+#! Configuration of the step that renders ytt-packages.
+yttPkg:
+  #! A ytt-package can be rendered as a whole, or can contain multiple sub-packages that should be rendered separately.
+  #! This option defines which sub-packages to render separately.
+  #! If empty, the whole package is rendered at once.
+  #! Example: ["sub1", "sub2", "nested/sub3", "nested/sub4"]
+  dirs:
+    - ""
 #! Configuration options for the sync step.
 sync:
   #! If true, the sync step is performed only if the vendir.yaml file is changed after the previous sync.
