@@ -41,7 +41,7 @@ argocd:
       path: ""
       #! spec.source.plugin of the ArgoCD application.
       #@schema/type any=True
-      plugin: {}
+      plugin:
       #! spec.source.repoURL of the ArgoCD application.
       #! If not set, defaults to the current git repository URL.
       repoURL: ""
