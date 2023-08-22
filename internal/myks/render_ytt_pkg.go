@@ -52,7 +52,7 @@ func (y *YttPkg) Render(_ string) (string, error) {
 		}
 
 		var yttArgs []string
-		if pkgValuesFile, err := y.app.prepareValuesFile("ytt-pkg", pkgName); err != nil {
+		if pkgValuesFile, err := y.app.prepareValuesFile(y.app.e.g.YttPkgStepDirName, pkgName); err != nil {
 			log.Error().Err(err).Msg(y.app.Msg(yttPkgStepName, "Unable to prepare a values file for the ytt package"))
 			return "", err
 		} else if pkgValuesFile != "" {
@@ -61,7 +61,7 @@ func (y *YttPkg) Render(_ string) (string, error) {
 
 		res, err := runYttWithFilesAndStdin(yttFiles, nil, func(name string, args []string) {
 			// make this copy-n-pastable
-			log.Debug().Msg(msgRunCmd("ytt-pkg render step", name, args))
+			log.Debug().Msg(msgRunCmd(yttPkgStepName+" render step", name, args))
 		}, yttArgs...)
 		if err != nil {
 			log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(y.app.Msg(yttPkgStepName, "Unable to run ytt"))
