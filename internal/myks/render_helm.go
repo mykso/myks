@@ -29,6 +29,11 @@ func (h *Helm) Render(_ string) (string, error) {
 		return "", err
 	}
 
+	if chartDir == "" {
+		log.Debug().Msg(h.app.Msg(helmStepName, "No Helm charts found"))
+		return "", nil
+	}
+
 	chartDirs, err := getSubDirs(chartDir)
 	if err != nil {
 		log.Err(err).Msg(h.app.Msg(helmStepName, "Unable to get helm charts sub dirs"))
