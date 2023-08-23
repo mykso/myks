@@ -41,7 +41,7 @@ type Globe struct {
 
 	// Base directory for environments
 	EnvironmentBaseDir string `default:"envs"`
-	// Prefix for kubernetes namespaces
+	// Prefix for kubernetes namespaces"
 	NamespacePrefix string `default:""`
 	// Application prototypes directory
 	PrototypesDir string `default:"prototypes"`
@@ -86,6 +86,8 @@ type Globe struct {
 	YttPkgStepDirName string `default:"ytt-pkg"`
 	// Ytt step directory name
 	YttStepDirName string `default:"ytt"`
+	// Main branch name
+	MainBranchName string `default:"main"`
 
 	/// User input
 
@@ -135,7 +137,6 @@ func New(rootDir string) *Globe {
 	if err := g.setGitRepoBranch(); err != nil {
 		log.Warn().Err(err).Msg("Unable to set git repo branch")
 	}
-
 	log.Debug().Interface("globe", g).Msg("Globe config")
 	return g
 }
@@ -334,13 +335,15 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) {
 			return err
 		}
 		if d != nil && d.IsDir() {
-			_, err := os.Stat(filepath.Join(path, g.EnvironmentDataFileName))
-			if err == nil {
-				env := NewEnvironment(g, path)
-				if env != nil {
-					g.environments[path] = env
-				} else {
-					log.Warn().Str("path", path).Msg("Unable to collect environment, skipping")
+			if path != g.EnvironmentBaseDir {
+				_, err := os.Stat(filepath.Join(path, g.EnvironmentDataFileName))
+				if err == nil {
+					env := NewEnvironment(g, path)
+					if env != nil {
+						g.environments[path] = env
+					} else {
+						log.Warn().Str("path", path).Msg("Unable to collect environment, skipping")
+					}
 				}
 			}
 		}
