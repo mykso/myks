@@ -3,6 +3,7 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"github.com/mykso/myks/internal/myks"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,7 +26,7 @@ var rootCmd = &cobra.Command{
 	Use:   "myks",
 	Short: "Myks helps to manage configuration for kubernetes clusters",
 	Long:  "Myks TBD",
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
 		// Check positional arguments:
 		// 1. Comma-separated list of environment search paths or ALL to search everywhere (default: ALL)
 		// 2. Comma-separated list of application names or none to process all applications (default: none)
@@ -44,7 +45,16 @@ var rootCmd = &cobra.Command{
 
 		switch len(onlyArgs) {
 		case 0:
-			// No positional arguments
+			// smart mode requires instantiation of globe object to get the list of environments
+			// the globe object will not be used later in the process. It is only used to get the list of all environments and their apps.
+			globeAllEnvsAndApps := myks.New(".")
+			targetEnvironments, targetApplications, err = globeAllEnvsAndApps.InitSmartMode()
+			if err != nil {
+				log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
+			}
+			if targetEnvironments == nil && targetApplications == nil {
+				log.Warn().Err(err).Msg("Smart Mode does not identify changes. Rendering everything.")
+			}
 		case 1:
 			if onlyArgs[0] != "ALL" {
 				targetEnvironments = strings.Split(onlyArgs[0], ",")
