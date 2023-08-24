@@ -38,6 +38,7 @@ tasks:
   go:build:
     desc: Build the binary
     cmds:
+      - mkdir -p bin
       - goreleaser build --snapshot --clean --single-target --output bin/{{.BIN_NAME}}
 
   go:run:
