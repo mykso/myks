@@ -430,8 +430,16 @@ func (g *Globe) collectVendirSecrets() map[string]*VendirCredentials {
 func (g *Globe) generateVendirSecretYamls() (string, error) {
 	vendirCredentials := g.collectVendirSecrets()
 
+	// sort secret names to produce deterministic output for testing
+	var secretNames []string
+	for secretName := range vendirCredentials {
+		secretNames = append(secretNames, secretName)
+	}
+	sort.Strings(secretNames)
+
 	var secretYamls string
-	for secretName, credentials := range vendirCredentials {
+	for _, secretName := range secretNames {
+		credentials := vendirCredentials[secretName]
 		secretYaml, err := g.generateVendirSecretYaml(secretName, credentials.Username, credentials.Password)
 		if err != nil {
 			return secretYamls, err
