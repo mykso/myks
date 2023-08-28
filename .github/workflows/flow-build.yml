@@ -1,6 +1,8 @@
 name: flow-build
 
-on: pull_request
+on:
+  push:
+    branches: ['release-2.0']
 
 jobs:
   docker-buildx:
