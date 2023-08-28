@@ -1,0 +1,8 @@
+*
+!LICENSE
+!README.md
+!cmd
+!go.mod
+!go.sum
+!internal
+!main.go
