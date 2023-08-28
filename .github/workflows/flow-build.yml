@@ -27,23 +27,12 @@ jobs:
           username: mykso
           password: ${{ secrets.MYKSO_DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v4
-        with:
-          images: |
-            docker.io/${{ env.image_name }}
-          tags: |
-            # set latest tag 
-            type=raw,value=latest
-
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          tags: latest
           platforms: ${{ env.platforms }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
