@@ -28,15 +28,12 @@ jobs:
           username: mykso
           password: ${{ secrets.MYKSO_DOCKERHUB_TOKEN }}
 
-      - name: Expose GitHub Runtime
-        uses: crazy-max/ghaction-github-runtime@v2
-
       - name: Build and push
         uses: docker/build-push-action@v4
         with:
           context: .
           push: true
-          tags: latest
+          tags: ${{ env.image_name }}:latest
           platforms: ${{ env.platforms }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
