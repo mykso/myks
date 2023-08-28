@@ -27,20 +27,12 @@ jobs:
           username: mykso
           password: ${{ secrets.MYKSO_DOCKERHUB_TOKEN }}
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Extract metadata (tags, labels) for Docker
         id: meta
         uses: docker/metadata-action@v4
         with:
           images: |
             docker.io/${{ env.image_name }}
-            ghcr.io/${{ env.image_name }}
           tags: |
             # set latest tag 
             type=raw,value=latest
