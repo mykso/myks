@@ -1,8 +1,9 @@
+---
 name: flow-build
 
 on:
   push:
-    branches: ['release-2.0']
+    branches: ["release-2.0"]
 
 jobs:
   docker-buildx:
@@ -26,6 +27,9 @@ jobs:
         with:
           username: mykso
           password: ${{ secrets.MYKSO_DOCKERHUB_TOKEN }}
+
+      - name: Expose GitHub Runtime
+        uses: crazy-max/ghaction-github-runtime@v2
 
       - name: Build and push
         uses: docker/build-push-action@v4
