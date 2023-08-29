@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       image_name: mykso/myks
-      platforms: linux/amd64
+      platforms: linux/amd64,linux/arm64
 
     steps:
       - name: Checkout
