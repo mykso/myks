@@ -109,9 +109,12 @@ type Globe struct {
 }
 
 // YttGlobe controls runtime data available to ytt templates
-type YttGlobeData struct {
+type YttMyksData struct {
 	GitRepoBranch string `yaml:"gitRepoBranch"`
 	GitRepoUrl    string `yaml:"gitRepoUrl"`
+}
+type YttGlobeData struct {
+	Myks *YttMyksData `yaml:"myks"`
 }
 
 type VendirCredentials struct {
@@ -128,15 +131,37 @@ func New(rootDir string) *Globe {
 		log.Fatal().Err(err).Msg("Unable to set defaults")
 	}
 
-	if err := g.setGitRepoUrl(); err != nil {
-		log.Warn().Err(err).Msg("Unable to set git repo url")
+	// producing base configuration to set git repo values from environment data
+	baseEnvData := filepath.Join(g.RootDir, g.EnvironmentBaseDir, g.EnvironmentDataFileName)
+	if _, err := os.Stat(baseEnvData); err == nil {
+		baseEndDataYaml, err := runYttWithFilesAndStdin([]string{baseEnvData}, nil, func(name string, args []string) {
+			log.Debug().Msg(msgRunCmd("merge data values to read global config", name, args))
+		}, "--data-values-inspect")
+		if err != nil {
+			log.Fatal().Err(err).Msg("Can't read base env data file: " + baseEnvData)
+		}
+		globeData := YttGlobeData{}
+		err = yaml.Unmarshal([]byte(baseEndDataYaml.Stdout), &globeData)
+		if err != nil {
+			log.Fatal().Err(err).Msg("Can't unmarshal base env data file: " + baseEnvData)
+		}
+		g.GitRepoBranch = globeData.Myks.GitRepoBranch
+		g.GitRepoUrl = globeData.Myks.GitRepoUrl
 	}
 
-	if err := g.setGitRepoBranch(); err != nil {
-		log.Warn().Err(err).Msg("Unable to set git repo branch")
+	if g.GitRepoUrl == "" {
+		if err := g.setGitRepoUrl(); err != nil {
+			log.Warn().Err(err).Msg("Unable to set git repo url")
+		}
 	}
 
+	if g.GitRepoBranch == "" {
+		if err := g.setGitRepoBranch(); err != nil {
+			log.Warn().Err(err).Msg("Unable to set git repo branch")
+		}
+	}
 	log.Debug().Interface("globe", g).Msg("Globe config")
+
 	return g
 }
 
@@ -144,17 +169,20 @@ func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []st
 	g.SearchPaths = searchPaths
 	g.ApplicationNames = applicationNames
 
+	// adding base ytt lib to generic ytt paths
 	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
 	if _, err := os.Stat(yttLibraryDir); err == nil {
 		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
 	}
 
+	// adding data schema file to generic ytt paths
 	dataSchemaFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.DataSchemaFileName)
 	if err := writeFile(dataSchemaFileName, dataSchema); err != nil {
 		log.Fatal().Err(err).Msg("Unable to write data schema file")
 	}
 	g.extraYttPaths = append(g.extraYttPaths, dataSchemaFileName)
 
+	// dumping current configuration as yaml
 	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
 		log.Warn().Err(err).Msg("Unable to dump config as yaml")
 	} else {
@@ -232,10 +260,8 @@ func (g *Globe) Bootstrap(force bool) error {
 
 // dumpConfigAsYaml dumps the globe config as yaml to a file and returns the file name
 func (g *Globe) dumpConfigAsYaml() (string, error) {
-	configData := struct {
-		Myks *YttGlobeData `yaml:"myks"`
-	}{
-		Myks: &YttGlobeData{
+	configData := YttGlobeData{
+		Myks: &YttMyksData{
 			GitRepoBranch: g.GitRepoBranch,
 			GitRepoUrl:    g.GitRepoUrl,
 		},
