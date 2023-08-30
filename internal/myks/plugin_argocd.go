@@ -18,7 +18,7 @@ var argocd_appproject_template []byte
 var argocd_application_template []byte
 
 const argocd_data_values_schema = `
-#@data/values
+#@data/values-schema
 ---
 argocd:
   app:
