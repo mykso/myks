@@ -56,4 +56,6 @@ RUN apt-get update \
 COPY --from=download-tools /tools/* /usr/local/bin/
 COPY --from=builder /app/myks /usr/local/bin/
 
+WORKDIR /app
+
 ENTRYPOINT ["tini", "--", "myks"]
