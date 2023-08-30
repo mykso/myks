@@ -3,7 +3,7 @@
 #@ a = data.values.argocd
 #@ e = data.values.environment
 
-#@ app_name = a.app.prefix + a.app.name
+#@ app_name = a.app.prefix + (a.env.name or e.id) + "-" + a.app.name
 #@ env_name = a.env.prefix + (a.env.name or e.id)
 #@ project_name = a.project.prefix + (a.env.name or e.id)
 
@@ -11,7 +11,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: #@ env_name + "-" + app_name
+  name: #@ app_name
   namespace: #@ a.namespace
   finalizers: #@ a.app.finalizers or []
 spec:
