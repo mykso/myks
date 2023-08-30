@@ -18,19 +18,14 @@ var argocd_appproject_template []byte
 var argocd_application_template []byte
 
 const argocd_data_values_schema = `
-#@ ifempty = lambda x, y: x or y
 #@data/values-schema
 ---
 argocd:
   app:
-    #@overlay/replace via=ifempty
     name: "{{ .AppName }}"
     source:
-      #@overlay/replace via=ifempty
       path: "{{ .AppPath }}"
-      #@overlay/replace via=ifempty
       repoURL: "{{ .RepoURL }}"
-      #@overlay/replace via=ifempty
       targetRevision: "{{ .TargetRevision }}"
 `
 
