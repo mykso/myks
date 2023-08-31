@@ -47,6 +47,8 @@ RUN chmod +x *
 # Stage 3: Bring it all together
 FROM --platform=$BUILDPLATFORM debian:bookworm
 
+WORKDIR /app
+
 RUN apt-get update \
  && apt-get install --no-install-recommends -y \
       ca-certificates \
