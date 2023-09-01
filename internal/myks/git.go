@@ -43,24 +43,32 @@ func convertToChangedFiles(changes string) []ChangedFile {
 	return cfs
 }
 
-func extractChangedFilePathsWithStatus(cfs []ChangedFile, status string) []string {
+func extractChangedFilePaths(cfs []ChangedFile) []string {
 	var paths []string
 	for _, cf := range cfs {
-		if status == "" || cf.status == status {
-			paths = append(paths, cf.path)
-		}
+		paths = append(paths, cf.path)
 	}
 	return paths
 }
 
-func extractChangedFilePathsWithoutStatus(cfs []ChangedFile, status string) []string {
-	var paths []string
-	for _, cf := range cfs {
-		if status == "" || cf.status != status {
-			paths = append(paths, cf.path)
+func extractChangedFilePathsWithStatus(cfs []ChangedFile, status string) []string {
+	filter := func(cf ChangedFile) bool {
+		if status == "" || cf.status == status {
+			return true
 		}
+		return false
 	}
-	return paths
+	return extractChangedFilePaths(extract(cfs, filter))
+}
+
+func extractChangedFilePathsWithoutStatus(cfs []ChangedFile, status string) []string {
+	filter := func(cf ChangedFile) bool {
+		if status == "" || cf.status != status {
+			return true
+		}
+		return false
+	}
+	return extractChangedFilePaths(extract(cfs, filter))
 }
 
 // get head revision of main branch

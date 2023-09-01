@@ -341,15 +341,13 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) {
 			return err
 		}
 		if d != nil && d.IsDir() {
-			if path != g.EnvironmentBaseDir {
-				_, err := os.Stat(filepath.Join(path, g.EnvironmentDataFileName))
-				if err == nil {
-					env := NewEnvironment(g, path)
-					if env != nil {
-						g.environments[path] = env
-					} else {
-						log.Warn().Str("path", path).Msg("Unable to collect environment, skipping")
-					}
+			_, err := os.Stat(filepath.Join(path, g.EnvironmentDataFileName))
+			if err == nil {
+				env := NewEnvironment(g, path)
+				if env != nil {
+					g.environments[path] = env
+				} else {
+					log.Debug().Str("path", path).Msg("Unable to collect environment, might be base or parent environment. Skipping")
 				}
 			}
 		}

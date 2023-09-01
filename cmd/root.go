@@ -25,7 +25,17 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "myks",
 	Short: "Myks helps to manage configuration for kubernetes clusters",
-	Long:  "Myks TBD",
+	Long: `Myks fetches K8s workloads from a variety of sources, e.g. Helm charts or Git Repositories. It renders their respective yaml files to the file system in a structure of environments and their applications. 
+
+It supports prototype applications that can be shared between environments and inheritance of configuration from parent environments to their "children".
+
+Myks supports two positional arguments:
+
+- A comma-separated list of environments to render. If you provide "ALL", all environments will be rendered.
+- A comma-separated list of applications to render. If you provide "ALL", all applications will be rendered.
+
+If you do not provide any positional arguments, myks will run in "Smart Mode". In Smart Mode, myks will only render environments and applications that have changed since the last run.
+`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
 		// Check positional arguments:
 		// 1. Comma-separated list of environment search paths or ALL to search everywhere (default: ALL)
@@ -53,7 +63,8 @@ var rootCmd = &cobra.Command{
 				log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
 			}
 			if targetEnvironments == nil && targetApplications == nil {
-				log.Warn().Err(err).Msg("Smart Mode does not identify changes. Rendering everything.")
+				log.Warn().Msg("Smart Mode did not find any changes. Existing.")
+				os.Exit(0)
 			}
 		case 1:
 			if onlyArgs[0] != "ALL" {
