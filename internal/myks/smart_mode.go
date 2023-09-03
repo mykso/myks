@@ -2,10 +2,11 @@ package myks
 
 import (
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 func (g *Globe) getGlobalLibDirExpr() string {
@@ -37,7 +38,6 @@ func (g *Globe) getAppsExpr() string {
 }
 
 func (g *Globe) InitSmartMode() ([]string, []string, error) {
-
 	g.collectEnvironments(nil)
 
 	err := process(0, g.environments, func(item interface{}) error {
@@ -47,7 +47,6 @@ func (g *Globe) InitSmartMode() ([]string, []string, error) {
 		}
 		return env.initEnvData()
 	})
-
 	if err != nil {
 		log.Err(err).Msg(g.Msg("Failed to collect environments"))
 		return nil, nil, err
@@ -69,7 +68,6 @@ func (g *Globe) InitSmartMode() ([]string, []string, error) {
 }
 
 func (g *Globe) runSmartMode(changedFiles []ChangedFile) ([]string, []string) {
-
 	allChangedFilePaths := extractChangedFilePathsWithStatus(changedFiles, "")
 	allDeletions := extractChangedFilePathsWithStatus(changedFiles, "D")
 	allChangedFilesExceptDeletions := extractChangedFilePathsWithoutStatus(changedFiles, "D")

@@ -2,9 +2,10 @@ package myks
 
 import (
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"os"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 type ChangedFile struct {

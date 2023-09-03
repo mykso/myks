@@ -1,8 +1,9 @@
 package myks
 
 import (
-	_ "golang.org/x/exp/slices"
 	"strings"
+
+	_ "golang.org/x/exp/slices"
 )
 
 // if changes are:

@@ -1,10 +1,11 @@
 package myks
 
 import (
-	"github.com/creasty/defaults"
 	"reflect"
 	"sort"
 	"testing"
+
+	"github.com/creasty/defaults"
 )
 
 func Test_getChanges(t *testing.T) {
@@ -168,12 +169,14 @@ func TestGlobe_getModifiedApps(t *testing.T) {
 		wantApps []string
 	}{
 		{"cross check", args{[]string{"some-irrelevant-path.yaml"}, nil}, nil, nil},
-		{"happy path", args{[]string{
-			"envs/env1/_apps/app1/app.yaml",
-			"envs/env1/env2/_apps/app2/app.yaml",
-			"envs/env1/no-app/test.yaml",
-			"base/env1/env2/_apps/app2/app.yaml",
-		}, nil},
+		{
+			"happy path",
+			args{[]string{
+				"envs/env1/_apps/app1/app.yaml",
+				"envs/env1/env2/_apps/app2/app.yaml",
+				"envs/env1/no-app/test.yaml",
+				"base/env1/env2/_apps/app2/app.yaml",
+			}, nil},
 			[]string{
 				"envs/env1",
 				"envs/env1/env2",
@@ -183,12 +186,14 @@ func TestGlobe_getModifiedApps(t *testing.T) {
 				"app2",
 			},
 		},
-		{"exclude deleted env", args{[]string{
-			"envs/env1/_apps/app1/app.yaml",
-			"envs/env2/_apps/app2/app.yaml",
-		}, []string{
-			"envs/env1",
-		}},
+		{
+			"exclude deleted env",
+			args{[]string{
+				"envs/env1/_apps/app1/app.yaml",
+				"envs/env2/_apps/app2/app.yaml",
+			}, []string{
+				"envs/env1",
+			}},
 			[]string{
 				"envs/env2",
 			},
