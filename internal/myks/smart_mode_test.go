@@ -211,7 +211,7 @@ func TestGlobe_getModifiedApps(t *testing.T) {
 			if !reflect.DeepEqual(gotEnvs, tt.wantEnvs) {
 				t.Errorf("getChanges() = %v, want %v", gotEnvs, tt.wantEnvs)
 			}
-			if !reflect.DeepEqual(gotApps, tt.wantApps) && !reflect.DeepEqual(gotApps, tt.wantApps) {
+			if !reflect.DeepEqual(gotApps, tt.wantApps) {
 				t.Errorf("getChanges() = %v, want %v", gotApps, tt.wantApps)
 			}
 		})

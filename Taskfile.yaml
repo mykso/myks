@@ -26,7 +26,7 @@ tasks:
 
   go:lint:sec:
     cmds:
-      - gosec ./...
+      - gosec -exclude=G304 ./... # G304: Potential file inclusion via variable is a false positive
 
   go:lint:
     desc: Lint the code
