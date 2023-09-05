@@ -3,6 +3,7 @@ package myks
 import (
 	"bytes"
 	_ "embed"
+	"os"
 	"path/filepath"
 	"text/template"
 
@@ -71,11 +72,15 @@ func (a *Application) renderArgoCD() (err error) {
 	}
 
 	// 0. Global data values schema and library files are added later in the a.yttS call
-	// 1. ArgoCD data schema
-	// 2. Dynamic ArgoCD default values
+	// 1. Dynamic ArgoCD default values
 	yttFiles := []string{defaultsPath}
 	// 2. Collection of application main data values and schemas
 	yttFiles = append(yttFiles, a.yttDataFiles...)
+	// 3. Use argocd-specific data values, schemas, and overlays from the prototype
+	prototypeArgoCDDir := filepath.Join(a.Prototype, a.e.g.ArgoCDDataDirName)
+	if _, err := os.Stat(prototypeArgoCDDir); err == nil {
+		yttFiles = append(yttFiles, prototypeArgoCDDir)
+	}
 	// 3. Collection of environment argocd-specific data values and schemas, and overlays
 	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_env", a.e.g.ArgoCDDataDirName))...)
 	// 4. Collection of application argocd-specific data values and schemas, and overlays
