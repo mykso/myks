@@ -29,6 +29,7 @@ spec:
   sourceRepos:
     - "*"
 
+#@ if/end a.env.generateSecret:
 ---
 apiVersion: v1
 kind: Secret
