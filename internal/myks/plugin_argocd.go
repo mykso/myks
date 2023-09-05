@@ -116,7 +116,7 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 
 	data := Data{
 		AppName:        a.Name,
-		AppPath:        a.getDestinationDir(),
+		AppPath:        filepath.Join(a.e.g.GitPathPrefix, a.getDestinationDir()),
 		RepoURL:        a.e.g.GitRepoUrl,
 		TargetRevision: a.e.g.GitRepoBranch,
 	}

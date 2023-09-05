@@ -96,6 +96,8 @@ type Globe struct {
 
 	/// Runtime data
 
+	// Git repository path prefix (non-empty if running in a subdirectory of a git repository)
+	GitPathPrefix string
 	// Git repository branch
 	GitRepoBranch string
 	// Git repository URL
@@ -126,6 +128,10 @@ func New(rootDir string) *Globe {
 	}
 	if err := defaults.Set(g); err != nil {
 		log.Fatal().Err(err).Msg("Unable to set defaults")
+	}
+
+	if err := g.setGitPathPrefix(); err != nil {
+		log.Warn().Err(err).Msg("Unable to set git path prefix")
 	}
 
 	if err := g.setGitRepoUrl(); err != nil {
@@ -349,6 +355,24 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Unable to walk environment directories")
 	}
+}
+
+func (g *Globe) setGitPathPrefix() error {
+	if g.GitPathPrefix == "" {
+		gitArgs := []string{}
+		if g.RootDir != "" {
+			gitArgs = append(gitArgs, "-C", g.RootDir)
+		}
+		gitArgs = append(gitArgs, "rev-parse", "--show-prefix")
+		result, err := runCmd("git", nil, gitArgs, func(name string, args []string) {
+			log.Debug().Msg(msgRunCmd("set git path prefix", name, args))
+		})
+		if err != nil {
+			return err
+		}
+		g.GitPathPrefix = strings.Trim(result.Stdout, "\n")
+	}
+	return nil
 }
 
 func (g *Globe) setGitRepoUrl() error {
