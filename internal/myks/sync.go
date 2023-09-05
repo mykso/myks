@@ -123,11 +123,13 @@ func (a *Application) doSync(vendirSecrets string) error {
 				continue
 			}
 			if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, dir.Path); err != nil {
+				log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
 				return err
 			}
 		}
 	} else {
 		if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, ""); err != nil {
+			log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
 			return err
 		}
 	}
