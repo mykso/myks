@@ -63,6 +63,18 @@ argocd:
     name: ""
     #! Prefix of the ArgoCD project name.
     prefix: ""
+    #! spec.destination[0] of the ArgoCD project.
+    #! Add more destinations via overlays, if needed.
+    destination:
+      #! spec.destination.name of the ArgoCD project.
+      #! If not set, defaults to the name of the current environment.
+      name: ""
+      #! spec.destination.server of the ArgoCD project.
+      #! If set, used instead of spec.destination.name.
+      server: ""
+      #! spec.destination.namespace of the ArgoCD project.
+      #! By default, all namespaces are allowed.
+      namespace: "*"
 environment:
   #! Unique identifier of the environment, required by myks.
   #@schema/validation min_len=1

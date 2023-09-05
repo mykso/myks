@@ -21,8 +21,12 @@ spec:
     - group: "*"
       kind: "*"
   destinations:
-    - name: #@ env_name
-      namespace: "*"
+    - namespace: #@ a.project.destination.namespace
+      #@ if a.project.destination.server:
+      server: #@ a.project.destination.server
+      #@ else:
+      name: #@ a.project.destination.name or env_name
+      #@ end
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"
