@@ -2,6 +2,7 @@ package myks
 
 import (
 	"fmt"
+	"golang.org/x/exp/slices"
 	"regexp"
 	"sort"
 	"strings"
@@ -164,20 +165,13 @@ func getChanges(changedFilePaths []string, regExps ...string) ([]string, []strin
 	return matches1, matches2
 }
 
-func filterDeletedEnvs(modifiedEnvs []string, modifiedApps []string, deletedEnvs []string) ([]string, []string) {
+func filterDeletedEnvs(envs []string, apps []string, deletedEnvs []string) ([]string, []string) {
 	var resultEnvs []string
 	var resultApps []string
-	for i, modifiedEnv := range modifiedEnvs {
-		deleted := false
-		for _, deletedEnv := range deletedEnvs {
-			if modifiedEnv == deletedEnv {
-				deleted = true
-				break
-			}
-		}
-		if !deleted {
-			resultEnvs = append(resultEnvs, modifiedEnv)
-			resultApps = append(resultApps, modifiedApps[i])
+	for i, env := range envs {
+		if !slices.Contains(deletedEnvs, env) {
+			resultEnvs = append(resultEnvs, env)
+			resultApps = append(resultApps, apps[i])
 		}
 	}
 
