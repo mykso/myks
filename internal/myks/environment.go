@@ -49,7 +49,6 @@ func NewEnvironment(g *Globe, dir string) *Environment {
 	// Read an environment id from an environment data file.
 	// The environment data file must exist and contain an .environment.id field.
 	if err := env.setId(); err != nil {
-		log.Warn().Err(err).Str("dir", dir).Msg("Unable to set environment id")
 		return nil
 	}
 

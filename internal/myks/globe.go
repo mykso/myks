@@ -86,6 +86,8 @@ type Globe struct {
 	YttPkgStepDirName string `default:"ytt-pkg"`
 	// Ytt step directory name
 	YttStepDirName string `default:"ytt"`
+	// Main branch name
+	MainBranchName string `default:"main"`
 
 	/// User input
 
@@ -141,7 +143,6 @@ func New(rootDir string) *Globe {
 	if err := g.setGitRepoBranch(); err != nil {
 		log.Warn().Err(err).Msg("Unable to set git repo branch")
 	}
-
 	log.Debug().Interface("globe", g).Msg("Globe config")
 	return g
 }
@@ -156,8 +157,14 @@ func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []st
 	}
 
 	dataSchemaFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.DataSchemaFileName)
-	if err := writeFile(dataSchemaFileName, dataSchema); err != nil {
-		log.Fatal().Err(err).Msg("Unable to write data schema file")
+	if _, err := os.Stat(dataSchemaFileName); err != nil {
+		log.Warn().Msg("Unable to find data schema file, creating one")
+		if err := os.MkdirAll(filepath.Dir(dataSchemaFileName), 0o750); err != nil {
+			log.Fatal().Err(err).Msg("Unable to create data schema file directory")
+		}
+		if err := os.WriteFile(dataSchemaFileName, dataSchema, 0o600); err != nil {
+			log.Fatal().Err(err).Msg("Unable to create data schema file")
+		}
 	}
 	g.extraYttPaths = append(g.extraYttPaths, dataSchemaFileName)
 
@@ -346,7 +353,7 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) {
 				if env != nil {
 					g.environments[path] = env
 				} else {
-					log.Warn().Str("path", path).Msg("Unable to collect environment, skipping")
+					log.Debug().Str("path", path).Msg("Unable to collect environment, might be base or parent environment. Skipping")
 				}
 			}
 		}

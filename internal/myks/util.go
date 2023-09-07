@@ -267,3 +267,13 @@ func runYttWithFilesAndStdin(paths []string, stdin io.Reader, log func(name stri
 	cmdArgs = append(cmdArgs, args...)
 	return runCmd("ytt", stdin, cmdArgs, log)
 }
+
+func extract[T any](items []T, filterFunc func(cf T) bool) []T {
+	var result []T
+	for _, item := range items {
+		if filterFunc(item) {
+			result = append(result, item)
+		}
+	}
+	return result
+}

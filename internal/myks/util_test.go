@@ -417,3 +417,42 @@ func diff(a, b interface{}) string {
 	text, _ := difflib.GetUnifiedDiffString(diff)
 	return text
 }
+
+func Test_extract(t *testing.T) {
+	type TestMe struct {
+		Name string
+	}
+	type args[T any] struct {
+		items      []T
+		filterFunc func(cf T) bool
+	}
+	type testCase[T any] struct {
+		name string
+		args args[T]
+		want []T
+	}
+	tests := []testCase[TestMe]{
+		{
+			name: "happy path",
+			args: args[TestMe]{
+				[]TestMe{
+					{Name: "test1"},
+					{Name: "test2"},
+				},
+				func(cf TestMe) bool {
+					return cf.Name == "test1"
+				},
+			},
+			want: []TestMe{
+				{Name: "test1"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := extract(tt.args.items, tt.args.filterFunc); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("extract() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
