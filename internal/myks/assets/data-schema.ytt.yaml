@@ -94,10 +94,12 @@ helm:
     - "" #! e.g. "monitoring.coreos.com/v1"
   #! If true, adds `--include-crds` flag to `helm template`.
   includeCRDs: true
-  #! If defined, passed as a value of `--kube-version` for `helm template`.
+  #! If defined, passed as the value of `--kube-version` for `helm template`.
   kubeVersion: ""
-  #! If defined, passed as a value of `--namespace` for `helm template`.
+  #! If defined, passed as the value of `--namespace` for `helm template`.
   namespace: ""
+  #! if defined, passed as the value of `--release-name` for `helm template` else default chartName wil be taken.
+  releaseName: ""
 #! Configuration of the step that renders ytt-packages.
 yttPkg:
   #! A ytt-package can be rendered as a whole, or can contain multiple sub-packages that should be rendered separately.

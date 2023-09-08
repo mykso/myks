@@ -36,6 +36,7 @@ type Application struct {
 
 type HelmConfig struct {
 	Namespace    string   `yaml:"namespace"`
+	ReleaseName  string   `yaml:"releaseName"`
 	KubeVersion  string   `yaml:"kubeVersion"`
 	IncludeCRDs  bool     `yaml:"includeCRDs"`
 	Capabilities []string `yaml:"capabilities"`

@@ -61,7 +61,6 @@ func (h *Helm) Render(_ string) (string, error) {
 	if helmConfig.KubeVersion != "" {
 		commonHelmArgs = append(commonHelmArgs, "--kube-version", helmConfig.KubeVersion)
 	}
-
 	// FIXME: move IncludeCRDs to a per-chart config
 	if helmConfig.IncludeCRDs {
 		commonHelmArgs = append(commonHelmArgs, "--include-crds")
@@ -71,28 +70,34 @@ func (h *Helm) Render(_ string) (string, error) {
 		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
 	}
 	var outputs []string
-
+	var chartName string
 	for _, chartDir := range chartDirs {
-		chartName := filepath.Base(chartDir)
 		var helmValuesFile string
-		if helmValuesFile, err = h.app.prepareValuesFile("helm", chartName); err != nil {
+
+		if helmValuesFile, err = h.app.prepareValuesFile("helm", filepath.Base(chartDir)); err != nil {
 			log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to prepare helm values"))
 			return "", err
 		}
-
 		// FIXME: replace h.app.Name with a name of the chart being processed
-		helmArgs := []string{
+		helmCmd := []string{
 			"template",
+		}
+		helmArgs := []string{
 			"--skip-tests",
-			chartName,
 			chartDir,
 		}
+		if helmConfig.ReleaseName != "" {
+			helmCmd = append(helmCmd, "--release-name", helmConfig.ReleaseName)
+		} else {
+			helmCmd = append(helmCmd, "--release-name", filepath.Base(chartDir))
+		}
+		args := append(helmCmd, commonHelmArgs...)
 
 		if helmValuesFile != "" {
 			helmArgs = append(helmArgs, "--values", helmValuesFile)
 		}
 
-		res, err := h.app.runCmd("helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
+		res, err := h.app.runCmd("helm template chart", "helm", nil, append(args, helmArgs...))
 		if err != nil {
 			log.Warn().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(h.app.Msg(helmStepName, "Unable to run helm"))
 			return "", err
