@@ -2,10 +2,11 @@ package myks
 
 import (
 	"fmt"
-	"golang.org/x/exp/slices"
 	"regexp"
 	"sort"
 	"strings"
+
+	"golang.org/x/exp/slices"
 
 	"github.com/rs/zerolog/log"
 )
@@ -65,7 +66,7 @@ func (g *Globe) InitSmartMode() ([]string, []string, error) {
 	}
 	envs, apps := g.runSmartMode(changedFiles)
 	log.Info().Msg(g.Msg(fmt.Sprintf("Smart mode detected changes in environments: %v, applications: %v", envs, apps)))
-	return envs, apps, err
+	return envs, apps, nil
 }
 
 func (g *Globe) runSmartMode(changedFiles []ChangedFile) ([]string, []string) {
