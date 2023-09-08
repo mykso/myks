@@ -66,7 +66,31 @@ func (g *Globe) InitSmartMode() ([]string, []string, error) {
 	}
 	envs, apps := g.runSmartMode(changedFiles)
 	log.Info().Msg(g.Msg(fmt.Sprintf("Smart mode detected changes in environments: %v, applications: %v", envs, apps)))
+
+	missingApps, err := g.MissingApplications()
+	if err != nil {
+		log.Err(err).Msg(g.Msg("Failed to get missing applications"))
+		return nil, nil, err
+	}
+
+	apps = append(apps, missingApps...)
+
 	return envs, apps, nil
+}
+
+func (g *Globe) MissingApplications() ([]string, error) {
+	missingApps := []string{}
+	for name, e := range g.environments {
+		missing, err := e.MissingApplications()
+		if err != nil {
+			log.Err(err).Msg(g.Msg(fmt.Sprintf("Failed to get missing applications for environment %s", name)))
+			return nil, err
+		}
+
+		missingApps = append(missingApps, missing...)
+	}
+
+	return missingApps, nil
 }
 
 func (g *Globe) runSmartMode(changedFiles []ChangedFile) ([]string, []string) {
