@@ -84,7 +84,7 @@ func (e *Environment) Render(asyncLevel int) error {
 	if err := e.renderArgoCD(); err != nil {
 		return err
 	}
-	return process(asyncLevel, e.Applications, func(item interface{}) error {
+	err := process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
@@ -101,6 +101,35 @@ func (e *Environment) Render(asyncLevel int) error {
 
 		return app.renderArgoCD()
 	})
+	if err != nil {
+		log.Error().Err(err).Msg(e.Msg("Unable to render applications"))
+		return err
+	}
+
+	return e.Cleanup()
+}
+
+func (e *Environment) Cleanup() error {
+	// get apps in rendered dir
+	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedDir, "envs", e.Id)
+	files, err := os.ReadDir(dirEnvRendered)
+	if err != nil {
+		return fmt.Errorf("unable to read dir: %w", err)
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			dir := file.Name()
+			if e.foundApplications[dir] == "" {
+				log.Info().Str("app", dir).Msg(e.Msg("Removing app as it is not configured"))
+				err := os.RemoveAll(filepath.Join(dirEnvRendered, dir))
+				if err != nil {
+					return fmt.Errorf("unable to remove dir: %w", err)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (e *Environment) SyncAndRender(asyncLevel int, vendirSecrets string) error {
