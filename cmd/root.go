@@ -26,7 +26,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "myks",
 	Short: "Myks helps to manage configuration for kubernetes clusters",
-	Long: `Myks fetches K8s workloads from a variety of sources, e.g. Helm charts or Git Repositories. It renders their respective yaml files to the file system in a structure of environments and their applications. 
+	Long: `Myks fetches K8s workloads from a variety of sources, e.g. Helm charts or Git Repositories. It renders their respective yaml files to the file system in a structure of environments and their applications.
 
 It supports prototype applications that can be shared between environments and inheritance of configuration from parent environments to their "children".
 
@@ -105,7 +105,7 @@ func init() {
 
 func initConfig() {
 	viper.SetEnvPrefix("MYKS")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 
 	if cfgFile != "" {
