@@ -33,7 +33,7 @@ It supports prototype applications that can be shared between environments and i
 Myks supports two positional arguments:
 
 - A comma-separated list of environments to render. If you provide "ALL", all environments will be rendered.
-- A comma-separated list of applications to render. If you provide "ALL", all applications will be rendered.
+- A comma-separated list of applications to render. If you don't provide this argument or provide "ALL", all applications will be rendered.
 
 If you do not provide any positional arguments, myks will run in "Smart Mode". In Smart Mode, myks will only render environments and applications that have changed since the last run.
 `,
@@ -75,7 +75,9 @@ If you do not provide any positional arguments, myks will run in "Smart Mode". I
 			if onlyArgs[0] != "ALL" {
 				targetEnvironments = strings.Split(onlyArgs[0], ",")
 			}
-			targetApplications = strings.Split(onlyArgs[1], ",")
+			if onlyArgs[1] != "ALL" {
+				targetApplications = strings.Split(onlyArgs[1], ",")
+			}
 		default:
 			err := errors.New("Too many positional arguments")
 			log.Error().Err(err).Msg("Unable to parse positional arguments")
