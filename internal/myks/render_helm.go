@@ -94,7 +94,7 @@ func (h *Helm) Render(_ string) (string, error) {
 
 		res, err := h.app.runCmd("helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
 		if err != nil {
-			log.Warn().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(h.app.Msg(helmStepName, "Unable to run helm"))
+			log.Error().Msg(h.app.Msg(helmStepName, res.Stderr))
 			return "", err
 		}
 
