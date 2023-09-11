@@ -108,7 +108,7 @@ func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 
 func initConfig() {
 	viper.SetEnvPrefix("MYKS")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 
 	if cfgFile != "" {
