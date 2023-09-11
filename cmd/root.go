@@ -48,8 +48,11 @@ If you do not provide any positional arguments, myks will run in "Smart Mode". I
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "Set the logging level")
-	rootCmd.PersistentFlags().IntVarP(&asyncLevel, "async", "a", 0, "Sets the number of concurrent processed applications. The default is no limit.")
+
+	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "set the logging level")
+
+	asyncHelp := "sets the number of applications to be processed in parallel\nthe default (0) is no limit"
+	rootCmd.PersistentFlags().IntVarP(&asyncLevel, "async", "a", 0, asyncHelp)
 
 	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
