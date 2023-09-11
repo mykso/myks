@@ -19,6 +19,8 @@ import (
 const (
 	ANNOTATION_SMART_MODE = "feat:smart-mode"
 	ANNOTATION_TRUE       = "true"
+	MYKS_CONFIG_NAME      = ".myks"
+	MYKS_CONFIG_TYPE      = "yaml"
 )
 
 var (
@@ -56,7 +58,8 @@ func init() {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
 	}
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is the first .myks.yaml up the directory tree)")
+	configHelp := fmt.Sprintf("config file (default is the first %s.%s up the directory tree)", MYKS_CONFIG_NAME, MYKS_CONFIG_TYPE)
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", configHelp)
 
 	rootCmd.PersistentPreRunE = detectTargetEnvsAndApps
 }
@@ -115,8 +118,8 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		viper.AddConfigPath(".")
-		viper.SetConfigName(".myks")
-		viper.SetConfigType("yaml")
+		viper.SetConfigName(MYKS_CONFIG_NAME)
+		viper.SetConfigType(MYKS_CONFIG_TYPE)
 
 		// Add all parent directories to the config search path
 		dir, _ := os.Getwd()
