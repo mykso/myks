@@ -98,7 +98,7 @@ helm:
   kubeVersion: ""
   #! If defined, passed as the value of `--namespace` for `helm template`.
   namespace: ""
-  #! if defined, passed as the value of `--release-name` for `helm template` else default chartName wil be taken.
+  #! if defined, passed as the value of `--release-name` for `helm template` else default chartName will be taken.
   releaseName: ""
 #! Configuration of the step that renders ytt-packages.
 yttPkg:
