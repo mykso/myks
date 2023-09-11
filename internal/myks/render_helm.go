@@ -70,7 +70,6 @@ func (h *Helm) Render(_ string) (string, error) {
 		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
 	}
 	var outputs []string
-	var chartName string
 	for _, chartDir := range chartDirs {
 		var helmValuesFile string
 
@@ -104,7 +103,7 @@ func (h *Helm) Render(_ string) (string, error) {
 		}
 
 		if res.Stdout == "" {
-			log.Warn().Str("chart", chartName).Msg(h.app.Msg(helmStepName, "No helm output"))
+			log.Warn().Str("chart", helmConfig.ReleaseName).Msg(h.app.Msg(helmStepName, "No helm output"))
 			continue
 		}
 
