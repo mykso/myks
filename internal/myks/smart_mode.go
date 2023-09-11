@@ -2,12 +2,12 @@ package myks
 
 import (
 	"fmt"
-	"golang.org/x/exp/slices"
 	"regexp"
 	"sort"
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/slices"
 )
 
 func (g *Globe) getGlobalLibDirExpr() string {
