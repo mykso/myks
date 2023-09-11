@@ -104,7 +104,10 @@ func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	log.Debug().Strs("environments", targetEnvironments).Strs("applications", targetApplications).Msg("Parsed arguments")
+	log.Debug().
+		Strs("environments", targetEnvironments).
+		Strs("applications", targetApplications).
+		Msg("Parsed arguments")
 
 	return nil
 }
