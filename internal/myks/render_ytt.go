@@ -47,16 +47,17 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 		return "", nil
 	}
 
-	yamlOutput, err := y.app.ytt(yttStepName, "render local ytt", yttFiles)
+	res, err := y.app.ytt(yttStepName, "render local ytt", yttFiles)
 	if err != nil {
+		log.Error().Msg(y.app.Msg(yttStepName, res.Stderr))
 		return "", err
 	}
 
-	if yamlOutput.Stdout == "" {
+	if res.Stdout == "" {
 		return "", errors.New("empty ytt output")
 	}
 
 	log.Info().Msg(y.app.Msg(yttStepName, "Local ytt rendered"))
 
-	return yamlOutput.Stdout, nil
+	return res.Stdout, nil
 }
