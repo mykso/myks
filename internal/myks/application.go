@@ -53,21 +53,18 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 
 	prototype := filepath.Join(e.g.PrototypesDir, prototypeName)
 
-	if _, err := os.Stat(prototype); err != nil {
-		return nil, errors.New("application prototype does not exist")
-	}
-
 	app := &Application{
 		Name:      name,
 		Prototype: prototype,
 		e:         e,
 	}
-	err := app.Init()
-	if err != nil {
-		return nil, err
+
+	if _, err := os.Stat(prototype); err != nil {
+		return app, errors.New("application prototype does not exist")
 	}
 
-	return app, nil
+	err := app.Init()
+	return app, err
 }
 
 func (a *Application) Init() error {
@@ -78,7 +75,7 @@ func (a *Application) Init() error {
 
 	a.collectDataFiles()
 
-	dataYaml, err := a.renderDataYaml(append(a.e.g.extraYttPaths, a.yttDataFiles...))
+	dataYaml, err := a.renderDataYaml(concatenate(a.e.g.extraYttPaths, a.yttDataFiles))
 	if err != nil {
 		return err
 	}
@@ -146,9 +143,9 @@ func (a *Application) Msg(step string, msg string) string {
 	return formattedMessage
 }
 
-func (a *Application) runCmd(purpose string, cmd string, stdin io.Reader, args []string) (CmdResult, error) {
+func (a *Application) runCmd(step, purpose, cmd string, stdin io.Reader, args []string) (CmdResult, error) {
 	return runCmd(cmd, stdin, args, func(cmd string, args []string) {
-		log.Debug().Msg(msgRunCmd(purpose, cmd, args))
+		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, cmd, args)))
 	})
 }
 
@@ -177,12 +174,12 @@ func (a *Application) mergeValuesYaml(valueFilesYaml string) (CmdResult, error) 
 	}, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
 }
 
-func (a *Application) ytt(step string, purpose string, paths []string, args ...string) (CmdResult, error) {
+func (a *Application) ytt(step, purpose string, paths []string, args ...string) (CmdResult, error) {
 	return a.yttS(step, purpose, paths, nil, args...)
 }
 
 func (a *Application) yttS(step string, purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
-	paths = append(a.e.g.extraYttPaths, paths...)
+	paths = concatenate(a.e.g.extraYttPaths, paths)
 	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
 		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, name, args)))
 	}, args...)
