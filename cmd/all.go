@@ -12,6 +12,9 @@ func init() {
 		Use:   "all",
 		Short: "Run sync and render",
 		Long:  "Run sync and render",
+		Annotations: map[string]string{
+			ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			g := myks.New(".")
 

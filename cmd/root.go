@@ -16,6 +16,11 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
+const (
+	ANNOTATION_SMART_MODE = "feat:smart-mode"
+	ANNOTATION_TRUE       = "true"
+)
+
 var (
 	cfgFile            string
 	targetEnvironments []string
@@ -26,7 +31,7 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "myks",
 	Short: "Myks helps to manage configuration for kubernetes clusters",
-	Long: `Myks fetches K8s workloads from a variety of sources, e.g. Helm charts or Git Repositories. It renders their respective yaml files to the file system in a structure of environments and their applications. 
+	Long: `Myks fetches K8s workloads from a variety of sources, e.g. Helm charts or Git Repositories. It renders their respective yaml files to the file system in a structure of environments and their applications.
 
 It supports prototype applications that can be shared between environments and inheritance of configuration from parent environments to their "children".
 
@@ -37,57 +42,6 @@ Myks supports two positional arguments:
 
 If you do not provide any positional arguments, myks will run in "Smart Mode". In Smart Mode, myks will only render environments and applications that have changed since the last run.
 `,
-	PersistentPreRunE: func(cmd *cobra.Command, args []string) (err error) {
-		// Check positional arguments:
-		// 1. Comma-separated list of environment search paths or ALL to search everywhere (default: ALL)
-		// 2. Comma-separated list of application names or none to process all applications (default: none)
-
-		targetEnvironments = nil
-		targetApplications = nil
-
-		onlyArgs := args
-
-		for _, subcmd := range cmd.Commands() {
-			if subcmd.Name() == args[0] {
-				onlyArgs = args[1:]
-				break
-			}
-		}
-
-		switch len(onlyArgs) {
-		case 0:
-			// smart mode requires instantiation of globe object to get the list of environments
-			// the globe object will not be used later in the process. It is only used to get the list of all environments and their apps.
-			globeAllEnvsAndApps := myks.New(".")
-			targetEnvironments, targetApplications, err = globeAllEnvsAndApps.InitSmartMode()
-			if err != nil {
-				log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
-			}
-			if targetEnvironments == nil && targetApplications == nil {
-				log.Warn().Msg("Smart Mode did not find any changes. Existing.")
-				os.Exit(0)
-			}
-		case 1:
-			if onlyArgs[0] != "ALL" {
-				targetEnvironments = strings.Split(onlyArgs[0], ",")
-			}
-		case 2:
-			if onlyArgs[0] != "ALL" {
-				targetEnvironments = strings.Split(onlyArgs[0], ",")
-			}
-			if onlyArgs[1] != "ALL" {
-				targetApplications = strings.Split(onlyArgs[1], ",")
-			}
-		default:
-			err := errors.New("Too many positional arguments")
-			log.Error().Err(err).Msg("Unable to parse positional arguments")
-			return err
-		}
-
-		log.Debug().Strs("environments", targetEnvironments).Strs("applications", targetApplications).Msg("Parsed arguments")
-
-		return nil
-	},
 }
 
 func init() {
@@ -103,6 +57,53 @@ func init() {
 	}
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is the first .myks.yaml up the directory tree)")
+
+	rootCmd.PersistentPreRunE = detectTargetEnvsAndApps
+}
+
+func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
+	// Check positional arguments for Smart Mode:
+	// 1. Comma-separated list of environment search paths or ALL to search everywhere (default: ALL)
+	// 2. Comma-separated list of application names or none to process all applications (default: none)
+
+	if cmd.Annotations[ANNOTATION_SMART_MODE] != ANNOTATION_TRUE {
+		log.Debug().Msg("Smart Mode is not supported for this command.")
+		return
+	}
+
+	switch len(args) {
+	case 0:
+		// smart mode requires instantiation of globe object to get the list of environments
+		// the globe object will not be used later in the process. It is only used to get the list of all environments and their apps.
+		globeAllEnvsAndApps := myks.New(".")
+		targetEnvironments, targetApplications, err = globeAllEnvsAndApps.InitSmartMode()
+		if err != nil {
+			log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
+		}
+		if targetEnvironments == nil && targetApplications == nil {
+			log.Warn().Msg("Smart Mode did not find any changes. Exiting.")
+			os.Exit(0)
+		}
+	case 1:
+		if args[0] != "ALL" {
+			targetEnvironments = strings.Split(args[0], ",")
+		}
+	case 2:
+		if args[0] != "ALL" {
+			targetEnvironments = strings.Split(args[0], ",")
+		}
+		if args[1] != "ALL" {
+			targetApplications = strings.Split(args[1], ",")
+		}
+	default:
+		err := errors.New("Too many positional arguments")
+		log.Error().Err(err).Msg("Unable to parse positional arguments")
+		return err
+	}
+
+	log.Debug().Strs("environments", targetEnvironments).Strs("applications", targetApplications).Msg("Parsed arguments")
+
+	return nil
 }
 
 func initConfig() {
