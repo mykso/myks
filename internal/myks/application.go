@@ -53,21 +53,18 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 
 	prototype := filepath.Join(e.g.PrototypesDir, prototypeName)
 
-	if _, err := os.Stat(prototype); err != nil {
-		return nil, errors.New("application prototype does not exist")
-	}
-
 	app := &Application{
 		Name:      name,
 		Prototype: prototype,
 		e:         e,
 	}
-	err := app.Init()
-	if err != nil {
-		return nil, err
+
+	if _, err := os.Stat(prototype); err != nil {
+		return app, errors.New("application prototype does not exist")
 	}
 
-	return app, nil
+	err := app.Init()
+	return app, err
 }
 
 func (a *Application) Init() error {

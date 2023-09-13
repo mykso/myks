@@ -50,8 +50,7 @@ func (a *Application) prepareSync() error {
 	yttFiles = append(yttFiles, appVendirDirs...)
 
 	if len(yttFiles) == 0 {
-		err := ErrNoVendirConfig
-		return err
+		return ErrNoVendirConfig
 	}
 
 	vendirConfig, err := a.ytt(syncStepName, "creating vendir config", yttFiles)
