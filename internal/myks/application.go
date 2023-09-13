@@ -146,9 +146,9 @@ func (a *Application) Msg(step string, msg string) string {
 	return formattedMessage
 }
 
-func (a *Application) runCmd(purpose string, cmd string, stdin io.Reader, args []string) (CmdResult, error) {
+func (a *Application) runCmd(step, purpose, cmd string, stdin io.Reader, args []string) (CmdResult, error) {
 	return runCmd(cmd, stdin, args, func(cmd string, args []string) {
-		log.Debug().Msg(msgRunCmd(purpose, cmd, args))
+		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, cmd, args)))
 	})
 }
 
@@ -177,7 +177,7 @@ func (a *Application) mergeValuesYaml(valueFilesYaml string) (CmdResult, error) 
 	}, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
 }
 
-func (a *Application) ytt(step string, purpose string, paths []string, args ...string) (CmdResult, error) {
+func (a *Application) ytt(step, purpose string, paths []string, args ...string) (CmdResult, error) {
 	return a.yttS(step, purpose, paths, nil, args...)
 }
 

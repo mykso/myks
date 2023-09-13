@@ -92,7 +92,7 @@ func (h *Helm) Render(_ string) (string, error) {
 			helmArgs = append(helmArgs, "--values", helmValuesFile)
 		}
 
-		res, err := h.app.runCmd("helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
+		res, err := h.app.runCmd(helmStepName, "helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
 		if err != nil {
 			log.Error().Msg(h.app.Msg(helmStepName, res.Stderr))
 			return "", err
