@@ -156,17 +156,7 @@ func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []st
 		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
 	}
 
-	dataSchemaFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.DataSchemaFileName)
-	if _, err := os.Stat(dataSchemaFileName); err != nil {
-		log.Warn().Msg("Unable to find data schema file, creating one")
-		if err := os.MkdirAll(filepath.Dir(dataSchemaFileName), 0o750); err != nil {
-			log.Fatal().Err(err).Msg("Unable to create data schema file directory")
-		}
-		if err := os.WriteFile(dataSchemaFileName, dataSchema, 0o600); err != nil {
-			log.Fatal().Err(err).Msg("Unable to create data schema file")
-		}
-	}
-	g.extraYttPaths = append(g.extraYttPaths, dataSchemaFileName)
+	g.extraYttPaths = append(g.extraYttPaths, g.createDataSchemaFile())
 
 	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
 		log.Warn().Err(err).Msg("Unable to dump config as yaml")
@@ -300,6 +290,8 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 		}
 	}
 
+	g.createDataSchemaFile()
+
 	if err := os.MkdirAll(envDir, 0o750); err != nil {
 		return err
 	}
@@ -317,6 +309,22 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 	}
 
 	return nil
+}
+
+func (g *Globe) createDataSchemaFile() string {
+	dataSchemaFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.DataSchemaFileName)
+	if _, err := os.Stat(dataSchemaFileName); err != nil {
+		log.Debug().Msg("Unable to find data schema file, creating one")
+		if err := os.MkdirAll(filepath.Dir(dataSchemaFileName), 0o750); err != nil {
+			log.Fatal().Err(err).Msg("Unable to create data schema file directory")
+		}
+	} else {
+		log.Debug().Msg("Overwriting existing data schema file")
+	}
+	if err := os.WriteFile(dataSchemaFileName, dataSchema, 0o600); err != nil {
+		log.Fatal().Err(err).Msg("Unable to create data schema file")
+	}
+	return dataSchemaFileName
 }
 
 func (g *Globe) createSamplePrototypes() error {
