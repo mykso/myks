@@ -295,3 +295,12 @@ func extract[T any](items []T, filterFunc func(cf T) bool) []T {
 	}
 	return result
 }
+
+// Concatenates multiple slices of the same type together creating a new underlying array
+func concatenate[T any](slices ...[]T) []T {
+	result := []T{}
+	for _, slice := range slices {
+		result = append(result, slice...)
+	}
+	return result
+}

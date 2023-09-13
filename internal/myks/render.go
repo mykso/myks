@@ -179,7 +179,7 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 		return "", nil
 	}
 
-	resourceValuesYaml, err := a.ytt(renderStepName, "collect data values file", append(a.yttDataFiles, valuesFiles...))
+	resourceValuesYaml, err := a.ytt(renderStepName, "collect data values file", concatenate(a.yttDataFiles, valuesFiles))
 	if err != nil {
 		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to render resource values templates"))
 		return "", err

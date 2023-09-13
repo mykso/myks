@@ -75,7 +75,7 @@ func (a *Application) Init() error {
 
 	a.collectDataFiles()
 
-	dataYaml, err := a.renderDataYaml(append(a.e.g.extraYttPaths, a.yttDataFiles...))
+	dataYaml, err := a.renderDataYaml(concatenate(a.e.g.extraYttPaths, a.yttDataFiles))
 	if err != nil {
 		return err
 	}
@@ -179,7 +179,7 @@ func (a *Application) ytt(step, purpose string, paths []string, args ...string) 
 }
 
 func (a *Application) yttS(step string, purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
-	paths = append(a.e.g.extraYttPaths, paths...)
+	paths = concatenate(a.e.g.extraYttPaths, paths)
 	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
 		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, name, args)))
 	}, args...)
