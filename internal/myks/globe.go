@@ -143,13 +143,6 @@ func New(rootDir string) *Globe {
 	if err := g.setGitRepoBranch(); err != nil {
 		log.Warn().Err(err).Msg("Unable to set git repo branch")
 	}
-	log.Debug().Interface("globe", g).Msg("Globe config")
-	return g
-}
-
-func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []string) error {
-	g.SearchPaths = searchPaths
-	g.ApplicationNames = applicationNames
 
 	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
 	if _, err := os.Stat(yttLibraryDir); err == nil {
@@ -163,6 +156,14 @@ func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []st
 	} else {
 		g.extraYttPaths = append(g.extraYttPaths, configFileName)
 	}
+
+	log.Debug().Interface("globe", g).Msg("Globe config")
+	return g
+}
+
+func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []string) error {
+	g.SearchPaths = searchPaths
+	g.ApplicationNames = applicationNames
 
 	g.collectEnvironments(searchPaths)
 
