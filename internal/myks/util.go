@@ -272,7 +272,7 @@ func msgRunCmd(purpose string, cmd string, args []string) string {
 	return "Running \u001B[34m" + cmd + "\u001B[0m to: \u001B[3m" + purpose + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
 }
 
-func runYttWithFilesAndStdin(paths []string, stdin io.Reader, log func(name string, args []string), args ...string) (CmdResult, error) {
+func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name string, args []string), args ...string) (CmdResult, error) {
 	if stdin != nil {
 		paths = append(paths, "-")
 	}
@@ -283,7 +283,7 @@ func runYttWithFilesAndStdin(paths []string, stdin io.Reader, log func(name stri
 	}
 
 	cmdArgs = append(cmdArgs, args...)
-	return runCmd("ytt", stdin, cmdArgs, log)
+	return runCmd("ytt", stdin, cmdArgs, logFn)
 }
 
 func extract[T any](items []T, filterFunc func(cf T) bool) []T {
