@@ -3,17 +3,21 @@ module github.com/mykso/myks
 go 1.20
 
 require (
+	github.com/alecthomas/chroma v0.10.0
 	github.com/creasty/defaults v1.7.0
+	github.com/logrusorgru/aurora/v4 v4.0.0
 	github.com/pmezard/go-difflib v1.0.0
 	github.com/rs/zerolog v1.29.1
 	github.com/spf13/cobra v1.7.0
 	github.com/spf13/viper v1.16.0
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	golang.org/x/sync v0.3.0
+	golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
+	github.com/dlclark/regexp2 v1.4.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

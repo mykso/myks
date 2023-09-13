@@ -19,6 +19,8 @@ import (
 const (
 	ANNOTATION_SMART_MODE = "feat:smart-mode"
 	ANNOTATION_TRUE       = "true"
+	MYKS_CONFIG_NAME      = ".myks"
+	MYKS_CONFIG_TYPE      = "yaml"
 )
 
 var (
@@ -46,8 +48,11 @@ If you do not provide any positional arguments, myks will run in "Smart Mode". I
 
 func init() {
 	cobra.OnInitialize(initConfig)
-	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "Set the logging level")
-	rootCmd.PersistentFlags().IntVarP(&asyncLevel, "async", "a", 0, "Sets the number of concurrent processed applications. The default is no limit.")
+
+	rootCmd.PersistentFlags().StringP("log-level", "l", "info", "set the logging level")
+
+	asyncHelp := "sets the number of applications to be processed in parallel\nthe default (0) is no limit"
+	rootCmd.PersistentFlags().IntVarP(&asyncLevel, "async", "a", 0, asyncHelp)
 
 	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
@@ -56,7 +61,8 @@ func init() {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
 	}
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is the first .myks.yaml up the directory tree)")
+	configHelp := fmt.Sprintf("config file (default is the first %s.%s up the directory tree)", MYKS_CONFIG_NAME, MYKS_CONFIG_TYPE)
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", configHelp)
 
 	rootCmd.PersistentPreRunE = detectTargetEnvsAndApps
 }
@@ -101,22 +107,25 @@ func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	log.Debug().Strs("environments", targetEnvironments).Strs("applications", targetApplications).Msg("Parsed arguments")
+	log.Debug().
+		Strs("environments", targetEnvironments).
+		Strs("applications", targetApplications).
+		Msg("Parsed arguments")
 
 	return nil
 }
 
 func initConfig() {
 	viper.SetEnvPrefix("MYKS")
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	viper.AutomaticEnv()
 
 	if cfgFile != "" {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		viper.AddConfigPath(".")
-		viper.SetConfigName(".myks")
-		viper.SetConfigType("yaml")
+		viper.SetConfigName(MYKS_CONFIG_NAME)
+		viper.SetConfigType(MYKS_CONFIG_TYPE)
 
 		// Add all parent directories to the config search path
 		dir, _ := os.Getwd()

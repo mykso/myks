@@ -20,7 +20,17 @@ func init() {
 				log.Fatal().Err(err).Msg("Failed to read flag")
 			}
 
-			if err := myks.New(".").Bootstrap(force); errors.Is(err, myks.ErrNotClean) {
+			onlyPrint, err := cmd.Flags().GetBool("print")
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to read flag")
+			}
+
+			components, err := cmd.Flags().GetStringSlice("components")
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to read flag")
+			}
+
+			if err := myks.New(".").Bootstrap(force, onlyPrint, components); errors.Is(err, myks.ErrNotClean) {
 				log.Error().Msg("Directory not empty. Use --force to overwrite data.")
 			} else if err != nil {
 				log.Fatal().Err(err).Msg("Failed to initialize project")
@@ -29,5 +39,19 @@ func init() {
 	}
 
 	cmd.Flags().BoolP("force", "f", false, "overwrite existing data")
+
+	printHelp := "print configuration instead of creating files\n" +
+		"applicable only to the following components: gitingore, config, schema"
+	cmd.Flags().Bool("print", false, printHelp)
+
+	componentsDefault := []string{
+		"config",
+		"environments",
+		"gitignore",
+		"prototypes",
+		"schema",
+	}
+	cmd.Flags().StringSlice("components", componentsDefault, "components to initialize")
+
 	rootCmd.AddCommand(cmd)
 }

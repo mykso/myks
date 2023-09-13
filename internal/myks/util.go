@@ -15,8 +15,11 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/alecthomas/chroma/quick"
+	aurora "github.com/logrusorgru/aurora/v4"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
+	"golang.org/x/term"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -34,6 +37,21 @@ func reductSecrets(args []string) []string {
 		logArgs = append(logArgs, regex.ReplaceAllString(arg, "$1=[REDACTED]"))
 	}
 	return logArgs
+}
+
+func printFileNicely(name, content, syntax string) {
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
+		fmt.Println(content)
+		return
+	}
+
+	fmt.Println(aurora.Bold(fmt.Sprintf("=== %s ===\n", name)))
+	err := quick.Highlight(os.Stdout, content, syntax, "terminal16m", "doom-one2")
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to highlight")
+	} else {
+		fmt.Printf("\n\n")
+	}
 }
 
 func process(asyncLevel int, collection interface{}, fn func(interface{}) error) error {
