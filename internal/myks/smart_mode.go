@@ -6,8 +6,6 @@ import (
 	"sort"
 	"strings"
 
-	"golang.org/x/exp/slices"
-
 	"github.com/rs/zerolog/log"
 	"golang.org/x/exp/slices"
 )
@@ -79,6 +77,7 @@ func (g *Globe) InitSmartMode() ([]string, []string, error) {
 	return envs, apps, nil
 }
 
+// find apps that are missing from rendered folder
 func (g *Globe) MissingApplications() ([]string, error) {
 	missingApps := []string{}
 	for name, e := range g.environments {
