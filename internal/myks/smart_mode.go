@@ -22,11 +22,11 @@ func (g *Globe) getGlobalEnvExpr() string {
 	return "^" + g.EnvironmentBaseDir + "/" + g.EnvironmentDataFileName + "$"
 }
 
-func (g *Globe) getBaseAppExpr() string {
+func (g *Globe) getPrototypeExpr() string {
 	return "^" + g.PrototypesDir + "/(?:.*?/)?(.*?)/[(?:/" + g.YttStepDirName + "),(?:/helm),(?:/vendir),(?:/ytt\\-pkg)].*$"
 }
 
-func (g *Globe) getBaseAppDataFileExpr() string {
+func (g *Globe) getPrototypeDataFileExpr() string {
 	return "^" + g.PrototypesDir + "/(?:.*?/)?(.*?)/" + g.ApplicationDataFileName + "$"
 }
 
@@ -144,7 +144,7 @@ func (g *Globe) checkGlobalConfigChanged(changedFiles []string) bool {
 }
 
 func (g *Globe) getModifiedBaseApps(changedFiles []string) []string {
-	changes, _ := getChanges(changedFiles, g.getBaseAppDataFileExpr(), g.getBaseAppExpr())
+	changes, _ := getChanges(changedFiles, g.getPrototypeDataFileExpr(), g.getPrototypeExpr())
 	return changes
 }
 
