@@ -15,14 +15,14 @@ type ChangedFile struct {
 
 // return all files paths that were changed since the revision
 func getChangedFiles(revision string) ([]ChangedFile, error) {
-	log := func(name string, args []string) {
+	logFn := func(name string, args []string) {
 		log.Debug().Msg(msgRunCmd("get diff for smart-mode", name, args))
 	}
-	_, err := runCmd("git", nil, []string{"add", ".", "--intent-to-add"}, log)
+	_, err := runCmd("git", nil, []string{"add", ".", "--intent-to-add"}, logFn)
 	if err != nil {
 		return nil, err
 	}
-	result, err := runCmd("git", nil, []string{"diff", "--ignore-blank-lines", "--name-status", revision}, log)
+	result, err := runCmd("git", nil, []string{"diff", "--ignore-blank-lines", "--name-status", revision}, logFn)
 	if err != nil {
 		return nil, err
 	}
@@ -74,14 +74,14 @@ func extractChangedFilePathsWithoutStatus(cfs []ChangedFile, status string) []st
 
 // get head revision of main branch
 func getMainBranchHeadRevision(mainBranch string) (string, error) {
-	log := func(name string, args []string) {
+	logFn := func(name string, args []string) {
 		log.Debug().Msg(msgRunCmd("get main branch head revision for smart-mode", name, args))
 	}
-	_, err := runCmd("git", nil, []string{"fetch", "origin", mainBranch}, log)
+	_, err := runCmd("git", nil, []string{"fetch", "origin", mainBranch}, logFn)
 	if err != nil {
 		return "", err
 	}
-	cmdResult, err := runCmd("git", nil, []string{"merge-base", "origin/" + mainBranch, "HEAD"}, log)
+	cmdResult, err := runCmd("git", nil, []string{"merge-base", "origin/" + mainBranch, "HEAD"}, logFn)
 	if err != nil {
 		return "", err
 	}
@@ -92,10 +92,10 @@ func getMainBranchHeadRevision(mainBranch string) (string, error) {
 
 // get head revision
 func getCurrentBranchHeadRevision() (string, error) {
-	log := func(name string, args []string) {
+	logFn := func(name string, args []string) {
 		log.Debug().Msg(msgRunCmd("get current head revision for smart-mode", name, args))
 	}
-	cmdResult, err := runCmd("git", nil, []string{"rev-parse", "HEAD"}, log)
+	cmdResult, err := runCmd("git", nil, []string{"rev-parse", "HEAD"}, logFn)
 	if err != nil {
 		return "", fmt.Errorf("failed to get current branch head revision: %v", err)
 	}
