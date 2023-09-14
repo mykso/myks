@@ -39,7 +39,7 @@ func (g *Globe) getAppsExpr() string {
 	return "^(" + g.EnvironmentBaseDir + "/.*?)/_apps/(.*?)/.*$"
 }
 
-func (g *Globe) InitSmartMode() ([]string, []string, error) {
+func (g *Globe) DetectChangedEnvsAndApps() ([]string, []string, error) {
 	g.collectEnvironments(nil)
 
 	err := process(0, g.environments, func(item interface{}) error {
