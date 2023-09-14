@@ -23,7 +23,8 @@ func (g *Globe) getGlobalEnvExpr() string {
 }
 
 func (g *Globe) getPrototypeExpr() string {
-	return "^" + g.PrototypesDir + "/(?:.*?/)?(.*?)/[(?:/" + g.YttStepDirName + "),(?:/helm),(?:/vendir),(?:/ytt\\-pkg)].*$"
+	subDirs := [...]string{g.YttStepDirName, "helm", "vendir", g.YttPkgStepDirName, g.ArgoCDDataDirName}
+	return "^" + g.PrototypesDir + "/(?:.*?/)?(.*?)/(?:" + strings.Join(subDirs[:], "|") + ")/.*$"
 }
 
 func (g *Globe) getPrototypeDataFileExpr() string {
