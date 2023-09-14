@@ -50,8 +50,7 @@ func (a *Application) prepareSync() error {
 	yttFiles = append(yttFiles, appVendirDirs...)
 
 	if len(yttFiles) == 0 {
-		err := ErrNoVendirConfig
-		return err
+		return ErrNoVendirConfig
 	}
 
 	vendirConfig, err := a.ytt(syncStepName, "creating vendir config", yttFiles)
@@ -154,7 +153,7 @@ func (a *Application) runVendirSync(targetDir string, vendirConfig string, vendi
 	if directory != "" {
 		args = append(args, "--directory="+directory)
 	}
-	res, err := a.runCmd("vendir sync", "vendir", strings.NewReader(vendirSecrets), args)
+	res, err := a.runCmd(syncStepName, "vendir sync", "vendir", strings.NewReader(vendirSecrets), args)
 	if err != nil {
 		log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(a.Msg(syncStepName, "Unable to sync vendir"))
 		return err

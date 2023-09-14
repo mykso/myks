@@ -68,7 +68,7 @@ func (y *YttPkg) Render(_ string) (string, error) {
 			log.Debug().Msg(msgRunCmd(yttPkgStepName+" render step", name, args))
 		}, yttArgs...)
 		if err != nil {
-			log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(y.app.Msg(yttPkgStepName, "Unable to run ytt"))
+			log.Error().Msg(y.app.Msg(yttPkgStepName, res.Stderr))
 			return "", err
 		}
 

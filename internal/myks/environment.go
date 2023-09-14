@@ -34,7 +34,7 @@ type Environment struct {
 	foundApplications map[string]string
 }
 
-func NewEnvironment(g *Globe, dir string) *Environment {
+func NewEnvironment(g *Globe, dir string) (*Environment, error) {
 	envDataFile := filepath.Join(dir, g.EnvironmentDataFileName)
 
 	env := &Environment{
@@ -48,11 +48,8 @@ func NewEnvironment(g *Globe, dir string) *Environment {
 
 	// Read an environment id from an environment data file.
 	// The environment data file must exist and contain an .environment.id field.
-	if err := env.setId(); err != nil {
-		return nil
-	}
-
-	return env
+	err := env.setId()
+	return env, err
 }
 
 func (e *Environment) Init(applicationNames []string) error {
@@ -378,7 +375,7 @@ func (e *Environment) ytt(purpose string, paths []string, args ...string) (CmdRe
 }
 
 func (e *Environment) yttS(purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
-	paths = append(e.g.extraYttPaths, paths...)
+	paths = concatenate(e.g.extraYttPaths, paths)
 	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
 		log.Debug().Msg(e.Msg(msgRunCmd(purpose, name, args)))
 	}, args...)

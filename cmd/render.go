@@ -12,6 +12,9 @@ func init() {
 		Use:   "render",
 		Short: "Render manifests",
 		Long:  "Render manifests",
+		Annotations: map[string]string{
+			ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			g := myks.New(".")
 
