@@ -104,33 +104,33 @@ func (g *Globe) runSmartMode(changedFiles []ChangedFile) ([]string, []string) {
 	}
 	modifiedEnvs := g.getModifiedEnvs(allChangedFilesExceptDeletions)
 	modifiedEnvsFromApp, modifiedApps := g.getModifiedApps(allChangedFilePaths, g.getModifiedEnvs(allDeletions))
-	modifiedBaseApps := g.getModifiedBaseApps(allChangedFilePaths)
-	modifiedEnvsFromBase, modifiedAppsFromBase := g.findBaseAppUsage(modifiedBaseApps)
+	modifiedPrototypes := g.getModifiedPrototypes(allChangedFilePaths)
+	modifiedEnvsFromPrototype, modifiedAppsFromPrototype := g.findPrototypeUsage(modifiedPrototypes)
 
 	// Once envs have been modified globally, we can no longer render individual apps, since we don't know which apps are affected.
 	// This goes for editing of env-data.ytt.yaml, global ytt files as well as manifests.
 	if len(modifiedEnvs) > 0 {
-		envs := append(modifiedEnvs, modifiedEnvsFromBase...)
+		envs := append(modifiedEnvs, modifiedEnvsFromPrototype...)
 		envs = append(envs, modifiedEnvsFromApp...)
 		envs = removeDuplicates(envs)
 		sort.Strings(envs)
 		return envs, nil
 	} else {
-		envs := removeDuplicates(append(modifiedEnvsFromBase, modifiedEnvsFromApp...))
+		envs := removeDuplicates(append(modifiedEnvsFromPrototype, modifiedEnvsFromApp...))
 		sort.Strings(envs)
-		apps := removeDuplicates(append(modifiedApps, modifiedAppsFromBase...))
+		apps := removeDuplicates(append(modifiedApps, modifiedAppsFromPrototype...))
 		sort.Strings(apps)
 		return envs, apps
 	}
 }
 
-func (g *Globe) findBaseAppUsage(baseApps []string) ([]string, []string) {
+func (g *Globe) findPrototypeUsage(prototypes []string) ([]string, []string) {
 	var envs []string
 	var apps []string
-	for _, baseApp := range baseApps {
+	for _, prototype := range prototypes {
 		for envPath, env := range g.environments {
-			for proto, appName := range env.foundApplications {
-				if proto == baseApp || strings.HasSuffix(proto, "/"+baseApp) {
+			for appProto, appName := range env.foundApplications {
+				if appProto == prototype || strings.HasSuffix(appProto, "/"+prototype) {
 					envs = append(envs, envPath)
 					apps = append(apps, appName)
 				}
@@ -144,7 +144,7 @@ func (g *Globe) checkGlobalConfigChanged(changedFiles []string) bool {
 	return checkFileChanged(changedFiles, g.getGlobalLibDirExpr(), g.getGlobalYttDirExpr(), g.getGlobalEnvExpr())
 }
 
-func (g *Globe) getModifiedBaseApps(changedFiles []string) []string {
+func (g *Globe) getModifiedPrototypes(changedFiles []string) []string {
 	changes, _ := getChanges(changedFiles, g.getPrototypeDataFileExpr(), g.getPrototypeExpr())
 	return changes
 }
