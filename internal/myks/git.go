@@ -62,20 +62,14 @@ func extractChangedFilePaths(cfs []ChangedFile) []string {
 
 func extractChangedFilePathsWithStatus(cfs []ChangedFile, status string) []string {
 	filter := func(cf ChangedFile) bool {
-		if status == "" || cf.status == status {
-			return true
-		}
-		return false
+		return status == "" || cf.status == status
 	}
 	return extractChangedFilePaths(extract(cfs, filter))
 }
 
 func extractChangedFilePathsWithoutStatus(cfs []ChangedFile, status string) []string {
 	filter := func(cf ChangedFile) bool {
-		if status == "" || cf.status != status {
-			return true
-		}
-		return false
+		return status == "" || cf.status != status
 	}
 	return extractChangedFilePaths(extract(cfs, filter))
 }
