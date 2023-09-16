@@ -2,7 +2,6 @@ package myks
 
 import (
 	"reflect"
-	"sort"
 	"testing"
 )
 
@@ -83,17 +82,51 @@ func Test_convertToChangedFiles(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want []ChangedFile
+		want ChangedFiles
 	}{
 		{
-			"happy path",
+			"git diff",
 			args{
-				"A\tfile1\nM\tfile2\nD\tfile3\n",
+				"A\tfile1\n" +
+					"M\tfile2\n" +
+					"D\tfile3\n",
 			},
-			[]ChangedFile{
-				{path: "file1", status: "A"},
-				{path: "file2", status: "M"},
-				{path: "file3", status: "D"},
+			ChangedFiles{
+				"file1": "A",
+				"file2": "M",
+				"file3": "D",
+			},
+		},
+		{
+			"git status",
+			args{
+				"A  file1\n" +
+					" M file2\n" +
+					"?? file3\n",
+			},
+			ChangedFiles{
+				"file1": "A",
+				"file2": "M",
+				"file3": "?",
+			},
+		},
+		{
+			"git diff and git status",
+			args{
+				"A\tfile1\n" +
+					"M\tfile2\n" +
+					"D\tfile3\n" +
+					"A  file4\n" +
+					" M file5\n" +
+					"?? file6\n",
+			},
+			ChangedFiles{
+				"file1": "A",
+				"file2": "M",
+				"file3": "D",
+				"file4": "A",
+				"file5": "M",
+				"file6": "?",
 			},
 		},
 	}
@@ -101,98 +134,6 @@ func Test_convertToChangedFiles(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := convertToChangedFiles(tt.args.changes); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("convertToChangedFiles() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_extractChangedFilePathsWithStatus(t *testing.T) {
-	type args struct {
-		cfs    []ChangedFile
-		status string
-	}
-	tests := []struct {
-		name string
-		args args
-		want []string
-	}{
-		{
-			"filter out deletions",
-			args{
-				[]ChangedFile{
-					{"file1", "M"},
-					{"file2", "D"},
-					{"file3", "D"},
-				},
-				"D",
-			},
-			[]string{"file2", "file3"},
-		},
-		{
-			"filter out noting",
-			args{
-				[]ChangedFile{
-					{"file1", "M"},
-					{"file2", "D"},
-					{"file3", "D"},
-				},
-				"",
-			},
-			[]string{"file1", "file2", "file3"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractChangedFilePathsWithStatus(tt.args.cfs, tt.args.status)
-			sort.Strings(got)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("extractChangedFilePathsWithStatus() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func Test_extractChangedFilePathsWithoutStatus(t *testing.T) {
-	type args struct {
-		cfs    []ChangedFile
-		status string
-	}
-	tests := []struct {
-		name string
-		args args
-		want []string
-	}{
-		{
-			"filter out deletions",
-			args{
-				[]ChangedFile{
-					{"file1", "M"},
-					{"file2", "D"},
-					{"file3", "D"},
-				},
-				"D",
-			},
-			[]string{"file1"},
-		},
-		{
-			"filter out noting",
-			args{
-				[]ChangedFile{
-					{"file1", "M"},
-					{"file2", "D"},
-					{"file3", "D"},
-				},
-				"",
-			},
-			[]string{"file1", "file2", "file3"},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := extractChangedFilePathsWithoutStatus(tt.args.cfs, tt.args.status)
-			sort.Strings(got)
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("extractChangedFilePathsWithStatus() = %v, want %v", got, tt.want)
 			}
 		})
 	}

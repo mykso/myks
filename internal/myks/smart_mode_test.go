@@ -353,7 +353,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		},
 	}
 	type args struct {
-		changedFiles []ChangedFile
+		changedFiles ChangedFiles
 	}
 	tests := []struct {
 		name     string
@@ -364,7 +364,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"change to global lib",
 			args{
-				[]ChangedFile{{"lib/file1", "M"}},
+				ChangedFiles{"lib/file1": "M"},
 			},
 			nil,
 			nil,
@@ -372,7 +372,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"change to prototype",
 			args{
-				[]ChangedFile{{"prototypes/app1/app-data.ytt.yaml", "M"}},
+				ChangedFiles{"prototypes/app1/app-data.ytt.yaml": "M"},
 			},
 			[]string{"envs/env1"},
 			[]string{"app1"},
@@ -380,7 +380,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"change to app",
 			args{
-				[]ChangedFile{{"envs/env1/_apps/app1/app-data.ytt.yaml", "M"}},
+				ChangedFiles{"envs/env1/_apps/app1/app-data.ytt.yaml": "M"},
 			},
 			[]string{"envs/env1"},
 			[]string{"app1"},
@@ -388,9 +388,9 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"change to env",
 			args{
-				[]ChangedFile{
-					{"envs/env1/env-data.ytt.yaml", "M"},
-					{"envs/env1/_apps/app1/app-data.ytt.yaml", "M"},
+				ChangedFiles{
+					"envs/env1/env-data.ytt.yaml":            "M",
+					"envs/env1/_apps/app1/app-data.ytt.yaml": "M",
 				},
 			},
 			[]string{"envs/env1"},
@@ -399,9 +399,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"ignore env deletion",
 			args{
-				[]ChangedFile{
-					{"envs/env1/env-data.ytt.yaml", "D"},
-				},
+				ChangedFiles{"envs/env1/env-data.ytt.yaml": "D"},
 			},
 			nil,
 			nil,
@@ -409,9 +407,9 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"changes to all multiple envs and apps",
 			args{
-				[]ChangedFile{
-					{"prototypes/app2/app-data.ytt.yaml", "M"},
-					{"envs/env2/_apps/app3/some-file.yaml", "M"},
+				ChangedFiles{
+					"prototypes/app2/app-data.ytt.yaml":   "M",
+					"envs/env2/_apps/app3/some-file.yaml": "M",
 				},
 			},
 			[]string{"envs/env1", "envs/env2"},

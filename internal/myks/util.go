@@ -286,11 +286,21 @@ func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name st
 	return runCmd("ytt", stdin, cmdArgs, logFn)
 }
 
-func extract[T any](items []T, filterFunc func(cf T) bool) []T {
+func filterMap[K comparable, V any](m map[K]V, filterFunc func(K, V) bool) map[K]V {
+	result := map[K]V{}
+	for k, v := range m {
+		if filterFunc(k, v) {
+			result[k] = v
+		}
+	}
+	return result
+}
+
+func filterSlice[T any](slice []T, filterFunc func(v T) bool) []T {
 	var result []T
-	for _, item := range items {
-		if filterFunc(item) {
-			result = append(result, item)
+	for _, v := range slice {
+		if filterFunc(v) {
+			result = append(result, v)
 		}
 	}
 	return result

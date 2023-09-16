@@ -9,69 +9,48 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type ChangedFile struct {
-	path   string
-	status string
-}
+type ChangedFiles map[string]string
 
 // getChangedFiles returns list of files changed sinc the revision, if specified, and since the last commit
-func getChangedFiles(revision string) ([]ChangedFile, error) {
+func getChangedFiles(revision string) (ChangedFiles, error) {
 	logFn := func(name string, args []string) {
 		log.Debug().Msg(msgRunCmd("get diff for smart-mode", name, args))
 	}
 
-	files := []ChangedFile{}
+	files := ChangedFiles{}
 	if revision != "" {
 		result, err := runCmd("git", nil, []string{"diff", "--name-status", revision}, logFn)
 		if err != nil {
 			return nil, err
 		}
-		files = convertToChangedFiles(result.Stdout)
+		for path, status := range convertToChangedFiles(result.Stdout) {
+			files[path] = status
+		}
 	}
 
 	result, err := runCmd("git", nil, []string{"status", "--porcelain"}, logFn)
 	if err != nil {
 		return nil, err
 	}
-	files = append(files, convertToChangedFiles(result.Stdout)...)
+	for path, status := range convertToChangedFiles(result.Stdout) {
+		files[path] = status
+	}
 
 	return files, nil
 }
 
-func convertToChangedFiles(changes string) []ChangedFile {
-	var cfs []ChangedFile
+func convertToChangedFiles(changes string) ChangedFiles {
+	cfs := ChangedFiles{}
 	expr := regexp.MustCompile(`^([A-Z]\t|[A-Z? ]{2} )(.*)$`)
 	for _, str := range strings.Split(changes, "\n") {
 		matches := expr.FindStringSubmatch(str)
 		if len(matches) == 3 {
-			status := strings.Trim(matches[1], " \t")[:1]
-			cf := ChangedFile{path: matches[2], status: status}
-			cfs = append(cfs, cf)
+			// 1: the first character of the status, after trimming spaces and tabs
+			// 2: the file path
+			cfs[matches[2]] = strings.Trim(matches[1], " \t")[:1]
 		}
 	}
 	return cfs
-}
-
-func extractChangedFilePaths(cfs []ChangedFile) []string {
-	var paths []string
-	for _, cf := range cfs {
-		paths = append(paths, cf.path)
-	}
-	return paths
-}
-
-func extractChangedFilePathsWithStatus(cfs []ChangedFile, status string) []string {
-	filter := func(cf ChangedFile) bool {
-		return status == "" || cf.status == status
-	}
-	return extractChangedFilePaths(extract(cfs, filter))
-}
-
-func extractChangedFilePathsWithoutStatus(cfs []ChangedFile, status string) []string {
-	filter := func(cf ChangedFile) bool {
-		return status == "" || cf.status != status
-	}
-	return extractChangedFilePaths(extract(cfs, filter))
 }
 
 // get head revision of main branch

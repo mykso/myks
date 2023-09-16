@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/maps"
 	"golang.org/x/exp/slices"
 )
 
@@ -94,10 +95,14 @@ func (g *Globe) MissingApplications() ([]string, error) {
 	return missingApps, nil
 }
 
-func (g *Globe) runSmartMode(changedFiles []ChangedFile) ([]string, []string) {
-	allChangedFilePaths := extractChangedFilePathsWithStatus(changedFiles, "")
-	allDeletions := extractChangedFilePathsWithStatus(changedFiles, "D")
-	allChangedFilesExceptDeletions := extractChangedFilePathsWithoutStatus(changedFiles, "D")
+func (g *Globe) runSmartMode(changedFiles ChangedFiles) ([]string, []string) {
+	allChangedFilePaths := maps.Keys(changedFiles)
+	allDeletions := maps.Keys(filterMap[string, string](changedFiles, func(k, v string) bool {
+		return v == "D"
+	}))
+	allChangedFilesExceptDeletions := maps.Keys(filterMap[string, string](changedFiles, func(k, v string) bool {
+		return v != "D"
+	}))
 
 	if g.checkGlobalConfigChanged(allChangedFilePaths) {
 		return nil, nil
