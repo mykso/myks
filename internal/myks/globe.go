@@ -217,6 +217,37 @@ func (g *Globe) SyncAndRender(asyncLevel int) error {
 	})
 }
 
+// Cleanup discovers rendered environments that are not known to the Globe struct and removes them.
+// This function should be only run when the Globe is not restricted by a list of environments.
+func (g *Globe) Cleanup() error {
+	legalEnvs := map[string]bool{}
+	for _, env := range g.environments {
+		legalEnvs[env.Id] = true
+	}
+
+	for _, dir := range [...]string{"argocd", "envs"} {
+		dirPath := filepath.Join(g.RootDir, g.RenderedDir, dir)
+		files, err := os.ReadDir(dirPath)
+		if err != nil {
+			return fmt.Errorf("Unable to read dir: %w", err)
+		}
+
+		for _, file := range files {
+			_, ok := legalEnvs[file.Name()]
+			if file.IsDir() && !ok {
+				log.Debug().Str("dir", dir+"/"+file.Name()).Msg("Cleanup rendered environment directory")
+				fullPath := filepath.Join(dirPath, file.Name())
+				err = os.RemoveAll(fullPath)
+				if err != nil {
+					log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // Bootstrap creates the initial directory structure and files
 func (g *Globe) Bootstrap(force, onlyPrint bool, components []string) error {
 	compMap := make(map[string]bool, len(components))

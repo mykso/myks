@@ -25,6 +25,12 @@ func init() {
 			if err := g.SyncAndRender(asyncLevel); err != nil {
 				log.Fatal().Err(err).Msg("Unable to sync vendir configs")
 			}
+
+			if targetEnvironments == nil {
+				if err := g.Cleanup(); err != nil {
+					log.Fatal().Err(err).Msg("Unable to cleanup")
+				}
+			}
 		},
 	}
 
