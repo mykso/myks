@@ -420,6 +420,16 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			[]string{"envs/env1", "envs/env2"},
 			[]string{"app2", "app3"},
 		},
+		{
+			"missing rendered apps",
+			ChangedFiles{},
+			map[string][]string{
+				"env1": {"app1"},
+				"env2": {"app2"},
+			},
+			nil,
+			[]string{"app2", "app3"},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
