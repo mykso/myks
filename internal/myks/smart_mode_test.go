@@ -120,7 +120,7 @@ func TestGlobe_getModifiedEnvs(t *testing.T) {
 	}
 }
 
-func TestGlobe_getModifiedBaseApps(t *testing.T) {
+func TestGlobe_getModifiedPrototypes(t *testing.T) {
 	type args struct {
 		changedFiles []string
 	}
@@ -148,7 +148,7 @@ func TestGlobe_getModifiedBaseApps(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := createGlobe(t)
-			apps := g.getModifiedBaseApps(tt.args.changedFiles)
+			apps := g.getModifiedPrototypes(tt.args.changedFiles)
 			sort.Strings(apps)
 			if got := apps; !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getChanges() = %v, want %v", got, tt.want)
@@ -245,10 +245,10 @@ func TestGlobe_checkGlobalConfigChanged(t *testing.T) {
 	}
 }
 
-func TestGlobe_findBaseAppUsage(t *testing.T) {
+func TestGlobe_findPrototypeUsage(t *testing.T) {
 	type args struct {
-		baseApps []string
-		globe    Globe
+		prototypes []string
+		globe      Globe
 	}
 	tests := []struct {
 		name     string
@@ -321,14 +321,14 @@ func TestGlobe_findBaseAppUsage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotEnvs, gotApps := tt.args.globe.findBaseAppUsage(tt.args.baseApps)
+			gotEnvs, gotApps := tt.args.globe.findPrototypeUsage(tt.args.prototypes)
 			sort.Strings(gotEnvs)
 			sort.Strings(gotApps)
 			if !reflect.DeepEqual(gotEnvs, tt.wantEnvs) {
-				t.Errorf("findBaseAppUsage() got = %v, want %v", gotEnvs, tt.wantEnvs)
+				t.Errorf("findPrototypeUsage() got = %v, want %v", gotEnvs, tt.wantEnvs)
 			}
 			if !reflect.DeepEqual(gotApps, tt.wantApps) {
-				t.Errorf("findBaseAppUsage() got1 = %v, want %v", gotApps, tt.wantApps)
+				t.Errorf("findPrototypeUsage() got1 = %v, want %v", gotApps, tt.wantApps)
 			}
 		})
 	}
@@ -370,7 +370,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			nil,
 		},
 		{
-			"change to base app",
+			"change to prototype",
 			args{
 				[]ChangedFile{{"prototypes/app1/app-data.ytt.yaml", "M"}},
 			},
