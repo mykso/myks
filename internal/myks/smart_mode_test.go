@@ -250,6 +250,46 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 		prototypes []string
 		globe      Globe
 	}
+	g1 := createGlobe(t)
+	g1.environments = map[string]*Environment{
+		"env1": {
+			g:  g1,
+			Id: "env1",
+			foundApplications: map[string]string{
+				"app1": "app1",
+				"app2": "app2",
+			},
+		},
+	}
+	g2 := createGlobe(t)
+	g2.environments = map[string]*Environment{
+		"env1": {
+			g:  g2,
+			Id: "env1",
+			foundApplications: map[string]string{
+				"app1":      "my-app-1",
+				"root/app2": "my-app-2",
+			},
+		},
+	}
+	g3 := createGlobe(t)
+	g3.environments = map[string]*Environment{
+		"env1": {
+			g:  g3,
+			Id: "env1",
+			foundApplications: map[string]string{
+				"app1": "my-app-1",
+			},
+		},
+		"env2": {
+			g:  g3,
+			Id: "env2",
+			foundApplications: map[string]string{
+				"app1": "my-app-1",
+			},
+		},
+	}
+
 	tests := []struct {
 		name     string
 		args     args
@@ -260,17 +300,7 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 			"happy path",
 			args{
 				[]string{"app1"},
-				Globe{
-					environments: map[string]*Environment{
-						"env1": {
-							Id: "env1",
-							foundApplications: map[string]string{
-								"app1": "app1",
-								"app2": "app2",
-							},
-						},
-					},
-				},
+				*g1,
 			},
 			[]string{"env1"},
 			[]string{"app1"},
@@ -279,17 +309,7 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 			"prototype ref",
 			args{
 				[]string{"app1", "app2"},
-				Globe{
-					environments: map[string]*Environment{
-						"env1": {
-							Id: "env1",
-							foundApplications: map[string]string{
-								"app1":      "my-app-1",
-								"root/app2": "my-app-2",
-							},
-						},
-					},
-				},
+				*g2,
 			},
 			[]string{"env1"},
 			[]string{"my-app-1", "my-app-2"},
@@ -298,22 +318,7 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 			"duplicates",
 			args{
 				[]string{"app1", "app2"},
-				Globe{
-					environments: map[string]*Environment{
-						"env1": {
-							Id: "env1",
-							foundApplications: map[string]string{
-								"app1": "my-app-1",
-							},
-						},
-						"env2": {
-							Id: "env2",
-							foundApplications: map[string]string{
-								"app1": "my-app-1",
-							},
-						},
-					},
-				},
+				*g3,
 			},
 			[]string{"env1", "env2"},
 			[]string{"my-app-1"},
@@ -338,6 +343,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 	g := createGlobe(t)
 	g.environments = map[string]*Environment{
 		"envs/env1": {
+			g:  g,
 			Id: "env1",
 			foundApplications: map[string]string{
 				"app1": "app1",
@@ -345,6 +351,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			},
 		},
 		"envs/env2": {
+			g:  g,
 			Id: "env2",
 			foundApplications: map[string]string{
 				"app3": "app3",
@@ -366,7 +373,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			args{
 				ChangedFiles{"lib/file1": "M"},
 			},
-			nil,
+			[]string{g.EnvironmentBaseDir},
 			nil,
 		},
 		{
