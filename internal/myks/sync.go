@@ -225,12 +225,17 @@ func getVendirDirHashes(config map[string]interface{}) (vendirDirHashes, error) 
 	for _, dir := range config["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
 		path := dirMap["path"].(string)
+		contents := dirMap["contents"].([]interface{})
+		for _, content := range contents {
+			contentMap := content.(map[string]interface{})
+			contentPath := contentMap["path"].(string)
+			sortedYaml, err := sortYaml(contentMap)
+			if err != nil {
+				return nil, err
+			}
 
-		sortedYaml, err := sortYaml(dirMap)
-		if err != nil {
-			return nil, err
+			dirHashes[filepath.Join(path, contentPath)] = hashString(sortedYaml)
 		}
-		dirHashes[path] = hashString(sortedYaml)
 	}
 	return dirHashes, nil
 }
