@@ -146,7 +146,7 @@ func (e *Environment) renderedApplications() ([]string, error) {
 }
 
 // find apps that are missing from rendered folder
-func (e *Environment) MissingApplications() ([]string, error) {
+func (e *Environment) missingApplications() ([]string, error) {
 	apps, err := e.renderedApplications()
 	if err != nil {
 		return nil, err

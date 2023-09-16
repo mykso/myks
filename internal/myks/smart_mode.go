@@ -68,7 +68,7 @@ func (g *Globe) DetectChangedEnvsAndApps() ([]string, []string, error) {
 	envs, apps := g.runSmartMode(changedFiles)
 	log.Info().Msg(g.Msg(fmt.Sprintf("Smart mode detected changes in environments: %v, applications: %v", envs, apps)))
 
-	missingApps, err := g.MissingApplications()
+	missingApps, err := g.missingApplications()
 	if err != nil {
 		log.Err(err).Msg(g.Msg("Failed to get missing applications"))
 		return nil, nil, err
@@ -80,10 +80,10 @@ func (g *Globe) DetectChangedEnvsAndApps() ([]string, []string, error) {
 }
 
 // find apps that are missing from rendered folder
-func (g *Globe) MissingApplications() ([]string, error) {
+func (g *Globe) missingApplications() ([]string, error) {
 	missingApps := []string{}
 	for name, e := range g.environments {
-		missing, err := e.MissingApplications()
+		missing, err := e.missingApplications()
 		if err != nil {
 			log.Err(err).Msg(g.Msg(fmt.Sprintf("Failed to get missing applications for environment %s", name)))
 			return nil, err
