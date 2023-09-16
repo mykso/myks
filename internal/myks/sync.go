@@ -86,7 +86,7 @@ func (a *Application) doSync(vendirSecrets string) error {
 	vendirLockFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
 	vendirConfigFilePath := filepath.Join(a.expandServicePath(""), a.e.g.VendirConfigFileName)
 	vendirLockFilePath := filepath.Join(a.expandServicePath(""), a.e.g.VendirLockFileName)
-	vendirSyncFilePath := a.expandTempPath(a.e.g.VendirSyncFileName)
+	vendirSyncFilePath := a.expandServicePath(a.e.g.VendirSyncFileName)
 	vendorDir := a.expandPath(a.e.g.VendorDirName)
 
 	vendirDirs, err := readVendirConfig(vendirConfigFilePath)
@@ -137,7 +137,7 @@ func (a *Application) doSync(vendirSecrets string) error {
 		}
 	}
 
-	err = writeSyncFile(a.expandTempPath(a.e.g.VendirSyncFileName), vendirDirs)
+	err = writeSyncFile(a.expandServicePath(a.e.g.VendirSyncFileName), vendirDirs)
 	if err != nil {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to write sync file"))
 		return err
@@ -235,6 +235,7 @@ func findDirectories(config map[string]interface{}) ([]Directory, error) {
 	if _, ok := config["directories"]; !ok {
 		return nil, errors.New("no directories found in vendir config")
 	}
+
 	var syncDirs []Directory
 
 	for _, dir := range config["directories"].([]interface{}) {
