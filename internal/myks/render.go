@@ -208,9 +208,5 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 	}
 
 	err = a.writeServiceFile(valuesFileName, resourceValues.Stdout)
-	if err != nil {
-		return "", err
-	}
-
-	return a.expandServicePath(valuesFileName), nil
+	return a.expandServicePath(valuesFileName), err
 }

@@ -25,6 +25,12 @@ func init() {
 			if err := g.Render(asyncLevel); err != nil {
 				log.Fatal().Err(err).Msg("Unable to render applications")
 			}
+
+			if targetEnvironments == nil {
+				if err := g.Cleanup(); err != nil {
+					log.Fatal().Err(err).Msg("Unable to cleanup")
+				}
+			}
 		},
 	}
 

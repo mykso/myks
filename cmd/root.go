@@ -82,7 +82,7 @@ func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 		// smart mode requires instantiation of globe object to get the list of environments
 		// the globe object will not be used later in the process. It is only used to get the list of all environments and their apps.
 		globeAllEnvsAndApps := myks.New(".")
-		targetEnvironments, targetApplications, err = globeAllEnvsAndApps.InitSmartMode()
+		targetEnvironments, targetApplications, err = globeAllEnvsAndApps.DetectChangedEnvsAndApps()
 		if err != nil {
 			log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
 		}

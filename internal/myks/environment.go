@@ -81,7 +81,7 @@ func (e *Environment) Render(asyncLevel int) error {
 	if err := e.renderArgoCD(); err != nil {
 		return err
 	}
-	return process(asyncLevel, e.Applications, func(item interface{}) error {
+	err := process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
@@ -98,6 +98,73 @@ func (e *Environment) Render(asyncLevel int) error {
 
 		return app.renderArgoCD()
 	})
+	if err != nil {
+		log.Error().Err(err).Msg(e.Msg("Unable to render applications"))
+		return err
+	}
+
+	return e.Cleanup()
+}
+
+func (e *Environment) Cleanup() error {
+	apps, err := e.renderedApplications()
+	if err != nil {
+		return err
+	}
+	for _, app := range apps {
+		if _, ok := e.foundApplications[app]; !ok {
+			log.Info().Str("app", app).Msg(e.Msg("Removing app as it is not configured"))
+			err := os.RemoveAll(filepath.Join(e.g.RootDir, e.g.RenderedDir, "envs", e.Id, app))
+			if err != nil {
+				return fmt.Errorf("unable to remove dir: %w", err)
+			}
+			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedDir, "argocd", e.Id, getArgoCDAppFileName(app)))
+			if err != nil {
+				return fmt.Errorf("unable to remove file: %w", err)
+			}
+		}
+	}
+
+	return nil
+}
+
+// renderedApplications returns list of applications in rendered dir
+func (e *Environment) renderedApplications() ([]string, error) {
+	apps := []string{}
+	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedDir, "envs", e.Id)
+	files, err := os.ReadDir(dirEnvRendered)
+	if err != nil {
+		return nil, fmt.Errorf("unable to read dir: %w", err)
+	}
+	for _, file := range files {
+		if file.IsDir() {
+			dir := file.Name()
+			apps = append(apps, dir)
+		}
+	}
+	return apps, nil
+}
+
+// find apps that are missing from rendered folder
+func (e *Environment) missingApplications() ([]string, error) {
+	apps, err := e.renderedApplications()
+	if err != nil {
+		return nil, err
+	}
+	missingApps := []string{}
+	for app := range e.foundApplications {
+		exists := false
+		for _, renderedApp := range apps {
+			if app == renderedApp {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			missingApps = append(missingApps, app)
+		}
+	}
+	return missingApps, nil
 }
 
 func (e *Environment) SyncAndRender(asyncLevel int, vendirSecrets string) error {

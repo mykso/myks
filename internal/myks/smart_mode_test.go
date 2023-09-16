@@ -120,7 +120,7 @@ func TestGlobe_getModifiedEnvs(t *testing.T) {
 	}
 }
 
-func TestGlobe_getModifiedBaseApps(t *testing.T) {
+func TestGlobe_getModifiedPrototypes(t *testing.T) {
 	type args struct {
 		changedFiles []string
 	}
@@ -148,7 +148,7 @@ func TestGlobe_getModifiedBaseApps(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			g := createGlobe(t)
-			apps := g.getModifiedBaseApps(tt.args.changedFiles)
+			apps := g.getModifiedPrototypes(tt.args.changedFiles)
 			sort.Strings(apps)
 			if got := apps; !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("getChanges() = %v, want %v", got, tt.want)
@@ -245,11 +245,51 @@ func TestGlobe_checkGlobalConfigChanged(t *testing.T) {
 	}
 }
 
-func TestGlobe_findBaseAppUsage(t *testing.T) {
+func TestGlobe_findPrototypeUsage(t *testing.T) {
 	type args struct {
-		baseApps []string
-		globe    Globe
+		prototypes []string
+		globe      Globe
 	}
+	g1 := createGlobe(t)
+	g1.environments = map[string]*Environment{
+		"env1": {
+			g:  g1,
+			Id: "env1",
+			foundApplications: map[string]string{
+				"app1": "app1",
+				"app2": "app2",
+			},
+		},
+	}
+	g2 := createGlobe(t)
+	g2.environments = map[string]*Environment{
+		"env1": {
+			g:  g2,
+			Id: "env1",
+			foundApplications: map[string]string{
+				"app1":      "my-app-1",
+				"root/app2": "my-app-2",
+			},
+		},
+	}
+	g3 := createGlobe(t)
+	g3.environments = map[string]*Environment{
+		"env1": {
+			g:  g3,
+			Id: "env1",
+			foundApplications: map[string]string{
+				"app1": "my-app-1",
+			},
+		},
+		"env2": {
+			g:  g3,
+			Id: "env2",
+			foundApplications: map[string]string{
+				"app1": "my-app-1",
+			},
+		},
+	}
+
 	tests := []struct {
 		name     string
 		args     args
@@ -260,17 +300,7 @@ func TestGlobe_findBaseAppUsage(t *testing.T) {
 			"happy path",
 			args{
 				[]string{"app1"},
-				Globe{
-					environments: map[string]*Environment{
-						"env1": {
-							Id: "env1",
-							foundApplications: map[string]string{
-								"app1": "app1",
-								"app2": "app2",
-							},
-						},
-					},
-				},
+				*g1,
 			},
 			[]string{"env1"},
 			[]string{"app1"},
@@ -279,17 +309,7 @@ func TestGlobe_findBaseAppUsage(t *testing.T) {
 			"prototype ref",
 			args{
 				[]string{"app1", "app2"},
-				Globe{
-					environments: map[string]*Environment{
-						"env1": {
-							Id: "env1",
-							foundApplications: map[string]string{
-								"app1":      "my-app-1",
-								"root/app2": "my-app-2",
-							},
-						},
-					},
-				},
+				*g2,
 			},
 			[]string{"env1"},
 			[]string{"my-app-1", "my-app-2"},
@@ -298,22 +318,7 @@ func TestGlobe_findBaseAppUsage(t *testing.T) {
 			"duplicates",
 			args{
 				[]string{"app1", "app2"},
-				Globe{
-					environments: map[string]*Environment{
-						"env1": {
-							Id: "env1",
-							foundApplications: map[string]string{
-								"app1": "my-app-1",
-							},
-						},
-						"env2": {
-							Id: "env2",
-							foundApplications: map[string]string{
-								"app1": "my-app-1",
-							},
-						},
-					},
-				},
+				*g3,
 			},
 			[]string{"env1", "env2"},
 			[]string{"my-app-1"},
@@ -321,14 +326,14 @@ func TestGlobe_findBaseAppUsage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotEnvs, gotApps := tt.args.globe.findBaseAppUsage(tt.args.baseApps)
+			gotEnvs, gotApps := tt.args.globe.findPrototypeUsage(tt.args.prototypes)
 			sort.Strings(gotEnvs)
 			sort.Strings(gotApps)
 			if !reflect.DeepEqual(gotEnvs, tt.wantEnvs) {
-				t.Errorf("findBaseAppUsage() got = %v, want %v", gotEnvs, tt.wantEnvs)
+				t.Errorf("findPrototypeUsage() got = %v, want %v", gotEnvs, tt.wantEnvs)
 			}
 			if !reflect.DeepEqual(gotApps, tt.wantApps) {
-				t.Errorf("findBaseAppUsage() got1 = %v, want %v", gotApps, tt.wantApps)
+				t.Errorf("findPrototypeUsage() got1 = %v, want %v", gotApps, tt.wantApps)
 			}
 		})
 	}
@@ -338,6 +343,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 	g := createGlobe(t)
 	g.environments = map[string]*Environment{
 		"envs/env1": {
+			g:  g,
 			Id: "env1",
 			foundApplications: map[string]string{
 				"app1": "app1",
@@ -345,6 +351,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			},
 		},
 		"envs/env2": {
+			g:  g,
 			Id: "env2",
 			foundApplications: map[string]string{
 				"app3": "app3",
@@ -353,7 +360,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		},
 	}
 	type args struct {
-		changedFiles []ChangedFile
+		changedFiles ChangedFiles
 	}
 	tests := []struct {
 		name     string
@@ -364,15 +371,15 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"change to global lib",
 			args{
-				[]ChangedFile{{"lib/file1", "M"}},
+				ChangedFiles{"lib/file1": "M"},
 			},
-			nil,
+			[]string{g.EnvironmentBaseDir},
 			nil,
 		},
 		{
-			"change to base app",
+			"change to prototype",
 			args{
-				[]ChangedFile{{"prototypes/app1/app-data.ytt.yaml", "M"}},
+				ChangedFiles{"prototypes/app1/app-data.ytt.yaml": "M"},
 			},
 			[]string{"envs/env1"},
 			[]string{"app1"},
@@ -380,7 +387,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"change to app",
 			args{
-				[]ChangedFile{{"envs/env1/_apps/app1/app-data.ytt.yaml", "M"}},
+				ChangedFiles{"envs/env1/_apps/app1/app-data.ytt.yaml": "M"},
 			},
 			[]string{"envs/env1"},
 			[]string{"app1"},
@@ -388,9 +395,9 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"change to env",
 			args{
-				[]ChangedFile{
-					{"envs/env1/env-data.ytt.yaml", "M"},
-					{"envs/env1/_apps/app1/app-data.ytt.yaml", "M"},
+				ChangedFiles{
+					"envs/env1/env-data.ytt.yaml":            "M",
+					"envs/env1/_apps/app1/app-data.ytt.yaml": "M",
 				},
 			},
 			[]string{"envs/env1"},
@@ -399,9 +406,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"ignore env deletion",
 			args{
-				[]ChangedFile{
-					{"envs/env1/env-data.ytt.yaml", "D"},
-				},
+				ChangedFiles{"envs/env1/env-data.ytt.yaml": "D"},
 			},
 			nil,
 			nil,
@@ -409,9 +414,9 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"changes to all multiple envs and apps",
 			args{
-				[]ChangedFile{
-					{"prototypes/app2/app-data.ytt.yaml", "M"},
-					{"envs/env2/_apps/app3/some-file.yaml", "M"},
+				ChangedFiles{
+					"prototypes/app2/app-data.ytt.yaml":   "M",
+					"envs/env2/_apps/app3/some-file.yaml": "M",
 				},
 			},
 			[]string{"envs/env1", "envs/env2"},

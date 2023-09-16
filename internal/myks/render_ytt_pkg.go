@@ -80,7 +80,7 @@ func (y *YttPkg) Render(_ string) (string, error) {
 		outputs = append(outputs, res.Stdout)
 	}
 
-	log.Info().Msg(y.app.Msg(helmStepName, "Ytt package rendered"))
+	log.Info().Msg(y.app.Msg(yttPkgStepName, "Ytt package rendered"))
 
 	return strings.Join(outputs, "---\n"), nil
 }
