@@ -84,8 +84,8 @@ func (a *Application) doSync(vendirSecrets string) error {
 	// Paths are relative to the vendor directory (BUG: this will brake with multi-level vendor directory, e.g. `vendor/shmendor`)
 	vendirConfigFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirConfigFileName)
 	vendirLockFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
-	vendirConfigFilePath := filepath.Join(a.expandServicePath(""), a.e.g.VendirConfigFileName)
-	vendirLockFilePath := filepath.Join(a.expandServicePath(""), a.e.g.VendirLockFileName)
+	vendirConfigFilePath := a.expandServicePath(a.e.g.VendirConfigFileName)
+	vendirLockFilePath := a.expandServicePath(a.e.g.VendirLockFileName)
 	vendirSyncFilePath := a.expandServicePath(a.e.g.VendirSyncFileName)
 	vendorDir := a.expandPath(a.e.g.VendorDirName)
 
