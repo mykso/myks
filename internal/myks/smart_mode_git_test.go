@@ -28,53 +28,6 @@ func Test_getChangedFiles(t *testing.T) {
 	}
 }
 
-func Test_getMainBranchHeadRevision(t *testing.T) {
-	type args struct {
-		mainBranch string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		wantErr bool
-	}{
-		{"happy path", args{"main"}, false},
-		{"sad path", args{"unknown-branch"}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := getMainBranchHeadRevision(tt.args.mainBranch)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getMainBranchHeadRevision() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && got == "" {
-				t.Errorf("getMainBranchHeadRevision() must not be empty")
-			}
-		})
-	}
-}
-
-func Test_getCurrentBranchHeadRevision(t *testing.T) {
-	tests := []struct {
-		name    string
-		wantErr bool
-	}{
-		{"happy path", false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := getCurrentBranchHeadRevision()
-			if (err != nil) != tt.wantErr {
-				t.Errorf("getCurrentBranchHeadRevision() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr && got == "" {
-				t.Errorf("getCurrentBranchHeadRevision() must not be empty")
-			}
-		})
-	}
-}
-
 func Test_convertToChangedFiles(t *testing.T) {
 	type args struct {
 		changes string

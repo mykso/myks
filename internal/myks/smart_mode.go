@@ -40,7 +40,7 @@ func (g *Globe) getAppsExpr() string {
 	return "^" + g.GitPathPrefix + "(" + g.EnvironmentBaseDir + "/.*?)/_apps/(.*?)/.*$"
 }
 
-func (g *Globe) DetectChangedEnvsAndApps() ([]string, []string, error) {
+func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) ([]string, []string, error) {
 	g.collectEnvironments(nil)
 
 	err := process(0, g.environments, func(item interface{}) error {
@@ -55,12 +55,7 @@ func (g *Globe) DetectChangedEnvsAndApps() ([]string, []string, error) {
 		return nil, nil, err
 	}
 
-	curRev, err := getDiffRevision(g.MainBranchName)
-	if err != nil {
-		log.Err(err).Msg(g.Msg("Failed to get current revision"))
-		return nil, nil, err
-	}
-	changedFiles, err := getChangedFiles(curRev)
+	changedFiles, err := getChangedFiles(baseRevision)
 	if err != nil {
 		log.Err(err).Msg(g.Msg("Failed to get diff"))
 		return nil, nil, err
