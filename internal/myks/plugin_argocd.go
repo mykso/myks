@@ -52,7 +52,7 @@ func (e *Environment) renderArgoCD() (err error) {
 		return
 	}
 
-	argoDestinationPath := filepath.Join(e.getArgoCDDestinationDir(), "env-"+e.Id+".yaml")
+	argoDestinationPath := filepath.Join(e.getArgoCDDestinationDir(), getArgoCDEnvFileName(e.Id))
 	return writeFile(argoDestinationPath, []byte(res.Stdout))
 }
 
@@ -100,7 +100,7 @@ func (a *Application) renderArgoCD() (err error) {
 		return
 	}
 
-	argoDestinationPath := filepath.Join(a.getArgoCDDestinationDir(), "app-"+a.Name+".yaml")
+	argoDestinationPath := filepath.Join(a.getArgoCDDestinationDir(), getArgoCDAppFileName(a.Name))
 	return writeFile(argoDestinationPath, []byte(res.Stdout))
 }
 
@@ -141,4 +141,12 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 
 func (a *Application) getArgoCDDestinationDir() string {
 	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedDir, "argocd", a.e.Id)
+}
+
+func getArgoCDEnvFileName(envName string) string {
+	return "env-" + envName + ".yaml"
+}
+
+func getArgoCDAppFileName(appName string) string {
+	return "app-" + appName + ".yaml"
 }

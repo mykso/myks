@@ -118,6 +118,10 @@ func (e *Environment) Cleanup() error {
 			if err != nil {
 				return fmt.Errorf("unable to remove dir: %w", err)
 			}
+			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedDir, "argocd", e.Id, getArgoCDAppFileName(app)))
+			if err != nil {
+				return fmt.Errorf("unable to remove file: %w", err)
+			}
 		}
 	}
 
