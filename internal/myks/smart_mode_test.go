@@ -1,6 +1,8 @@
 package myks
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"testing"
@@ -359,80 +361,96 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			},
 		},
 	}
-	type args struct {
-		changedFiles ChangedFiles
+	allEnvsApps := map[string][]string{
+		"env1": {"app1", "app2"},
+		"env2": {"app2", "app3"},
 	}
 	tests := []struct {
-		name     string
-		args     args
-		wantEnvs []string
-		wantApps []string
+		name         string
+		changedFiles ChangedFiles
+		rendered     map[string][]string
+		wantEnvs     []string
+		wantApps     []string
 	}{
 		{
 			"change to global lib",
-			args{
-				ChangedFiles{"lib/file1": "M"},
-			},
+			ChangedFiles{"lib/file1": "M"},
+			allEnvsApps,
 			[]string{g.EnvironmentBaseDir},
 			nil,
 		},
 		{
 			"change to prototype",
-			args{
-				ChangedFiles{"prototypes/app1/app-data.ytt.yaml": "M"},
-			},
+			ChangedFiles{"prototypes/app1/app-data.ytt.yaml": "M"},
+			allEnvsApps,
 			[]string{"envs/env1"},
 			[]string{"app1"},
 		},
 		{
 			"change to app",
-			args{
-				ChangedFiles{"envs/env1/_apps/app1/app-data.ytt.yaml": "M"},
-			},
+			ChangedFiles{"envs/env1/_apps/app1/app-data.ytt.yaml": "M"},
+			allEnvsApps,
 			[]string{"envs/env1"},
 			[]string{"app1"},
 		},
 		{
 			"change to env",
-			args{
-				ChangedFiles{
-					"envs/env1/env-data.ytt.yaml":            "M",
-					"envs/env1/_apps/app1/app-data.ytt.yaml": "M",
-				},
+			ChangedFiles{
+				"envs/env1/env-data.ytt.yaml":            "M",
+				"envs/env1/_apps/app1/app-data.ytt.yaml": "M",
 			},
+			allEnvsApps,
 			[]string{"envs/env1"},
 			nil,
 		},
 		{
 			"ignore env deletion",
-			args{
-				ChangedFiles{"envs/env1/env-data.ytt.yaml": "D"},
-			},
+			ChangedFiles{"envs/env1/env-data.ytt.yaml": "D"},
+			allEnvsApps,
 			nil,
 			nil,
 		},
 		{
 			"changes to all multiple envs and apps",
-			args{
-				ChangedFiles{
-					"prototypes/app2/app-data.ytt.yaml":   "M",
-					"envs/env2/_apps/app3/some-file.yaml": "M",
-				},
+			ChangedFiles{
+				"prototypes/app2/app-data.ytt.yaml":   "M",
+				"envs/env2/_apps/app3/some-file.yaml": "M",
 			},
+			allEnvsApps,
 			[]string{"envs/env1", "envs/env2"},
 			[]string{"app2", "app3"},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotEnvs, gotApps := g.runSmartMode(tt.args.changedFiles)
+			tmpDir := t.TempDir()
+
+			for env, apps := range tt.rendered {
+				for _, app := range apps {
+					dir := filepath.Join(tmpDir, g.RenderedDir, "envs", env, app)
+					if err := createDirectory(dir); err != nil {
+						t.Errorf("failed to create directory %s", dir)
+					}
+				}
+			}
+
+			g.RootDir = tmpDir
+
+			defer func() {
+				err := os.RemoveAll(tmpDir)
+				if err != nil {
+					t.Errorf("failed to remove temporary directory %s", tmpDir)
+				}
+			}()
+
+			gotEnvs, gotApps := g.runSmartMode(tt.changedFiles)
 			sort.Strings(gotEnvs)
 			sort.Strings(gotApps)
 			if !reflect.DeepEqual(gotEnvs, tt.wantEnvs) {
-				t.Errorf("runSmartMode() got = %v, want %v", gotEnvs, tt.wantEnvs)
+				t.Errorf("gotEnvs = %v, wantEnvs %v", gotEnvs, tt.wantEnvs)
 			}
 			if !reflect.DeepEqual(gotApps, tt.wantApps) {
-				t.Errorf("runSmartMode() got1 = %v, want %v", gotApps, tt.wantApps)
+				t.Errorf("gotApps = %v, wantApps %v", gotApps, tt.wantApps)
 			}
 		})
 	}
