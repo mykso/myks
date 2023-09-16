@@ -68,14 +68,6 @@ func (g *Globe) DetectChangedEnvsAndApps() ([]string, []string, error) {
 	envs, apps := g.runSmartMode(changedFiles)
 	log.Info().Msg(g.Msg(fmt.Sprintf("Smart mode detected changes in environments: %v, applications: %v", envs, apps)))
 
-	missingApps, err := g.missingApplications()
-	if err != nil {
-		log.Err(err).Msg(g.Msg("Failed to get missing applications"))
-		return nil, nil, err
-	}
-
-	apps = append(apps, missingApps...)
-
 	return envs, apps, nil
 }
 
@@ -112,6 +104,11 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) ([]string, []string) {
 	modifiedPrototypes := g.getModifiedPrototypes(allChangedFilePaths)
 	modifiedEnvsFromPrototype, modifiedAppsFromPrototype := g.findPrototypeUsage(modifiedPrototypes)
 
+	missingApps, err := g.missingApplications()
+	if err != nil {
+		log.Err(err).Msg(g.Msg("Failed to get missing applications"))
+	}
+
 	// Once envs have been modified globally, we can no longer render individual apps, since we don't know which apps are affected.
 	// This goes for editing of env-data.ytt.yaml, global ytt files as well as manifests.
 	if len(modifiedEnvs) > 0 {
@@ -123,7 +120,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) ([]string, []string) {
 	} else {
 		envs := removeDuplicates(append(modifiedEnvsFromPrototype, modifiedEnvsFromApp...))
 		sort.Strings(envs)
-		apps := removeDuplicates(append(modifiedApps, modifiedAppsFromPrototype...))
+		apps := removeDuplicates(concatenate(modifiedApps, modifiedAppsFromPrototype, missingApps))
 		sort.Strings(apps)
 		return envs, apps
 	}
