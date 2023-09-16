@@ -304,3 +304,18 @@ func concatenate[T any](slices ...[]T) []T {
 	}
 	return result
 }
+
+func deleteDirectoryContents(dir string) error {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+
+	for _, file := range files {
+		if os.RemoveAll(filepath.Join(dir, file.Name())) != nil {
+			return err
+		}
+	}
+
+	return nil
+}

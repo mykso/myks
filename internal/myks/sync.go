@@ -127,6 +127,10 @@ func (a *Application) doSync(vendirSecrets string) error {
 			}
 		}
 	} else {
+		// remove old content of vendor directory, since there might be leftovers in case of path changes
+		if deleteDirectoryContents(vendorDir) != nil {
+			return err
+		}
 		if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, ""); err != nil {
 			log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
 			return err

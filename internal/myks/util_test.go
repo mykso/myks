@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"reflect"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/pmezard/go-difflib/difflib"
 )
@@ -455,4 +457,49 @@ func Test_extract(t *testing.T) {
 			}
 		})
 	}
+}
+
+func Test_deleteDirectoryContents(t *testing.T) {
+	type args struct {
+		dir string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		wantErr bool
+	}{
+		{"happy path", args{"/tmp/test-dir"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			testFile, err := createTestFile(tt.args.dir)
+			if err != nil {
+				t.Errorf("deleteDirectoryContents() error = %v", err)
+			}
+			if err := deleteDirectoryContents(tt.args.dir); (err != nil) != tt.wantErr || fileExists(testFile) {
+				t.Errorf("deleteDirectoryContents() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func createTestFile(path string) (string, error) {
+	err := createDirectory(path)
+	if err != nil {
+		return "", err
+	}
+	currentDate := time.Now().Format("2006-01-02")
+	filePath := filepath.Join(path, currentDate)
+	err = os.WriteFile(filePath, []byte(currentDate), 0o644)
+	if err != nil {
+		return "", err
+	}
+	return filePath, nil
+}
+
+func fileExists(path string) bool {
+	if _, err := os.Stat(path); err != nil {
+		return false
+	}
+	return true
 }
