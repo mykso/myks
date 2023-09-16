@@ -54,6 +54,10 @@ func init() {
 	asyncHelp := "sets the number of applications to be processed in parallel\nthe default (0) is no limit"
 	rootCmd.PersistentFlags().IntVarP(&asyncLevel, "async", "a", 0, asyncHelp)
 
+	smartModeBaseRevisionHelp := "base revision to compare against in Smart Mode\n" +
+		"if not provided, only local changes will be considered"
+	rootCmd.PersistentFlags().String("smart-mode.base-revision", "", smartModeBaseRevisionHelp)
+
 	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
 	}
@@ -82,7 +86,7 @@ func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 		// smart mode requires instantiation of globe object to get the list of environments
 		// the globe object will not be used later in the process. It is only used to get the list of all environments and their apps.
 		globeAllEnvsAndApps := myks.New(".")
-		targetEnvironments, targetApplications, err = globeAllEnvsAndApps.DetectChangedEnvsAndApps()
+		targetEnvironments, targetApplications, err = globeAllEnvsAndApps.DetectChangedEnvsAndApps(viper.GetString("smart-mode.base-revision"))
 		if err != nil {
 			log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
 		}

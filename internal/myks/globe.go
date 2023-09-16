@@ -23,6 +23,8 @@ type Globe struct {
 
 	// Base directory for environments
 	EnvironmentBaseDir string `default:"envs"`
+	// Main branch name
+	MainBranchName string `default:"main"`
 	// Prefix for kubernetes namespaces
 	NamespacePrefix string `default:""`
 	// Application prototypes directory
@@ -68,8 +70,6 @@ type Globe struct {
 	YttPkgStepDirName string `default:"ytt-pkg"`
 	// Ytt step directory name
 	YttStepDirName string `default:"ytt"`
-	// Main branch name
-	MainBranchName string `default:"main"`
 
 	/// User input
 
