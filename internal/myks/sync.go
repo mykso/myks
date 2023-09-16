@@ -107,12 +107,6 @@ func (a *Application) doSync(vendirSecrets string) error {
 		return err
 	}
 
-	err = createDirectory(vendorDir)
-	if err != nil {
-		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create vendor dir: "+vendorDir))
-		return err
-	}
-
 	// TODO sync retry
 	// only sync vendir with directory flag, if the lock file matches the vendir config file and caching is enabled
 	if a.useCache && checkLockFileMatch(vendirDirs, lockFileDirs) {
@@ -128,9 +122,15 @@ func (a *Application) doSync(vendirSecrets string) error {
 		}
 	} else {
 		// remove old content of vendor directory, since there might be leftovers in case of path changes
-		if deleteDirectoryContents(vendorDir) != nil {
+		if err := os.RemoveAll(vendorDir); err != nil {
 			return err
 		}
+
+		if err := createDirectory(vendorDir); err != nil {
+			log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create vendor dir: "+vendorDir))
+			return err
+		}
+
 		if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, ""); err != nil {
 			log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
 			return err
