@@ -105,7 +105,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) ([]string, []string) {
 	}))
 
 	if g.checkGlobalConfigChanged(allChangedFilePaths) {
-		return nil, nil
+		return []string{g.EnvironmentBaseDir}, nil
 	}
 	modifiedEnvs := g.getModifiedEnvs(allChangedFilesExceptDeletions)
 	modifiedEnvsFromApp, modifiedApps := g.getModifiedApps(allChangedFilePaths, g.getModifiedEnvs(allDeletions))
