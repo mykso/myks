@@ -3,7 +3,7 @@ kind: Config
 directories:
   - path: vendor/charts/ingress-nginx
     contents:
-      - path: ingress-nginx
+      - path: chart
         helmChart:
           name: ingress-nginx
           version: 4.7.1
