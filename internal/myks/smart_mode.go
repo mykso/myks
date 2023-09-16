@@ -12,32 +12,32 @@ import (
 )
 
 func (g *Globe) getGlobalLibDirExpr() string {
-	return "^" + g.YttLibraryDirName + "/.*$"
+	return "^" + g.GitPathPrefix + g.YttLibraryDirName + "/.*$"
 }
 
 func (g *Globe) getGlobalYttDirExpr() string {
-	return "^" + g.EnvironmentBaseDir + "/_env/" + g.YttStepDirName + "/.*$"
+	return "^" + g.GitPathPrefix + g.EnvironmentBaseDir + "/_env/" + g.YttStepDirName + "/.*$"
 }
 
 func (g *Globe) getGlobalEnvExpr() string {
-	return "^" + g.EnvironmentBaseDir + "/" + g.EnvironmentDataFileName + "$"
+	return "^" + g.GitPathPrefix + g.EnvironmentBaseDir + "/" + g.EnvironmentDataFileName + "$"
 }
 
 func (g *Globe) getPrototypeExpr() string {
 	subDirs := [...]string{g.YttStepDirName, "helm", "vendir", g.YttPkgStepDirName, g.ArgoCDDataDirName}
-	return "^" + g.PrototypesDir + "/(?:.*?/)?(.*?)/(?:" + strings.Join(subDirs[:], "|") + ")/.*$"
+	return "^" + g.GitPathPrefix + g.PrototypesDir + "/(?:.*?/)?(.*?)/(?:" + strings.Join(subDirs[:], "|") + ")/.*$"
 }
 
 func (g *Globe) getPrototypeDataFileExpr() string {
-	return "^" + g.PrototypesDir + "/(?:.*?/)?(.*?)/" + g.ApplicationDataFileName + "$"
+	return "^" + g.GitPathPrefix + g.PrototypesDir + "/(?:.*?/)?(.*?)/" + g.ApplicationDataFileName + "$"
 }
 
 func (g *Globe) getEnvsExpr() string {
-	return "^(" + g.EnvironmentBaseDir + "/.+)/" + g.EnvironmentDataFileName + "$"
+	return "^" + g.GitPathPrefix + "(" + g.EnvironmentBaseDir + "/.+)/" + g.EnvironmentDataFileName + "$"
 }
 
 func (g *Globe) getAppsExpr() string {
-	return "^(" + g.EnvironmentBaseDir + "/.*?)/_apps/(.*?)/.*$"
+	return "^" + g.GitPathPrefix + "(" + g.EnvironmentBaseDir + "/.*?)/_apps/(.*?)/.*$"
 }
 
 func (g *Globe) DetectChangedEnvsAndApps() ([]string, []string, error) {
