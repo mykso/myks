@@ -24,7 +24,7 @@ func Test_hash(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.a, func(t *testing.T) {
-			if got := hash(tt.b); got != tt.want {
+			if got := hashString(tt.b); got != tt.want {
 				t.Errorf("hash() = %v, wantArgs %v", got, tt.want)
 			}
 		})
@@ -401,14 +401,14 @@ func TestProcess(t *testing.T) {
 
 func assertEqual(t *testing.T, got, want interface{}) {
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Expected:\n%v\nGot:\n%v\nDifference:\n%v", want, got, diff(got, want))
+		t.Errorf("Expected:\n%v\nGot:\n%v\nDifference:\n%v", want, got, diff(want, got))
 	}
 }
 
-func diff(a, b interface{}) string {
+func diff(expected, actual interface{}) string {
 	diff := difflib.UnifiedDiff{
-		A:        difflib.SplitLines(fmt.Sprintf("%v", a)),
-		B:        difflib.SplitLines(fmt.Sprintf("%v", b)),
+		A:        difflib.SplitLines(fmt.Sprintf("%v", expected)),
+		B:        difflib.SplitLines(fmt.Sprintf("%v", actual)),
 		FromFile: "Expected",
 		ToFile:   "Actual",
 		Context:  3,

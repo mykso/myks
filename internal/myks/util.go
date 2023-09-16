@@ -186,8 +186,7 @@ func sortYaml(yaml map[string]interface{}) (string, error) {
 	return sorted.String(), nil
 }
 
-// hash string
-func hash(s string) string {
+func hashString(s string) string {
 	hash := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(hash[:])
 }

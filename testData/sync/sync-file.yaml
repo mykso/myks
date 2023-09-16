@@ -1,4 +1,2 @@
-- path: path
-  contentHash: hash
-- path: path2
-  contentHash: hash2
+path: hash
+path2: hash2

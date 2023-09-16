@@ -10,26 +10,26 @@ func TestApplication_readSyncFile(t *testing.T) {
 	tests := []struct {
 		name     string
 		filePath string
-		want     []Directory
+		want     vendirDirHashes
 		wantErr  bool
 	}{
 		{
 			"happy path",
 			"../../testData/sync/sync-file.yaml",
-			[]Directory{{Path: "path", ContentHash: "hash"}, {Path: "path2", ContentHash: "hash2"}},
+			vendirDirHashes{"path": "hash", "path2": "hash2"},
 			false,
 		},
 		{
 			"no sync file",
 			"no-existing.yaml",
-			[]Directory{},
+			vendirDirHashes{},
 			false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// write sync file
-			var dirs []Directory
+			var dirs vendirDirHashes
 			var err error
 			if dirs, err = readSyncFile(tt.filePath); (err != nil) != tt.wantErr {
 				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
@@ -43,15 +43,15 @@ func Test_checkVersionMatch(t *testing.T) {
 	type args struct {
 		path        string
 		contentHash string
-		syncDirs    []Directory
+		syncDirs    vendirDirHashes
 	}
 	tests := []struct {
 		name string
 		args args
 		want bool
 	}{
-		{"happy path", args{"path1", "hash1", []Directory{{ContentHash: "hash1", Path: "path1"}}}, true},
-		{"sad path", args{"path1", "hash1", []Directory{{ContentHash: "no-match", Path: "path1"}}}, false},
+		{"happy path", args{"path1", "hash1", vendirDirHashes{"path1": "hash1"}}, true},
+		{"sad path", args{"path1", "hash1", vendirDirHashes{"path1": "no-match"}}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -62,31 +62,31 @@ func Test_checkVersionMatch(t *testing.T) {
 	}
 }
 
-func Test_findDirectories(t *testing.T) {
+func Test_getVendirDirHashes(t *testing.T) {
 	tests := []struct {
 		name    string
 		input   string
-		want    []Directory
+		want    vendirDirHashes
 		wantErr bool
 	}{
 		{
 			"happy path",
 			"../../testData/sync/vendir-simple.yaml",
-			[]Directory{{ContentHash: "6fc0b0703de83385531372f85eae1763ae6af7068ec0b420abd5562adec2a01f", Path: "vendor/charts/loki-stack", Secret: "loki-secret"}},
+			vendirDirHashes{"vendor/charts/loki-stack": "da992fbae34fe2c310026bef76eb03cf103743010c98a8a1922303a384833fdd"},
 			false,
 		},
 		{
 			"yaml order irrelevant for hash",
 			"../../testData/sync/vendir-simple-different-order.yaml",
-			[]Directory{{ContentHash: "5589fa11a8117eefbec30e4190b9649dd282bd747b4acbd6e47201700990870b", Path: "vendor/charts/loki-stack"}},
+			vendirDirHashes{"vendor/charts/loki-stack": "64eb3e3e2af99bc1d5fd155b2edc4ed3b4721430919602cd6d11c76d3ab17d24"},
 			false,
 		},
 		{
 			"multiple directories",
 			"../../testData/sync/vendir-multiple-directories.yaml",
-			[]Directory{
-				{ContentHash: "84bc14f63b966dcec26278cc66976cdba19a8757f5b06f2be463e8033c8ade9c", Path: "vendor/charts/ingress-nginx"},
-				{ContentHash: "4f95153c2130e5967fc97f0977877012b3f1579e6fcd9e66184302252ca83c70", Path: "vendor/ytt/grafana-dashboards"},
+			vendirDirHashes{
+				"vendor/charts/ingress-nginx":   "3b52aa63642d9d9ab4bb3007ce67f1f0431d1791c4d4c78a544971d67728320a",
+				"vendor/ytt/grafana-dashboards": "c068fe6a6572bf9fc0aeb87f70acd494122931b44ea4297a1297fb2f735b2723",
 			},
 			false,
 		},
@@ -99,15 +99,13 @@ func Test_findDirectories(t *testing.T) {
 		{
 			"multiple contents",
 			"../../testData/sync/vendir-multiple-contents.yaml",
-			nil,
-			true,
+			vendirDirHashes{"vendor/charts/ingress-nginx": "e9b262400008526b84cf46d99f844f84bbbef2abedc38a077ef7c6ec015ef6dd"},
+			false,
 		},
 		{
 			"with sub path",
 			"../../testData/sync/vendir-with-subpath.yaml",
-			[]Directory{
-				{ContentHash: "5fa245cedee795a9a01fc62f3c56ac809dc8b304f6656897d060b68b8a5f32ef", Path: "vendor/charts/loki-stack"},
-			},
+			vendirDirHashes{"vendor/charts": "92f1735562d38c44a735022f1ada170b7d286ef2e51f9cba9a3c67c83c9ecae0"},
 			false,
 		},
 	}
@@ -118,9 +116,9 @@ func Test_findDirectories(t *testing.T) {
 				t.Errorf("unmarshalYamlToMap() error = %v", err)
 				return
 			}
-			got, err := findDirectories(yaml)
+			got, err := getVendirDirHashes(yaml)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("findDirectories() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("getVendirDirHashes() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			assertEqual(t, got, tt.want)
@@ -135,16 +133,19 @@ func Test_readLockFile(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    []Directory
+		want    vendirDirHashes
 		wantErr bool
 	}{
-		{"happy path", args{"../../testData/sync/lock-file.yaml"}, []Directory{{Path: "vendor/charts/loki-stack", ContentHash: "9ebaa03dc8dd419b94a124193f6b597037daa95e208febb0122ca8920667f42a"}, {Path: "vendor/charts/ingress-nginx", ContentHash: "1d535ff265861947e32c890cbcb76d93a9562771dbd7b3367e4d723c1c6d95db"}}, false},
-		{"file not exist", args{"file-not-exist.yaml"}, []Directory{}, false},
+		{"happy path", args{"../../testData/sync/lock-file.yaml"}, vendirDirHashes{
+			"vendor/charts":               "98d8127a386c0e1520c758783642a42d7cee97b32a8f255974ea3d48bc237f5a",
+			"vendor/charts/ingress-nginx": "3eec412b32018cdad77f2b084719a142f034bb9df19866f0cf847641a4c27a96",
+		}, false},
+		{"file not exist", args{"file-not-exist.yaml"}, vendirDirHashes{}, false},
 		{"no lock file", args{"../../testData/sync/simple.yaml"}, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := readLockFile(tt.args.vendirLockFile)
+			got, err := readLockFileDirHashes(tt.args.vendirLockFile)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -154,41 +155,19 @@ func Test_readLockFile(t *testing.T) {
 	}
 }
 
-func Test_checkPathMatch(t *testing.T) {
-	type args struct {
-		path     string
-		syncDirs []Directory
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{"happy path", args{"path1", []Directory{{Path: "path1"}}}, true},
-		{"sad path", args{"non-existing", []Directory{{Path: "path1"}}}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := checkPathMatch(tt.args.path, tt.args.syncDirs); got != tt.want {
-				t.Errorf("checkPathMatch() = %v, wantArgs %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func Test_checkLockFileMatch(t *testing.T) {
 	type args struct {
-		vendirDirs   []Directory
-		lockFileDirs []Directory
+		vendirDirs   vendirDirHashes
+		lockFileDirs vendirDirHashes
 	}
 	tests := []struct {
 		name string
 		args args
 		want bool
 	}{
-		{"happy path", args{[]Directory{{Path: "path1"}}, []Directory{{Path: "path1"}}}, true},
-		{"sad path", args{[]Directory{{Path: "path2"}}, []Directory{{Path: "path1"}}}, false},
-		{"wrong sort order", args{[]Directory{{Path: "path1"}, {Path: "path2"}}, []Directory{{Path: "path2"}, {Path: "path1"}}}, true},
+		{"happy path", args{vendirDirHashes{"path1": ""}, vendirDirHashes{"path1": ""}}, true},
+		{"sad path", args{vendirDirHashes{"path2": ""}, vendirDirHashes{"path1": ""}}, false},
+		{"wrong sort order", args{vendirDirHashes{"path1": "", "path2": ""}, vendirDirHashes{"path2": "", "path1": ""}}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -206,17 +185,27 @@ func Test_readVendirConfig(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    []Directory
+		want    vendirDirHashes
 		wantErr bool
 	}{
-		{"happy path", args{"../../testData/sync/vendir-simple.yaml"}, []Directory{{Path: "vendor/charts/loki-stack", ContentHash: "6fc0b0703de83385531372f85eae1763ae6af7068ec0b420abd5562adec2a01f", Secret: "loki-secret"}}, false},
-		{"oci image", args{"../../testData/sync/vendir-oci.yaml"}, []Directory{{Path: "vendor/ytt/grafana", ContentHash: "11b1e2b989d81bb8daffc10f7be4d059bc0eec684913732fbfdadabbe79c7fb2", Secret: "grafana-secret"}}, false},
+		{
+			"happy path",
+			args{"../../testData/sync/vendir-simple.yaml"},
+			vendirDirHashes{"vendor/charts/loki-stack": "da992fbae34fe2c310026bef76eb03cf103743010c98a8a1922303a384833fdd"},
+			false,
+		},
+		{
+			"oci image",
+			args{"../../testData/sync/vendir-oci.yaml"},
+			vendirDirHashes{"vendor/ytt/grafana": "cd9f99d5020ad7d19b5fa27919112ace76a2d5c0d948e22207b6cba8d1374f22"},
+			false,
+		},
 		{"file not exist", args{"file-not-exist.yaml"}, nil, true},
 		{"no vendir file", args{"../../testData/sync/simple.yaml"}, nil, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := readVendirConfig(tt.args.vendirConfigFilePath)
+			got, err := readVendirDirHashes(tt.args.vendirConfigFilePath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -229,7 +218,7 @@ func Test_readVendirConfig(t *testing.T) {
 func Test_writeSyncFile(t *testing.T) {
 	type args struct {
 		syncFilePath string
-		directories  []Directory
+		directories  vendirDirHashes
 	}
 	tests := []struct {
 		name    string
@@ -239,8 +228,14 @@ func Test_writeSyncFile(t *testing.T) {
 	}{
 		{
 			"happy path",
-			args{filepath.Join(os.TempDir(), "testfile"), []Directory{{Path: "path", ContentHash: "hash"}, {Path: "path2", ContentHash: "hash2"}}},
-			"- path: path\n  contentHash: hash\n- path: path2\n  contentHash: hash2\n",
+			args{
+				filepath.Join(os.TempDir(), "testfile"),
+				vendirDirHashes{
+					"path":  "hash",
+					"path2": "hash2",
+				},
+			},
+			"path: hash\npath2: hash2\n",
 			false,
 		},
 	}
@@ -251,10 +246,10 @@ func Test_writeSyncFile(t *testing.T) {
 			}
 			file, err := os.ReadFile(tt.args.syncFilePath)
 			if err != nil {
-				t.Errorf("writeFile() error = %v", err)
+				t.Errorf("os.ReadFile() error = %v", err)
 			}
 			if string(file) != tt.want {
-				t.Errorf("writeSecretFile() got = %v, wantArgs %v", file, tt.want)
+				t.Errorf("got = %v, want %v", file, tt.want)
 			}
 		})
 	}
