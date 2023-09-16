@@ -3,6 +3,7 @@ package myks
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -13,31 +14,38 @@ type ChangedFile struct {
 	status string
 }
 
-// return all files paths that were changed since the revision
-func getChangedFiles(revision string) ([]ChangedFile, error) {
+// getChangedFiles returns list of files changed sinc the revision, if specified, and since the last commit
+func getChangedFiles(revision *string) ([]ChangedFile, error) {
 	logFn := func(name string, args []string) {
 		log.Debug().Msg(msgRunCmd("get diff for smart-mode", name, args))
 	}
-	_, err := runCmd("git", nil, []string{"add", ".", "--intent-to-add"}, logFn)
+
+	files := []ChangedFile{}
+	if revision != nil {
+		result, err := runCmd("git", nil, []string{"diff", "--name-status", *revision}, logFn)
+		if err != nil {
+			return nil, err
+		}
+		files = convertToChangedFiles(result.Stdout)
+	}
+
+	result, err := runCmd("git", nil, []string{"status", "--porcelain"}, logFn)
 	if err != nil {
 		return nil, err
 	}
-	result, err := runCmd("git", nil, []string{"diff", "--ignore-blank-lines", "--name-status", revision}, logFn)
-	if err != nil {
-		return nil, err
-	}
-	if result.Stdout == "" {
-		return nil, nil
-	}
-	return convertToChangedFiles(result.Stdout), err
+	files = append(files, convertToChangedFiles(result.Stdout)...)
+
+	return files, nil
 }
 
 func convertToChangedFiles(changes string) []ChangedFile {
 	var cfs []ChangedFile
+	expr := regexp.MustCompile(`^([A-Z]\t|[A-Z? ]{2} )(.*)$`)
 	for _, str := range strings.Split(changes, "\n") {
-		if str != "" {
-			parts := strings.Split(str, "\t")
-			cf := ChangedFile{path: parts[1], status: parts[0]}
+		matches := expr.FindStringSubmatch(str)
+		if len(matches) == 3 {
+			status := strings.Trim(matches[1], " \t")[:1]
+			cf := ChangedFile{path: matches[2], status: status}
 			cfs = append(cfs, cf)
 		}
 	}
