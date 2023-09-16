@@ -15,14 +15,14 @@ type ChangedFile struct {
 }
 
 // getChangedFiles returns list of files changed sinc the revision, if specified, and since the last commit
-func getChangedFiles(revision *string) ([]ChangedFile, error) {
+func getChangedFiles(revision string) ([]ChangedFile, error) {
 	logFn := func(name string, args []string) {
 		log.Debug().Msg(msgRunCmd("get diff for smart-mode", name, args))
 	}
 
 	files := []ChangedFile{}
-	if revision != nil {
-		result, err := runCmd("git", nil, []string{"diff", "--name-status", *revision}, logFn)
+	if revision != "" {
+		result, err := runCmd("git", nil, []string{"diff", "--name-status", revision}, logFn)
 		if err != nil {
 			return nil, err
 		}

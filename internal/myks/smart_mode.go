@@ -59,7 +59,7 @@ func (g *Globe) DetectChangedEnvsAndApps() ([]string, []string, error) {
 		log.Err(err).Msg(g.Msg("Failed to get current revision"))
 		return nil, nil, err
 	}
-	changedFiles, err := getChangedFiles(&curRev)
+	changedFiles, err := getChangedFiles(curRev)
 	if err != nil {
 		log.Err(err).Msg(g.Msg("Failed to get diff"))
 		return nil, nil, err
