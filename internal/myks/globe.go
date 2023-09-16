@@ -208,6 +208,10 @@ func (g *Globe) Cleanup() error {
 		dirPath := filepath.Join(g.RootDir, g.RenderedDir, dir)
 		files, err := os.ReadDir(dirPath)
 		if err != nil {
+			if os.IsNotExist(err) {
+				log.Debug().Str("dir", dirPath).Msg("Skipping cleanup of non-existing directory")
+				continue
+			}
 			return fmt.Errorf("Unable to read dir: %w", err)
 		}
 

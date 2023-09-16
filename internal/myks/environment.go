@@ -134,6 +134,10 @@ func (e *Environment) renderedApplications() ([]string, error) {
 	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedDir, "envs", e.Id)
 	files, err := os.ReadDir(dirEnvRendered)
 	if err != nil {
+		if os.IsNotExist(err) {
+			log.Debug().Str("dir", dirEnvRendered).Err(err).Msg("")
+			return apps, nil
+		}
 		return nil, fmt.Errorf("unable to read dir: %w", err)
 	}
 	for _, file := range files {
