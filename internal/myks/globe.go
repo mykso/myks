@@ -71,13 +71,6 @@ type Globe struct {
 	// Ytt step directory name
 	YttStepDirName string `default:"ytt"`
 
-	/// User input
-
-	// Application names to process
-	ApplicationNames []string
-	// Paths to scan for environments
-	SearchPaths []string
-
 	/// Runtime data
 
 	// Git repository path prefix (non-empty if running in a subdirectory of a git repository)
@@ -104,6 +97,8 @@ type VendirCredentials struct {
 	Username string
 	Password string
 }
+
+type EnvAppMap map[string][]string
 
 func New(rootDir string) *Globe {
 	g := &Globe{
@@ -143,18 +138,23 @@ func New(rootDir string) *Globe {
 	return g
 }
 
-func (g *Globe) Init(asyncLevel int, searchPaths []string, applicationNames []string) error {
-	g.SearchPaths = searchPaths
-	g.ApplicationNames = applicationNames
+func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
+	envAppMap := g.collectEnvironments(envSearchPathToAppMap)
 
-	g.collectEnvironments(searchPaths)
-
-	return process(asyncLevel, g.environments, func(item interface{}) error {
-		env, ok := item.(*Environment)
+	return process(asyncLevel, envAppMap, func(item interface{}) error {
+		envPath, ok := item.(string)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to *Environment")
+			return fmt.Errorf("Unable to cast item to string")
 		}
-		return env.Init(applicationNames)
+		env, ok := g.environments[envPath]
+		if !ok {
+			return fmt.Errorf("Unable to find environment for path: %s", envPath)
+		}
+		appNames, ok := envAppMap[envPath]
+		if !ok {
+			return fmt.Errorf("Unable to find app names for path: %s", envPath)
+		}
+		return env.Init(appNames)
 	})
 }
 
@@ -262,19 +262,24 @@ func (g *Globe) dumpConfigAsYaml() (string, error) {
 	return configFileName, nil
 }
 
-func (g *Globe) collectEnvironments(searchPaths []string) {
-	if len(searchPaths) == 0 {
-		searchPaths = []string{g.EnvironmentBaseDir}
+func (g *Globe) collectEnvironments(envSearchPathToAppMap EnvAppMap) EnvAppMap {
+	envAppMap := EnvAppMap{}
+	if len(envSearchPathToAppMap) == 0 {
+		envAppMap = EnvAppMap{g.EnvironmentBaseDir: []string{}}
 	}
 
-	for _, searchPath := range searchPaths {
-		g.collectEnvironmentsInPath(searchPath)
+	for searchPath, appNames := range envSearchPathToAppMap {
+		for _, envPath := range g.collectEnvironmentsInPath(searchPath) {
+			envAppMap[envPath] = appNames
+		}
 	}
 
-	log.Debug().Interface("environments", g.environments).Msg(g.Msg("Collected environments"))
+	log.Debug().Interface("envToAppMap", envAppMap).Msg(g.Msg("Collected environments"))
+	return envAppMap
 }
 
-func (g *Globe) collectEnvironmentsInPath(searchPath string) {
+func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
+	result := []string{}
 	err := filepath.WalkDir(searchPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -285,6 +290,7 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) {
 				env, err := NewEnvironment(g, path)
 				if err == nil {
 					g.environments[path] = env
+					result = append(result, path)
 				} else {
 					log.Debug().
 						Err(err).
@@ -298,6 +304,7 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) {
 	if err != nil {
 		log.Fatal().Err(err).Msg("Unable to walk environment directories")
 	}
+	return result
 }
 
 func (g *Globe) setGitPathPrefix() error {

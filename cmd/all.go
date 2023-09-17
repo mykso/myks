@@ -18,7 +18,7 @@ func init() {
 		Run: func(cmd *cobra.Command, args []string) {
 			g := myks.New(".")
 
-			if err := g.Init(asyncLevel, targetEnvironments, targetApplications); err != nil {
+			if err := g.Init(asyncLevel, envAppMap); err != nil {
 				log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 			}
 
@@ -26,7 +26,8 @@ func init() {
 				log.Fatal().Err(err).Msg("Unable to sync vendir configs")
 			}
 
-			if targetEnvironments == nil {
+			// Cleaning up only if all environments and applications were processed
+			if envAppMap == nil {
 				if err := g.Cleanup(); err != nil {
 					log.Fatal().Err(err).Msg("Unable to cleanup")
 				}
