@@ -85,163 +85,7 @@ func Test_checkFileChanged(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := checkFileChanged(tt.args.changedFiles, tt.args.regExps...); got != tt.want {
-				t.Errorf("checkFileChanged() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGlobe_getModifiedEnvs(t *testing.T) {
-	type args struct {
-		changedFiles []string
-	}
-	tests := []struct {
-		name string
-		args args
-		want []string
-	}{
-		{"cross check", args{[]string{"some-irrelevant-path.yaml"}}, nil},
-		{"happy path", args{[]string{
-			"envs/env1/env-data.ytt.yaml",
-			"envs/sub-env/env2/env-data.ytt.yaml",
-			"envs/sub-env/env4/some-file.ytt.yaml",
-		}}, []string{
-			"envs/env1",
-			"envs/sub-env/env2",
-		}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := createGlobe(t)
-			envs := g.getModifiedEnvs(tt.args.changedFiles)
-			sort.Strings(envs)
-			if got := envs; !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getChanges() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGlobe_getModifiedPrototypes(t *testing.T) {
-	type args struct {
-		changedFiles []string
-	}
-	tests := []struct {
-		name string
-		args args
-		want []string
-	}{
-		{"cross check", args{[]string{"some-irrelevant-path.yaml"}}, nil},
-		{"happy path", args{[]string{
-			"prototypes/app1/app-data.ytt.yaml",
-			"prototypes/app2/vendir/app.yaml",
-			"prototypes/app3/ytt/app.yaml",
-			"prototypes/app4/ytt-pkg/app.yaml",
-			"prototypes/app5/helm/app.yaml",
-			"prototypes/app5/any/app.yaml",
-		}}, []string{
-			"app1",
-			"app2",
-			"app3",
-			"app4",
-			"app5",
-		}},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := createGlobe(t)
-			apps := g.getModifiedPrototypes(tt.args.changedFiles)
-			sort.Strings(apps)
-			if got := apps; !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("getChanges() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestGlobe_getModifiedApps(t *testing.T) {
-	type args struct {
-		changedFiles []string
-		deletedEnvs  []string
-	}
-	tests := []struct {
-		name     string
-		args     args
-		wantEnvs []string
-		wantApps []string
-	}{
-		{"cross check", args{[]string{"some-irrelevant-path.yaml"}, nil}, nil, nil},
-		{
-			"happy path",
-			args{[]string{
-				"envs/env1/_apps/app1/app.yaml",
-				"envs/env1/env2/_apps/app2/app.yaml",
-				"envs/env1/no-app/test.yaml",
-				"base/env1/env2/_apps/app2/app.yaml",
-			}, nil},
-			[]string{
-				"envs/env1",
-				"envs/env1/env2",
-			},
-			[]string{
-				"app1",
-				"app2",
-			},
-		},
-		{
-			"exclude deleted env",
-			args{[]string{
-				"envs/env1/_apps/app1/app.yaml",
-				"envs/env2/_apps/app2/app.yaml",
-			}, []string{
-				"envs/env1",
-			}},
-			[]string{
-				"envs/env2",
-			},
-			[]string{
-				"app2",
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := createGlobe(t)
-			gotEnvs, gotApps := g.getModifiedApps(tt.args.changedFiles, tt.args.deletedEnvs)
-			sort.Strings(gotEnvs)
-			sort.Strings(gotApps)
-			if !reflect.DeepEqual(gotEnvs, tt.wantEnvs) {
-				t.Errorf("getChanges() = %v, want %v", gotEnvs, tt.wantEnvs)
-			}
-			if !reflect.DeepEqual(gotApps, tt.wantApps) {
-				t.Errorf("getChanges() = %v, want %v", gotApps, tt.wantApps)
-			}
-		})
-	}
-}
-
-func TestGlobe_checkGlobalConfigChanged(t *testing.T) {
-	type args struct {
-		changedFiles []string
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{"cross check", args{[]string{"envs/some-env/env-data.ytt.yaml"}}, false},
-		{"common lib", args{[]string{"lib/file1"}}, true},
-		{"common lib sub", args{[]string{"lib/sub/file1"}}, true},
-		{"match with additional file", args{[]string{"lib/sub/file1", "some-irrelevant-file"}}, true},
-		{"common ytt lib", args{[]string{"envs/_env/ytt/file1"}}, true},
-		{"common ytt lib sub", args{[]string{"envs/_env/ytt/sub/file1"}}, true},
-		{"root env", args{[]string{"envs/env-data.ytt.yaml"}}, true},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			g := createGlobe(t)
-			if got := g.checkGlobalConfigChanged(tt.args.changedFiles); got != tt.want {
-				t.Errorf("checkGlobalConfigChanged() = %v, want %v", got, tt.want)
+				t.Errorf("got %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -258,8 +102,8 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 			g:  g1,
 			Id: "env1",
 			foundApplications: map[string]string{
-				"app1": "app1",
-				"app2": "app2",
+				"app1": "proto1",
+				"app2": "proto2",
 			},
 		},
 	}
@@ -269,8 +113,8 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 			g:  g2,
 			Id: "env1",
 			foundApplications: map[string]string{
-				"app1":      "my-app-1",
-				"root/app2": "my-app-2",
+				"app1":      "proto1",
+				"root/app2": "proto2",
 			},
 		},
 	}
@@ -280,63 +124,68 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 			g:  g3,
 			Id: "env1",
 			foundApplications: map[string]string{
-				"app1": "my-app-1",
+				"app1": "proto1",
 			},
 		},
 		"env2": {
 			g:  g3,
 			Id: "env2",
 			foundApplications: map[string]string{
-				"app1": "my-app-1",
+				"app1": "proto1",
 			},
 		},
 	}
 
 	tests := []struct {
-		name     string
-		args     args
-		wantEnvs []string
-		wantApps []string
+		name           string
+		args           args
+		wantEnvAppsMap EnvAppMap
 	}{
 		{
 			"happy path",
 			args{
-				[]string{"app1"},
+				[]string{"proto1"},
 				*g1,
 			},
-			[]string{"env1"},
-			[]string{"app1"},
+			EnvAppMap{
+				"env1": {"app1"},
+			},
 		},
 		{
 			"prototype ref",
 			args{
-				[]string{"app1", "app2"},
+				[]string{"proto1", "proto2"},
 				*g2,
 			},
-			[]string{"env1"},
-			[]string{"my-app-1", "my-app-2"},
+			EnvAppMap{
+				"env1": {"app1", "root/app2"},
+			},
 		},
 		{
 			"duplicates",
 			args{
-				[]string{"app1", "app2"},
+				[]string{"proto1", "proto2"},
 				*g3,
 			},
-			[]string{"env1", "env2"},
-			[]string{"my-app-1"},
+			EnvAppMap{
+				"env1": {"app1"},
+				"env2": {"app1"},
+			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotEnvs, gotApps := tt.args.globe.findPrototypeUsage(tt.args.prototypes)
-			sort.Strings(gotEnvs)
-			sort.Strings(gotApps)
-			if !reflect.DeepEqual(gotEnvs, tt.wantEnvs) {
-				t.Errorf("findPrototypeUsage() got = %v, want %v", gotEnvs, tt.wantEnvs)
+			envAppsMap := tt.args.globe.findPrototypeUsage(tt.args.prototypes)
+
+			for _, apps := range envAppsMap {
+				sort.Strings(apps)
 			}
-			if !reflect.DeepEqual(gotApps, tt.wantApps) {
-				t.Errorf("findPrototypeUsage() got1 = %v, want %v", gotApps, tt.wantApps)
+
+			for _, apps := range tt.wantEnvAppsMap {
+				sort.Strings(apps)
 			}
+
+			assertEqual(t, envAppsMap, tt.wantEnvAppsMap)
 		})
 	}
 }
@@ -361,7 +210,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			},
 		},
 	}
-	allEnvsApps := map[string][]string{
+	renderedEnvApps := EnvAppMap{
 		"env1": {"app1", "app2"},
 		"env2": {"app2", "app3"},
 	}
@@ -369,29 +218,31 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		name         string
 		changedFiles ChangedFiles
 		rendered     map[string][]string
-		wantEnvs     []string
-		wantApps     []string
+		envAppsMap   EnvAppMap
 	}{
 		{
 			"change to global lib",
 			ChangedFiles{"lib/file1": "M"},
-			allEnvsApps,
-			[]string{g.EnvironmentBaseDir},
-			nil,
+			renderedEnvApps,
+			EnvAppMap{
+				g.EnvironmentBaseDir: nil,
+			},
 		},
 		{
 			"change to prototype",
 			ChangedFiles{"prototypes/app1/app-data.ytt.yaml": "M"},
-			allEnvsApps,
-			[]string{"envs/env1"},
-			[]string{"app1"},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app1"},
+			},
 		},
 		{
 			"change to app",
 			ChangedFiles{"envs/env1/_apps/app1/app-data.ytt.yaml": "M"},
-			allEnvsApps,
-			[]string{"envs/env1"},
-			[]string{"app1"},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app1"},
+			},
 		},
 		{
 			"change to env",
@@ -399,36 +250,42 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				"envs/env1/env-data.ytt.yaml":            "M",
 				"envs/env1/_apps/app1/app-data.ytt.yaml": "M",
 			},
-			allEnvsApps,
-			[]string{"envs/env1"},
-			nil,
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": nil,
+			},
 		},
 		{
-			"ignore env deletion",
+			"env deletion",
 			ChangedFiles{"envs/env1/env-data.ytt.yaml": "D"},
-			allEnvsApps,
-			nil,
-			nil,
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": nil,
+			},
 		},
 		{
 			"changes to all multiple envs and apps",
 			ChangedFiles{
-				"prototypes/app2/app-data.ytt.yaml":   "M",
-				"envs/env2/_apps/app3/some-file.yaml": "M",
+				"prototypes/app2/app-data.ytt.yaml":       "M",
+				"envs/env2/_apps/app3/ytt/some-file.yaml": "M",
 			},
-			allEnvsApps,
-			[]string{"envs/env1", "envs/env2"},
-			[]string{"app2", "app3"},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app2"},
+				"envs/env2": {"app2", "app3"},
+			},
 		},
 		{
 			"missing rendered apps",
 			ChangedFiles{},
-			map[string][]string{
+			EnvAppMap{
 				"env1": {"app1"},
 				"env2": {"app2"},
 			},
-			nil,
-			[]string{"app2", "app3"},
+			EnvAppMap{
+				"envs/env1": {"app2"},
+				"envs/env2": {"app3"},
+			},
 		},
 	}
 	for _, tt := range tests {
@@ -453,15 +310,14 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				}
 			}()
 
-			gotEnvs, gotApps := g.runSmartMode(tt.changedFiles)
-			sort.Strings(gotEnvs)
-			sort.Strings(gotApps)
-			if !reflect.DeepEqual(gotEnvs, tt.wantEnvs) {
-				t.Errorf("gotEnvs = %v, wantEnvs %v", gotEnvs, tt.wantEnvs)
+			envAppsMap := g.runSmartMode(tt.changedFiles)
+			for _, apps := range envAppsMap {
+				sort.Strings(apps)
 			}
-			if !reflect.DeepEqual(gotApps, tt.wantApps) {
-				t.Errorf("gotApps = %v, wantApps %v", gotApps, tt.wantApps)
+			for _, apps := range tt.envAppsMap {
+				sort.Strings(apps)
 			}
+			assertEqual(t, envAppsMap, tt.envAppsMap)
 		})
 	}
 }

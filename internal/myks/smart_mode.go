@@ -3,45 +3,15 @@ package myks
 import (
 	"fmt"
 	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/rs/zerolog/log"
 	"golang.org/x/exp/maps"
-	"golang.org/x/exp/slices"
 )
 
-func (g *Globe) getGlobalLibDirExpr() string {
-	return "^" + g.GitPathPrefix + g.YttLibraryDirName + "/.*$"
-}
-
-func (g *Globe) getGlobalYttDirExpr() string {
-	return "^" + g.GitPathPrefix + g.EnvironmentBaseDir + "/_env/" + g.YttStepDirName + "/.*$"
-}
-
-func (g *Globe) getGlobalEnvExpr() string {
-	return "^" + g.GitPathPrefix + g.EnvironmentBaseDir + "/" + g.EnvironmentDataFileName + "$"
-}
-
-func (g *Globe) getPrototypeExpr() string {
-	subDirs := [...]string{g.YttStepDirName, "helm", "vendir", g.YttPkgStepDirName, g.ArgoCDDataDirName}
-	return "^" + g.GitPathPrefix + g.PrototypesDir + "/(?:.*?/)?(.*?)/(?:" + strings.Join(subDirs[:], "|") + ")/.*$"
-}
-
-func (g *Globe) getPrototypeDataFileExpr() string {
-	return "^" + g.GitPathPrefix + g.PrototypesDir + "/(?:.*?/)?(.*?)/" + g.ApplicationDataFileName + "$"
-}
-
-func (g *Globe) getEnvsExpr() string {
-	return "^" + g.GitPathPrefix + "(" + g.EnvironmentBaseDir + "/.+)/" + g.EnvironmentDataFileName + "$"
-}
-
-func (g *Globe) getAppsExpr() string {
-	return "^" + g.GitPathPrefix + "(" + g.EnvironmentBaseDir + "/.*?)/_apps/(.*?)/.*$"
-}
-
-func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) ([]string, []string, error) {
-	g.collectEnvironments(nil)
+func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error) {
+	// envAppMap is built later by calling g.runSmartMode
+	_ = g.collectEnvironments(nil)
 
 	err := process(0, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
@@ -52,108 +22,147 @@ func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) ([]string, []strin
 	})
 	if err != nil {
 		log.Err(err).Msg(g.Msg("Failed to collect environments"))
-		return nil, nil, err
+		return nil, err
 	}
 
 	changedFiles, err := getChangedFiles(baseRevision)
 	if err != nil {
 		log.Err(err).Msg(g.Msg("Failed to get diff"))
-		return nil, nil, err
+		return nil, err
 	}
-	envs, apps := g.runSmartMode(changedFiles)
-	log.Info().Msg(g.Msg(fmt.Sprintf("Smart mode detected changes in environments: %v, applications: %v", envs, apps)))
+	envAppMap := g.runSmartMode(changedFiles)
+	log.Info().Msg(g.Msg("Smart mode detected changes"))
+	for env, apps := range envAppMap {
+		log.Debug().Str("env", env).Strs("apps", apps).Msg(g.Msg("Detected changes"))
+	}
 
-	return envs, apps, nil
+	return envAppMap, nil
 }
 
 // find apps that are missing from rendered folder
-func (g *Globe) missingApplications() ([]string, error) {
-	missingApps := []string{}
-	for name, e := range g.environments {
+func (g *Globe) missingApplications() (EnvAppMap, error) {
+	envsWithMissingApps := EnvAppMap{}
+	for path, e := range g.environments {
 		missing, err := e.missingApplications()
 		if err != nil {
-			log.Err(err).Msg(g.Msg(fmt.Sprintf("Failed to get missing applications for environment %s", name)))
+			log.Err(err).Str("env", path).Msg(g.Msg("Failed to get missing applications"))
 			return nil, err
 		}
-
-		missingApps = append(missingApps, missing...)
+		if len(missing) > 0 {
+			envsWithMissingApps[path] = missing
+		}
 	}
 
-	return missingApps, nil
+	return envsWithMissingApps, nil
 }
 
-func (g *Globe) runSmartMode(changedFiles ChangedFiles) ([]string, []string) {
-	allChangedFilePaths := maps.Keys(changedFiles)
-	allDeletions := maps.Keys(filterMap[string, string](changedFiles, func(k, v string) bool {
-		return v == "D"
-	}))
-	allChangedFilesExceptDeletions := maps.Keys(filterMap[string, string](changedFiles, func(k, v string) bool {
-		return v != "D"
-	}))
-
-	if g.checkGlobalConfigChanged(allChangedFilePaths) {
-		return []string{g.EnvironmentBaseDir}, nil
+func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
+	e := func(sample string) *regexp.Regexp {
+		return regexp.MustCompile("^" + g.GitPathPrefix + sample + "$")
 	}
-	modifiedEnvs := g.getModifiedEnvs(allChangedFilesExceptDeletions)
-	modifiedEnvsFromApp, modifiedApps := g.getModifiedApps(allChangedFilePaths, g.getModifiedEnvs(allDeletions))
-	modifiedPrototypes := g.getModifiedPrototypes(allChangedFilePaths)
-	modifiedEnvsFromPrototype, modifiedAppsFromPrototype := g.findPrototypeUsage(modifiedPrototypes)
 
-	missingApps, err := g.missingApplications()
+	// Subdirectories of apps and prototypes are named after plugins
+	plugins := []string{g.YttStepDirName, "helm", "vendir", g.YttPkgStepDirName, g.ArgoCDDataDirName}
+	pluginsPattern := "(?:" + strings.Join(plugins, "|") + ")"
+
+	exprMap := map[string][]*regexp.Regexp{
+		// No submatches needed
+		"global": {
+			e(g.YttLibraryDirName + "/.*"),
+		},
+		// Env search path is the only submatch
+		"env": {
+			e("(" + g.EnvironmentBaseDir + ".*)/_env/" + g.YttStepDirName + "/.*"),
+			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvironmentDataFileName),
+		},
+		// Prototype name is the only submatch
+		"prototype": {
+			e(g.PrototypesDir + "/(.+)/" + pluginsPattern + "/.*"),
+			e(g.PrototypesDir + "/(.+)/" + g.ApplicationDataFileName),
+		},
+		// Env path and app name are the submatches
+		"app": {
+			e("(" + g.EnvironmentBaseDir + ".*)/_apps/([^/]+)/" + pluginsPattern + "/.*"),
+			e("(" + g.EnvironmentBaseDir + ".*)/_apps/([^/]+)/" + g.ApplicationDataFileName),
+		},
+	}
+
+	extractMatches := func(exprs []*regexp.Regexp, path string) []string {
+		for _, expr := range exprs {
+			if submatches := expr.FindStringSubmatch(path); submatches != nil {
+				return submatches[1:]
+			}
+		}
+		return nil
+	}
+
+	// Here we start collecting changed environments and applications,
+	// starting with those that are missed from the rendered directory.
+	envAppMap, err := g.missingApplications()
 	if err != nil {
 		log.Err(err).Msg(g.Msg("Failed to get missing applications"))
 	}
 
-	// Once envs have been modified globally, we can no longer render individual apps, since we don't know which apps are affected.
-	// This goes for editing of env-data.ytt.yaml, global ytt files as well as manifests.
-	if len(modifiedEnvs) > 0 {
-		envs := append(modifiedEnvs, modifiedEnvsFromPrototype...)
-		envs = append(envs, modifiedEnvsFromApp...)
-		envs = removeDuplicates(envs)
-		sort.Strings(envs)
-		return envs, nil
-	} else {
-		envs := removeDuplicates(append(modifiedEnvsFromPrototype, modifiedEnvsFromApp...))
-		sort.Strings(envs)
-		apps := removeDuplicates(concatenate(modifiedApps, modifiedAppsFromPrototype, missingApps))
-		sort.Strings(apps)
-		return envs, apps
+	changedEnvs := []string{}
+	changedPrototypes := []string{}
+
+	for _, path := range maps.Keys(changedFiles) {
+		// Check if the global configuration has changed
+		if extractMatches(exprMap["global"], path) != nil {
+			// If global configuration has changed, we need to render all environments
+			return EnvAppMap{g.EnvironmentBaseDir: nil}
+		}
+
+		// If env has changed
+		if envMatch := extractMatches(exprMap["env"], path); envMatch != nil {
+			changedEnvs = append(changedEnvs, envMatch[0])
+			continue
+		}
+
+		// If prototype has changed
+		if protoMatch := extractMatches(exprMap["prototype"], path); protoMatch != nil {
+			changedPrototypes = append(changedPrototypes, protoMatch[0])
+			continue
+		}
+
+		// If app has changed
+		if appMatch := extractMatches(exprMap["app"], path); appMatch != nil {
+			envAppMap[appMatch[0]] = append(envAppMap[appMatch[0]], appMatch[1])
+			continue
+		}
 	}
+
+	for env, apps := range g.findPrototypeUsage(changedPrototypes) {
+		envAppMap[env] = append(envAppMap[env], apps...)
+	}
+
+	// If env has changed, all apps in that env are affected
+	for _, env := range changedEnvs {
+		envAppMap[env] = nil
+	}
+
+	for env, apps := range envAppMap {
+		if apps != nil {
+			// Remove duplicates
+			envAppMap[env] = removeDuplicates(apps)
+		}
+	}
+
+	return envAppMap
 }
 
-func (g *Globe) findPrototypeUsage(prototypes []string) ([]string, []string) {
-	var envs []string
-	var apps []string
+func (g *Globe) findPrototypeUsage(prototypes []string) EnvAppMap {
+	envAppMap := EnvAppMap{}
 	for _, prototype := range prototypes {
 		for envPath, env := range g.environments {
-			for appProto, appName := range env.foundApplications {
-				if appProto == prototype || strings.HasSuffix(appProto, "/"+prototype) {
-					envs = append(envs, envPath)
-					apps = append(apps, appName)
+			for appName, appProto := range env.foundApplications {
+				if appProto == prototype {
+					envAppMap[envPath] = append(envAppMap[envPath], appName)
 				}
 			}
 		}
 	}
-	return removeDuplicates(envs), removeDuplicates(apps)
-}
-
-func (g *Globe) checkGlobalConfigChanged(changedFiles []string) bool {
-	return checkFileChanged(changedFiles, g.getGlobalLibDirExpr(), g.getGlobalYttDirExpr(), g.getGlobalEnvExpr())
-}
-
-func (g *Globe) getModifiedPrototypes(changedFiles []string) []string {
-	changes, _ := getChanges(changedFiles, g.getPrototypeDataFileExpr(), g.getPrototypeExpr())
-	return changes
-}
-
-func (g *Globe) getModifiedApps(changedFiles []string, deletedEnvs []string) ([]string, []string) {
-	envs, apps := getChanges(changedFiles, g.getAppsExpr())
-	return filterDeletedEnvs(envs, apps, deletedEnvs)
-}
-
-func (g *Globe) getModifiedEnvs(changedFiles []string) []string {
-	modifiedEnvs, _ := getChanges(changedFiles, g.getEnvsExpr())
-	return removeSubPaths(modifiedEnvs)
+	return envAppMap
 }
 
 func checkFileChanged(changedFiles []string, regExps ...string) bool {
@@ -186,17 +195,4 @@ func getChanges(changedFilePaths []string, regExps ...string) ([]string, []strin
 		}
 	}
 	return matches1, matches2
-}
-
-func filterDeletedEnvs(envs []string, apps []string, deletedEnvs []string) ([]string, []string) {
-	var resultEnvs []string
-	var resultApps []string
-	for i, env := range envs {
-		if !slices.Contains(deletedEnvs, env) {
-			resultEnvs = append(resultEnvs, env)
-			resultApps = append(resultApps, apps[i])
-		}
-	}
-
-	return resultEnvs, resultApps
 }

@@ -285,16 +285,6 @@ func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name st
 	return runCmd("ytt", stdin, cmdArgs, logFn)
 }
 
-func filterMap[K comparable, V any](m map[K]V, filterFunc func(K, V) bool) map[K]V {
-	result := map[K]V{}
-	for k, v := range m {
-		if filterFunc(k, v) {
-			result[k] = v
-		}
-	}
-	return result
-}
-
 func filterSlice[T any](slice []T, filterFunc func(v T) bool) []T {
 	var result []T
 	for _, v := range slice {
