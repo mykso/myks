@@ -10,6 +10,7 @@ import (
 
 	"github.com/creasty/defaults"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/exp/maps"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -141,7 +142,7 @@ func New(rootDir string) *Globe {
 func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 	envAppMap := g.collectEnvironments(envSearchPathToAppMap)
 
-	return process(asyncLevel, envAppMap, func(item interface{}) error {
+	return process(asyncLevel, maps.Keys(envAppMap), func(item interface{}) error {
 		envPath, ok := item.(string)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to string")
