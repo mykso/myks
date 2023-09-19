@@ -265,8 +265,9 @@ func (g *Globe) dumpConfigAsYaml() (string, error) {
 
 func (g *Globe) collectEnvironments(envSearchPathToAppMap EnvAppMap) EnvAppMap {
 	envAppMap := EnvAppMap{}
+
 	if len(envSearchPathToAppMap) == 0 {
-		envAppMap = EnvAppMap{g.EnvironmentBaseDir: []string{}}
+		envSearchPathToAppMap = EnvAppMap{g.EnvironmentBaseDir: []string{}}
 	}
 
 	for searchPath, appNames := range envSearchPathToAppMap {
