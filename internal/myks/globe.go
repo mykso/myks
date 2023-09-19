@@ -139,6 +139,23 @@ func New(rootDir string) *Globe {
 	return g
 }
 
+// ValidateRootDir checks if the specified root directory contains required subdirectories
+func (g *Globe) ValidateRootDir() error {
+	for _, dir := range [...]string{g.EnvironmentBaseDir, g.PrototypesDir} {
+		dirPath := filepath.Join(g.RootDir, dir)
+		_, err := os.Stat(dirPath)
+		if os.IsNotExist(err) {
+			log.Warn().Str("dir", dir).Msg(g.Msg("Required directory does not exist. Did you run `myks init`?"))
+			return err
+		} else if err != nil {
+			log.Error().Err(err).Str("dir", dir).Msg(g.Msg("Unable to stat directory"))
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 	envAppMap := g.collectEnvironments(envSearchPathToAppMap)
 

@@ -23,6 +23,10 @@ For example, if you reference a secret named "mycreds" in your vendir.yaml, you 
 			log.Info().Msg("Syncing vendir configs")
 			g := myks.New(".")
 
+			if err := g.ValidateRootDir(); err != nil {
+				log.Fatal().Err(err).Msg("Root directory is not suitable for myks")
+			}
+
 			if err := g.Init(asyncLevel, envAppMap); err != nil {
 				log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 			}
