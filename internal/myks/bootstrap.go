@@ -2,6 +2,7 @@ package myks
 
 import (
 	"embed"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -22,6 +23,14 @@ var prototypesFs embed.FS
 
 //go:embed all:assets/envs
 var environmentsFs embed.FS
+
+type ErrBootstrapTargetExists struct {
+	target string
+}
+
+func (e ErrBootstrapTargetExists) Error() string {
+	return fmt.Sprintf("target '%s' already exists", e.target)
+}
 
 // Bootstrap creates the initial directory structure and files
 func (g *Globe) Bootstrap(force, onlyPrint bool, components []string) error {
@@ -87,19 +96,19 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 
 	if !force {
 		if _, err := os.Stat(envDir); err == nil {
-			return ErrNotClean
+			return ErrBootstrapTargetExists{target: envDir}
 		}
 		if _, err := os.Stat(protoDir); err == nil {
-			return ErrNotClean
+			return ErrBootstrapTargetExists{target: protoDir}
 		}
 		if _, err := os.Stat(renderedDir); err == nil {
-			return ErrNotClean
+			return ErrBootstrapTargetExists{target: renderedDir}
 		}
 		if _, err := os.Stat(envsGitignoreFile); err == nil {
-			return ErrNotClean
+			return ErrBootstrapTargetExists{target: envsGitignoreFile}
 		}
 		if _, err := os.Stat(myksConfigFile); err == nil {
-			return ErrNotClean
+			return ErrBootstrapTargetExists{target: myksConfigFile}
 		}
 	}
 

@@ -16,8 +16,6 @@ import (
 
 const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
-var ErrNotClean = fmt.Errorf("target directory is not clean, aborting")
-
 // Define the main structure
 type Globe struct {
 	/// Globe configuration
