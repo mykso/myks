@@ -42,7 +42,7 @@ func NewEnvironment(g *Globe, dir string) (*Environment, error) {
 		EnvironmentDataFile:     envDataFile,
 		Applications:            []*Application{},
 		g:                       g,
-		renderedEnvDataFilePath: filepath.Join(dir, g.ServiceDirName, g.RenderedEnvironmentDataFileName),
+		renderedEnvDataFilePath: filepath.Join(dir, g.ServiceDirName, g.TempDirName, g.RenderedEnvironmentDataFileName),
 		foundApplications:       map[string]string{},
 	}
 
