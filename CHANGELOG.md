@@ -1,3 +1,11 @@
+## [2.0.1](https://github.com/mykso/myks/compare/v2.0.0...v2.0.1) (2023-09-21)
+
+
+### Bug Fixes
+
+* move rendereded env-data.yaml to temporary dir ([93426a3](https://github.com/mykso/myks/commit/93426a31e53c052e46ad1e3cae4e248455c26749))
+* **ui:** provide more precise information about init errors ([244e8b8](https://github.com/mykso/myks/commit/244e8b8bb8d83d0965cd7745a3aef12b0d2abea5))
+
 # [2.0.0](https://github.com/mykso/myks/compare/v1.2.0...v2.0.0) (2023-09-19)
 
 
