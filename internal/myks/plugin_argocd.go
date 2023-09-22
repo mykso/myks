@@ -81,9 +81,9 @@ func (a *Application) renderArgoCD() (err error) {
 	if _, err := os.Stat(prototypeArgoCDDir); err == nil {
 		yttFiles = append(yttFiles, prototypeArgoCDDir)
 	}
-	// 3. Collection of environment argocd-specific data values and schemas, and overlays
+	// 4. Collection of environment argocd-specific data values and schemas, and overlays
 	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_env", a.e.g.ArgoCDDataDirName))...)
-	// 4. Collection of application argocd-specific data values and schemas, and overlays
+	// 5. Collection of application argocd-specific data values and schemas, and overlays
 	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.ArgoCDDataDirName))...)
 
 	res, err := a.yttS(
