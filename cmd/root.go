@@ -110,7 +110,11 @@ func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 			for _, env := range strings.Split(args[0], ",") {
 				envAppMap[env] = appNames
 			}
+		} else {
+			// TODO: Use Globe.EnvironmentBaseDir instead of the hardcoded key
+			envAppMap["envs"] = appNames
 		}
+
 	default:
 		err := errors.New("Too many positional arguments")
 		log.Error().Err(err).Msg("Unable to parse positional arguments")
