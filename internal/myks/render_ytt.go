@@ -2,7 +2,6 @@ package myks
 
 import (
 	"errors"
-	"os"
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
@@ -31,12 +30,16 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 	}
 
 	vendorYttDir := y.app.expandPath(filepath.Join(y.app.e.g.VendorDirName, y.app.e.g.YttStepDirName))
-	if _, err := os.Stat(vendorYttDir); err == nil {
+	if ok, err := isExist(vendorYttDir); err != nil {
+		return "", err
+	} else if ok {
 		yttFiles = append(yttFiles, vendorYttDir)
 	}
 
 	prototypeYttDir := filepath.Join(y.app.Prototype, y.app.e.g.YttStepDirName)
-	if _, err := os.Stat(prototypeYttDir); err == nil {
+	if ok, err := isExist(prototypeYttDir); err != nil {
+		return "", err
+	} else if ok {
 		yttFiles = append(yttFiles, prototypeYttDir)
 	}
 

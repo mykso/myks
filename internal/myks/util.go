@@ -156,8 +156,11 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 }
 
 func unmarshalYamlToMap(filePath string) (map[string]interface{}, error) {
-	if _, err := os.Stat(filePath); err != nil {
-		log.Debug().Str("filePath", filePath).Msg("Yaml not found.")
+	ok, err := isExist(filePath)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		return make(map[string]interface{}), nil
 	}
 
@@ -192,27 +195,28 @@ func hashString(s string) string {
 }
 
 func createDirectory(dir string) error {
-	if _, err := os.Stat(dir); err != nil {
-		err := os.MkdirAll(dir, 0o750)
-		if err != nil {
-			log.Error().Err(err).Msg("Unable to create directory: " + dir)
-			return err
-		}
+	if ok, err := isExist(dir); err != nil {
+		return err
+	} else if ok {
+		return nil
+	}
+
+	if err := os.MkdirAll(dir, 0o750); err != nil {
+		log.Error().Err(err).Str("dir", dir).Msg("Unable to create directory")
+		return err
 	}
 	return nil
 }
 
 func writeFile(path string, content []byte) error {
 	dir := filepath.Dir(path)
-	if _, err := os.Stat(dir); errors.Is(err, os.ErrNotExist) {
-		err := os.MkdirAll(dir, 0o750)
-		if err != nil {
+	if ok, err := isExist(dir); err != nil {
+		return err
+	} else if !ok {
+		if err := os.MkdirAll(dir, 0o750); err != nil {
 			log.Error().Err(err).Msg("Unable to create directory")
 			return err
 		}
-	} else if err != nil {
-		log.Error().Err(err).Msg("Unable to stat directory")
-		return err
 	}
 
 	return os.WriteFile(path, content, 0o600)
@@ -302,4 +306,17 @@ func concatenate[T any](slices ...[]T) []T {
 		result = append(result, slice...)
 	}
 	return result
+}
+
+func isExist(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		log.Trace().Str("path", path).Msg("File does not exist")
+		return false, nil
+	}
+	log.Error().Err(err).Msg("Unable to stat file")
+	return false, err
 }

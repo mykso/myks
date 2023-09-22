@@ -108,7 +108,9 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		filePath := filepath.Join(destinationDir, fileName)
 		// FIXME: If a file already exists, we should merge the two documents (probably).
 		//        For now, we just overwrite the file and log a warning.
-		if _, err := os.Stat(filePath); err == nil {
+		if ok, err := isExist(filePath); err != nil {
+			return err
+		} else if ok {
 			log.Warn().Str("file", filePath).Msg(a.Msg(sliceStepName, "File already exists, check duplicated resources"))
 		}
 		err = writeFile(filePath, data.Bytes())
@@ -148,16 +150,13 @@ func genRenderedResourceFileName(resource map[string]interface{}) string {
 
 func (a *Application) getVendoredDir(dirname string) (string, error) {
 	resourceDir := a.expandPath(filepath.Join(a.e.g.VendorDirName, dirname))
-	if _, err := os.Stat(resourceDir); err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-
-		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to find vendor directory: "+resourceDir))
+	if ok, err := isExist(resourceDir); err != nil {
 		return "", err
+	} else if ok {
+		return resourceDir, nil
+	} else {
+		return "", nil
 	}
-
-	return resourceDir, nil
 }
 
 // prepareValuesFile generates values.yaml file from ytt data files and ytt templates
@@ -168,7 +167,9 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 	var valuesFiles []string
 
 	prototypeValuesFile := filepath.Join(a.Prototype, valuesFileName)
-	if _, err := os.Stat(prototypeValuesFile); err == nil {
+	if ok, err := isExist(prototypeValuesFile); err != nil {
+		return "", err
+	} else if ok {
 		valuesFiles = append(valuesFiles, prototypeValuesFile)
 	}
 

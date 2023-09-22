@@ -38,7 +38,9 @@ func (a *Application) prepareSync() error {
 	var yttFiles []string
 
 	protoVendirDir := filepath.Join(a.Prototype, "vendir")
-	if _, err := os.Stat(protoVendirDir); err == nil {
+	if ok, err := isExist(protoVendirDir); err != nil {
+		return err
+	} else if ok {
 		yttFiles = append(yttFiles, protoVendirDir)
 	}
 
@@ -186,7 +188,9 @@ func readVendirDirHashes(vendirConfigFilePath string) (vendirDirHashes, error) {
 }
 
 func readSyncFile(vendirSyncFile string) (vendirDirHashes, error) {
-	if _, err := os.Stat(vendirSyncFile); err != nil {
+	if ok, err := isExist(vendirSyncFile); err != nil {
+		return nil, err
+	} else if !ok {
 		return vendirDirHashes{}, nil
 	}
 

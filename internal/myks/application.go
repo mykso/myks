@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os"
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
@@ -59,7 +58,9 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 		e:         e,
 	}
 
-	if _, err := os.Stat(prototype); err != nil {
+	if ok, err := isExist(app.Prototype); err != nil {
+		return app, err
+	} else if !ok {
 		return app, errors.New("application prototype does not exist")
 	}
 
@@ -130,7 +131,7 @@ func (a *Application) collectDataFiles() {
 	a.yttDataFiles = append(a.yttDataFiles, environmentDataFiles...)
 
 	protoDataFile := filepath.Join(a.Prototype, a.e.g.ApplicationDataFileName)
-	if _, err := os.Stat(protoDataFile); err == nil {
+	if ok, err := isExist(protoDataFile); ok && err == nil {
 		a.yttDataFiles = append(a.yttDataFiles, protoDataFile)
 	}
 
