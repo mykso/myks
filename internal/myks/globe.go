@@ -121,7 +121,9 @@ func New(rootDir string) *Globe {
 	}
 
 	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
-	if _, err := os.Stat(yttLibraryDir); err == nil {
+	if ok, err := isExist(yttLibraryDir); err != nil {
+		log.Fatal().Err(err).Str("path", yttLibraryDir).Msg("Unable to stat ytt library directory")
+	} else if ok {
 		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
 	}
 
@@ -302,8 +304,9 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 			return err
 		}
 		if d != nil && d.IsDir() {
-			_, err := os.Stat(filepath.Join(path, g.EnvironmentDataFileName))
-			if err == nil {
+			if ok, err := isExist(filepath.Join(path, g.EnvironmentDataFileName)); err != nil {
+				return err
+			} else if ok {
 				env, err := NewEnvironment(g, path)
 				if err == nil {
 					g.environments[path] = env

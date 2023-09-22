@@ -95,20 +95,14 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 	log.Debug().Str("myks config file", myksConfigFile).Msg("")
 
 	if !force {
-		if _, err := os.Stat(envDir); err == nil {
-			return ErrBootstrapTargetExists{target: envDir}
-		}
-		if _, err := os.Stat(protoDir); err == nil {
-			return ErrBootstrapTargetExists{target: protoDir}
-		}
-		if _, err := os.Stat(renderedDir); err == nil {
-			return ErrBootstrapTargetExists{target: renderedDir}
-		}
-		if _, err := os.Stat(envsGitignoreFile); err == nil {
-			return ErrBootstrapTargetExists{target: envsGitignoreFile}
-		}
-		if _, err := os.Stat(myksConfigFile); err == nil {
-			return ErrBootstrapTargetExists{target: myksConfigFile}
+		for _, path := range []string{envDir, protoDir, renderedDir, envsGitignoreFile, myksConfigFile} {
+			ok, err := isExist(path)
+			if err != nil {
+				return err
+			}
+			if ok {
+				return ErrBootstrapTargetExists{target: path}
+			}
 		}
 	}
 
@@ -139,7 +133,9 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 
 func (g *Globe) createDataSchemaFile() string {
 	dataSchemaFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.DataSchemaFileName)
-	if _, err := os.Stat(dataSchemaFileName); err != nil {
+	if ok, err := isExist(dataSchemaFileName); err != nil {
+		log.Fatal().Err(err).Msg("Unable to stat data schema file")
+	} else if !ok {
 		log.Debug().Msg("Unable to find data schema file, creating one")
 		if err := os.MkdirAll(filepath.Dir(dataSchemaFileName), 0o750); err != nil {
 			log.Fatal().Err(err).Msg("Unable to create data schema file directory")

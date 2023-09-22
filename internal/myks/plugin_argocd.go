@@ -3,7 +3,6 @@ package myks
 import (
 	"bytes"
 	_ "embed"
-	"os"
 	"path/filepath"
 	"text/template"
 
@@ -78,7 +77,9 @@ func (a *Application) renderArgoCD() (err error) {
 	yttFiles = append(yttFiles, a.yttDataFiles...)
 	// 3. Use argocd-specific data values, schemas, and overlays from the prototype
 	prototypeArgoCDDir := filepath.Join(a.Prototype, a.e.g.ArgoCDDataDirName)
-	if _, err := os.Stat(prototypeArgoCDDir); err == nil {
+	if ok, err := isExist(prototypeArgoCDDir); err != nil {
+		return err
+	} else if ok {
 		yttFiles = append(yttFiles, prototypeArgoCDDir)
 	}
 	// 4. Collection of environment argocd-specific data values and schemas, and overlays
