@@ -47,7 +47,7 @@ func (g *GlobalYtt) Render(previousStepFile string) (string, error) {
 		return "", nil
 	}
 
-	log.Debug().Msg(g.app.Msg(helmStepName, "Global ytt applied"))
+	log.Debug().Msg(g.app.Msg(globalYttStepName, "Global ytt applied"))
 
 	return yttOutput.Stdout, nil
 }
