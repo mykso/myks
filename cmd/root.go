@@ -88,8 +88,7 @@ func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 		envAppMap, err = globeAllEnvsAndApps.DetectChangedEnvsAndApps(viper.GetString("smart-mode.base-revision"))
 		if err != nil {
 			log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
-		}
-		if len(envAppMap) == 0 {
+		} else if len(envAppMap) == 0 {
 			log.Warn().Msg("Smart Mode did not find any changes. Exiting.")
 			os.Exit(0)
 		}
