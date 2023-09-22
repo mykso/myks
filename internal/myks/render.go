@@ -37,7 +37,7 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 	log.Debug().Msg(a.Msg(renderStepName, "Starting"))
 	outputYaml := ""
 	lastStepOutputFile := ""
-	for _, yamlTool := range yamlTemplatingTools {
+	for nr, yamlTool := range yamlTemplatingTools {
 		log.Debug().Msg(a.Msg(yamlTool.Ident(), "Starting"))
 		stepOutputYaml, err := yamlTool.Render(lastStepOutputFile)
 		if err != nil {
@@ -48,7 +48,7 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 		} else {
 			outputYaml = stepOutputYaml
 		}
-		lastStepOutputFile, err = a.storeStepResult(outputYaml, yamlTool.Ident(), 1)
+		lastStepOutputFile, err = a.storeStepResult(outputYaml, yamlTool.Ident(), nr)
 		if err != nil {
 			log.Error().Err(err).Msg(a.Msg(yamlTool.Ident(), "Failed to store step result for: "+yamlTool.Ident()))
 			return "", err
@@ -124,7 +124,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 
 // storeStepResult saves output of a step to a file in the application's temp directory.
 // Returns path to the file or an error.
-func (a *Application) storeStepResult(output string, stepName string, stepNumber uint) (string, error) {
+func (a *Application) storeStepResult(output string, stepName string, stepNumber int) (string, error) {
 	fileName := filepath.Join("steps", fmt.Sprintf("%02d-%s.yaml", stepNumber, stepName))
 	file := a.expandTempPath(fileName)
 	return file, a.writeTempFile(fileName, output)
