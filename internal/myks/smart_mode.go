@@ -30,8 +30,8 @@ func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error)
 		log.Err(err).Msg(g.Msg("Failed to get diff"))
 		return nil, err
 	}
+	log.Trace().Interface("changedFiles", changedFiles).Msg(g.Msg("Detected changes"))
 	envAppMap := g.runSmartMode(changedFiles)
-	log.Info().Msg(g.Msg("Smart mode detected changes"))
 	for env, apps := range envAppMap {
 		log.Debug().Str("env", env).Strs("apps", apps).Msg(g.Msg("Detected changes"))
 	}
@@ -89,7 +89,14 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 
 	extractMatches := func(exprs []*regexp.Regexp, path string) []string {
 		for _, expr := range exprs {
-			if submatches := expr.FindStringSubmatch(path); submatches != nil {
+			submatches := expr.FindStringSubmatch(path)
+			log.Trace().
+				Str("pattern", expr.String()).
+				Str("path", path).
+				Bool("matched", submatches != nil).
+				Msg(g.Msg("Extracting submatches"))
+
+			if submatches != nil {
 				return submatches[1:]
 			}
 		}
