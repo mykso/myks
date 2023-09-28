@@ -52,6 +52,7 @@ jobs:
         if: steps.semantic.outputs.new_release_published == 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOMEBREW_TAP_REPO_TOKEN: ${{ secrets.MYKSO_BOT_GITHUB_TOKEN }}
           RELEASE_NOTES: ${{ steps.semantic.outputs.new_release_notes }}
         run: |
           goreleaser release --clean \
