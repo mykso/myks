@@ -20,6 +20,27 @@ archives:
     files:
       - LICENSE
       - README.md
-    rlcp: true
 checksum:
   name_template: "checksums.txt"
+brews:
+  - name: myks
+    description: A configuration framework for Kubernetes applications
+    folder: Formula
+    homepage: https://github.com/mykso/myks
+    license: MIT
+    commit_author:
+      name: Mykso Bot
+      email: german.lashevich+mykso-bot@gmail.com
+    dependencies:
+      - name: git
+        type: optional
+      - name: helm
+        type: optional
+      - name: vendir
+        type: optional
+      - name: ytt
+        type: optional
+    repository:
+      owner: mykso
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_REPO_TOKEN }}"
