@@ -1,3 +1,13 @@
+## [2.0.2](https://github.com/mykso/myks/compare/v2.0.1...v2.0.2) (2023-09-28)
+
+
+### Bug Fixes
+
+* **ui:** correctly process ALL environments with a custom set of applications ([b7dd45a](https://github.com/mykso/myks/commit/b7dd45a4163ab31989ca1e30358abd4035cac7b0))
+* **ui:** corretly set step file number prefix ([f58d689](https://github.com/mykso/myks/commit/f58d689154373eb25dfc6cbb77526dcc1b244d9a))
+* **ui:** render everything if Smart Mode failed ([0a310b4](https://github.com/mykso/myks/commit/0a310b4ff8ba908ca071258c3c2ab923e802523d))
+* **ui:** use correct rendering step name in logs ([7cc93ce](https://github.com/mykso/myks/commit/7cc93ce33bd187a9faac348e81af406353cccf46))
+
 ## [2.0.1](https://github.com/mykso/myks/compare/v2.0.0...v2.0.1) (2023-09-21)
 
 
