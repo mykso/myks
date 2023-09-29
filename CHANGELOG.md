@@ -1,3 +1,10 @@
+## [2.0.3](https://github.com/mykso/myks/compare/v2.0.2...v2.0.3) (2023-09-29)
+
+
+### Bug Fixes
+
+* **ui:** sanitize environment search paths ([#108](https://github.com/mykso/myks/issues/108)) ([e2262fb](https://github.com/mykso/myks/commit/e2262fb5eb2831f737e723b20b70c5bd0d553462))
+
 ## [2.0.2](https://github.com/mykso/myks/compare/v2.0.1...v2.0.2) (2023-09-28)
 
 
