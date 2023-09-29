@@ -22,6 +22,34 @@ archives:
       - README.md
 checksum:
   name_template: "checksums.txt"
+aurs:
+  - name: myks-bin
+    homepage: https://github.com/mykso/myks
+    description: A configuration framework for Kubernetes applications
+    maintainers:
+      - "German Lashevich <german.lashevich at gmail dot com>"
+    license: "MIT"
+    private_key: "{{ .Env.AUR_SSH_KEY }}"
+    git_url: "ssh://aur@aur.archlinux.org/myks-bin.git"
+    optdepends:
+      - "carvel-tools: for vendir and ytt"
+      - "git: for git"
+      - "helm: for helm"
+    package: |-
+      BIN=myks
+
+      install -Dm755 ./$BIN -t "${pkgdir}/usr/bin"
+
+      # completions
+      mkdir -p "${pkgdir}/usr/share/bash-completion/completions/"
+      mkdir -p "${pkgdir}/usr/share/zsh/site-functions/"
+      mkdir -p "${pkgdir}/usr/share/fish/vendor_completions.d/"
+      ./$BIN completion bash | install -Dm644 /dev/stdin "${pkgdir}/usr/share/bash-completion/completions/$BIN"
+      ./$BIN completion fish | install -Dm644 /dev/stdin "${pkgdir}/usr/share/fish/vendor_completions.d/$BIN.fish"
+      ./$BIN completion zsh  | install -Dm644 /dev/stdin "${pkgdir}/usr/share/zsh/site-functions/_$BIN"
+    commit_author:
+      name: Mykso Bot
+      email: german.lashevich+mykso-bot@gmail.com
 brews:
   - name: myks
     description: A configuration framework for Kubernetes applications
