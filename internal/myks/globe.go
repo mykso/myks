@@ -299,7 +299,7 @@ func (g *Globe) collectEnvironments(envSearchPathToAppMap EnvAppMap) EnvAppMap {
 
 func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 	result := []string{}
-	err := filepath.WalkDir(searchPath, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(filepath.Clean(searchPath), func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
