@@ -287,6 +287,36 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				"envs/env2": {"app3"},
 			},
 		},
+		{
+			"changes in _env",
+			ChangedFiles{
+				"envs/env1/_env/argocd/some-file.yaml":          "M",
+				"envs/env2/_env/ytt/some-file.yaml":             "M",
+				"envs/deletion/env1/_env/argocd/some-file.yaml": "D",
+				"envs/deletion/env2/_env/ytt/some-file.yaml":    "D",
+				"envs/addition/env1/_env/argocd/some-file.yaml": "?",
+				"envs/addition/env2/_env/ytt/some-file.yaml":    "?",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1":          nil,
+				"envs/env2":          nil,
+				"envs/deletion/env1": nil,
+				"envs/deletion/env2": nil,
+				"envs/addition/env1": nil,
+				"envs/addition/env2": nil,
+			},
+		},
+		{
+			"changes in root _env",
+			ChangedFiles{
+				"envs/_env/argocd/some-file.yaml": "?",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs": nil,
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
