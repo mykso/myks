@@ -91,3 +91,33 @@ func Test_convertToChangedFiles(t *testing.T) {
 		})
 	}
 }
+
+func Test_addUntrackedFiles(t *testing.T) {
+	type args struct {
+		additions string
+	}
+	tests := []struct {
+		name string
+		args args
+		want ChangedFiles
+	}{
+		{
+			"git ls-files",
+			args{
+				"file1\n" +
+					"file2\n",
+			},
+			ChangedFiles{
+				"file1": "U",
+				"file2": "U",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := addUntrackedFiles(tt.args.additions); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("addUntrackedFiles() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
