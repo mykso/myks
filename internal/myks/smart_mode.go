@@ -73,6 +73,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		// Env search path is the only submatch
 		"env": {
 			e("(" + g.EnvironmentBaseDir + ".*)/_env/" + g.YttStepDirName + "/.*"),
+			e("(" + g.EnvironmentBaseDir + ".*)/_env/" + g.ArgoCDDataDirName + "/.*"),
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvironmentDataFileName),
 		},
 		// Prototype name is the only submatch
