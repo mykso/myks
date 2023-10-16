@@ -156,6 +156,19 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		}
 	}
 
+	// Remove environments and applications that are not found in the filesystem
+	for env, apps := range envAppMap {
+		if _, ok := g.environments[env]; !ok {
+			delete(envAppMap, env)
+			continue
+		}
+		for _, app := range apps {
+			if _, ok := g.environments[env].foundApplications[app]; !ok {
+				envAppMap[env] = filterSlice(envAppMap[env], func(s string) bool { return s != app })
+			}
+		}
+	}
+
 	return envAppMap
 }
 
