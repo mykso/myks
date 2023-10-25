@@ -5,6 +5,8 @@ Simple example with two environments dev & prod with one helm chart.
 - dev environments overwrites the helm chart version (vendir config) (`envs/dev/_apps/httpbingo/vendir/vendir-data.ytt.yaml`)
 - prod environments overwrites replica count (helm chart value) (`envs/prod/_apps/httpbingo/helm/httpbingo.yaml`)
 
+## tree
+
 ```python
 .
 ├── envs
@@ -28,7 +30,7 @@ Simple example with two environments dev & prod with one helm chart.
 │       ├── helm
 │       │   └── 'httpbingo.yaml' # helm default values for all environments
 │       └── vendir
-│           ├── 'base.ytt.yaml' # te,mplated vendir config
+│           ├── 'base.ytt.yaml' # templated vendir config
 │           └── 'vendir-data.ytt.yaml' # vendir configuration, e.g. helm chart url and version (overwritten for dev)
 └── rendered  # rendered files for all enviroments
     ├── argocd # argocd app definitionas
