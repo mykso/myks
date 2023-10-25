@@ -14,7 +14,7 @@ spec:
     name: mykso-dev
     namespace: argocd
   source:
-    path: examples/main/rendered/envs/mykso-dev/argocd
+    path: examples/default/rendered/envs/mykso-dev/argocd
     plugin:
       name: argocd-vault-plugin-v1.0.0
     repoURL: git@github.com:mykso/myks.git
