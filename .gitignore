@@ -3,3 +3,5 @@ dist
 .idea
 .run
 /myks
+internal/myks/.myks/tmp/data-schema.ytt.yaml
+internal/myks/.myks/tmp/myks-data.ytt.yaml
