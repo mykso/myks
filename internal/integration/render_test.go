@@ -23,15 +23,18 @@ func findRepos(t *testing.T, basefolder string) []testRepo {
 		return nil
 	}
 
-	dirs, err := dir.Readdirnames(-1)
+	dirs, err := dir.ReadDir(-1)
 	if err != nil {
 		t.Errorf("Could not read directories: %s", err)
 		return nil
 	}
 	for _, d := range dirs {
+		if !d.IsDir() {
+			continue
+		}
 		repos = append(repos, testRepo{
-			name: d,
-			dir:  filepath.Join(basefolder, d),
+			name: d.Name(),
+			dir:  filepath.Join(basefolder, d.Name()),
 		})
 	}
 	if len(repos) == 0 {
