@@ -1,0 +1,123 @@
+#! This file define a schema for all ytt data files. It can also contain default values.
+#! Top-level keys are scopes, e.g. application, argocd, environment, helm.
+#!
+#! Content of the `application` scope can be freely modified. More scopes can be added.
+#!
+#! All other scopes and their keys defined in this file are used by myks.
+#! Values of these keys can be modified, but the keys should not be removed.
+#! It is fine, however, to add new keys to these scopes.
+
+#@data/values-schema
+---
+#! Add here any application-specific data.
+application: {}
+argocd:
+  enabled: true
+  #! Namespace of the ArgoCD server.
+  namespace: argocd
+  app:
+    #! If not set, the name of the currently rendered application is used.
+    name: ""
+    #! Prefix of the ArgoCD application name.
+    prefix: ""
+    #! List of finalizers of the ArgoCD application.
+    #! See https://github.com/argoproj/argo-cd/blob/dc8d7290/docs/user-guide/app_deletion.md
+    #@schema/default ["resources-finalizer.argocd.argoproj.io"]
+    finalizers: [""]
+    destination:
+      #! spec.destination.name of the ArgoCD application.
+      #! If not set, defaults to the name of the current environment.
+      name: ""
+      #! spec.destination.server of the ArgoCD application.
+      #! If set, used instead of spec.destination.name.
+      server: ""
+      #! spec.destination.namespace of the ArgoCD application.
+      #! If not set, defaults to argocd.app.name.
+      namespace: ""
+    source:
+      #! spec.source.path of the ArgoCD application.
+      #! If not set, defaults to the destination path of the currently rendered application.
+      #! With the default myks configuration: `rendered/envs/<environment.id>/<app.name>`
+      path: ""
+      #! spec.source.plugin of the ArgoCD application.
+      #@schema/type any=True
+      plugin:
+      #! spec.source.repoURL of the ArgoCD application.
+      #! If not set, defaults to the current git repository URL.
+      repoURL: ""
+      #! spec.source.targetRevision of the ArgoCD application.
+      #! If not set, defaults to the current git branch.
+      targetRevision: ""
+  env:
+    #! If not set, the name of the currently rendered environment is used (environment.id).
+    name: ""
+    #! Prefix of a target cluster name.
+    prefix: ""
+    #! If set to true, a dummy secret is generated for the target cluster.
+    #! The user has to create an overlay to set correct values for the secret.
+    #! See https://argo-cd.readthedocs.io/en/release-2.8/operator-manual/declarative-setup/#clusters
+    #! TODO: add link to the example overlay.
+    generateSecret: true
+  project:
+    #! If not set, the name of the currently rendered environment is used (environment.id).
+    name: ""
+    #! Prefix of the ArgoCD project name.
+    prefix: ""
+    #! spec.destination[0] of the ArgoCD project.
+    #! Add more destinations via overlays, if needed.
+    destination:
+      #! spec.destination.name of the ArgoCD project.
+      #! If not set, defaults to the name of the current environment.
+      name: ""
+      #! spec.destination.server of the ArgoCD project.
+      #! If set, used instead of spec.destination.name.
+      server: ""
+      #! spec.destination.namespace of the ArgoCD project.
+      #! By default, all namespaces are allowed.
+      namespace: "*"
+environment:
+  #! Unique identifier of the environment, required by myks.
+  #@schema/validation min_len=1
+  #@schema/nullable
+  id: ""
+  #! List of applications to be deployed in the environment.
+  applications:
+    - #! Prototype of the application.
+      #@schema/validation min_len=1
+      proto: ""
+      #! Name of the application. If not defined, the name of the prototype is used.
+      name: ""
+#! Configuration of the step that renders Helm charts.
+helm:
+  #! If defined, passed as `--api-version` for `helm-template`.
+  capabilities:
+    - "" #! e.g. "monitoring.coreos.com/v1"
+  #! If true, adds `--include-crds` flag to `helm template`.
+  includeCRDs: true
+  #! If defined, passed as a value of `--kube-version` for `helm template`.
+  kubeVersion: ""
+  #! If defined, passed as a value of `--namespace` for `helm template`.
+  namespace: ""
+#! Configuration of the step that renders ytt-packages.
+yttPkg:
+  #! A ytt-package can be rendered as a whole, or can contain multiple sub-packages that should be rendered separately.
+  #! This option defines which sub-packages to render separately.
+  #! If empty, the whole package is rendered at once.
+  #! Example: ["sub1", "sub2", "nested/sub3", "nested/sub4"]
+  dirs:
+    - ""
+#! Configuration options for the sync step.
+sync:
+  #! If true, the sync step is performed only if the vendir.yaml file is changed after the previous sync.
+  #! Decision whether to sync or not is done on a per-directory basis. This allows to completely skip running
+  #! `vendir sync` for directories that are not changed.
+  #! /!\ Be careful when using this option with dynamic versions (e.g. `latest`, or a branch name).
+  #!     If the upstream is updated, but the vendir config is not changed, the sync step will not be performed.
+  useCache: true
+#! Myks configuration and runtime data.
+#! Default values for these options are set by myks.
+myks:
+  #! Set to the current git branch if available.
+  gitRepoBranch: ""
+  #! Set to the current git repository URL if available.
+  gitRepoUrl: ""

@@ -1,0 +1,5 @@
+#@data/values
+---
+myks:
+  gitRepoBranch: testable-examples
+  gitRepoUrl: git@github.com:mykso/myks.git

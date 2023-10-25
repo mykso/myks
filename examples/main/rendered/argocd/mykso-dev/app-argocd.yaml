@@ -18,7 +18,7 @@ spec:
     plugin:
       name: argocd-vault-plugin-v1.0.0
     repoURL: git@github.com:mykso/myks.git
-    targetRevision: testable-examples
+    targetRevision: main
   syncPolicy:
     automated:
       prune: true

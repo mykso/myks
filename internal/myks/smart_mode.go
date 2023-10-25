@@ -25,7 +25,7 @@ func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error)
 		return nil, err
 	}
 
-	changedFiles, err := getChangedFiles(baseRevision)
+	changedFiles, err := GetChangedFilesGit(baseRevision)
 	if err != nil {
 		log.Err(err).Msg(g.Msg("Failed to get diff"))
 		return nil, err

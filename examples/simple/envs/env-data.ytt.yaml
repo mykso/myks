@@ -7,16 +7,13 @@
 
 #@data/values
 ---
+environment:
+  #! enable httpbingo app for all environments
+  applications:
+    - proto: httpbingo
+
 argocd:
-  namespace: system-argocd
   app:
-    prefix: app-
-    #! Disable finalizers to preserve resources after deleting the ArgoCD application.
-    finalizers: []
     source:
       #! render all argo apps with targetRevision: main
       targetRevision: main
-      plugin:
-        name: argocd-vault-plugin-v1.0.0
-  project:
-    prefix: env-

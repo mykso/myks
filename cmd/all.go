@@ -16,28 +16,34 @@ func init() {
 			ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			g := myks.New(".")
-
-			if err := g.ValidateRootDir(); err != nil {
-				log.Fatal().Err(err).Msg("Root directory is not suitable for myks")
-			}
-
-			if err := g.Init(asyncLevel, envAppMap); err != nil {
-				log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
-			}
-
-			if err := g.SyncAndRender(asyncLevel); err != nil {
-				log.Fatal().Err(err).Msg("Unable to sync vendir configs")
-			}
-
-			// Cleaning up only if all environments and applications were processed
-			if envAppMap == nil {
-				if err := g.Cleanup(); err != nil {
-					log.Fatal().Err(err).Msg("Unable to cleanup")
-				}
-			}
+			RunAllCmd()
 		},
 	}
 
 	rootCmd.AddCommand(cmd)
+}
+
+func RunAllCmd() {
+	g := myks.New(".")
+
+	if err := g.ValidateRootDir(); err != nil {
+		log.Fatal().Err(err).Msg("Root directory is not suitable for myks")
+	}
+
+	log.Info().Msg("Init################")
+	if err := g.Init(asyncLevel, envAppMap); err != nil {
+		log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
+	}
+	log.Info().Msg("Sync and render#########")
+
+	if err := g.SyncAndRender(asyncLevel); err != nil {
+		log.Fatal().Err(err).Msg("Unable to sync vendir configs")
+	}
+
+	// Cleaning up only if all environments and applications were processed
+	if envAppMap == nil {
+		if err := g.Cleanup(); err != nil {
+			log.Fatal().Err(err).Msg("Unable to cleanup")
+		}
+	}
 }
