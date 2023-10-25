@@ -44,8 +44,7 @@ func checkCleanGit(t *testing.T) bool {
 	t.Helper()
 	changes, err := myks.GetChangedFilesGit("")
 	if err != nil {
-		t.Errorf("Checking git failed: %s", err)
-		t.FailNow()
+		t.Fatalf("Checking git failed: %s", err)
 	}
 	if len(changes) > 0 {
 		t.Logf("Found changed files: %v", changes)
@@ -58,8 +57,7 @@ func checkCleanGit(t *testing.T) bool {
 func chgDir(t *testing.T, base, dir string) {
 	err := os.Chdir(filepath.Join(base, dir))
 	if err != nil {
-		t.Errorf("Change folder failed: %s", err)
-		t.FailNow()
+		t.Fatalf("Change folder failed: %s", err)
 	}
 }
 
@@ -67,8 +65,7 @@ func TestRender(t *testing.T) {
 	repos := findRepos(t, "../../examples")
 
 	if !checkCleanGit(t) {
-		t.Log("All changes must be committed before running the integration tests.")
-		t.FailNow()
+		t.Fatal("All changes must be committed before running the integration tests")
 	}
 	baseFolder, err := os.Getwd()
 	if err != nil {
@@ -80,6 +77,36 @@ func TestRender(t *testing.T) {
 	for _, repo := range repos {
 		t.Run(repo.name, func(t *testing.T) {
 			chgDir(t, baseFolder, repo.dir)
+			cmd.RunAllCmd()
+			if !checkCleanGit(t) {
+				t.Log("Commit changes to examples before running this test")
+			}
+		})
+	}
+}
+
+func TestInitialRendering(t *testing.T) {
+	repos := findRepos(t, "../../examples")
+
+	if !checkCleanGit(t) {
+		t.Fatal("All changes must be committed before running the integration tests.")
+	}
+	baseFolder, err := os.Getwd()
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	defer chgDir(t, baseFolder, "")
+
+	for _, repo := range repos {
+		t.Run(repo.name, func(t *testing.T) {
+			chgDir(t, baseFolder, repo.dir)
+
+			err := os.RemoveAll("rendered")
+			if err != nil {
+				t.Fatalf("Remove rendered directory failed: %s", err)
+			}
+
 			cmd.RunAllCmd()
 			if !checkCleanGit(t) {
 				t.Log("Commit changes to examples before running this test.")
