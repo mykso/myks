@@ -121,3 +121,11 @@ myks:
   gitRepoBranch: ""
   #! Set to the current git repository URL if available.
   gitRepoUrl: ""
+#! meta data of the current rendering step
+meta:
+  #! application name currently being rendered
+  app: ""
+  #! name of prototype including full path (e.g. prototypes/argocd)
+  prototype: ""
+  #! rendering step: argocd, global_ytt, helm, ytt-pkg, ytt
+  step: ""
