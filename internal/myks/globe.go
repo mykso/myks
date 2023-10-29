@@ -327,6 +327,15 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 	return result
 }
 
+func (g Globe) isEnvPath(path string) bool {
+	for envPath := range g.environments {
+		if strings.HasPrefix(envPath, path) {
+			return true
+		}
+	}
+	return false
+}
+
 func (g *Globe) setGitPathPrefix() error {
 	if g.GitPathPrefix == "" {
 		gitArgs := []string{}

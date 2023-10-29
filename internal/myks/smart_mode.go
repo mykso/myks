@@ -158,11 +158,18 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 
 	// Remove environments and applications that are not found in the filesystem
 	for env, apps := range envAppMap {
-		if _, ok := g.environments[env]; !ok {
+		// env can be an exact path of an environment or one of parent directories
+		if !g.isEnvPath(env) {
 			delete(envAppMap, env)
 			continue
 		}
 		for _, app := range apps {
+			// env can be absent in g.environments if it is a parent directory of an environment
+			// in this case we can't easily check if app is present in env
+			// TODO: implement smarter lookup logic instead
+			if _, ok := g.environments[env]; !ok {
+				continue
+			}
 			if _, ok := g.environments[env].foundApplications[app]; !ok {
 				envAppMap[env] = filterSlice(envAppMap[env], func(s string) bool { return s != app })
 			}
