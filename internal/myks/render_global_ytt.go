@@ -38,7 +38,7 @@ func (g *GlobalYtt) Render(previousStepFile string) (string, error) {
 
 	yttOutput, err := g.app.ytt(globalYttStepName, "render global ytt directory", yttFiles)
 	if err != nil {
-		log.Warn().Err(err).Msg(g.app.Msg(globalYttStepName, "Unable to render ytt files"))
+		log.Warn().Err(err).Str("stderr", yttOutput.Stderr).Msg(g.app.Msg(globalYttStepName, "Unable to render ytt files"))
 		return "", err
 	}
 
