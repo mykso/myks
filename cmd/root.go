@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/logrusorgru/aurora/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -56,6 +57,9 @@ func init() {
 	smartModeBaseRevisionHelp := "base revision to compare against in Smart Mode\n" +
 		"if not provided, only local changes will be considered"
 	rootCmd.PersistentFlags().String("smart-mode.base-revision", "", smartModeBaseRevisionHelp)
+
+	smartModeOnlyPrintHelp := "only print the list of environments and applications that would be rendered in Smart Mode"
+	rootCmd.PersistentFlags().Bool("smart-mode.only-print", false, smartModeOnlyPrintHelp)
 
 	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
@@ -124,6 +128,21 @@ func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 	log.Debug().
 		Interface("envAppMap", envAppMap).
 		Msg("Parsed arguments")
+
+	if viper.GetBool("smart-mode.only-print") {
+		fmt.Println(aurora.Bold("\nSmart Mode detected:"))
+		for env, apps := range envAppMap {
+			fmt.Printf("→ %s\n", env)
+			if apps == nil {
+				fmt.Println(aurora.Bold("    ALL"))
+			} else {
+				for _, app := range apps {
+					fmt.Printf("    %s\n", app)
+				}
+			}
+		}
+		os.Exit(0)
+	}
 
 	return nil
 }

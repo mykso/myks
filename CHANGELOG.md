@@ -1,3 +1,10 @@
+## [2.0.4](https://github.com/mykso/myks/compare/v2.0.3...v2.0.4) (2023-09-29)
+
+
+### Bug Fixes
+
+* **release:** trigger ([b6dd8bb](https://github.com/mykso/myks/commit/b6dd8bba5458b004c6e58c3365a6e969f2222db2))
+
 ## [2.0.3](https://github.com/mykso/myks/compare/v2.0.2...v2.0.3) (2023-09-29)
 
 
