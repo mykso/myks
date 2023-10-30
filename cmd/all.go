@@ -30,11 +30,9 @@ func RunAllCmd() {
 		log.Fatal().Err(err).Msg("Root directory is not suitable for myks")
 	}
 
-	log.Info().Msg("Init################")
 	if err := g.Init(asyncLevel, envAppMap); err != nil {
 		log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 	}
-	log.Info().Msg("Sync and render#########")
 
 	if err := g.SyncAndRender(asyncLevel); err != nil {
 		log.Fatal().Err(err).Msg("Unable to sync vendir configs")
