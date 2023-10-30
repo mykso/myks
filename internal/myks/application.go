@@ -181,9 +181,9 @@ func (a *Application) ytt(step, purpose string, paths []string, args ...string) 
 
 func (a *Application) yttS(step string, purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
 	args = append(args,
-		"-v", "meta.step="+step,
-		"-v", "meta.app="+a.Name,
-		"-v", "meta.prototype="+a.Prototype)
+		"-v", "context.step="+step,
+		"-v", "context.app="+a.Name,
+		"-v", "context.prototype="+a.Prototype)
 	paths = concatenate(a.e.g.extraYttPaths, paths)
 	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
 		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, name, args)))
