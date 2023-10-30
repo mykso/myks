@@ -7,12 +7,18 @@ This folder includes two example myks repositories with some explanation includi
 
 The rendered output is verified in gotests.
 
-To ensure a stable rendering output, the targetRevision was configured to main (`envs/env-data.ytt.yaml``)
+To ensure a stable rendering output, the branches and remote names were configured to static values in `envs/env-data.ytt.yaml`
 
 ```yaml
 argocd:
   app:
     source:
-      #! render all argo apps with targetRevision: main
+      #! Fixed config to run tests successfull in pipeline
       targetRevision: main
+      repoURL: git@github.com:mykso/myks.git
+
+#! Fixed git config to run tests successfull in pipeline.
+myks:
+  gitRepoBranch: "main"
+  gitRepoUrl: "git@github.com:mykso/myks.git"
 ```
