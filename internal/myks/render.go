@@ -147,7 +147,8 @@ func genRenderedResourceFileName(resource map[string]interface{}) string {
 			name = n
 		}
 	}
-	// Worst case this returns "no_kind-no_name.yaml" which probably is not what we want. Maybe it's better to exit with an error?
+	// Worst case this returns "no_kind-no_name.yaml" which probably is not what we want.
+	// TODO: exit with an error instead
 	return fmt.Sprintf("%s-%s.yaml", strings.ToLower(kind), strings.ToLower(name))
 }
 
