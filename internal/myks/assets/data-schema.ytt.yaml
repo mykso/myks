@@ -122,6 +122,7 @@ myks:
   #! Set to the current git repository URL if available.
   gitRepoUrl: ""
   #! context of the current operation
+  #! EXPERIMENTAL: this configuration section can be changed in the future
   context:
     #! application name currently being processed
     app: ""
