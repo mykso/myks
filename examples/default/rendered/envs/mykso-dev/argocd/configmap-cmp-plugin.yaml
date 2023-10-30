@@ -1,0 +1,28 @@
+apiVersion: v1
+data:
+  avp.yaml: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: argocd-vault-plugin
+    spec:
+      version: v1.0.0
+      generate:
+        command:
+        - bash
+        - -c
+        args:
+        - |-
+          export AVP_TYPE=gcpsecretmanager
+          find . \
+            -regextype egrep \
+            -iregex '.*\.(yaml|yml)' \
+            -printf '---\n' \
+            -exec cat {} \; \
+          | argocd-vault-plugin generate -
+kind: ConfigMap
+metadata:
+  annotations:
+    a8r.io/repository: git@github.com:mykso/myks.git
+  name: cmp-plugin
+  namespace: argocd

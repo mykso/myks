@@ -1,0 +1,20 @@
+annotations:
+  artifacthub.io/changes: |
+    - "Update README.md"
+  artifacthub.io/images: |
+    - name: go-httpbin
+      image: mccutchen/go-httpbin:v2.2.2
+apiVersion: v2
+appVersion: v2.2.2
+description: A reasonably complete and well-tested golang port of httpbin, with zero
+  dependencies outside the go stdlib.
+home: https://github.com/estahn/charts/tree/main/charts/httpbingo
+keywords:
+- httpbin
+- tests
+maintainers:
+- email: enrico.stahn@gmail.com
+  name: estahn
+name: httpbingo
+type: application
+version: 0.1.1

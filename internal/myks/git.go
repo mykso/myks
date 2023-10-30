@@ -9,8 +9,8 @@ import (
 
 type ChangedFiles map[string]string
 
-// getChangedFiles returns list of files changed since the baseRevision, if specified, and since the last commit
-func getChangedFiles(baseRevision string) (ChangedFiles, error) {
+// GetChangedFilesGit returns list of files changed since the baseRevision, if specified, and since the last commit
+func GetChangedFilesGit(baseRevision string) (ChangedFiles, error) {
 	logFn := func(name string, args []string) {
 		log.Debug().Msg(msgRunCmd("collect changed files for smart-mode", name, args))
 	}

@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-mykso-dev-httpbingo
+  namespace: system-argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  annotations:
+    myks.dev/environment: mykso-dev
+    app.kubernetes.io/source: git@github.com:mykso/myks.git
+spec:
+  project: env-mykso-dev
+  destination:
+    name: mykso-dev
+    namespace: httpbingo
+  source:
+    path: examples/default/rendered/envs/mykso-dev/httpbingo
+    plugin:
+      name: argocd-vault-plugin-v1.0.0
+    repoURL: git@github.com:mykso/myks.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true

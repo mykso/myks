@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    a8r.io/repository: git@github.com:mykso/myks.git
+  labels:
+    app.kubernetes.io/instance: httpbingo
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: httpbingo
+    app.kubernetes.io/version: v2.2.2
+    helm.sh/chart: httpbingo-0.1.1
+  name: httpbingo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: httpbingo
+      app.kubernetes.io/name: httpbingo
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: httpbingo
+        app.kubernetes.io/name: httpbingo
+    spec:
+      containers:
+        - image: mccutchen/go-httpbin:v2.2.2
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          name: httpbingo
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources: {}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - all
+            privileged: false
+            runAsGroup: 1000
+            runAsNonRoot: true
+            runAsUser: 1000
+      securityContext: {}
+      serviceAccountName: httpbingo
