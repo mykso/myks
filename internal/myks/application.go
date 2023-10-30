@@ -151,12 +151,18 @@ func (a *Application) runCmd(step, purpose, cmd string, stdin io.Reader, args []
 }
 
 func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
+	args := []string{
+		"-v", "myks.context.step=init", // in the logs this step is called init
+		"-v", "myks.context.app=" + a.Name,
+		"-v", "myks.context.prototype=" + a.Prototype,
+		"--data-values-inspect",
+	}
 	if len(dataFiles) == 0 {
 		return nil, errors.New("No data files found")
 	}
 	res, err := runYttWithFilesAndStdin(dataFiles, nil, func(name string, args []string) {
 		log.Debug().Msg(a.Msg("init", msgRunCmd("render application data values file", name, args)))
-	}, "--data-values-inspect")
+	}, args...)
 	if err != nil {
 		log.Error().Err(err).Str("stderr", res.Stderr).Msg(a.Msg("init", "Unable to render data"))
 		return nil, err
@@ -181,9 +187,9 @@ func (a *Application) ytt(step, purpose string, paths []string, args ...string) 
 
 func (a *Application) yttS(step string, purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
 	args = append(args,
-		"-v", "context.step="+step,
-		"-v", "context.app="+a.Name,
-		"-v", "context.prototype="+a.Prototype)
+		"-v", "myks.context.step="+step,
+		"-v", "myks.context.app="+a.Name,
+		"-v", "myks.context.prototype="+a.Prototype)
 	paths = concatenate(a.e.g.extraYttPaths, paths)
 	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
 		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, name, args)))

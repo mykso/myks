@@ -127,5 +127,5 @@ myks:
     app: ""
     #! name of prototype including full path (e.g. prototypes/argocd)
     prototype: ""
-    #! rendering step: argocd, global_ytt, helm, ytt-pkg, ytt
+    #! rendering step: init, argocd, global_ytt, helm, ytt-pkg, ytt
     step: ""
