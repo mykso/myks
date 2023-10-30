@@ -143,8 +143,12 @@ func genRenderedResourceFileName(resource map[string]interface{}) string {
 	name := "NO_NAME"
 	if n, ok := resource["metadata"]; ok {
 		metadata := n.(map[string]interface{})
-		name = metadata["name"].(string)
+		if n, ok := metadata["name"].(string); ok {
+			name = n
+		}
 	}
+	// Worst case this returns "no_kind-no_name.yaml" which probably is not what we want.
+	// TODO: exit with an error instead
 	return fmt.Sprintf("%s-%s.yaml", strings.ToLower(kind), strings.ToLower(name))
 }
 
