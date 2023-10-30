@@ -14,9 +14,15 @@ argocd:
     #! Disable finalizers to preserve resources after deleting the ArgoCD application.
     finalizers: []
     source:
-      #! render all argo apps with targetRevision: main
-      targetRevision: main
       plugin:
         name: argocd-vault-plugin-v1.0.0
+      #! Fixed config to run tests successfull in pipeline
+      targetRevision: main
+      repoURL: git@github.com:mykso/myks.git
   project:
     prefix: env-
+
+#! Fixed git config to run tests successfull in pipeline.
+myks:
+  gitRepoBranch: "main"
+  gitRepoUrl: "git@github.com:mykso/myks.git"

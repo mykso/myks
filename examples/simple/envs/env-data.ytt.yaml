@@ -15,5 +15,10 @@ environment:
 argocd:
   app:
     source:
-      #! render all argo apps with targetRevision: main
+      #! Fixed config to run tests successfull in pipeline
       targetRevision: main
+      repoURL: git@github.com:mykso/myks.git
+#! Fixed config to run tests successfull in pipeline
+myks:
+  gitRepoBranch: "main"
+  gitRepoUrl: "git@github.com:mykso/myks.git"
