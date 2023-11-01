@@ -1,0 +1,24 @@
+#! This is an example of a data values file for the root environment.
+#! All nested environments inherit these values. The values can be overridden in nested environments.
+#! This file is a good place to define default values for all environments.
+#!
+#! To change the schema of the data values, use `data/values-schema` annotation instead of `data/values`.
+#! Refer to the documentation of ytt overlays and data values for more information.
+
+#@data/values
+---
+environment:
+  #! enable httpbingo app for all environments
+  applications:
+    - proto: httpbingo
+
+argocd:
+  app:
+    source:
+      #! Fixed config to run tests successfull in pipeline
+      targetRevision: main
+      repoURL: git@github.com:mykso/myks.git
+#! Fixed config to run tests successfull in pipeline
+myks:
+  gitRepoBranch: "main"
+  gitRepoUrl: "git@github.com:mykso/myks.git"

@@ -25,7 +25,7 @@ func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error)
 		return nil, err
 	}
 
-	changedFiles, err := getChangedFiles(baseRevision)
+	changedFiles, err := GetChangedFilesGit(baseRevision)
 	if err != nil {
 		log.Err(err).Msg(g.Msg("Failed to get diff"))
 		return nil, err
@@ -73,6 +73,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		// Env search path is the only submatch
 		"env": {
 			e("(" + g.EnvironmentBaseDir + ".*)/_env/" + g.YttStepDirName + "/.*"),
+			e("(" + g.EnvironmentBaseDir + ".*)/_env/" + g.ArgoCDDataDirName + "/.*"),
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvironmentDataFileName),
 		},
 		// Prototype name is the only submatch
@@ -152,6 +153,26 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		if apps != nil {
 			// Remove duplicates
 			envAppMap[env] = removeDuplicates(apps)
+		}
+	}
+
+	// Remove environments and applications that are not found in the filesystem
+	for env, apps := range envAppMap {
+		// env can be an exact path of an environment or one of parent directories
+		if !g.isEnvPath(env) {
+			delete(envAppMap, env)
+			continue
+		}
+		for _, app := range apps {
+			// env can be absent in g.environments if it is a parent directory of an environment
+			// in this case we can't easily check if app is present in env
+			// TODO: implement smarter lookup logic instead
+			if _, ok := g.environments[env]; !ok {
+				continue
+			}
+			if _, ok := g.environments[env].foundApplications[app]; !ok {
+				envAppMap[env] = filterSlice(envAppMap[env], func(s string) bool { return s != app })
+			}
 		}
 	}
 

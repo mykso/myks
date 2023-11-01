@@ -1,0 +1,6 @@
+#@data/values
+---
+environment:
+  id: mykso-dev
+  #! applications:  # already defined one level above
+  #!  - proto: httpbingo # already defined one level above

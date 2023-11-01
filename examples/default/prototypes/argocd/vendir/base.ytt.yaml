@@ -1,0 +1,14 @@
+#@ load("@ytt:data", "data")
+---
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+  - path: ytt/argocd
+    contents:
+      - path: .
+        git:
+          url: #@ data.values.application.url
+          ref: #@ data.values.application.version
+        includePaths:
+          - manifests/ha/install.yaml
+        newRootPath: manifests/ha

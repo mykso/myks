@@ -12,8 +12,8 @@ import (
 //go:embed assets/data-schema.ytt.yaml
 var dataSchema []byte
 
-//go:embed assets/envs_gitignore
-var envsGitignore []byte
+//go:embed assets/gitignore
+var gitignore []byte
 
 //go:embed assets/myks_config.yaml
 var myksConfig []byte
@@ -41,7 +41,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string) error {
 
 	if onlyPrint {
 		if compMap["gitignore"] {
-			printFileNicely(".gitignore", string(envsGitignore), "Terminfo")
+			printFileNicely(".gitignore", string(gitignore), "Terminfo")
 		}
 		if compMap["config"] {
 			printFileNicely(".myks.yaml", string(myksConfig), "YAML")
@@ -85,17 +85,17 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
 	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
 	renderedDir := filepath.Join(g.RootDir, g.RenderedDir)
-	envsGitignoreFile := filepath.Join(envDir, ".gitignore")
+	gitignoreFile := filepath.Join(g.RootDir, ".gitignore")
 	myksConfigFile := filepath.Join(g.RootDir, ".myks.yaml")
 
 	log.Debug().Str("environments directory", envDir).Msg("")
 	log.Debug().Str("prototypes directory", protoDir).Msg("")
 	log.Debug().Str("rendered directory", renderedDir).Msg("")
-	log.Debug().Str("environments .gitignore file", envsGitignoreFile).Msg("")
+	log.Debug().Str(".gitignore file", gitignoreFile).Msg("")
 	log.Debug().Str("myks config file", myksConfigFile).Msg("")
 
 	if !force {
-		for _, path := range []string{envDir, protoDir, renderedDir, envsGitignoreFile, myksConfigFile} {
+		for _, path := range []string{envDir, protoDir, renderedDir, gitignoreFile, myksConfigFile} {
 			ok, err := isExist(path)
 			if err != nil {
 				return err
@@ -120,7 +120,7 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 		return err
 	}
 
-	if err := os.WriteFile(envsGitignoreFile, envsGitignore, 0o600); err != nil {
+	if err := os.WriteFile(gitignoreFile, gitignore, 0o600); err != nil {
 		return err
 	}
 
