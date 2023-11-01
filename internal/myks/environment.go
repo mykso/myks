@@ -129,7 +129,6 @@ func (e *Environment) SyncAndRender(asyncLevel int, vendirSecrets string) error 
 		}
 		return app.renderArgoCD()
 	})
-
 	if err != nil {
 		log.Error().Err(err).Msg(e.Msg("Unable to sync and render applications"))
 		return err

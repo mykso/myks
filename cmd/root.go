@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/logrusorgru/aurora/v4"
+	aurora "github.com/logrusorgru/aurora/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
