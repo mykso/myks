@@ -177,6 +177,7 @@ func (e *Environment) renderedApplications() ([]string, error) {
 			apps = append(apps, dir)
 		}
 	}
+	log.Debug().Strs("apps", apps).Msg(e.Msg("Found rendered applications"))
 	return apps, nil
 }
 
