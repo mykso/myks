@@ -1,3 +1,10 @@
+## [2.1.1](https://github.com/mykso/myks/compare/v2.1.0...v2.1.1) (2023-11-21)
+
+
+### Bug Fixes
+
+* **clean-up:** Call env cleanup method when executing render and sync ([#125](https://github.com/mykso/myks/issues/125)) ([c7cf621](https://github.com/mykso/myks/commit/c7cf6217df73c7897099dd62a85040a8731f6483)), closes [#100](https://github.com/mykso/myks/issues/100)
+
 # [2.1.0](https://github.com/mykso/myks/compare/v2.0.4...v2.1.0) (2023-10-31)
 
 
