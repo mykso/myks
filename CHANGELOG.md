@@ -1,3 +1,20 @@
+# [2.1.0](https://github.com/mykso/myks/compare/v2.0.4...v2.1.0) (2023-10-31)
+
+
+### Bug Fixes
+
+* **init:** ignore top level .myks folder ([#116](https://github.com/mykso/myks/issues/116)) ([b39eb8d](https://github.com/mykso/myks/commit/b39eb8df0a9cc22524314431b61bb7474608d270))
+* **render:** fix panic if metadata.name is not set ([#123](https://github.com/mykso/myks/issues/123)) ([cdf3266](https://github.com/mykso/myks/commit/cdf3266132064b5f3627714199227cd75ed4cfa9))
+* **smart-mode:** correct detection of changes in "_env/argocd" ([#111](https://github.com/mykso/myks/issues/111)) ([ec5dd1d](https://github.com/mykso/myks/commit/ec5dd1d99b7fddf2a452c8b86609775e8222b851))
+* **smart-mode:** filter out deleted envs and apps ([93fa2e3](https://github.com/mykso/myks/commit/93fa2e3786250b4e0c305af0923204d2bf1e9341)), closes [#114](https://github.com/mykso/myks/issues/114)
+
+
+### Features
+
+* add metadata to ytt steps ([#119](https://github.com/mykso/myks/issues/119)) ([6443a20](https://github.com/mykso/myks/commit/6443a2097dc061074a9c6f3ca019a96054c51f4f))
+* **global-ytt:** log ytt output on error ([#120](https://github.com/mykso/myks/issues/120)) ([a22f7aa](https://github.com/mykso/myks/commit/a22f7aa0ea9dc27985e906c6f0f5213cddcd6697))
+* **ui:** add smart-mode.only-print flag for debugging ([0a6349a](https://github.com/mykso/myks/commit/0a6349a974fca2317f7d51adae337a3dce0dc4c0))
+
 ## [2.0.4](https://github.com/mykso/myks/compare/v2.0.3...v2.0.4) (2023-09-29)
 
 
