@@ -85,7 +85,7 @@ func (a *Application) renderArgoCD() (err error) {
 	// 4. Collection of environment argocd-specific data values and schemas, and overlays
 	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_env", a.e.g.ArgoCDDataDirName))...)
 	// 5. Collection of application argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.ArgoCDDataDirName))...)
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.ArgoCDDataDirName))...)
 
 	res, err := a.yttS(
 		"argocd",

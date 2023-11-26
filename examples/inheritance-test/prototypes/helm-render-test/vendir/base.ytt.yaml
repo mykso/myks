@@ -1,0 +1,13 @@
+#@ load("@ytt:data", "data")
+
+#@ app = data.values.application
+---
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+  - path: #@ "charts/" + app.name
+    contents:
+      - path: .
+        directory:
+          name: #@ app.name
+          path: ../../../../../../charts/render-test-chart

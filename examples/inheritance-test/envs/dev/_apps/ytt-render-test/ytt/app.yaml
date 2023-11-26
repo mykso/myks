@@ -1,0 +1,8 @@
+#@ load("@ytt:data", "data")
+---
+kind: rendering
+metadata:
+  name: app
+outputYaml:
+  fromAppConfig: true
+  fromAppConfigAppData: #@ data.values.application.appValue

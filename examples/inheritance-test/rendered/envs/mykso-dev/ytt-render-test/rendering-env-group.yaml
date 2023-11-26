@@ -1,0 +1,6 @@
+kind: rendering
+metadata:
+  name: env-group
+outputYaml:
+  fromEnvGroup: true
+  fromEnvGroupAppData: true

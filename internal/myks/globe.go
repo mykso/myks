@@ -20,6 +20,10 @@ const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 type Globe struct {
 	/// Globe configuration
 
+	// Directory of application-specific configuration
+	AppsDir string `default:"_apps"`
+	// Directory of application-specific prototype overwrites
+	PrototypeOverrideDir string `default:"_proto"`
 	// Base directory for environments
 	EnvironmentBaseDir string `default:"envs"`
 	// Main branch name

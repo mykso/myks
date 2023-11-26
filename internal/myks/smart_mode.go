@@ -83,8 +83,8 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		},
 		// Env path and app name are the submatches
 		"app": {
-			e("(" + g.EnvironmentBaseDir + ".*)/_apps/([^/]+)/" + pluginsPattern + "/.*"),
-			e("(" + g.EnvironmentBaseDir + ".*)/_apps/([^/]+)/" + g.ApplicationDataFileName),
+			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + pluginsPattern + "/.*"),
+			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + g.ApplicationDataFileName),
 		},
 	}
 

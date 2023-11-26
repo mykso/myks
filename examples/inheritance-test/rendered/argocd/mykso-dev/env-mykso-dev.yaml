@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: env-mykso-dev
+  namespace: system-argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  description: Project for "mykso-dev" environment
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  destinations:
+  - namespace: '*'
+    name: mykso-dev
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  sourceRepos:
+  - '*'
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  name: mykso-dev
+  namespace: system-argocd
+stringData:
+  config: ARGOCD_CLUSTER_CONNECT_CONFIG
+  name: mykso-dev
+  project: env-mykso-dev
+  server: ARGOCD_CLUSTER_SERVER_URL

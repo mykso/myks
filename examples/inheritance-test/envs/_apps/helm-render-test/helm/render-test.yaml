@@ -1,0 +1,5 @@
+#@ load("@ytt:data", "data")
+---
+outputYaml:
+  fromEnvGroup: true
+  fromEnvGroupAppData: #@ data.values.application.envGroupValue
