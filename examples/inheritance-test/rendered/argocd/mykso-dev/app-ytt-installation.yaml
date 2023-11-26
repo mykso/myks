@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: app-mykso-dev-ytt-render-test
+  name: app-mykso-dev-ytt-installation
   namespace: system-argocd
   finalizers:
   - resources-finalizer.argocd.argoproj.io
@@ -9,9 +9,9 @@ spec:
   project: env-mykso-dev
   destination:
     name: mykso-dev
-    namespace: ytt-render-test
+    namespace: ytt-installation
   source:
-    path: examples/inheritance-test/rendered/envs/mykso-dev/ytt-render-test
+    path: examples/inheritance-test/rendered/envs/mykso-dev/ytt-installation
     plugin:
       name: argocd-vault-plugin-v1.0.0
     repoURL: git@github.com:mykso/myks.git
