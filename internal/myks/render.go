@@ -181,14 +181,8 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 	// add prototype overwrites value file from env dir groups
 	valuesFiles = append(valuesFiles, a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), valuesFileName))...)
 
-	// add application values file from env dir groups
+	// add application values file from env dir and groups
 	valuesFiles = append(valuesFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, valuesFileName))...)
-
-	// add values file from env dir
-	envValuesFile := filepath.Join(a.e.Dir, a.e.g.AppsDir, a.Name, valuesFileName)
-	if _, err := os.Stat(envValuesFile); err == nil {
-		valuesFiles = append(valuesFiles, envValuesFile)
-	}
 
 	if len(valuesFiles) == 0 {
 		log.Debug().Str("resource", resourceName).Msg(a.Msg(renderStepName, "No values files found"))
