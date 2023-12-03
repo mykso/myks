@@ -53,6 +53,8 @@ type Globe struct {
 	MyksDataFileName string `default:"myks-data.ytt.yaml"`
 	// Rendered environment data file name
 	RenderedEnvironmentDataFileName string `default:"env-data.yaml"`
+	// Static files directory name
+	StaticFilesDirName string `default:"static"`
 	// Service directory name
 	ServiceDirName string `default:".myks"`
 	// Temporary directory name
