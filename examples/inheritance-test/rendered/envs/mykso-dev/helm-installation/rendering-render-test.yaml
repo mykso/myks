@@ -1,0 +1,13 @@
+kind: rendering
+metadata:
+  name: render-test
+outputYaml:
+  fromAppConfig: true
+  fromAppConfigAppData: true
+  fromChartDefaultValues: true
+  fromEnvGroup: true
+  fromEnvGroupAppData: true
+  fromPrototype: true
+  fromPrototypeAppData: true
+  fromPrototypeOverride: true
+  fromPrototypeOverrideFromAppData: true

@@ -5,13 +5,19 @@ import (
 	"testing"
 )
 
+var prototypeDir = "prototypes"
+
+var appName = "test-app"
+
 var testApp = &Application{
-	Name:      "",
-	Prototype: "",
+	Name:      appName,
+	Prototype: prototypeDir + "/" + appName,
 	e: &Environment{
 		Id: "test-env",
 		g: &Globe{
-			TempDirName: "/tmp",
+			TempDirName:   "/tmp",
+			PrototypesDir: prototypeDir,
+			AppsDir:       "_apps",
 		},
 		Dir: "/tmp",
 	},
@@ -69,7 +75,7 @@ func TestApplication_Render(t *testing.T) {
 					renderedYaml: "step: Two",
 				},
 			},
-			want:     "/tmp/_apps/tmp/steps/01-test-template-2.yaml",
+			want:     "/tmp/_apps/" + appName + "/tmp/steps/01-test-template-2.yaml",
 			wantYaml: "step: One\n---\nstep: Two",
 			wantErr:  false,
 		},
@@ -89,7 +95,7 @@ func TestApplication_Render(t *testing.T) {
 					renderedYaml: "step: Two",
 				},
 			},
-			want:     "/tmp/_apps/tmp/steps/01-test-template-2.yaml",
+			want:     "/tmp/_apps/" + appName + "/tmp/steps/01-test-template-2.yaml",
 			wantYaml: "step: Two",
 			wantErr:  false,
 		},

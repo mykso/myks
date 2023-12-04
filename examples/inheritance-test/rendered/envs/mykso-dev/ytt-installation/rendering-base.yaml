@@ -1,0 +1,6 @@
+kind: rendering
+metadata:
+  name: base
+outputYaml:
+  fromPrototype: true
+  fromPrototypeAppData: true

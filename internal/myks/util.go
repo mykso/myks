@@ -320,3 +320,18 @@ func isExist(path string) (bool, error) {
 	log.Error().Err(err).Msg("Unable to stat file")
 	return false, err
 }
+
+func collectBySubpath(rootDir string, targetDir string, subpath string) []string {
+	items := []string{}
+	currentPath := rootDir
+	levels := []string{""}
+	levels = append(levels, strings.Split(targetDir, filepath.FromSlash("/"))...)
+	for _, level := range levels {
+		currentPath = filepath.Join(currentPath, level)
+		item := filepath.Join(currentPath, subpath)
+		if _, err := os.Stat(item); err == nil {
+			items = append(items, item)
+		}
+	}
+	return items
+}
