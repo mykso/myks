@@ -4,3 +4,4 @@ dist
 .run
 /myks
 **/.myks/tmp
+coverage.txt
