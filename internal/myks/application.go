@@ -28,10 +28,11 @@ type Application struct {
 
 	e *Environment
 
-	argoCDEnabled bool
-	useCache      bool
-	yttDataFiles  []string
-	yttPkgDirs    []string
+	argoCDEnabled    bool
+	includeNamespace bool
+	useCache         bool
+	yttDataFiles     []string
+	yttPkgDirs       []string
 }
 
 type HelmConfig struct {
@@ -94,6 +95,9 @@ func (a *Application) Init() error {
 		Sync   struct {
 			UseCache bool `yaml:"useCache"`
 		} `yaml:"sync"`
+		Render struct {
+			IncludeNamespace bool `yaml:"includeNamespace"`
+		} `yaml:"render"`
 	}
 
 	err = yaml.Unmarshal(dataYaml, &applicationData)
@@ -102,6 +106,7 @@ func (a *Application) Init() error {
 	}
 	a.argoCDEnabled = applicationData.ArgoCD.Enabled
 	a.useCache = applicationData.Sync.UseCache
+	a.includeNamespace = applicationData.Render.IncludeNamespace
 	a.yttPkgDirs = applicationData.YttPkg.Dirs
 
 	return nil
