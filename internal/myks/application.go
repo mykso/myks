@@ -124,6 +124,10 @@ func (a *Application) Init() error {
 		ArgoConfig ArgoConfig `yaml:"argocd"`
 	}
 	err = yaml.Unmarshal(dataYaml, &argoData)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(helmStepName, "Unable to unmarshal argo config"))
+		return err
+	}
 	if argoData.ArgoConfig.Enabled {
 		a.ArgoConfig = &argoData.ArgoConfig
 	}
