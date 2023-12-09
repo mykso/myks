@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-mykso-dev-ytt-installation
+  namespace: system-argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: env-mykso-dev
+  destination:
+    name: mykso-dev
+    namespace: ytt-installation
+  source:
+    path: examples/inheritance-test/rendered/envs/mykso-dev/ytt-installation
+    plugin:
+      name: argocd-vault-plugin-v1.0.0
+    repoURL: git@github.com:mykso/myks.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true

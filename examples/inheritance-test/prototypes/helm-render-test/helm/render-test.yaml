@@ -1,0 +1,5 @@
+#@ load("@ytt:data", "data")
+---
+outputYaml:
+  fromPrototype: true
+  fromPrototypeAppData: #@ data.values.application.baseValue

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
@@ -107,11 +108,11 @@ func (a *Application) Init() error {
 }
 
 func (a *Application) expandPath(path string) string {
-	return filepath.Join(a.e.Dir, "_apps", a.Name, path)
+	return filepath.Join(a.e.Dir, a.e.g.AppsDir, a.Name, path)
 }
 
 func (a *Application) expandServicePath(path string) string {
-	return filepath.Join(a.e.Dir, "_apps", a.Name, a.e.g.ServiceDirName, path)
+	return filepath.Join(a.e.Dir, a.e.g.AppsDir, a.Name, a.e.g.ServiceDirName, path)
 }
 
 func (a *Application) expandTempPath(path string) string {
@@ -135,7 +136,9 @@ func (a *Application) collectDataFiles() {
 		a.yttDataFiles = append(a.yttDataFiles, protoDataFile)
 	}
 
-	overrideDataFiles := a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.ApplicationDataFileName))
+	protoOverrideDataFiles := a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), a.e.g.ApplicationDataFileName))
+	a.yttDataFiles = append(a.yttDataFiles, protoOverrideDataFiles...)
+	overrideDataFiles := append(protoOverrideDataFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.ApplicationDataFileName))...)
 	a.yttDataFiles = append(a.yttDataFiles, overrideDataFiles...)
 }
 
@@ -194,4 +197,8 @@ func (a *Application) yttS(step string, purpose string, paths []string, stdin io
 	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
 		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, name, args)))
 	}, args...)
+}
+
+func (a *Application) prototypeDirName() string {
+	return strings.TrimPrefix(a.Prototype, a.e.g.PrototypesDir+string(filepath.Separator))
 }

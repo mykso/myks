@@ -1,0 +1,5 @@
+kind: rendering
+metadata:
+  name: render-test
+outputYaml:
+{{ toYaml .Values.outputYaml | indent 2 }}

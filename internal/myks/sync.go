@@ -44,7 +44,7 @@ func (a *Application) prepareSync() error {
 		yttFiles = append(yttFiles, protoVendirDir)
 	}
 
-	appVendirDirs := a.e.collectBySubpath(filepath.Join("_apps", a.Name, "vendir"))
+	appVendirDirs := a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, "vendir"))
 	yttFiles = append(yttFiles, appVendirDirs...)
 
 	if len(yttFiles) == 0 {
@@ -106,9 +106,15 @@ func (a *Application) doSync(vendirSecrets string) error {
 		return err
 	}
 
+	exist, err := isExist(vendorDir)
+	if err != nil {
+		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to check if vendor dir exists"))
+		return err
+	}
+
 	// TODO sync retry
 	// only sync vendir with directory flag, if the lock file matches the vendir config file and caching is enabled
-	if a.useCache && checkLockFileMatch(vendirDirHashes, lockFileDirHashes) {
+	if exist && a.useCache && checkLockFileMatch(vendirDirHashes, lockFileDirHashes) {
 		for dir, hash := range vendirDirHashes {
 			if checkVersionMatch(dir, hash, syncFileDirHashes) {
 				log.Info().Str("vendir dir", dir).Msg(a.Msg(syncStepName, "Resource already synced"))

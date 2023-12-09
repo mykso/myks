@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -26,6 +27,23 @@ func TestApplication_renderDataYaml(t *testing.T) {
 			}
 			if !strings.Contains(string(got), tt.want) {
 				t.Errorf("renderDataYaml() does not include expected string. got = %v, want %v", string(got), tt.want)
+			}
+		})
+	}
+}
+
+func TestApplication_prototypeDir(t *testing.T) {
+	tests := []struct {
+		name string
+		want string
+	}{
+		{"happy path", "test-app"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := testApp.prototypeDirName()
+			if !reflect.DeepEqual(string(got), tt.want) {
+				t.Errorf("prototypeDir() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
