@@ -48,3 +48,35 @@ func TestApplication_prototypeDir(t *testing.T) {
 		})
 	}
 }
+
+func Test_decideNamespace(t *testing.T) {
+	type args struct {
+		helmNamespace string
+		argoNamespace string
+		namespace     string
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{"happy path", args{"my-namespace", "my-namespace", "namespace"}, "my-namespace", false},
+		{"helm namespace", args{"my-namespace", "", "namespace"}, "my-namespace", false},
+		{"argo namespace", args{"", "my-namespace", "namespace"}, "my-namespace", false},
+		{"default namespace", args{"", "", "namespace"}, "namespace", false},
+		{"mismatch", args{"helm-namespace", "argo-namespace", "namespace"}, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := decideNamespace(tt.args.helmNamespace, tt.args.argoNamespace, tt.args.namespace)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("decideNamespace() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("decideNamespace() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

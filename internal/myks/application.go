@@ -28,11 +28,12 @@ type Application struct {
 
 	e *Environment
 
-	argoCDEnabled    bool
+	useCache     bool
+	yttDataFiles []string
+	yttPkgDirs   []string
 	includeNamespace bool
-	useCache         bool
-	yttDataFiles     []string
-	yttPkgDirs       []string
+	ArgoConfig   *ArgoConfig
+	HelmConfig   *HelmConfig
 }
 
 type HelmConfig struct {
@@ -40,6 +41,19 @@ type HelmConfig struct {
 	KubeVersion  string   `yaml:"kubeVersion"`
 	IncludeCRDs  bool     `yaml:"includeCRDs"`
 	Capabilities []string `yaml:"capabilities"`
+}
+
+type Destination struct {
+	Namespace string `yaml:"namespace"`
+}
+
+type App struct {
+	Destination Destination `yaml:"destination"`
+}
+
+type ArgoConfig struct {
+	Enabled bool `yaml:"enabled"`
+	App     App  `yaml:"app"`
 }
 
 var (
@@ -71,7 +85,8 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 }
 
 func (a *Application) Init() error {
-	// 1. Collect all ytt data files:
+
+	// Collect all ytt data files:
 	//    - environment data files: `envs/**/env-data.ytt.yaml`
 	//    - application prototype data file: `prototypes/<prototype>/app-data.ytt.yaml`
 	//    - application data files: `envs/**/_apps/<app>/add-data.ytt.yaml`
@@ -83,10 +98,7 @@ func (a *Application) Init() error {
 		return err
 	}
 
-	type ArgoCD struct {
-		Enabled bool `yaml:"enabled"`
-	}
-
+	// Read all sorts of application config
 	var applicationData struct {
 		YttPkg struct {
 			Dirs []string `yaml:"dirs"`
@@ -99,15 +111,33 @@ func (a *Application) Init() error {
 			IncludeNamespace bool `yaml:"includeNamespace"`
 		} `yaml:"render"`
 	}
-
 	err = yaml.Unmarshal(dataYaml, &applicationData)
 	if err != nil {
 		return err
 	}
-	a.argoCDEnabled = applicationData.ArgoCD.Enabled
 	a.useCache = applicationData.Sync.UseCache
 	a.includeNamespace = applicationData.Render.IncludeNamespace
 	a.yttPkgDirs = applicationData.YttPkg.Dirs
+
+	// Transfer ArgoConfig if enabled
+	var argoData struct {
+		ArgoConfig ArgoConfig `yaml:"argocd"`
+	}
+	err = yaml.Unmarshal(dataYaml, &argoData)
+	if argoData.ArgoConfig.Enabled {
+		a.ArgoConfig = &argoData.ArgoConfig
+	}
+
+	// Transfer HelmConfig
+	var helmConfig struct {
+		Helm HelmConfig
+	}
+	err = yaml.Unmarshal(dataYaml, &helmConfig)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(helmStepName, "Unable to unmarshal helm config"))
+		return err
+	}
+	a.HelmConfig = &helmConfig.Helm
 
 	return nil
 }
@@ -206,4 +236,45 @@ func (a *Application) yttS(step string, purpose string, paths []string, stdin io
 
 func (a *Application) prototypeDirName() string {
 	return strings.TrimPrefix(a.Prototype, a.e.g.PrototypesDir+string(filepath.Separator))
+}
+
+func (a *Application) localApply() error {
+	var helmNamespace, argoNamespace, namespace string
+	helmNamespace = a.HelmConfig.Namespace
+	if a.ArgoConfig != nil {
+		argoNamespace = a.ArgoConfig.App.Destination.Namespace
+	}
+	namespace, err := decideNamespace(helmNamespace, argoNamespace, a.Name)
+	if err != nil {
+		return err
+	}
+	// set default namespace
+	configArgs := []string{"config", "set-context", "--current", "--namespace", namespace}
+	res, err := a.runCmd("apply", "set default namespace", "kubectl", nil, configArgs)
+	if err != nil {
+		log.Error().Err(err).Str("stderr", res.Stderr).Msg(a.Msg("apply", "Unable to set default namespace"))
+		return err
+	}
+	// apply the k8s manifests
+	applyArgs := []string{"apply", "--filename", a.getDestinationDir()}
+	res, err = a.runCmd("apply", "apply k8s manifests", "kubectl", nil, applyArgs)
+	if err != nil {
+		log.Error().Err(err).Str("stderr", res.Stderr).Msg(a.Msg("apply", "Unable to apply k8s manifests"))
+		return err
+	}
+	return err
+}
+
+func decideNamespace(helmNamespace string, argoNamespace string, defaultNamespace string) (string, error) {
+	if helmNamespace == "" && argoNamespace == "" {
+		return defaultNamespace, nil
+	} else if helmNamespace == "" {
+		return argoNamespace, nil
+	} else if argoNamespace == "" {
+		return helmNamespace, nil
+	} else if helmNamespace == argoNamespace {
+		return helmNamespace, nil
+	} else {
+		return "", fmt.Errorf("Helm namespace %s is different from ArgoCD namespace %s", helmNamespace, argoNamespace)
+	}
 }

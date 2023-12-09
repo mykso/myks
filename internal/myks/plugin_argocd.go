@@ -31,7 +31,7 @@ argocd:
 
 func (e *Environment) renderArgoCD() (err error) {
 	if !e.argoCDEnabled {
-		log.Debug().Msg(e.Msg("ArgoCD is disabled"))
+		log.Debug().Msg(e.Msg("ArgoConfig is disabled"))
 		return
 	}
 
@@ -42,12 +42,12 @@ func (e *Environment) renderArgoCD() (err error) {
 	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join("_env", e.g.ArgoCDDataDirName))...)
 
 	res, err := e.yttS(
-		"create ArgoCD project yaml",
+		"create ArgoConfig project yaml",
 		yttFiles,
 		bytes.NewReader(argocd_appproject_template),
 	)
 	if err != nil {
-		log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(e.Msg("failed to render ArgoCD project yaml"))
+		log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(e.Msg("failed to render ArgoConfig project yaml"))
 		return
 	}
 
@@ -60,8 +60,8 @@ func (e *Environment) getArgoCDDestinationDir() string {
 }
 
 func (a *Application) renderArgoCD() (err error) {
-	if !a.argoCDEnabled {
-		log.Debug().Msg(a.Msg(ArgoCDStepName, "ArgoCD is disabled"))
+	if a.ArgoConfig == nil {
+		log.Debug().Msg(a.Msg(ArgoCDStepName, "ArgoConfig is disabled"))
 		return
 	}
 
@@ -71,7 +71,7 @@ func (a *Application) renderArgoCD() (err error) {
 	}
 
 	// 0. Global data values schema and library files are added later in the a.yttS call
-	// 1. Dynamic ArgoCD default values
+	// 1. Dynamic ArgoConfig default values
 	yttFiles := []string{defaultsPath}
 	// 2. Collection of application main data values and schemas
 	yttFiles = append(yttFiles, a.yttDataFiles...)
@@ -97,7 +97,7 @@ func (a *Application) renderArgoCD() (err error) {
 		log.Error().Err(err).
 			Str("stdout", res.Stdout).
 			Str("stderr", res.Stderr).
-			Msg(a.Msg("argocd", "failed to render ArgoCD Application yaml"))
+			Msg(a.Msg("argocd", "failed to render ArgoConfig Application yaml"))
 		return
 	}
 

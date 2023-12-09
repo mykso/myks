@@ -41,7 +41,7 @@ type Globe struct {
 
 	// Application data file name
 	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
-	// ArgoCD data directory name
+	// ArgoConfig data directory name
 	ArgoCDDataDirName string `default:"argocd"`
 	// Data values schema file name
 	DataSchemaFileName string `default:"data-schema.ytt.yaml"`
@@ -193,6 +193,16 @@ func (g *Globe) Sync(asyncLevel int) error {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
 		return env.Sync(asyncLevel, vendirSecrets)
+	})
+}
+
+func (g *Globe) Apply(asyncLevel int) error {
+	return process(asyncLevel, g.environments, func(item interface{}) error {
+		env, ok := item.(*Environment)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Environment")
+		}
+		return env.Apply(asyncLevel)
 	})
 }
 

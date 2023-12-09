@@ -110,6 +110,22 @@ func (e *Environment) Render(asyncLevel int) error {
 	return e.Cleanup()
 }
 
+func (e *Environment) Apply(asyncLevel int) error {
+	err := process(asyncLevel, e.Applications, func(item interface{}) error {
+		app, ok := item.(*Application)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Application")
+		}
+		return app.localApply()
+	})
+	if err != nil {
+		log.Error().Err(err).Msg(e.Msg("Unable to apply k8s manifests"))
+		return err
+	}
+
+	return e.Cleanup()
+}
+
 func (e *Environment) SyncAndRender(asyncLevel int, vendirSecrets string) error {
 	if err := e.renderArgoCD(); err != nil {
 		return err
