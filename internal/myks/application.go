@@ -85,7 +85,6 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 }
 
 func (a *Application) Init() error {
-
 	// Collect all ytt data files:
 	//    - environment data files: `envs/**/env-data.ytt.yaml`
 	//    - application prototype data file: `prototypes/<prototype>/app-data.ytt.yaml`
