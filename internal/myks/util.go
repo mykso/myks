@@ -247,7 +247,7 @@ func getSubDirs(dir string) (subDirs []string, err error) {
 	return
 }
 
-func runCmd(name string, stdin io.Reader, args []string, logFn func(name string, args []string)) (CmdResult, error) {
+func runCmd(name string, stdin io.Reader, args []string, logFn func(name string, err error, stdErr string, args []string)) (CmdResult, error) {
 	cmd := exec.Command(name, args...)
 
 	if stdin != nil {
@@ -261,7 +261,7 @@ func runCmd(name string, stdin io.Reader, args []string, logFn func(name string,
 	err := cmd.Run()
 
 	if logFn != nil {
-		logFn(name, args)
+		logFn(name, err, stderrBs.String(), args)
 	}
 
 	return CmdResult{
@@ -275,7 +275,7 @@ func msgRunCmd(purpose string, cmd string, args []string) string {
 	return "Running \u001B[34m" + cmd + "\u001B[0m to: \u001B[3m" + purpose + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
 }
 
-func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name string, args []string), args ...string) (CmdResult, error) {
+func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name string, err error, stderr string, args []string), args ...string) (CmdResult, error) {
 	if stdin != nil {
 		paths = append(paths, "-")
 	}

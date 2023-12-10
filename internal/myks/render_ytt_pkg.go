@@ -63,12 +63,17 @@ func (y *YttPkg) Render(_ string) (string, error) {
 			yttArgs = []string{"--data-values-file=" + pkgValuesFile}
 		}
 
-		res, err := runYttWithFilesAndStdin(yttFiles, nil, func(name string, args []string) {
-			// make this copy-n-pastable
-			log.Debug().Msg(msgRunCmd(yttPkgStepName+" render step", name, args))
+		res, err := runYttWithFilesAndStdin(yttFiles, nil, func(name string, err error, stderr string, args []string) {
+			purpose := yttPkgStepName + " render step"
+			cmd := msgRunCmd(purpose, name, args)
+			if err != nil {
+				log.Error().Msg(cmd)
+				log.Error().Msg(stderr)
+			} else {
+				log.Debug().Msg(cmd)
+			}
 		}, yttArgs...)
 		if err != nil {
-			log.Error().Msg(y.app.Msg(yttPkgStepName, res.Stderr))
 			return "", err
 		}
 
