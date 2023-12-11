@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -406,9 +407,17 @@ func assertEqual(t *testing.T, got, want interface{}) {
 }
 
 func diff(expected, actual interface{}) string {
+	jsonExpected, err := json.MarshalIndent(expected, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
+	jsonActual, err := json.MarshalIndent(actual, "", "  ")
+	if err != nil {
+		return err.Error()
+	}
 	diff := difflib.UnifiedDiff{
-		A:        difflib.SplitLines(fmt.Sprintf("%v", expected)),
-		B:        difflib.SplitLines(fmt.Sprintf("%v", actual)),
+		A:        difflib.SplitLines(string(jsonExpected)),
+		B:        difflib.SplitLines(string(jsonActual)),
 		FromFile: "Expected",
 		ToFile:   "Actual",
 		Context:  3,
