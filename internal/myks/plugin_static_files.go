@@ -9,6 +9,9 @@ import (
 const StaticFilesStepName = "static-files"
 
 func (a *Application) copyStaticFiles() (err error) {
+	logStaticFiles := func(files []string) {
+		log.Trace().Strs("staticFiles", files).Msg(a.Msg(StaticFilesStepName, "Static files"))
+	}
 	staticFilesDirs := []string{}
 
 	// 1. Static files from the prototype
@@ -18,14 +21,17 @@ func (a *Application) copyStaticFiles() (err error) {
 	} else if ok {
 		staticFilesDirs = append(staticFilesDirs, prototypeStaticFilesDir)
 	}
-	log.Trace().Strs("staticFilesDirs", staticFilesDirs).Msg(a.Msg(StaticFilesStepName, "Static files dirs"))
+	logStaticFiles(staticFilesDirs)
+	// 2. Static files from prototype overrides
+	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join("_proto", a.prototypeDirName(), a.e.g.StaticFilesDirName))...)
+	logStaticFiles(staticFilesDirs)
 
-	// 2. Static files from the environment
+	// 3. Static files from the environment
 	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join("_env", a.e.g.StaticFilesDirName))...)
-	log.Trace().Strs("staticFilesDirs", staticFilesDirs).Msg(a.Msg(StaticFilesStepName, "Static files dirs"))
-	// 3. Static files from the application
+	logStaticFiles(staticFilesDirs)
+	// 4. Static files from the application
 	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.StaticFilesDirName))...)
-	log.Trace().Strs("staticFilesDirs", staticFilesDirs).Msg(a.Msg(StaticFilesStepName, "Static files dirs"))
+	logStaticFiles(staticFilesDirs)
 
 	staticFilesDestination := filepath.Join(a.getDestinationDir(), a.e.g.StaticFilesDirName)
 
