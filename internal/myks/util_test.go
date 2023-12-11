@@ -427,6 +427,30 @@ func diff(expected, actual interface{}) string {
 	return text
 }
 
+// chdir changes the current working directory to the named directory and
+// returns a function that, when called, restores the original working
+// directory.
+// Usage:
+//
+//	defer chdir(t, "testdata")()
+//
+// Credit: https://github.com/golang/go/issues/45182#issue-838791504
+func chdir(t *testing.T, dir string) func() {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("chdir %s: %v", dir, err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+
+	return func() {
+		if err := os.Chdir(wd); err != nil {
+			t.Fatalf("restoring working directory: %v", err)
+		}
+	}
+}
+
 func Test_extract(t *testing.T) {
 	type TestMe struct {
 		Name string
