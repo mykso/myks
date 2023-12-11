@@ -106,6 +106,10 @@ yttPkg:
   #! Example: ["sub1", "sub2", "nested/sub3", "nested/sub4"]
   dirs:
     - ""
+#! Configuration options for the render step.
+render:
+  #! If true, the render output file names will include the namespace
+  includeNamespace: false
 #! Configuration options for the sync step.
 sync:
   #! If true, the sync step is performed only if the vendir.yaml file is changed after the previous sync.

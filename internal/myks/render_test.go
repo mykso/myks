@@ -120,3 +120,33 @@ func TestApplication_Render(t *testing.T) {
 		})
 	}
 }
+
+func Test_genRenderedResourceFileName(t *testing.T) {
+	type args struct {
+		resource         map[string]interface{}
+		includeNamespace bool
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    string
+		wantErr bool
+	}{
+		{"happy path", args{map[string]interface{}{"kind": "Deployment", "metadata": map[string]interface{}{"name": "test", "namespace": "test-ns"}}, true}, "deployment-test_test-ns.yaml", false},
+		{"no namespace", args{map[string]interface{}{"kind": "Deployment", "metadata": map[string]interface{}{"name": "test", "namespace": "test-ns"}}, false}, "deployment-test.yaml", false},
+		{"no kind", args{map[string]interface{}{"metadata": map[string]interface{}{"name": "test", "namespace": "test-ns"}}, false}, "", true},
+		{"no name", args{map[string]interface{}{"metadata": map[string]interface{}{"kind": "Deployment", "namespace": "test-ns"}}, false}, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := genRenderedResourceFileName(tt.args.resource, tt.args.includeNamespace)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("genRenderedResourceFileName() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("genRenderedResourceFileName() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
