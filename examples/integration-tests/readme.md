@@ -14,3 +14,6 @@ This examples tests the full power of myks inheritance for helm and ytt renderin
 
 Both environment group level and application level are rendering with prototype override config as well as application specific config.
 
+### Static files
+
+This example tests the ability to correctly render static files from the `static` directories.

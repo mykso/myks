@@ -1,0 +1,9 @@
+---
+# https://kubernetes.io/docs/concepts/configuration/configmap/
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: static-test-cm
+  namespace: default
+data:
+  key: value
