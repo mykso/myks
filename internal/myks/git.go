@@ -27,7 +27,7 @@ func GetChangedFilesGit(baseRevision string) (ChangedFiles, error) {
 		}
 	}
 
-	result, err := runCmd("git", nil, []string{"status", "--porcelain"}, logFn)
+	result, err := runCmd("git", nil, []string{"status", "--porcelain", "--untracked-files"}, logFn)
 	if err != nil {
 		return nil, err
 	}
