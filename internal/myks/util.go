@@ -321,6 +321,15 @@ func isExist(path string) (bool, error) {
 	return false, err
 }
 
+func isExistsSloppy(path string) bool {
+	exists, err := isExist(path)
+	if err != nil {
+		log.Error().Err(err).Msg("Unable to check if file exists")
+		return false
+	}
+	return exists
+}
+
 func collectBySubpath(rootDir string, targetDir string, subpath string) []string {
 	items := []string{}
 	currentPath := rootDir
