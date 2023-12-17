@@ -247,7 +247,7 @@ func getSubDirs(dir string) (subDirs []string, err error) {
 	return
 }
 
-func runCmd(name string, stdin io.Reader, args []string, logFn func(name string, err error, stdErr string, args []string)) (CmdResult, error) {
+func runCmd(name string, stdin io.Reader, args []string, logFn func(name string, err error, stderr string, args []string)) (CmdResult, error) {
 	cmd := exec.Command(name, args...)
 
 	if stdin != nil {
