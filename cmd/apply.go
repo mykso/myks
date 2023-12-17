@@ -27,6 +27,10 @@ func init() {
 				log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 			}
 
+			if !g.SingleEnv() {
+				log.Fatal().Msg("Local apply can only be used with a specific environment. Make sure you are connected to the right cluster.")
+			}
+
 			if err := g.Apply(asyncLevel); err != nil {
 				log.Fatal().Err(err).Msg("Unable to apply k8s manifests")
 			}

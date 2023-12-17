@@ -400,3 +400,11 @@ func (g *Globe) Msg(msg string) string {
 	formattedMessage := fmt.Sprintf(GlobalLogFormat, msg)
 	return formattedMessage
 }
+
+func (g *Globe) SingleEnv() bool {
+	if g.environments == nil {
+		log.Error().Msg("Invoking SingleEnv() before Init()")
+		return false
+	}
+	return len(g.environments) == 1
+}
