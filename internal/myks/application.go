@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -12,14 +13,17 @@ import (
 )
 
 const (
-	renderStepName    = "render"
-	syncStepName      = "sync"
-	globalYttStepName = "global-ytt"
-	yttStepName       = "ytt"
-	yttPkgStepName    = "ytt-pkg"
-	helmStepName      = "helm"
-	sliceStepName     = "slice"
-	initStepName      = "init"
+	renderStepName          = "render"
+	syncStepName            = "sync"
+	globalYttStepName       = "global-ytt"
+	yttStepName             = "ytt"
+	yttPkgStepName          = "ytt-pkg"
+	helmStepName            = "helm"
+	sliceStepName           = "slice"
+	initStepName            = "init"
+	applyStepName           = "apply"
+	namespaceResourcePrefix = "namespace-"
+	crdPrefix               = "customresourcedefinition- "
 )
 
 type Application struct {
@@ -253,19 +257,52 @@ func (a *Application) localApply() error {
 	}
 	// set default namespace
 	configArgs := []string{"config", "set-context", "--current", "--namespace", namespace}
-	res, err := a.runCmd("apply", "set default namespace", "kubectl", nil, configArgs)
+	_, err = a.runCmd(applyStepName, "set default namespace", "kubectl", nil, configArgs)
 	if err != nil {
-		log.Error().Err(err).Str("stderr", res.Stderr).Msg(a.Msg("apply", "Unable to set default namespace"))
 		return err
 	}
-	// apply the k8s manifests
-	applyArgs := []string{"apply", "--filename", a.getDestinationDir()}
-	res, err = a.runCmd("apply", "apply k8s manifests", "kubectl", nil, applyArgs)
-	if err != nil {
-		log.Error().Err(err).Str("stderr", res.Stderr).Msg(a.Msg("apply", "Unable to apply k8s manifests"))
+	apply := func(path string) error {
+		applyArgs := []string{"apply", "--filename", path}
+		_, err = a.runCmd(applyStepName, "apply k8s manifest", "kubectl", nil, applyArgs)
 		return err
 	}
-	return err
+	applyDir := func(filter func(path string) bool) error {
+		err = filepath.WalkDir(a.getDestinationDir(), func(path string, info os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+			if strings.HasSuffix(path, ".yaml") {
+				if filter(filepath.Base(path)) {
+					return apply(path)
+				}
+				return nil
+			}
+			return fmt.Errorf("file %s is not a yaml file", path)
+		})
+		return err
+	}
+
+	// 1. apply CRDs and namespaces
+	err = applyDir(func(path string) bool {
+		return strings.HasPrefix(path, crdPrefix) || strings.HasPrefix(path, namespaceResourcePrefix)
+	})
+
+	if err != nil {
+		return fmt.Errorf("unable to apply CRDs: %w", err)
+	}
+
+	// 2. apply for all other yamls
+	err = applyDir(func(path string) bool {
+		return !strings.HasPrefix(path, crdPrefix)
+	})
+
+	if err != nil {
+		return fmt.Errorf("unable to apply K8s manifests: %w", err)
+	}
+	return nil
 }
 
 func decideNamespace(helmNamespace string, argoNamespace string, defaultNamespace string) (string, error) {
