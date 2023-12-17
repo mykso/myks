@@ -28,12 +28,12 @@ type Application struct {
 
 	e *Environment
 
-	useCache     bool
-	yttDataFiles []string
-	yttPkgDirs   []string
+	useCache         bool
+	yttDataFiles     []string
+	yttPkgDirs       []string
 	includeNamespace bool
-	ArgoConfig   *ArgoConfig
-	HelmConfig   *HelmConfig
+	ArgoConfig       *ArgoConfig
+	HelmConfig       *HelmConfig
 }
 
 type HelmConfig struct {
@@ -102,8 +102,8 @@ func (a *Application) Init() error {
 		YttPkg struct {
 			Dirs []string `yaml:"dirs"`
 		} `yaml:"yttPkg"`
-		ArgoCD ArgoCD `yaml:"argocd"`
-		Sync   struct {
+		ArgoConfig ArgoConfig `yaml:"argocd"`
+		Sync       struct {
 			UseCache bool `yaml:"useCache"`
 		} `yaml:"sync"`
 		Render struct {
