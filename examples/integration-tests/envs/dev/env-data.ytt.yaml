@@ -9,3 +9,4 @@ environment:
       name: helm-installation
     - proto: ytt-render-test
       name: ytt-installation
+    - proto: static-test

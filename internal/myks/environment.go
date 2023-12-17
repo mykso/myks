@@ -96,6 +96,10 @@ func (e *Environment) Render(asyncLevel int) error {
 			return err
 		}
 
+		if err := app.copyStaticFiles(); err != nil {
+			return err
+		}
+
 		return app.renderArgoCD()
 	})
 	if err != nil {
@@ -127,6 +131,11 @@ func (e *Environment) SyncAndRender(asyncLevel int, vendirSecrets string) error 
 		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
 			return err
 		}
+
+		if err := app.copyStaticFiles(); err != nil {
+			return err
+		}
+
 		return app.renderArgoCD()
 	})
 	if err != nil {

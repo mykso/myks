@@ -335,3 +335,67 @@ func collectBySubpath(rootDir string, targetDir string, subpath string) []string
 	}
 	return items
 }
+
+// copyDir copies a directory recursively, overwriting existing files if overwrite is true.
+// If overwrite is false, existing files will not be overwritten, an error will be returned instead.
+// The destination directory will be created if it does not exist.
+func copyDir(src, dst string, overwrite bool) (err error) {
+	if err = os.MkdirAll(dst, os.ModePerm); err != nil {
+		return
+	}
+
+	err = filepath.WalkDir(src, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+
+		dstPath := filepath.Join(dst, relPath)
+
+		if d.IsDir() {
+			if err = os.MkdirAll(dstPath, os.ModePerm); err != nil {
+				return err
+			}
+		} else {
+			if !overwrite {
+				if _, err = os.Stat(dstPath); err == nil {
+					return nil
+				}
+			}
+
+			if err = copyFile(path, dstPath); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
+
+	return err
+}
+
+// copyFile copies a file from src to dst.
+func copyFile(src, dst string) (err error) {
+	dstFile, err := os.Create(dst)
+	if err != nil {
+		return
+	}
+	defer dstFile.Close()
+
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return
+	}
+	defer srcFile.Close()
+
+	_, err = io.Copy(dstFile, srcFile)
+	if err != nil {
+		return
+	}
+
+	return nil
+}

@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: app-mykso-dev-helm-installation
+  name: app-mykso-dev-static-test
   namespace: system-argocd
   finalizers:
   - resources-finalizer.argocd.argoproj.io
@@ -9,9 +9,9 @@ spec:
   project: env-mykso-dev
   destination:
     name: mykso-dev
-    namespace: helm-installation
+    namespace: static-test
   source:
-    path: examples/inheritance-test/rendered/envs/mykso-dev/helm-installation
+    path: examples/integration-tests/rendered/envs/mykso-dev/static-test
     plugin:
       name: argocd-vault-plugin-v1.0.0
     repoURL: git@github.com:mykso/myks.git

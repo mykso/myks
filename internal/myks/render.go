@@ -104,14 +104,16 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 			return err
 		}
 
-		fileName := genRenderedResourceFileName(obj)
+		fileName, err := genRenderedResourceFileName(obj, a.includeNamespace)
+		if err != nil {
+			log.Debug().Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "File contains invalid K8s resource"))
+			return err
+		}
 		filePath := filepath.Join(destinationDir, fileName)
-		// FIXME: If a file already exists, we should merge the two documents (probably).
-		//        For now, we just overwrite the file and log a warning.
 		if ok, err := isExist(filePath); err != nil {
 			return err
 		} else if ok {
-			log.Warn().Str("file", filePath).Msg(a.Msg(sliceStepName, "File already exists, check duplicated resources"))
+			log.Warn().Str("file", filePath).Msg(a.Msg(sliceStepName, "File already exists. Consider enabling render.includeNamespace"))
 		}
 		err = writeFile(filePath, data.Bytes())
 		if err != nil {
@@ -135,21 +137,30 @@ func (a *Application) getDestinationDir() string {
 }
 
 // Generates a file name for each document using kind and name if available
-func genRenderedResourceFileName(resource map[string]interface{}) string {
+func genRenderedResourceFileName(resource map[string]interface{}, includeNamespace bool) (string, error) {
 	kind := "NO_KIND"
 	if g, ok := resource["kind"]; ok {
 		kind = g.(string)
 	}
 	name := "NO_NAME"
+	namespace := ""
 	if n, ok := resource["metadata"]; ok {
 		metadata := n.(map[string]interface{})
 		if n, ok := metadata["name"].(string); ok {
 			name = n
 		}
+		if n, ok := metadata["namespace"].(string); ok {
+			namespace = n
+		}
 	}
-	// Worst case this returns "no_kind-no_name.yaml" which probably is not what we want.
-	// TODO: exit with an error instead
-	return fmt.Sprintf("%s-%s.yaml", strings.ToLower(kind), strings.ToLower(name))
+	if name == "NO_NAME" || kind == "NO_KIND" {
+		return "", fmt.Errorf("invalid K8s resource encountered. No name or kind was set")
+	}
+
+	if !includeNamespace || namespace == "" {
+		return fmt.Sprintf("%s-%s.yaml", strings.ToLower(kind), strings.ToLower(name)), nil
+	}
+	return fmt.Sprintf("%s-%s_%s.yaml", strings.ToLower(kind), strings.ToLower(name), strings.ToLower(namespace)), nil
 }
 
 func (a *Application) getVendoredDir(dirname string) (string, error) {

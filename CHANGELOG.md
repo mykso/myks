@@ -1,3 +1,12 @@
+# [2.2.0](https://github.com/mykso/myks/compare/v2.1.1...v2.2.0) (2023-12-11)
+
+
+### Features
+
+* implement prototype overwrites in the envs tree ([#110](https://github.com/mykso/myks/issues/110)) ([c3e550d](https://github.com/mykso/myks/commit/c3e550d038964d190b5640cd2ecf6bdaf3f9e3e8)), closes [#109](https://github.com/mykso/myks/issues/109)
+* include namespace in output file name ([#141](https://github.com/mykso/myks/issues/141)) ([42fa566](https://github.com/mykso/myks/commit/42fa5667dd46083ebf6d0d200c9a6aa91874f54c))
+* new plugin for copying static files ([#132](https://github.com/mykso/myks/issues/132)) ([0f7c9dc](https://github.com/mykso/myks/commit/0f7c9dc4854cc2e16d349963282fb11bd941feab))
+
 ## [2.1.1](https://github.com/mykso/myks/compare/v2.1.0...v2.1.1) (2023-11-21)
 
 
