@@ -1,11 +1,11 @@
 package myks
 
 import (
+	"gopkg.in/yaml.v3"
 	"path/filepath"
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	yaml "gopkg.in/yaml.v3"
 )
 
 type Helm struct {
@@ -44,35 +44,37 @@ func (h *Helm) Render(_ string) (string, error) {
 		return "", nil
 	}
 
-	helmConfig, err := h.getHelmConfig()
-	if err != nil {
-		log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to get helm config"))
-		return "", err
-	}
-
 	var commonHelmArgs []string
 
 	// FIXME: move Namespace to a per-chart config
-	if helmConfig.Namespace == "" {
-		helmConfig.Namespace = h.app.e.g.NamespacePrefix + h.app.Name
+	if h.app.HelmConfig.Namespace == "" {
+		h.app.HelmConfig.Namespace = h.app.e.g.NamespacePrefix + h.app.Name
 	}
-	commonHelmArgs = append(commonHelmArgs, "--namespace", helmConfig.Namespace)
+	commonHelmArgs = append(commonHelmArgs, "--namespace", h.app.HelmConfig.Namespace)
 
-	if helmConfig.KubeVersion != "" {
-		commonHelmArgs = append(commonHelmArgs, "--kube-version", helmConfig.KubeVersion)
+	if h.app.HelmConfig.KubeVersion != "" {
+		commonHelmArgs = append(commonHelmArgs, "--kube-version", h.app.HelmConfig.KubeVersion)
 	}
 
 	// FIXME: move IncludeCRDs to a per-chart config
-	if helmConfig.IncludeCRDs {
+	if h.app.HelmConfig.IncludeCRDs {
 		commonHelmArgs = append(commonHelmArgs, "--include-crds")
 	}
 
-	for _, capa := range helmConfig.Capabilities {
+	for _, capa := range h.app.HelmConfig.Capabilities {
 		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
 	}
 	var outputs []string
 
 	for _, chartDir := range chartDirs {
+
+		if h.app.HelmConfig.BuildDependencies {
+			_, err := h.app.runCmd(helmStepName, "helm dependencies build", "helm", nil, []string{"dependencies", "build", chartDir, "--skip-refresh"})
+			if err != nil {
+				return "", err
+			}
+		}
+
 		chartName := filepath.Base(chartDir)
 		var helmValuesFile string
 		if helmValuesFile, err = h.app.prepareValuesFile("helm", chartName); err != nil {
