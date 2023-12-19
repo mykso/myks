@@ -255,6 +255,15 @@ func (a *Application) localApply() error {
 	if err != nil {
 		return err
 	}
+	// check namespace exists, if not create it
+	_, err = a.runCmd(applyStepName, "check namespace exists", "kubectl", nil, []string{"get", "namespace", namespace})
+	if err != nil {
+		_, err = a.runCmd(applyStepName, "create namespace", "kubectl", nil, []string{"create", "namespace", namespace})
+		log.Info().Msg("Create namespace: " + namespace)
+		if err != nil {
+			return err
+		}
+	}
 	// set default namespace
 	configArgs := []string{"config", "set-context", "--current", "--namespace", namespace}
 	_, err = a.runCmd(applyStepName, "set default namespace", "kubectl", nil, configArgs)
@@ -263,7 +272,8 @@ func (a *Application) localApply() error {
 	}
 	apply := func(path string) error {
 		applyArgs := []string{"apply", "--filename", path}
-		_, err = a.runCmd(applyStepName, "apply k8s manifest", "kubectl", nil, applyArgs)
+		res, err := a.runCmd(applyStepName, "apply k8s manifest", "kubectl", nil, applyArgs)
+		log.Info().Msg(fmt.Sprintf("Apply result: %s", strings.ReplaceAll(res.Stdout, "\n", "")))
 		return err
 	}
 	applyDir := func(filter func(path string) bool) error {
