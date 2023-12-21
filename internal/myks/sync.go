@@ -98,7 +98,7 @@ func (a *Application) doSync(vendirSecrets string) error {
 	}
 
 	// remove old content of vendor directory, since there might be leftovers in case of path changes
-	if !a.useCache && isExistsSloppy(vendorDir) {
+	if exists, _ := isExist(vendorDir); exists && !a.useCache {
 		if err := os.RemoveAll(vendorDir); err != nil {
 			return err
 		}
@@ -110,7 +110,7 @@ func (a *Application) doSync(vendirSecrets string) error {
 	// TODO sync retry
 	// only sync vendir with directory flag, if the lock file matches the vendir config file and caching is enabled
 	for dir, hash := range vendirDirHashes {
-		if isExistsSloppy(filepath.Join(vendorDir, dir)) && a.useCache {
+		if exists, _ := isExist(filepath.Join(vendorDir, dir)); exists && a.useCache {
 			if checkVersionMatch(dir, hash, syncFileDirHashes) {
 				log.Info().Str("vendir dir", dir).Msg(a.Msg(syncStepName, "Resource already synced"))
 				continue
