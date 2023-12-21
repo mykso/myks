@@ -82,7 +82,6 @@ func (a *Application) doSync(vendirSecrets string) error {
 	vendirConfigFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirConfigFileName)
 	vendirLockFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
 	vendirConfigFilePath := a.expandServicePath(a.e.g.VendirConfigFileName)
-	vendirLockFilePath := a.expandServicePath(a.e.g.VendirLockFileName)
 	vendirSyncFilePath := a.expandServicePath(a.e.g.VendirSyncFileName)
 	vendorDir := a.expandPath(a.e.g.VendorDirName)
 
@@ -98,49 +97,31 @@ func (a *Application) doSync(vendirSecrets string) error {
 		return err
 	}
 
-	// having hashes here is actually not necessary, since we only need the paths, but it's easier to just reuse the function
-	lockFileDirHashes, err := readLockFileDirHashes(vendirLockFilePath)
-	if err != nil {
-		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to read Vendir Lock file: "+vendirLockFilePath))
-		return err
-	}
-
-	exist, err := isExist(vendorDir)
-	if err != nil {
-		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to check if vendor dir exists"))
-		return err
-	}
-
-	// TODO sync retry
-	// only sync vendir with directory flag, if the lock file matches the vendir config file and caching is enabled
-	if exist && a.useCache && checkLockFileMatch(vendirDirHashes, lockFileDirHashes) {
-		for dir, hash := range vendirDirHashes {
-			if checkVersionMatch(dir, hash, syncFileDirHashes) {
-				log.Info().Str("vendir dir", dir).Msg(a.Msg(syncStepName, "Resource already synced"))
-				continue
-			}
-			if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, dir); err != nil {
-				log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
-				return err
-			}
-		}
-	} else {
-		// remove old content of vendor directory, since there might be leftovers in case of path changes
+	// remove old content of vendor directory, since there might be leftovers in case of path changes
+	if exists, _ := isExist(vendorDir); exists && !a.useCache {
 		if err := os.RemoveAll(vendorDir); err != nil {
 			return err
 		}
-
 		if err := createDirectory(vendorDir); err != nil {
 			log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create vendor dir: "+vendorDir))
 			return err
 		}
-
-		if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, ""); err != nil {
+	}
+	// TODO sync retry
+	// only sync vendir with directory flag, if the lock file matches the vendir config file and caching is enabled
+	for dir, hash := range vendirDirHashes {
+		if exists, _ := isExist(filepath.Join(vendorDir, dir)); exists && a.useCache {
+			if checkVersionMatch(dir, hash, syncFileDirHashes) {
+				log.Info().Str("vendir dir", dir).Msg(a.Msg(syncStepName, "Resource already synced"))
+				continue
+			}
+		}
+		if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, dir); err != nil {
 			log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
 			return err
 		}
 	}
-
+	// rewrite sync file
 	err = writeSyncFile(a.expandServicePath(a.e.g.VendirSyncFileName), vendirDirHashes)
 	if err != nil {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to write sync file"))
