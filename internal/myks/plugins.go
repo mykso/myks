@@ -112,8 +112,8 @@ func (p PluginCmd) Exec(a *Application) error {
 		env["MYKS_ARGOCD_APP_NAME"] = a.getArgoCDDestinationDir()
 		env["MYKS_ARGOCD_APP_PROJECT"] = "rendered/argocd/" + a.e.Id + "/" + a.Name // TODO: provide func and use it everywhere,
 	}
-	prefix := "[" + p.name + "] " + a.e.Id + "/" + a.Name + ": "
-	log.Info().Msg(prefix + "Executing plugin")
+
+	log.Trace().Msg(a.Msg("Plugin "+p.Name(), "execution started"))
 
 	cmd := exec.Command(p.cmd, []string{}...)
 
@@ -124,9 +124,13 @@ func (p PluginCmd) Exec(a *Application) error {
 
 	err := cmd.Run()
 	if err != nil {
-		log.Error().Err(err).Msg(prefix + "Plugin execution failed")
-		log.Info().Msg(prefix + "Stdout: " + stdoutBs.String())
-		log.Info().Msg(prefix + "Stderr: " + stderrBs.String())
+		log.Error().Err(err).
+			Str("stderr", stderrBs.String()).
+			Str("stdout", stdoutBs.String()).
+			Msg(a.Msg("Plugin "+p.Name(), "Plugin execution failed"))
+	} else {
+		log.Debug().Str("stdout", stdoutBs.String()).
+			Msg(a.Msg("Plugin "+p.Name(), "Plugin execution succeeded"))
 	}
 	return err
 }
