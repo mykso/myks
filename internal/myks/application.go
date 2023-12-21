@@ -109,6 +109,10 @@ func (a *Application) Init() error {
 	a.includeNamespace = applicationData.Render.IncludeNamespace
 	a.yttPkgDirs = applicationData.YttPkg.Dirs
 
+	if a.useCache {
+		log.Warn().Msg(".sync.useCache is deprecated and will be removed in a future release. Please use 'lazy' flag in vendir config instead.")
+	}
+
 	return nil
 }
 
