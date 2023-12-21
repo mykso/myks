@@ -12,14 +12,17 @@ import (
 )
 
 const (
-	renderStepName    = "render"
-	syncStepName      = "sync"
-	globalYttStepName = "global-ytt"
-	yttStepName       = "ytt"
-	yttPkgStepName    = "ytt-pkg"
-	helmStepName      = "helm"
-	sliceStepName     = "slice"
-	initStepName      = "init"
+	renderStepName          = "render"
+	syncStepName            = "sync"
+	globalYttStepName       = "global-ytt"
+	yttStepName             = "ytt"
+	yttPkgStepName          = "ytt-pkg"
+	helmStepName            = "helm"
+	sliceStepName           = "slice"
+	initStepName            = "init"
+	applyStepName           = "apply"
+	crdPrefix               = "customresourcedefinition-"
+	namespaceResourcePrefix = "namespace-"
 )
 
 type Application struct {
@@ -28,10 +31,11 @@ type Application struct {
 
 	e *Environment
 
-	argoCDEnabled    bool
 	includeNamespace bool
-	yttDataFiles     []string
 	yttPkgDirs       []string
+	yttDataFiles     []string
+	ArgoConfig       *ArgoConfig
+	HelmConfig       *HelmConfig
 }
 
 type HelmConfig struct {
@@ -40,6 +44,19 @@ type HelmConfig struct {
 	IncludeCRDs       bool     `yaml:"includeCRDs"`
 	Capabilities      []string `yaml:"capabilities"`
 	BuildDependencies bool     `yaml:"buildDependencies"`
+}
+
+type Destination struct {
+	Namespace string `yaml:"namespace"`
+}
+
+type App struct {
+	Destination Destination `yaml:"destination"`
+}
+
+type ArgoConfig struct {
+	Enabled bool `yaml:"enabled"`
+	App     App  `yaml:"app"`
 }
 
 var (
@@ -101,9 +118,32 @@ func (a *Application) Init() error {
 	if err != nil {
 		return err
 	}
-	a.argoCDEnabled = applicationData.ArgoCD.Enabled
 	a.includeNamespace = applicationData.Render.IncludeNamespace
 	a.yttPkgDirs = applicationData.YttPkg.Dirs
+
+	// Transfer ArgoConfig if enabled
+	var argoData struct {
+		ArgoConfig ArgoConfig `yaml:"argocd"`
+	}
+	err = yaml.Unmarshal(dataYaml, &argoData)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(helmStepName, "Unable to unmarshal argo config"))
+		return err
+	}
+	if argoData.ArgoConfig.Enabled {
+		a.ArgoConfig = &argoData.ArgoConfig
+	}
+
+	// Transfer HelmConfig
+	var helmConfig struct {
+		Helm HelmConfig
+	}
+	err = yaml.Unmarshal(dataYaml, &helmConfig)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(helmStepName, "Unable to unmarshal helm config"))
+		return err
+	}
+	a.HelmConfig = &helmConfig.Helm
 
 	return nil
 }
