@@ -71,18 +71,18 @@ func init() {
 	configHelp := fmt.Sprintf("config file (default is the first %s.%s up the directory tree)", MYKS_CONFIG_NAME, MYKS_CONFIG_TYPE)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", configHelp)
 
-	rootCmd.PersistentPreRunE = detectTargetEnvsAndApps
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		if cmd.Annotations[ANNOTATION_SMART_MODE] != ANNOTATION_TRUE {
+			return nil
+		}
+		return initTargetEnvsAndApps(cmd, args)
+	}
 }
 
-func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
+func initTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 	// Check positional arguments for Smart Mode:
 	// 1. Comma-separated list of environment search paths or ALL to search everywhere (default: ALL)
 	// 2. Comma-separated list of application names or none to process all applications (default: none)
-
-	if cmd.Annotations[ANNOTATION_SMART_MODE] != ANNOTATION_TRUE {
-		log.Debug().Msg("Smart Mode is not supported for this command.")
-		return
-	}
 
 	switch len(args) {
 	case 0:
@@ -120,7 +120,7 @@ func detectTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 		}
 
 	default:
-		err := errors.New("Too many positional arguments")
+		err := errors.New("too many positional arguments")
 		log.Error().Err(err).Msg("Unable to parse positional arguments")
 		return err
 	}

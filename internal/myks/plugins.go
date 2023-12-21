@@ -13,7 +13,7 @@ import (
 )
 
 type Plugin interface {
-	Exec(a *Application) error
+	Exec(a *Application, args []string) error
 	Name() string
 }
 
@@ -98,7 +98,7 @@ func (p PluginCmd) Name() string {
 	return p.name
 }
 
-func (p PluginCmd) Exec(a *Application) error {
+func (p PluginCmd) Exec(a *Application, args []string) error {
 	env := map[string]string{
 		"MYKS_ENV":              a.e.Id,
 		"MYKS_APP":              a.Name,
@@ -112,10 +112,10 @@ func (p PluginCmd) Exec(a *Application) error {
 		env["MYKS_ARGOCD_APP_NAME"] = a.getArgoCDDestinationDir()
 		env["MYKS_ARGOCD_APP_PROJECT"] = "rendered/argocd/" + a.e.Id + "/" + a.Name // TODO: provide func and use it everywhere,
 	}
+	step := "Plugin " + p.Name()
+	log.Trace().Msg(a.Msg(step, "execution started"))
 
-	log.Trace().Msg(a.Msg("Plugin "+p.Name(), "execution started"))
-
-	cmd := exec.Command(p.cmd, []string{}...)
+	cmd := exec.Command(p.cmd, args...)
 
 	var stdoutBs, stderrBs bytes.Buffer
 	cmd.Stdout = &stdoutBs
@@ -127,10 +127,10 @@ func (p PluginCmd) Exec(a *Application) error {
 		log.Error().Err(err).
 			Str("stderr", stderrBs.String()).
 			Str("stdout", stdoutBs.String()).
-			Msg(a.Msg("Plugin "+p.Name(), "Plugin execution failed"))
+			Msg(a.Msg(step, "Plugin execution failed"))
 	} else {
 		log.Debug().Str("stdout", stdoutBs.String()).
-			Msg(a.Msg("Plugin "+p.Name(), "Plugin execution succeeded"))
+			Msg(a.Msg(step, "Plugin execution succeeded"))
 	}
 	return err
 }

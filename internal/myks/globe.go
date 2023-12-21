@@ -221,13 +221,13 @@ func (g *Globe) SyncAndRender(asyncLevel int) error {
 }
 
 // ExecPlugin executes a plugin in the context of the globe
-func (g *Globe) ExecPlugin(asyncLevel int, p Plugin) error {
+func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
 	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.ExecPlugin(asyncLevel, p)
+		return env.ExecPlugin(asyncLevel, p, args)
 	})
 }
 

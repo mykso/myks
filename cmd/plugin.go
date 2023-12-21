@@ -43,30 +43,34 @@ func addPlugins(cmd *cobra.Command) {
 				Short:   "Execute " + plugin.Name(),
 				Long:    "Execute" + plugin.Name(),
 				GroupID: "Plugins",
-				Annotations: map[string]string{
-					ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
-				},
-				Run: func(cmd *cobra.Command, args []string) {
+				RunE: func(cmd *cobra.Command, args []string) error {
+					splitAt := cmd.ArgsLenAtDash()
+					if splitAt == -1 {
+						splitAt = len(args)
+					}
+					myksArgs, pluginArgs := args[:splitAt], args[splitAt:]
+
+					if err := initTargetEnvsAndApps(cmd, myksArgs); err != nil {
+						return err
+					}
 					g := myks.New(".")
 
 					if err := g.ValidateRootDir(); err != nil {
 						log.Fatal().Err(err).Msg("Root directory is not suitable for myks")
+						return err
 					}
 
 					if err := g.Init(asyncLevel, envAppMap); err != nil {
 						log.Fatal().Err(err).Msg("Unable to initialize globe")
+						return err
 					}
 
-					if err := g.ExecPlugin(asyncLevel, plugin); err != nil {
+					if err := g.ExecPlugin(asyncLevel, plugin, pluginArgs); err != nil {
 						log.Fatal().Err(err).Msg("Unable to render applications")
+						return err
 					}
 
-					// Cleaning up only if all environments and applications were processed
-					if envAppMap == nil {
-						if err := g.Cleanup(); err != nil {
-							log.Fatal().Err(err).Msg("Unable to cleanup")
-						}
-					}
+					return nil
 				},
 			})
 		}(plugin)
