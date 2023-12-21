@@ -99,6 +99,36 @@ func (p PluginCmd) Name() string {
 }
 
 func (p PluginCmd) Exec(a *Application, args []string) error {
+	step := "Plugin " + p.Name()
+	log.Trace().Msg(a.Msg(step, "execution started"))
+
+	env, err := p.generateEnv(a)
+	if err != nil {
+		log.Error().Err(err).Msg(a.Msg(step, "Generating data values failed"))
+		return err
+	}
+
+	cmd := exec.Command(p.cmd, args...)
+
+	var stdoutBs, stderrBs bytes.Buffer
+	cmd.Stdout = &stdoutBs
+	cmd.Stderr = &stderrBs
+	cmd.Env = append(os.Environ(), mapToSlice(env)...)
+
+	err = cmd.Run()
+	if err != nil {
+		log.Error().Err(err).
+			Str("stderr", stderrBs.String()).
+			Str("stdout", stdoutBs.String()).
+			Msg(a.Msg(step, "Plugin execution failed"))
+	} else {
+		log.Debug().Str("stdout", stdoutBs.String()).
+			Msg(a.Msg(step, "Plugin execution succeeded"))
+	}
+	return err
+}
+
+func (p PluginCmd) generateEnv(a *Application) (map[string]string, error) {
 	env := map[string]string{
 		"MYKS_ENV":              a.e.Id,
 		"MYKS_APP":              a.Name,
@@ -112,25 +142,11 @@ func (p PluginCmd) Exec(a *Application, args []string) error {
 		env["MYKS_ARGOCD_APP_NAME"] = a.getArgoCDDestinationDir()
 		env["MYKS_ARGOCD_APP_PROJECT"] = "rendered/argocd/" + a.e.Id + "/" + a.Name // TODO: provide func and use it everywhere,
 	}
-	step := "Plugin " + p.Name()
-	log.Trace().Msg(a.Msg(step, "execution started"))
 
-	cmd := exec.Command(p.cmd, args...)
-
-	var stdoutBs, stderrBs bytes.Buffer
-	cmd.Stdout = &stdoutBs
-	cmd.Stderr = &stderrBs
-	cmd.Env = append(os.Environ(), mapToSlice(env)...)
-
-	err := cmd.Run()
+	result, err := a.ytt(p.Name(), "get data values", a.yttDataFiles, "--data-values-inspect")
 	if err != nil {
-		log.Error().Err(err).
-			Str("stderr", stderrBs.String()).
-			Str("stdout", stdoutBs.String()).
-			Msg(a.Msg(step, "Plugin execution failed"))
-	} else {
-		log.Debug().Str("stdout", stdoutBs.String()).
-			Msg(a.Msg(step, "Plugin execution succeeded"))
+		return env, err
 	}
-	return err
+	env["MYKS_DATA_VALUES"] = result.Stdout
+	return env, nil
 }
