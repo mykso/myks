@@ -65,7 +65,6 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 
 	res, err := y.app.ytt(yttStepName, "render local ytt", yttFiles)
 	if err != nil {
-		log.Error().Msg(y.app.Msg(yttStepName, res.Stderr))
 		return "", err
 	}
 

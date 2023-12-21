@@ -202,7 +202,6 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 
 	resourceValuesYaml, err := a.ytt(renderStepName, "collect data values file", concatenate(a.yttDataFiles, valuesFiles))
 	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to render resource values templates"))
 		return "", err
 	}
 
@@ -217,9 +216,8 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 		return "", err
 	}
 
-	resourceValues, err := a.mergeValuesYaml(a.expandTempPath(valuesFileName))
+	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandTempPath(valuesFileName))
 	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to render resource values"))
 		return "", err
 	}
 
