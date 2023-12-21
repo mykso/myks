@@ -44,7 +44,7 @@ func FindPluginsInPaths(paths []string) []Plugin {
 		}
 		files, err := os.ReadDir(path)
 		if err != nil {
-			log.Debug().Err(err).Msgf("Unable to read directory %s", path)
+			log.Trace().Err(err).Msgf("Unable to read directory %s", path)
 			continue
 		}
 		for _, file := range files {
