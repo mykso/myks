@@ -402,4 +402,5 @@ func copyFile(src, dst string) (err error) {
 
 func unusedFunctionToTestCodecov() {
 	fmt.Println("Hello world")
+	fmt.Println("Hello world")
 }
