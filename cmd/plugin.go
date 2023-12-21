@@ -25,11 +25,9 @@ func init() {
 }
 
 func listPlugins() []myks.Plugin {
-	// TODO: Get plugins from environment
-	return []myks.Plugin{
-		myks.NewPluginFromCmd("cmd1"),
-		myks.NewPluginFromCmd("cmd2"),
-	}
+	plugins := myks.FindPluginsInPaths(nil)
+	localPlugins := myks.FindPluginsInPaths([]string{"plugins"})
+	return append(plugins, localPlugins...)
 }
 
 func addPlugins(cmd *cobra.Command) {

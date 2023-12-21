@@ -399,3 +399,12 @@ func copyFile(src, dst string) (err error) {
 
 	return nil
 }
+
+// mapToSlice converts a map of strings to a slice of strings in the form of key=value
+func mapToSlice(env map[string]string) []string {
+	var envSlice []string
+	for k, v := range env {
+		envSlice = append(envSlice, k+"="+v)
+	}
+	return envSlice
+}
