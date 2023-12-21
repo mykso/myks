@@ -225,7 +225,7 @@ func Test_runCmd(t *testing.T) {
 		name  string
 		stdin io.Reader
 		args  []string
-		log   func(name string, args []string)
+		log   func(name string, err error, stderr string, args []string)
 	}
 	tests := []struct {
 		name    string
@@ -254,7 +254,7 @@ func Test_runYttWithFilesAndStdin(t *testing.T) {
 	type args struct {
 		paths []string
 		stdin io.Reader
-		log   func(name string, args []string)
+		log   func(name string, err error, stderr string, args []string)
 		args  []string
 	}
 	tests := []struct {

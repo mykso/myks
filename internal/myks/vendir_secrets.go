@@ -86,15 +86,20 @@ func (g *Globe) generateVendirSecretYaml(secretName string, username string, pas
 	res, err := runYttWithFilesAndStdin(
 		nil,
 		bytes.NewReader(vendirSecretTemplate),
-		func(name string, args []string) {
-			log.Debug().Msg(g.Msg(msgRunCmd("render vendir secret yaml", name, args)))
+		func(name string, err error, stderr string, args []string) {
+			cmd := msgRunCmd("render vendir secret yaml", name, args)
+			if err != nil {
+				log.Error().Msg(g.Msg(cmd))
+				log.Error().Err(err).Msg(g.Msg(stderr))
+			} else {
+				log.Debug().Msg(g.Msg(stderr))
+			}
 		},
 		"--data-value=secret_name="+secretName,
 		"--data-value=username="+username,
 		"--data-value=password="+password,
 	)
 	if err != nil {
-		log.Error().Err(err).Msg(g.Msg(res.Stderr))
 		return "", err
 	}
 

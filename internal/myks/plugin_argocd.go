@@ -47,8 +47,7 @@ func (e *Environment) renderArgoCD() (err error) {
 		bytes.NewReader(argocd_appproject_template),
 	)
 	if err != nil {
-		log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(e.Msg("failed to render ArgoCD project yaml"))
-		return
+		return err
 	}
 
 	argoDestinationPath := filepath.Join(e.getArgoCDDestinationDir(), getArgoCDEnvFileName(e.Id))

@@ -360,8 +360,14 @@ func (g *Globe) setGitPathPrefix() error {
 			gitArgs = append(gitArgs, "-C", g.RootDir)
 		}
 		gitArgs = append(gitArgs, "rev-parse", "--show-prefix")
-		result, err := runCmd("git", nil, gitArgs, func(name string, args []string) {
-			log.Debug().Msg(msgRunCmd("set git path prefix", name, args))
+		result, err := runCmd("git", nil, gitArgs, func(name string, err error, stderr string, args []string) {
+			cmd := msgRunCmd("set git path prefix", name, args)
+			if err != nil {
+				log.Error().Msg(cmd)
+				log.Error().Msg(stderr)
+			} else {
+				log.Debug().Msg(cmd)
+			}
 		})
 		if err != nil {
 			return err
@@ -373,8 +379,14 @@ func (g *Globe) setGitPathPrefix() error {
 
 func (g *Globe) setGitRepoUrl() error {
 	if g.GitRepoUrl == "" {
-		result, err := runCmd("git", nil, []string{"remote", "get-url", "origin"}, func(name string, args []string) {
-			log.Debug().Msg(msgRunCmd("set git repository url", name, args))
+		result, err := runCmd("git", nil, []string{"remote", "get-url", "origin"}, func(name string, err error, stderr string, args []string) {
+			cmd := msgRunCmd("set git repository url", name, args)
+			if err != nil {
+				log.Error().Msg(cmd)
+				log.Error().Msg(stderr)
+			} else {
+				log.Debug().Msg(cmd)
+			}
 		})
 		if err != nil {
 			return err
@@ -386,8 +398,14 @@ func (g *Globe) setGitRepoUrl() error {
 
 func (g *Globe) setGitRepoBranch() error {
 	if g.GitRepoBranch == "" {
-		result, err := runCmd("git", nil, []string{"rev-parse", "--abbrev-ref", "HEAD"}, func(name string, args []string) {
-			log.Debug().Msg(msgRunCmd("set git repository branch", name, args))
+		result, err := runCmd("git", nil, []string{"rev-parse", "--abbrev-ref", "HEAD"}, func(name string, err error, stderr string, args []string) {
+			cmd := msgRunCmd("set git repository branch", name, args)
+			if err != nil {
+				log.Error().Msg(cmd)
+				log.Error().Msg(stderr)
+			} else {
+				log.Debug().Msg(cmd)
+			}
 		})
 		if err != nil {
 			return err
