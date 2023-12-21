@@ -19,9 +19,9 @@ func init() {
 			}
 		},
 	}
-	rootCmd.AddGroup(&cobra.Group{ID: "Plugins", Title: "Plugin Subcommands:"})
-	addPlugins(rootCmd)
+
 	rootCmd.AddCommand(cmd)
+	addPlugins(rootCmd)
 }
 
 func listPlugins() []myks.Plugin {
@@ -32,10 +32,16 @@ func listPlugins() []myks.Plugin {
 
 func addPlugins(cmd *cobra.Command) {
 	plugins := listPlugins()
+
 	uniquePlugins := make(map[string]myks.Plugin)
 	for _, plugin := range plugins {
 		uniquePlugins[plugin.Name()] = plugin
 	}
+
+	if len(uniquePlugins) > 0 {
+		cmd.AddGroup(&cobra.Group{ID: "Plugins", Title: "Plugin Subcommands:"})
+	}
+
 	for _, plugin := range uniquePlugins {
 		func(plugin myks.Plugin) {
 			cmd.AddCommand(&cobra.Command{
