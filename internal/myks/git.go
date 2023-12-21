@@ -12,8 +12,15 @@ type ChangedFiles map[string]string
 // GetChangedFilesGit returns list of files changed since the baseRevision, if specified, and since the last commit
 // TODO: exclude files that are outside of the myks root directory
 func GetChangedFilesGit(baseRevision string) (ChangedFiles, error) {
-	logFn := func(name string, args []string) {
-		log.Debug().Msg(msgRunCmd("collect changed files for smart-mode", name, args))
+	logFn := func(name string, err error, stderr string, args []string) {
+		cmd := msgRunCmd("collect changed files for smart-mode", name, args)
+		if err != nil {
+			log.Error().Msg(cmd)
+			log.Error().Msg(stderr)
+
+		} else {
+			log.Debug().Msg(cmd)
+		}
 	}
 
 	files := ChangedFiles{}

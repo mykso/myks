@@ -270,7 +270,6 @@ func (e *Environment) renderEnvData(envDataFiles []string) ([]byte, error) {
 	}
 	res, err := e.ytt("render environment data values file", envDataFiles, "--data-values-inspect")
 	if err != nil {
-		log.Error().Err(err).Str("stderr", res.Stderr).Msg(e.Msg("Unable to render environment data"))
 		return nil, err
 	}
 	if res.Stdout == "" {
@@ -404,7 +403,13 @@ func (e *Environment) ytt(purpose string, paths []string, args ...string) (CmdRe
 
 func (e *Environment) yttS(purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
 	paths = concatenate(e.g.extraYttPaths, paths)
-	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
-		log.Debug().Msg(e.Msg(msgRunCmd(purpose, name, args)))
+	return runYttWithFilesAndStdin(paths, stdin, func(name string, err error, stderr string, args []string) {
+		cmd := msgRunCmd(purpose, name, args)
+		if err != nil {
+			log.Error().Msg(e.Msg(cmd))
+			log.Error().Msg(e.Msg(stderr))
+		} else {
+			log.Debug().Msg(e.Msg(cmd))
+		}
 	}, args...)
 }

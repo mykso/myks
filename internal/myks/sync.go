@@ -53,7 +53,6 @@ func (a *Application) prepareSync() error {
 
 	vendirConfig, err := a.ytt(syncStepName, "creating vendir config", yttFiles)
 	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(syncStepName, "Unable to render vendir config"))
 		return err
 	}
 
@@ -143,9 +142,8 @@ func (a *Application) runVendirSync(targetDir string, vendirConfig string, vendi
 	if directory != "" {
 		args = append(args, "--directory="+directory)
 	}
-	res, err := a.runCmd(syncStepName, "vendir sync", "vendir", strings.NewReader(vendirSecrets), args)
+	_, err := a.runCmd(syncStepName, "vendir sync", "vendir", strings.NewReader(vendirSecrets), args)
 	if err != nil {
-		log.Error().Err(err).Str("stdout", res.Stdout).Str("stderr", res.Stderr).Msg(a.Msg(syncStepName, "Unable to sync vendir"))
 		return err
 	}
 	log.Info().Msg(a.Msg(syncStepName, "Synced"))

@@ -153,9 +153,19 @@ func (a *Application) Msg(step string, msg string) string {
 }
 
 func (a *Application) runCmd(step, purpose, cmd string, stdin io.Reader, args []string) (CmdResult, error) {
-	return runCmd(cmd, stdin, args, func(cmd string, args []string) {
-		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, cmd, args)))
+	return runCmd(cmd, stdin, args, func(cmd string, err error, stderr string, args []string) {
+		cmd = msgRunCmd(purpose, cmd, args)
+		a.logCmd(step, cmd, err, stderr)
 	})
+}
+
+func (a *Application) logCmd(step string, cmd string, err error, stderr string) {
+	if err != nil {
+		log.Error().Msg(a.Msg(step, cmd))
+		log.Error().Msg(a.Msg(step, stderr))
+	} else {
+		log.Debug().Msg(a.Msg(step, cmd))
+	}
 }
 
 func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
@@ -168,11 +178,12 @@ func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
 	if len(dataFiles) == 0 {
 		return nil, errors.New("No data files found")
 	}
-	res, err := runYttWithFilesAndStdin(dataFiles, nil, func(name string, args []string) {
-		log.Debug().Msg(a.Msg("init", msgRunCmd("render application data values file", name, args)))
+	step := "init"
+	res, err := runYttWithFilesAndStdin(dataFiles, nil, func(name string, err error, stderr string, args []string) {
+		cmd := msgRunCmd("render application data values file", name, args)
+		a.logCmd(step, cmd, err, stderr)
 	}, args...)
 	if err != nil {
-		log.Error().Err(err).Str("stderr", res.Stderr).Msg(a.Msg("init", "Unable to render data"))
 		return nil, err
 	}
 	if res.Stdout == "" {
@@ -183,9 +194,10 @@ func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
 	return dataYaml, nil
 }
 
-func (a *Application) mergeValuesYaml(valueFilesYaml string) (CmdResult, error) {
-	return runYttWithFilesAndStdin(nil, nil, func(name string, args []string) {
-		log.Debug().Msg(msgRunCmd("merge data values file", name, args))
+func (a *Application) mergeValuesYaml(step string, valueFilesYaml string) (CmdResult, error) {
+	return runYttWithFilesAndStdin(nil, nil, func(name string, err error, stderr string, args []string) {
+		cmd := msgRunCmd("merge data values file", name, args)
+		a.logCmd(step, cmd, err, stderr)
 	}, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
 }
 
@@ -199,8 +211,9 @@ func (a *Application) yttS(step string, purpose string, paths []string, stdin io
 		"-v", "myks.context.app="+a.Name,
 		"-v", "myks.context.prototype="+a.Prototype)
 	paths = concatenate(a.e.g.extraYttPaths, paths)
-	return runYttWithFilesAndStdin(paths, stdin, func(name string, args []string) {
-		log.Debug().Msg(a.Msg(step, msgRunCmd(purpose, name, args)))
+	return runYttWithFilesAndStdin(paths, stdin, func(name string, err error, stderr string, args []string) {
+		cmd := msgRunCmd(purpose, name, args)
+		a.logCmd(step, cmd, err, stderr)
 	}, args...)
 }
 
