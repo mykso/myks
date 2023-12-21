@@ -94,7 +94,6 @@ func (h *Helm) Render(_ string) (string, error) {
 
 		res, err := h.app.runCmd(helmStepName, "helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
 		if err != nil {
-			log.Error().Msg(h.app.Msg(helmStepName, res.Stderr))
 			return "", err
 		}
 
@@ -115,7 +114,6 @@ func (h *Helm) Render(_ string) (string, error) {
 func (h *Helm) getHelmConfig() (HelmConfig, error) {
 	dataValuesYaml, err := h.app.ytt(helmStepName, "get helm config", h.app.yttDataFiles, "--data-values-inspect")
 	if err != nil {
-		log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to inspect data values"))
 		return HelmConfig{}, err
 	}
 
