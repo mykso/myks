@@ -399,3 +399,7 @@ func copyFile(src, dst string) (err error) {
 
 	return nil
 }
+
+func unusedFunctionToTestCodecov() {
+	fmt.Println("Hello world")
+}
