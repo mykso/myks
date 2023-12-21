@@ -32,7 +32,11 @@ func listPlugins() []myks.Plugin {
 
 func addPlugins(cmd *cobra.Command) {
 	plugins := listPlugins()
+	uniquePlugins := make(map[string]myks.Plugin)
 	for _, plugin := range plugins {
+		uniquePlugins[plugin.Name()] = plugin
+	}
+	for _, plugin := range uniquePlugins {
 		func(plugin myks.Plugin) {
 			cmd.AddCommand(&cobra.Command{
 				Use:     plugin.Name(),
