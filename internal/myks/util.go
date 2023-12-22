@@ -208,20 +208,6 @@ func createDirectory(dir string) error {
 	return nil
 }
 
-func isDirEmpty(name string) (bool, error) {
-	f, err := os.Open(name)
-	if err != nil {
-		return false, err
-	}
-	defer f.Close()
-
-	_, err = f.Readdirnames(1)
-	if err == io.EOF {
-		return true, nil
-	}
-	return false, err
-}
-
 func writeFile(path string, content []byte) error {
 	dir := filepath.Dir(path)
 	if ok, err := isExist(dir); err != nil {
