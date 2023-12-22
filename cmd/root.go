@@ -39,7 +39,7 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 }
 
 func newRootCmd(version, commit, date string) *cobra.Command {
-	var rootCmd = &cobra.Command{
+	rootCmd := &cobra.Command{
 		Use:   "myks",
 		Short: "Myks helps to manage configuration for kubernetes clusters",
 		Long: `Myks fetches K8s workloads from a variety of sources, e.g. Helm charts or Git Repositories. It renders their respective yaml files to the file system in a structure of environments and their applications.
