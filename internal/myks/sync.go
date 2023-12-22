@@ -3,12 +3,12 @@ package myks
 import (
 	_ "embed"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	yaml "gopkg.in/yaml.v3"
 )
 
 type vendirDirHashes map[string]string
@@ -81,54 +81,16 @@ func (a *Application) doSync(vendirSecrets string) error {
 	// Paths are relative to the vendor directory (BUG: this will brake with multi-level vendor directory, e.g. `vendor/shmendor`)
 	vendirConfigFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirConfigFileName)
 	vendirLockFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
-	vendirConfigFilePath := a.expandServicePath(a.e.g.VendirConfigFileName)
-	vendirSyncFilePath := a.expandServicePath(a.e.g.VendirSyncFileName)
 	vendorDir := a.expandPath(a.e.g.VendorDirName)
 
-	vendirDirHashes, err := readVendirDirHashes(vendirConfigFilePath)
-	if err != nil {
-		log.Error().Err(err).Msg(a.Msg(syncStepName, "Error while trying to find directories in vendir config: "+vendirConfigFilePath))
-		return err
-	}
-
-	syncFileDirHashes, err := readSyncFile(vendirSyncFilePath)
-	if err != nil {
-		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to read Vendir Sync file: "+vendirSyncFilePath))
-		return err
-	}
-
-	// remove old content of vendor directory, since there might be leftovers in case of path changes
-	if exists, _ := isExist(vendorDir); exists && !a.useCache {
-		if err := os.RemoveAll(vendorDir); err != nil {
-			return err
-		}
-		if err := createDirectory(vendorDir); err != nil {
-			log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create vendor dir: "+vendorDir))
-			return err
-		}
-	}
 	// TODO sync retry
-	// only sync vendir with directory flag, if the lock file matches the vendir config file and caching is enabled
-	for dir, hash := range vendirDirHashes {
-		if exists, _ := isExist(filepath.Join(vendorDir, dir)); exists && a.useCache {
-			if checkVersionMatch(dir, hash, syncFileDirHashes) {
-				log.Info().Str("vendir dir", dir).Msg(a.Msg(syncStepName, "Resource already synced"))
-				continue
-			}
-		}
-		if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, dir); err != nil {
-			log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
-			return err
-		}
-	}
-	// rewrite sync file
-	err = writeSyncFile(a.expandServicePath(a.e.g.VendirSyncFileName), vendirDirHashes)
-	if err != nil {
-		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to write sync file"))
+	if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, ""); err != nil {
+		log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
 		return err
 	}
 
-	return nil
+	vendirConfigFile := a.expandServicePath(a.e.g.VendirConfigFileName)
+	return a.cleanupVendorDir(vendorDir, vendirConfigFile)
 }
 
 func (a *Application) runVendirSync(targetDir string, vendirConfig string, vendirLock string, vendirSecrets string, directory string) error {
@@ -150,100 +112,65 @@ func (a *Application) runVendirSync(targetDir string, vendirConfig string, vendi
 	return nil
 }
 
-func writeSyncFile(syncFilePath string, dirHashes vendirDirHashes) error {
-	bytes, err := yaml.Marshal(dirHashes)
-	if err != nil {
-		return err
-	}
-	err = writeFile(syncFilePath, bytes)
+func (a Application) cleanupVendorDir(vendorDir, vendirConfigFile string) error {
+	config, err := unmarshalYamlToMap(vendirConfigFile)
 	if err != nil {
 		return err
 	}
 
-	return nil
-}
-
-func readVendirDirHashes(vendirConfigFilePath string) (vendirDirHashes, error) {
-	config, err := unmarshalYamlToMap(vendirConfigFilePath)
-	if err != nil {
-		return nil, err
-	}
-
-	return getVendirDirHashes(config)
-}
-
-func readSyncFile(vendirSyncFile string) (vendirDirHashes, error) {
-	if ok, err := isExist(vendirSyncFile); err != nil {
-		return nil, err
-	} else if !ok {
-		return vendirDirHashes{}, nil
-	}
-
-	syncFile, err := os.ReadFile(vendirSyncFile)
-	if err != nil {
-		return nil, err
-	}
-
-	out := &vendirDirHashes{}
-	err = yaml.Unmarshal(syncFile, out)
-
-	return *out, err
-}
-
-func readLockFileDirHashes(vendirLockFile string) (vendirDirHashes, error) {
-	config, err := unmarshalYamlToMap(vendirLockFile)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(config) == 0 {
-		return vendirDirHashes{}, nil
-	}
-
-	return getVendirDirHashes(config)
-}
-
-func getVendirDirHashes(config map[string]interface{}) (vendirDirHashes, error) {
-	// check if directories key exists
 	if _, ok := config["directories"]; !ok {
-		return nil, errors.New("no directories found in vendir config")
+		return errors.New("no directories found in vendir config")
 	}
 
-	dirHashes := vendirDirHashes{}
-
+	dirs := []string{}
 	for _, dir := range config["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
 		path := dirMap["path"].(string)
-		contents := dirMap["contents"].([]interface{})
-		for _, content := range contents {
-			contentMap := content.(map[string]interface{})
-			contentPath := contentMap["path"].(string)
-			sortedYaml, err := sortYaml(contentMap)
-			if err != nil {
-				return nil, err
+		dirs = append(dirs, path+string(filepath.Separator))
+	}
+
+	log.Debug().Strs("managed dirs", dirs).Msg("")
+
+	return filepath.WalkDir(vendorDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		if !d.IsDir() {
+			return nil
+		}
+		log.Debug().Msg(a.Msg(syncStepName, "Checking directory "+path))
+
+		relPath, err := filepath.Rel(vendorDir, path)
+		if err != nil {
+			return err
+		}
+		if relPath == "." {
+			return nil
+		}
+
+		relPath = relPath + string(filepath.Separator)
+		for _, dir := range dirs {
+			log.Debug().Str("dir", dir).Str("relPath", relPath).Msg("Checking dir")
+			if dir == relPath {
+				log.Debug().Msgf("%s == %s", dir, relPath)
+				return fs.SkipDir
 			}
 
-			dirHashes[filepath.Join(path, contentPath)] = hashString(sortedYaml)
-		}
-	}
-	return dirHashes, nil
-}
+			if strings.HasPrefix(dir, relPath) {
+				log.Debug().Msgf("%s has prefix %s", dir, relPath)
+				return nil
+			}
 
-func checkVersionMatch(dir, desiredHash string, hashedDirs vendirDirHashes) bool {
-	if hash, ok := hashedDirs[dir]; ok {
-		return hash == desiredHash
-	}
-	return false
-}
-
-func checkLockFileMatch(vendirDirHashes vendirDirHashes, lockFileDirHashes vendirDirHashes) bool {
-	if len(vendirDirHashes) != len(lockFileDirHashes) {
-		return false
-	}
-	for dir := range vendirDirHashes {
-		if _, ok := lockFileDirHashes[dir]; !ok {
-			return false
+			// This should never happen
+			if strings.HasPrefix(relPath, dir) {
+				log.Debug().Msgf("%s has prefix %s", relPath, dir)
+				return fs.SkipDir
+			}
 		}
-	}
-	return true
+		log.Debug().Msg(a.Msg(syncStepName, "Removing directory "+path))
+		os.RemoveAll(path)
+
+		return fs.SkipDir
+	})
 }

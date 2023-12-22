@@ -110,11 +110,6 @@ yttPkg:
 render:
   #! If true, the render output file names will include the namespace
   includeNamespace: false
-#! Configuration options for the sync step.
-sync:
-  #! DEPRECATED: use `lazy` flag of vendir instead.
-  #! See https://github.com/carvel-dev/carvel/blob/develop/proposals/vendir/001-lazy-synching-on-stable-config/
-  useCache: false
 #! Myks configuration and runtime data.
 #! Default values for these options are set by myks.
 myks:
