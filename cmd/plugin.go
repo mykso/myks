@@ -3,30 +3,15 @@ package cmd
 import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/mykso/myks/internal/myks"
 )
 
-func init() {
-	cmd := &cobra.Command{
-		Use:   "plugin",
-		Short: "Plugin commands",
-		Long:  "Provides commands for plugin management in myks",
-		Run: func(cmd *cobra.Command, args []string) {
-			log.Info().Msg("Listing plugins")
-			for _, p := range listPlugins() {
-				log.Info().Msg(p.Name())
-			}
-		},
-	}
-
-	rootCmd.AddCommand(cmd)
-	addPlugins(rootCmd)
-}
-
 func listPlugins() []myks.Plugin {
+	sources := viper.GetStringSlice("plugin-sources")
 	plugins := myks.FindPluginsInPaths(nil)
-	localPlugins := myks.FindPluginsInPaths([]string{"plugins"})
+	localPlugins := myks.FindPluginsInPaths(sources)
 	return append(plugins, localPlugins...)
 }
 

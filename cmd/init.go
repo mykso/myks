@@ -9,7 +9,7 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
-func init() {
+func newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize new myks project",
@@ -53,5 +53,5 @@ func init() {
 	}
 	cmd.Flags().StringSlice("components", componentsDefault, "components to initialize")
 
-	rootCmd.AddCommand(cmd)
+	return cmd
 }
