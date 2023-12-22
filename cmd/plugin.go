@@ -13,18 +13,22 @@ import (
 
 const pluginPrefix = "myks-"
 
-func listPlugins() []myks.Plugin {
+// findPlugins searches for plugins in the PATH and in configured plugin-sources
+func findPlugins() []myks.Plugin {
 	path := filepath.SplitList(os.Getenv("PATH"))
 	pluginsPath := myks.FindPluginsInPaths(path, pluginPrefix)
 
 	sources := viper.GetStringSlice("plugin-sources")
+	for i, source := range sources {
+		sources[i] = os.ExpandEnv(source) // supports $HOME but not ~
+	}
 	pluginsLocal := myks.FindPluginsInPaths(sources, "")
 
 	return append(pluginsPath, pluginsLocal...)
 }
 
 func addPlugins(cmd *cobra.Command) {
-	plugins := listPlugins()
+	plugins := findPlugins()
 
 	uniquePlugins := make(map[string]myks.Plugin)
 	for _, plugin := range plugins {
