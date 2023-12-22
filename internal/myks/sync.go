@@ -11,8 +11,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type vendirDirHashes map[string]string
-
 func (a *Application) Sync(vendirSecrets string) error {
 	log.Debug().Msg(a.Msg(syncStepName, "Starting"))
 	if err := a.prepareSync(); err != nil {
