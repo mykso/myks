@@ -111,16 +111,19 @@ func (p PluginCmd) Exec(a *Application, args []string) error {
 	cmd.Stdout = &stdoutBs
 	cmd.Stderr = &stderrBs
 	cmd.Env = append(os.Environ(), mapToSlice(env)...)
-
+	// log env
+	log.Debug().Msg(a.Msg(step, msgRunCmd("", p.cmd, args)))
 	err = cmd.Run()
 	if err != nil {
+		log.Error().Msg(msgRunCmd("Failed on step: "+step, p.cmd, args))
 		log.Error().Err(err).
-			Str("stderr", stderrBs.String()).
 			Str("stdout", stdoutBs.String()).
-			Msg(a.Msg(step, "Plugin execution failed"))
+			// writing std error into message to avoid wrapping
+			Msg(a.Msg(step, "Plugin execution failed: "+stderrBs.String()))
 	} else {
-		log.Debug().Str("stdout", stdoutBs.String()).
-			Msg(a.Msg(step, "Plugin execution succeeded"))
+		log.Info().
+			// writing std out into message to avoid wrapping
+			Msg(a.Msg(step, "Plugin execution succeeded: "+stdoutBs.String()))
 	}
 	return err
 }
