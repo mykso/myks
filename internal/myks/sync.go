@@ -82,7 +82,7 @@ func (a *Application) doSync(vendirSecrets string) error {
 	vendorDir := a.expandPath(a.e.g.VendorDirName)
 
 	// TODO sync retry
-	if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets, ""); err != nil {
+	if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets); err != nil {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
 		return err
 	}
@@ -91,16 +91,13 @@ func (a *Application) doSync(vendirSecrets string) error {
 	return a.cleanupVendorDir(vendorDir, vendirConfigFile)
 }
 
-func (a *Application) runVendirSync(targetDir string, vendirConfig string, vendirLock string, vendirSecrets string, directory string) error {
+func (a *Application) runVendirSync(targetDir string, vendirConfig string, vendirLock string, vendirSecrets string) error {
 	args := []string{
 		"sync",
 		"--chdir=" + targetDir,
 		"--file=" + vendirConfig,
 		"--lock-file=" + vendirLock,
 		"--file=-",
-	}
-	if directory != "" {
-		args = append(args, "--directory="+directory)
 	}
 	_, err := a.runCmd(syncStepName, "vendir sync", "vendir", strings.NewReader(vendirSecrets), args)
 	if err != nil {
