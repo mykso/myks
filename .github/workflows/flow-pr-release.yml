@@ -18,6 +18,7 @@ jobs:
         id: semantic
         uses: cycjimmy/semantic-release-action@v3
         with:
+          branch: ${{ github.head_ref }}
           ci: false
           dry_run: true
           extra_plugins: |
