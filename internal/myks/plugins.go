@@ -19,10 +19,8 @@ type Plugin interface {
 
 var _ Plugin = &PluginCmd{}
 
-const pluginPrefix = "myks-"
-
-func NewPluginFromCmd(cmd string) Plugin {
-	name := strings.TrimPrefix(filepath.Base(cmd), pluginPrefix)
+func NewPluginFromCmd(cmd, binaryPrefix string) Plugin {
+	name := strings.TrimPrefix(filepath.Base(cmd), binaryPrefix)
 	name = strings.TrimSuffix(name, filepath.Ext(name))
 	return &PluginCmd{
 		name: name,
@@ -31,12 +29,11 @@ func NewPluginFromCmd(cmd string) Plugin {
 }
 
 // FindPluginsInPaths searches for plugins in the specified paths.
-// If no paths are provided, it uses the directories listed in the PATH environment variable.
 // It returns a slice of Plugin objects representing the found plugins.
-func FindPluginsInPaths(paths []string) []Plugin {
+func FindPluginsInPaths(paths []string, binaryPrefix string) []Plugin {
 	var plugins []Plugin
 	if len(paths) == 0 {
-		paths = filepath.SplitList(os.Getenv("PATH"))
+		return plugins
 	}
 	for _, path := range paths {
 		if len(strings.TrimSpace(path)) == 0 {
@@ -51,16 +48,17 @@ func FindPluginsInPaths(paths []string) []Plugin {
 			if file.IsDir() {
 				continue
 			}
-			if !strings.HasPrefix(file.Name(), pluginPrefix) {
+			if !strings.HasPrefix(file.Name(), binaryPrefix) {
 				continue
 			}
-			if isExec, err := isExecutable(filepath.Join(path, file.Name())); err != nil {
-				log.Debug().Err(err).Msgf("Unable to check if %s is executable", filepath.Join(path, file.Name()))
+			executable := filepath.Join(path, file.Name())
+			if isExec, err := isExecutable(executable); err != nil {
+				log.Debug().Err(err).Msgf("Unable to check if %s is executable", executable)
 			} else if !isExec {
-				log.Trace().Msgf("Skipping %s because it is not executable", filepath.Join(path, file.Name()))
+				log.Trace().Msgf("Skipping %s because it is not executable", executable)
 				continue
 			}
-			plugins = append(plugins, NewPluginFromCmd(filepath.Join(path, file.Name())))
+			plugins = append(plugins, NewPluginFromCmd(executable, binaryPrefix))
 		}
 	}
 	return plugins

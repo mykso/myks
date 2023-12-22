@@ -1,6 +1,9 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -8,11 +11,16 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
+const pluginPrefix = "myks-"
+
 func listPlugins() []myks.Plugin {
+	path := filepath.SplitList(os.Getenv("PATH"))
+	pluginsPath := myks.FindPluginsInPaths(path, pluginPrefix)
+
 	sources := viper.GetStringSlice("plugin-sources")
-	plugins := myks.FindPluginsInPaths(nil)
-	localPlugins := myks.FindPluginsInPaths(sources)
-	return append(plugins, localPlugins...)
+	pluginsLocal := myks.FindPluginsInPaths(sources, "")
+
+	return append(pluginsPath, pluginsLocal...)
 }
 
 func addPlugins(cmd *cobra.Command) {
@@ -28,42 +36,44 @@ func addPlugins(cmd *cobra.Command) {
 	}
 
 	for _, plugin := range uniquePlugins {
-		func(plugin myks.Plugin) {
-			cmd.AddCommand(&cobra.Command{
-				Use:     plugin.Name(),
-				Short:   "Execute " + plugin.Name(),
-				Long:    "Execute" + plugin.Name(),
-				GroupID: "Plugins",
-				RunE: func(cmd *cobra.Command, args []string) error {
-					splitAt := cmd.ArgsLenAtDash()
-					if splitAt == -1 {
-						splitAt = len(args)
-					}
-					myksArgs, pluginArgs := args[:splitAt], args[splitAt:]
+		cmd.AddCommand(newPluginCmd(plugin))
+	}
+}
 
-					if err := initTargetEnvsAndApps(cmd, myksArgs); err != nil {
-						return err
-					}
-					g := myks.New(".")
+func newPluginCmd(plugin myks.Plugin) *cobra.Command {
+	return &cobra.Command{
+		Use:     plugin.Name(),
+		Short:   "Execute " + plugin.Name(),
+		Long:    "Execute" + plugin.Name(),
+		GroupID: "Plugins",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			splitAt := cmd.ArgsLenAtDash()
+			if splitAt == -1 {
+				splitAt = len(args)
+			}
+			myksArgs, pluginArgs := args[:splitAt], args[splitAt:]
 
-					if err := g.ValidateRootDir(); err != nil {
-						log.Fatal().Err(err).Msg("Root directory is not suitable for myks")
-						return err
-					}
+			if err := initTargetEnvsAndApps(cmd, myksArgs); err != nil {
+				return err
+			}
+			g := myks.New(".")
 
-					if err := g.Init(asyncLevel, envAppMap); err != nil {
-						log.Fatal().Err(err).Msg("Unable to initialize globe")
-						return err
-					}
+			if err := g.ValidateRootDir(); err != nil {
+				log.Fatal().Err(err).Msg("Root directory is not suitable for myks")
+				return err
+			}
 
-					if err := g.ExecPlugin(asyncLevel, plugin, pluginArgs); err != nil {
-						log.Fatal().Err(err).Msg("Unable to render applications")
-						return err
-					}
+			if err := g.Init(asyncLevel, envAppMap); err != nil {
+				log.Fatal().Err(err).Msg("Unable to initialize globe")
+				return err
+			}
 
-					return nil
-				},
-			})
-		}(plugin)
+			if err := g.ExecPlugin(asyncLevel, plugin, pluginArgs); err != nil {
+				log.Fatal().Err(err).Msg("Unable to render applications")
+				return err
+			}
+
+			return nil
+		},
 	}
 }
