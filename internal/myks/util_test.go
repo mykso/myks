@@ -82,7 +82,7 @@ func Test_unmarshalYaml(t *testing.T) {
 		want    map[string]interface{}
 		wantErr bool
 	}{
-		{"happy path", args{"../../testData/sync/simple.yaml"}, map[string]interface{}{"key1": "A", "key2": "B", "arr": []interface{}{"arr1", "arr2"}}, false},
+		{"happy path", args{"../../testData/util/yaml/simple.yaml"}, map[string]interface{}{"key1": "A", "key2": "B", "arr": []interface{}{"arr1", "arr2"}}, false},
 		{"file not exist", args{"non-existing.yaml"}, map[string]interface{}{}, false},
 	}
 	for _, tt := range tests {
