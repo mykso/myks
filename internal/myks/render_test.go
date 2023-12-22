@@ -22,7 +22,6 @@ var testApp = &Application{
 		Dir: "/tmp",
 	},
 	yttDataFiles: nil,
-	useCache:     false,
 	yttPkgDirs:   nil,
 }
 
