@@ -146,6 +146,16 @@ func (e *Environment) SyncAndRender(asyncLevel int, vendirSecrets string) error 
 	return e.Cleanup()
 }
 
+func (e *Environment) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
+	return process(asyncLevel, e.Applications, func(item interface{}) error {
+		app, ok := item.(*Application)
+		if !ok {
+			return fmt.Errorf("Unable to cast item to *Application")
+		}
+		return p.Exec(app, args)
+	})
+}
+
 func (e *Environment) Cleanup() error {
 	apps, err := e.renderedApplications()
 	if err != nil {

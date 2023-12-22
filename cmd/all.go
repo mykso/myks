@@ -7,20 +7,16 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
-func init() {
-	cmd := &cobra.Command{
-		Use:   "all",
-		Short: "Run sync and render",
-		Long:  "Run sync and render",
-		Annotations: map[string]string{
-			ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
-		},
-		Run: func(cmd *cobra.Command, args []string) {
-			RunAllCmd()
-		},
-	}
-
-	rootCmd.AddCommand(cmd)
+var allCmd = &cobra.Command{
+	Use:   "all",
+	Short: "Run sync and render",
+	Long:  "Run sync and render",
+	Annotations: map[string]string{
+		ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
+	},
+	Run: func(cmd *cobra.Command, args []string) {
+		RunAllCmd()
+	},
 }
 
 func RunAllCmd() {
