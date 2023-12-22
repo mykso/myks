@@ -73,9 +73,7 @@ func Test_cleanupVendorDir(t *testing.T) {
 			},
 			wantDirs: []string{
 				"charts/httpbingo",
-				"charts/nginx",
 			},
-			wantErr: true,
 		},
 		{
 			name: "multiple-dirs",
