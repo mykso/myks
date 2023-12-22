@@ -1,3 +1,23 @@
+# [3.0.0](https://github.com/mykso/myks/compare/v2.2.0...v3.0.0) (2023-12-22)
+
+
+### Bug Fixes
+
+* consistent error logging with stderr and offending cmd ([#143](https://github.com/mykso/myks/issues/143)) ([d9ed5ad](https://github.com/mykso/myks/commit/d9ed5ad48dc62715afd3a59d4bc66eaec720cf76))
+* **smart mode:** detect changes in untracked files ([#144](https://github.com/mykso/myks/issues/144)) ([524a3c5](https://github.com/mykso/myks/commit/524a3c5c9cedf83147f3c8ce645696f86a6262ce))
+
+
+### Features
+
+* plugin implementation ([#148](https://github.com/mykso/myks/issues/148)) ([f23a41b](https://github.com/mykso/myks/commit/f23a41b3d0843928540f3e53b06f21ac4ad7abbb))
+* **sync:** deprecate sync.useCache and flip its default value ([#150](https://github.com/mykso/myks/issues/150)) ([dcce7fc](https://github.com/mykso/myks/commit/dcce7fc071c6cf5ca387d2fd1a0f00a63117dd95))
+* **sync:** remove sync.useCache ([#151](https://github.com/mykso/myks/issues/151)) ([3962b73](https://github.com/mykso/myks/commit/3962b736caadbed54b1f216c70f7cbb4e82e64f6))
+
+
+### BREAKING CHANGES
+
+* **sync:** users have to remove the sync section from their configurations.
+
 # [2.2.0](https://github.com/mykso/myks/compare/v2.1.1...v2.2.0) (2023-12-11)
 
 
