@@ -116,24 +116,24 @@ func Test_cleanupVendorDir(t *testing.T) {
 			vendirConfigFile := app.expandServicePath(app.e.g.VendirConfigFileName)
 
 			// Create vendor directory
-			if err := os.MkdirAll(vendorDir, 0755); err != nil {
+			if err := os.MkdirAll(vendorDir, 0o755); err != nil {
 				t.Errorf("creating directory %s error = %v", vendorDir, err)
 			}
 
 			// Create vendir config file
-			if err := os.MkdirAll(filepath.Dir(vendirConfigFile), 0755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(vendirConfigFile), 0o755); err != nil {
 				t.Errorf("creating directory %s error = %v", filepath.Dir(vendirConfigFile), err)
 			}
-			if err := os.WriteFile(vendirConfigFile, []byte(tt.vendirYaml), 0644); err != nil {
+			if err := os.WriteFile(vendirConfigFile, []byte(tt.vendirYaml), 0o644); err != nil {
 				t.Errorf("writing file %s error = %v", vendirConfigFile, err)
 			}
 
 			// Create directories in vendor directory
 			for _, dir := range tt.createDirs {
-				if err := os.MkdirAll(filepath.Join(vendorDir, dir), 0755); err != nil {
+				if err := os.MkdirAll(filepath.Join(vendorDir, dir), 0o755); err != nil {
 					t.Errorf("creating directory %s error = %v", dir, err)
 				}
-				if err := os.WriteFile(filepath.Join(vendorDir, dir, keeperFile), []byte(""), 0644); err != nil {
+				if err := os.WriteFile(filepath.Join(vendorDir, dir, keeperFile), []byte(""), 0o644); err != nil {
 					t.Errorf("writing file %s error = %v", vendirConfigFile, err)
 				}
 			}
