@@ -132,13 +132,7 @@ func (p PluginCmd) generateEnv(a *Application) (map[string]string, error) {
 		"MYKS_APP":              a.Name,
 		"MYKS_APP_PROTOTYPE":    a.Prototype,
 		"MYKS_ENV_DIR":          a.e.Dir,
-		"MYKS_ENV_DATA_FILE":    a.e.renderedEnvDataFilePath,
-		"MYKS_RENDERED_APP_DIR": "rendered/envs/" + a.e.Id + "/" + a.Name, // TODO: provide func and use it everywhere,
-		"MYKS_ARGOCD_ENABLED":   strconv.FormatBool(a.argoCDEnabled),
-	}
-	if a.argoCDEnabled {
-		env["MYKS_ARGOCD_APP_NAME"] = a.getArgoCDDestinationDir()
-		env["MYKS_ARGOCD_APP_PROJECT"] = "rendered/argocd/" + a.e.Id + "/" + a.Name // TODO: provide func and use it everywhere,
+		"MYKS_RENDERED_APP_DIR": "rendered/envs/" + a.e.Id + "/" + a.Name, // TODO: provide func and use it everywhere
 	}
 
 	result, err := a.ytt(p.Name(), "get data values", a.yttDataFiles, "--data-values-inspect")
