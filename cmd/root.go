@@ -27,6 +27,7 @@ var (
 )
 
 func NewMyksCmd(version, commit, date string) *cobra.Command {
+	cobra.OnInitialize(initLogger)
 	cmd := newRootCmd(version, commit, date)
 	cmd.AddCommand(allCmd)
 	cmd.AddCommand(renderCmd)
@@ -114,7 +115,6 @@ func initConfig() {
 	}
 
 	err := viper.ReadInConfig()
-	initLogger()
 
 	if err == nil {
 		// TODO: Make paths in config file relative to the config file
