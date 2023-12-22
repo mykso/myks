@@ -115,10 +115,12 @@ func Test_cleanupVendorDir(t *testing.T) {
 			vendorDir := app.expandPath(app.e.g.VendorDirName)
 			vendirConfigFile := app.expandServicePath(app.e.g.VendirConfigFileName)
 
+			// Create vendor directory
 			if err := os.MkdirAll(vendorDir, 0755); err != nil {
 				t.Errorf("creating directory %s error = %v", vendorDir, err)
 			}
 
+			// Create vendir config file
 			if err := os.MkdirAll(filepath.Dir(vendirConfigFile), 0755); err != nil {
 				t.Errorf("creating directory %s error = %v", filepath.Dir(vendirConfigFile), err)
 			}
@@ -126,6 +128,7 @@ func Test_cleanupVendorDir(t *testing.T) {
 				t.Errorf("writing file %s error = %v", vendirConfigFile, err)
 			}
 
+			// Create directories in vendor directory
 			for _, dir := range tt.createDirs {
 				if err := os.MkdirAll(filepath.Join(vendorDir, dir), 0755); err != nil {
 					t.Errorf("creating directory %s error = %v", dir, err)
@@ -135,10 +138,14 @@ func Test_cleanupVendorDir(t *testing.T) {
 				}
 			}
 
+			// Run the tested function, it should cleanup directories in vendor directory that are not in vendir config
 			err := app.cleanupVendorDir(vendorDir, vendirConfigFile)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("cleanupVendorDir() error = %v, wantErr %v", err, tt.wantErr)
 			}
+
+			// Then remove directories expected to left in vendor directory.
+			// If there are any left, it means the cleanup failed.
 
 			for _, dir := range tt.wantDirs {
 				if _, err := os.Stat(filepath.Join(vendorDir, dir)); err != nil {
@@ -148,7 +155,6 @@ func Test_cleanupVendorDir(t *testing.T) {
 			}
 
 			leftFiles := []string{}
-
 			if err := filepath.WalkDir(vendorDir, func(path string, info os.DirEntry, err error) error {
 				if err != nil {
 					return err
