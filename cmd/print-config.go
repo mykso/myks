@@ -9,7 +9,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-func init() {
+func newPrintConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "print-config",
 		Short: "Print myks configuration",
@@ -23,5 +23,5 @@ func init() {
 			fmt.Printf("---\n%s\n", bs)
 		},
 	}
-	rootCmd.AddCommand(cmd)
+	return cmd
 }

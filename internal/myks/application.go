@@ -30,7 +30,6 @@ type Application struct {
 
 	argoCDEnabled    bool
 	includeNamespace bool
-	useCache         bool
 	yttDataFiles     []string
 	yttPkgDirs       []string
 }
@@ -92,9 +91,6 @@ func (a *Application) Init() error {
 			Dirs []string `yaml:"dirs"`
 		} `yaml:"yttPkg"`
 		ArgoCD ArgoCD `yaml:"argocd"`
-		Sync   struct {
-			UseCache bool `yaml:"useCache"`
-		} `yaml:"sync"`
 		Render struct {
 			IncludeNamespace bool `yaml:"includeNamespace"`
 		} `yaml:"render"`
@@ -105,7 +101,6 @@ func (a *Application) Init() error {
 		return err
 	}
 	a.argoCDEnabled = applicationData.ArgoCD.Enabled
-	a.useCache = applicationData.Sync.UseCache
 	a.includeNamespace = applicationData.Render.IncludeNamespace
 	a.yttPkgDirs = applicationData.YttPkg.Dirs
 
