@@ -1,3 +1,10 @@
+## [3.0.1](https://github.com/mykso/myks/compare/v3.0.0...v3.0.1) (2023-12-22)
+
+
+### Bug Fixes
+
+* improve logging for plugins ([#153](https://github.com/mykso/myks/issues/153)) ([cd6e41f](https://github.com/mykso/myks/commit/cd6e41f52852bbf0bce45b91c057f718668fb952))
+
 # [3.0.0](https://github.com/mykso/myks/compare/v2.2.0...v3.0.0) (2023-12-22)
 
 
