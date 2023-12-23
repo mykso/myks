@@ -412,3 +412,10 @@ func mapToSlice(env map[string]string) []string {
 	}
 	return envSlice
 }
+
+func createURLSlug(url string) string {
+	url = strings.TrimPrefix(url, "http://")
+	url = strings.TrimPrefix(url, "https://")
+	url = url[:strings.LastIndex(url, "/")]
+	return url
+}

@@ -12,17 +12,14 @@ import (
 )
 
 const (
-	renderStepName          = "render"
-	syncStepName            = "sync"
-	globalYttStepName       = "global-ytt"
-	yttStepName             = "ytt"
-	yttPkgStepName          = "ytt-pkg"
-	helmStepName            = "helm"
-	sliceStepName           = "slice"
-	initStepName            = "init"
-	applyStepName           = "apply"
-	crdPrefix               = "customresourcedefinition-"
-	namespaceResourcePrefix = "namespace-"
+	renderStepName    = "render"
+	syncStepName      = "sync"
+	globalYttStepName = "global-ytt"
+	yttStepName       = "ytt"
+	yttPkgStepName    = "ytt-pkg"
+	helmStepName      = "helm"
+	sliceStepName     = "slice"
+	initStepName      = "init"
 )
 
 type Application struct {
