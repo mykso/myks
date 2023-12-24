@@ -1,3 +1,10 @@
+## [3.0.3](https://github.com/mykso/myks/compare/v3.0.2...v3.0.3) (2023-12-24)
+
+
+### Bug Fixes
+
+* **sync:** create vendor directory if not exists ([#159](https://github.com/mykso/myks/issues/159)) ([fd8e878](https://github.com/mykso/myks/commit/fd8e878900883263d4a67fa01103f411c0b3484d))
+
 ## [3.0.2](https://github.com/mykso/myks/compare/v3.0.1...v3.0.2) (2023-12-24)
 
 
