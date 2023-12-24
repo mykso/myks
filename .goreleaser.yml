@@ -31,10 +31,12 @@ aurs:
     license: "MIT"
     private_key: "{{ .Env.AUR_SSH_KEY }}"
     git_url: "ssh://aur@aur.archlinux.org/myks-bin.git"
+    depends:
+      - ytt
     optdepends:
-      - "carvel-tools: for vendir and ytt"
-      - "git: for git"
-      - "helm: for helm"
+      - "vendir: for downloading from external sources"
+      - "git: for smart detection of changes"
+      - "helm: for rendering helm charts"
     package: |-
       BIN=myks
 
