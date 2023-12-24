@@ -318,7 +318,6 @@ func isExist(path string) (bool, error) {
 		return true, nil
 	}
 	if os.IsNotExist(err) {
-		log.Trace().Str("path", path).Msg("File does not exist")
 		return false, nil
 	}
 	log.Error().Err(err).Msg("Unable to stat file")
