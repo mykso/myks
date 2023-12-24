@@ -81,6 +81,10 @@ func (a *Application) doSync(vendirSecrets string) error {
 	vendirLockFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
 	vendorDir := a.expandPath(a.e.g.VendorDirName)
 
+	if err := createDirectory(vendorDir); err != nil {
+		return err
+	}
+
 	// TODO sync retry
 	if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets); err != nil {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
