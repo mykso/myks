@@ -104,6 +104,31 @@ func Test_cleanupVendorDir(t *testing.T) {
 			},
 			wantDirs: []string{"charts/httpbingo2"},
 		},
+		{
+			name: "weird-paths",
+			vendirYaml: "directories:\n" +
+				"  - path: charts/httpbingo\n" +
+				"  - path: charts/httpbingo1/\n" +
+				"  - path: charts/httpbingo2//\n" +
+				"  - path: charts//httpbingo22//\n" +
+				"  - path: charts/../httpbingo69\n",
+			createDirs: []string{
+				"charts/httpbingo",
+				"charts/httpbingo1",
+				"charts/httpbingo2",
+				"charts/httpbingo22",
+				"httpbingo69",
+				"charts/trash",
+				"charts/trash1",
+			},
+			wantDirs: []string{
+				"charts/httpbingo",
+				"charts/httpbingo1",
+				"charts/httpbingo2",
+				"charts/httpbingo22",
+				"httpbingo69",
+			},
+		},
 	}
 
 	for _, tt := range tests {

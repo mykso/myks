@@ -121,8 +121,7 @@ func (a Application) cleanupVendorDir(vendorDir, vendirConfigFile string) error 
 	for _, dir := range config["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
 		path := dirMap["path"].(string)
-		path = strings.TrimSuffix(path, string(filepath.Separator))
-		dirs = append(dirs, path+string(filepath.Separator))
+		dirs = append(dirs, filepath.Clean(path)+string(filepath.Separator))
 	}
 
 	log.Debug().Strs("managed dirs", dirs).Msg("")
