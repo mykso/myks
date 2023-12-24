@@ -80,7 +80,16 @@ func (a *Application) doSync(vendirSecrets string) error {
 	vendirConfigFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirConfigFileName)
 	vendirLockFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
 	vendorDir := a.expandPath(a.e.g.VendorDirName)
-
+	// remove old content of vendor directory, since there might be leftovers in case of path changes
+	if exists, _ := isExist(vendorDir); exists {
+		if err := os.RemoveAll(vendorDir); err != nil {
+			return err
+		}
+	}
+	if err := createDirectory(vendorDir); err != nil {
+		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create vendor dir: "+vendorDir))
+		return err
+	}
 	// TODO sync retry
 	if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets); err != nil {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
