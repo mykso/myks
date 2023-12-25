@@ -4,7 +4,6 @@ go 1.21
 
 require (
 	github.com/alecthomas/chroma/v2 v2.12.0
-	github.com/alecthomas/chroma/v2 v2.12.0
 	github.com/creasty/defaults v1.7.0
 	github.com/logrusorgru/aurora/v4 v4.0.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
