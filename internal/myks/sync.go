@@ -3,7 +3,6 @@ package myks
 import (
 	_ "embed"
 	"errors"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -95,9 +94,7 @@ func (a *Application) doSync(vendirSecrets string) error {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
 		return err
 	}
-
-	vendirConfigFile := a.expandServicePath(a.e.g.VendirConfigFileName)
-	return a.cleanupVendorDir(vendorDir, vendirConfigFile)
+	return nil
 }
 
 func (a *Application) runVendirSync(targetDir string, vendirConfig string, vendirLock string, vendirSecrets string) error {
@@ -114,67 +111,4 @@ func (a *Application) runVendirSync(targetDir string, vendirConfig string, vendi
 	}
 	log.Info().Msg(a.Msg(syncStepName, "Synced"))
 	return nil
-}
-
-func (a Application) cleanupVendorDir(vendorDir, vendirConfigFile string) error {
-	config, err := unmarshalYamlToMap(vendirConfigFile)
-	if err != nil {
-		return err
-	}
-
-	if _, ok := config["directories"]; !ok {
-		return errors.New("no directories found in vendir config")
-	}
-
-	dirs := []string{}
-	for _, dir := range config["directories"].([]interface{}) {
-		dirMap := dir.(map[string]interface{})
-		path := dirMap["path"].(string)
-		dirs = append(dirs, path+string(filepath.Separator))
-	}
-
-	log.Debug().Strs("managed dirs", dirs).Msg("")
-
-	return filepath.WalkDir(vendorDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !d.IsDir() {
-			return nil
-		}
-		log.Debug().Msg(a.Msg(syncStepName, "Checking directory "+path))
-
-		relPath, err := filepath.Rel(vendorDir, path)
-		if err != nil {
-			return err
-		}
-		if relPath == "." {
-			return nil
-		}
-
-		relPath = relPath + string(filepath.Separator)
-		for _, dir := range dirs {
-			log.Debug().Str("dir", dir).Str("relPath", relPath).Msg("Checking dir")
-			if dir == relPath {
-				log.Debug().Msgf("%s == %s", dir, relPath)
-				return fs.SkipDir
-			}
-
-			if strings.HasPrefix(dir, relPath) {
-				log.Debug().Msgf("%s has prefix %s", dir, relPath)
-				return nil
-			}
-
-			// This should never happen
-			if strings.HasPrefix(relPath, dir) {
-				log.Debug().Msgf("%s has prefix %s", relPath, dir)
-				return fs.SkipDir
-			}
-		}
-		log.Debug().Msg(a.Msg(syncStepName, "Removing directory "+path))
-		os.RemoveAll(path)
-
-		return fs.SkipDir
-	})
 }
