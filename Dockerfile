@@ -23,7 +23,7 @@ ARG HELM_VERSION=3.11.2
 # renovate: datasource=github-releases depName=carvel-dev/vendir
 ARG VENDIR_VERSION=0.33.1
 # renovate: datasource=github-releases depName=carvel-dev/ytt
-ARG YTT_VERSION=0.45.0
+ARG YTT_VERSION=v0.46.3
 
 RUN apt-get update \
  && apt-get install --no-install-recommends -y \
