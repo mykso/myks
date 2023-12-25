@@ -98,6 +98,17 @@ The `all` command runs both stages in sequence for convenience.
 All of the commands support accept two optional arguments: environments and applications to process.
 When no arguments are provided, myks will use the [Smart Mode](docs/SMARTMODE.md) to detect what to process.
 
+### Examples
+
+A few example setups are available in the [examples](examples) directory.
+
+And here are some real-world examples:
+
+- [zebradil/myks-homelab](https://github.com/zebradil/myks-homelab): single cluster setup with [ArgoCD] for deployment
+  and [sops] for secrets management;
+- [kbudde/lab](https://github.com/kbudde/lab): single cluster setup with [kapp] for deployment and [sops] for secrets
+  management;
+
 ### Running `sync` against protected repositories and registries
 
 Vendir uses `secret` resources to authenticate against protected repositories.
@@ -164,6 +175,8 @@ Here are some of the requirements we had:
 - to provide a single source of truth for the configuration.
 
 [//]: # "Links"
-[ytt]: https://carvel.dev/ytt/
-[vendir]: https://carvel.dev/vendir/
+[ArgoCD]: https://argoproj.github.io/cd/
 [helm]: https://helm.sh/
+[sops]: https://github.com/getsops/sops
+[vendir]: https://carvel.dev/vendir/
+[ytt]: https://carvel.dev/ytt/
