@@ -1,0 +1,24 @@
+---
+name: Check Links Quickly
+
+"on":
+  push:
+    branches:
+      - main
+      - dev
+    paths:
+      - .github/workflows/check-links-quickly.yaml
+      - "**.md"
+  pull_request:
+
+jobs:
+  linkChecker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Link Checker
+        uses: lycheeverse/lychee-action@v1.8.0
+        with:
+          fail: true
+          args: --base . --verbose --no-progress './**/*.md'
