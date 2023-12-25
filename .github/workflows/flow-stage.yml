@@ -40,7 +40,7 @@ jobs:
         with:
           extra_plugins: |
             @semantic-release/git
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@v5
         if: steps.semantic.outputs.new_release_published == 'true'
         with:
           go-version: "1.21"
