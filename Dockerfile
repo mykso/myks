@@ -18,8 +18,11 @@ FROM --platform=$BUILDPLATFORM debian:bookworm AS download-tools
 
 ARG TARGETOS
 ARG TARGETARCH
+# renovate: datasource=github-releases depName=helm/helm
 ARG HELM_VERSION=3.11.2
+# renovate: datasource=github-releases depName=carvel-dev/vendir
 ARG VENDIR_VERSION=0.33.1
+# renovate: datasource=github-releases depName=carvel-dev/ytt
 ARG YTT_VERSION=0.45.0
 
 RUN apt-get update \
