@@ -81,6 +81,10 @@ func (a *Application) doSync(vendirSecrets string) error {
 	vendirLockFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
 	vendorDir := a.expandPath(a.e.g.VendorDirName)
 
+	if err := createDirectory(vendorDir); err != nil {
+		return err
+	}
+
 	// TODO sync retry
 	if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets); err != nil {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
@@ -121,7 +125,7 @@ func (a Application) cleanupVendorDir(vendorDir, vendirConfigFile string) error 
 	for _, dir := range config["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
 		path := dirMap["path"].(string)
-		dirs = append(dirs, path+string(filepath.Separator))
+		dirs = append(dirs, filepath.Clean(path)+string(filepath.Separator))
 	}
 
 	log.Debug().Strs("managed dirs", dirs).Msg("")
