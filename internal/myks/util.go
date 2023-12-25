@@ -15,7 +15,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/alecthomas/chroma/quick"
+	"github.com/alecthomas/chroma/v2/quick"
 	aurora "github.com/logrusorgru/aurora/v4"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
