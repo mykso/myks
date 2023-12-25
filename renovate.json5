@@ -1,0 +1,19 @@
+// This file is in JSON5 format: https://json5.org
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:base"
+  ],
+  regexManagers: [
+    {
+      fileMatch: [
+        "^(Docker|Container)file$"
+      ],
+      // # renovate: datasource=github-releases depName=carvel-dev/vendir
+      // ARG VENDIR_VERSION=0.33.1
+      matchStrings: [
+        "#\\s+renovate:\\s+datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s+(ARG|ENV)\\s+\\S+=['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
+      ],
+    },
+  ],
+}

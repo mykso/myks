@@ -89,6 +89,11 @@ func (a *Application) doSync(vendirSecrets string) error {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Unable to create vendor dir: "+vendorDir))
 		return err
 	}
+
+	if err := createDirectory(vendorDir); err != nil {
+		return err
+	}
+
 	// TODO sync retry
 	if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets); err != nil {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
