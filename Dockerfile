@@ -21,7 +21,7 @@ ARG TARGETARCH
 # renovate: datasource=github-releases depName=helm/helm
 ARG HELM_VERSION=3.11.2
 # renovate: datasource=github-releases depName=carvel-dev/vendir
-ARG VENDIR_VERSION=0.33.1
+ARG VENDIR_VERSION=v0.38.0
 # renovate: datasource=github-releases depName=carvel-dev/ytt
 ARG YTT_VERSION=v0.46.3
 
