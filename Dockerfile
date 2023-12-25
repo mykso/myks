@@ -19,7 +19,7 @@ FROM --platform=$BUILDPLATFORM debian:bookworm AS download-tools
 ARG TARGETOS
 ARG TARGETARCH
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION=3.11.2
+ARG HELM_VERSION=v3.13.3
 # renovate: datasource=github-releases depName=carvel-dev/vendir
 ARG VENDIR_VERSION=v0.38.0
 # renovate: datasource=github-releases depName=carvel-dev/ytt
