@@ -10,8 +10,7 @@ import (
 )
 
 func Test_cleanupVendorDir(t *testing.T) {
-	// tmpDir := t.TempDir()
-	tmpDir, _ := os.MkdirTemp("/tmp", "myks-test")
+	tmpDir := t.TempDir()
 	defer chdir(t, tmpDir)()
 
 	g := &Globe{}
