@@ -3,6 +3,7 @@ package myks
 import (
 	_ "embed"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -10,6 +11,15 @@ import (
 
 	"github.com/rs/zerolog/log"
 )
+
+const vendorDirOverlayTemplate = `
+#@ load("@ytt:overlay", "overlay")
+#@overlay/match by=overlay.subset({"kind": "Config", "apiVersion": "vendir.k14s.io/v1alpha1"})
+---
+directories:
+  - #@overlay/match by=overlay.all, expects="1+"
+    #@overlay/replace via=lambda l, r: (r + "/" + l).replace("//", "/")
+    path: %s`
 
 func (a *Application) Sync(vendirSecrets string) error {
 	log.Debug().Msg(a.Msg(syncStepName, "Starting"))
@@ -49,7 +59,9 @@ func (a *Application) prepareSync() error {
 		return ErrNoVendirConfig
 	}
 
-	vendirConfig, err := a.ytt(syncStepName, "creating vendir config", yttFiles)
+	vendorDir := a.expandPath(a.e.g.VendorDirName)
+	overlayReader := strings.NewReader(fmt.Sprintf(vendorDirOverlayTemplate, vendorDir))
+	vendirConfig, err := a.yttS(syncStepName, "creating vendir config", yttFiles, overlayReader)
 	if err != nil {
 		return err
 	}
@@ -76,29 +88,22 @@ func (a *Application) prepareSync() error {
 }
 
 func (a *Application) doSync(vendirSecrets string) error {
-	// Paths are relative to the vendor directory (BUG: this will brake with multi-level vendor directory, e.g. `vendor/shmendor`)
-	vendirConfigFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirConfigFileName)
-	vendirLockFileRelativePath := filepath.Join("..", a.e.g.ServiceDirName, a.e.g.VendirLockFileName)
-	vendorDir := a.expandPath(a.e.g.VendorDirName)
-
-	if err := createDirectory(vendorDir); err != nil {
-		return err
-	}
+	vendirConfigPath := a.expandServicePath(a.e.g.VendirConfigFileName)
+	vendirLockFilePath := a.expandServicePath(a.e.g.VendirLockFileName)
 
 	// TODO sync retry
-	if err := a.runVendirSync(vendorDir, vendirConfigFileRelativePath, vendirLockFileRelativePath, vendirSecrets); err != nil {
+	if err := a.runVendirSync(vendirConfigPath, vendirLockFilePath, vendirSecrets); err != nil {
 		log.Error().Err(err).Msg(a.Msg(syncStepName, "Vendir sync failed"))
 		return err
 	}
 
-	vendirConfigFile := a.expandServicePath(a.e.g.VendirConfigFileName)
-	return a.cleanupVendorDir(vendorDir, vendirConfigFile)
+	vendorDir := a.expandPath(a.e.g.VendorDirName)
+	return a.cleanupVendorDir(vendorDir, vendirConfigPath)
 }
 
-func (a *Application) runVendirSync(targetDir string, vendirConfig string, vendirLock string, vendirSecrets string) error {
+func (a *Application) runVendirSync(vendirConfig, vendirLock, vendirSecrets string) error {
 	args := []string{
 		"sync",
-		"--chdir=" + targetDir,
 		"--file=" + vendirConfig,
 		"--lock-file=" + vendirLock,
 		"--file=-",
@@ -140,30 +145,22 @@ func (a Application) cleanupVendorDir(vendorDir, vendirConfigFile string) error 
 		}
 		log.Debug().Msg(a.Msg(syncStepName, "Checking directory "+path))
 
-		relPath, err := filepath.Rel(vendorDir, path)
-		if err != nil {
-			return err
-		}
-		if relPath == "." {
-			return nil
-		}
-
-		relPath = relPath + string(filepath.Separator)
+		path = path + string(filepath.Separator)
 		for _, dir := range dirs {
-			log.Debug().Str("dir", dir).Str("relPath", relPath).Msg("Checking dir")
-			if dir == relPath {
-				log.Debug().Msgf("%s == %s", dir, relPath)
+			log.Debug().Str("dir", dir).Str("path", path).Msg("Checking dir")
+			if dir == path {
+				log.Debug().Msgf("%s == %s", dir, path)
 				return fs.SkipDir
 			}
 
-			if strings.HasPrefix(dir, relPath) {
-				log.Debug().Msgf("%s has prefix %s", dir, relPath)
+			if strings.HasPrefix(dir, path) {
+				log.Debug().Msgf("%s has prefix %s", dir, path)
 				return nil
 			}
 
 			// This should never happen
-			if strings.HasPrefix(relPath, dir) {
-				log.Debug().Msgf("%s has prefix %s", relPath, dir)
+			if strings.HasPrefix(path, dir) {
+				log.Debug().Msgf("%s has prefix %s", path, dir)
 				return fs.SkipDir
 			}
 		}
