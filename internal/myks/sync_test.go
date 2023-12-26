@@ -3,13 +3,15 @@ package myks
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/creasty/defaults"
 )
 
 func Test_cleanupVendorDir(t *testing.T) {
-	tmpDir := t.TempDir()
+	// tmpDir := t.TempDir()
+	tmpDir, _ := os.MkdirTemp("/tmp", "myks-test")
 	defer chdir(t, tmpDir)()
 
 	g := &Globe{}
@@ -131,6 +133,7 @@ func Test_cleanupVendorDir(t *testing.T) {
 		},
 	}
 
+	vendorPathRegex := regexp.MustCompile(`path: (\S*)`)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			const keeperFile = "keeper"
@@ -142,6 +145,9 @@ func Test_cleanupVendorDir(t *testing.T) {
 			if err := os.MkdirAll(vendorDir, 0o755); err != nil {
 				t.Errorf("creating directory %s error = %v", vendorDir, err)
 			}
+
+			// Prepend vendor directory to paths in vendir config
+			tt.vendirYaml = vendorPathRegex.ReplaceAllString(tt.vendirYaml, "path: "+vendorDir+"/$1")
 
 			// Create vendir config file
 			if err := os.MkdirAll(filepath.Dir(vendirConfigFile), 0o755); err != nil {
