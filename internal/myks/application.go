@@ -28,10 +28,10 @@ type Application struct {
 
 	e *Environment
 
+	argoCDEnabled    bool
 	includeNamespace bool
 	yttPkgDirs       []string
 	yttDataFiles     []string
-	ArgoConfig       *ArgoConfig
 	HelmConfig       *HelmConfig
 }
 
@@ -47,13 +47,8 @@ type Destination struct {
 	Namespace string `yaml:"namespace"`
 }
 
-type App struct {
-	Destination Destination `yaml:"destination"`
-}
-
 type ArgoConfig struct {
 	Enabled bool `yaml:"enabled"`
-	App     App  `yaml:"app"`
 }
 
 var (
@@ -128,7 +123,7 @@ func (a *Application) Init() error {
 		return err
 	}
 	if argoData.ArgoConfig.Enabled {
-		a.ArgoConfig = &argoData.ArgoConfig
+		a.argoCDEnabled = true
 	}
 
 	// Transfer HelmConfig

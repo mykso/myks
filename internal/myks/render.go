@@ -216,7 +216,7 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 		return "", err
 	}
 
-	resourceValues, err := a.mergeValuesYaml(initStepName, a.expandTempPath(valuesFileName))
+	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandTempPath(valuesFileName))
 	if err != nil {
 		return "", err
 	}

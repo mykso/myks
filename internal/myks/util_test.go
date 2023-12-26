@@ -499,10 +499,10 @@ func Test_createURLSlug(t *testing.T) {
 		args args
 		want string
 	}{
-		{"bitnami", args{"https://charts.bitnami.com/bitnami"}, "charts.bitnami.com"},
-		{"stable", args{"https://charts.helm.sh/stable"}, "charts.helm.sh"},
-		{"grafana", args{"https://grafana.github.io/helm-charts"}, "grafana.github.io"},
-		{"nginx", args{"https://helm.nginx.com/stable"}, "helm.nginx.com"},
+		{"bitnami", args{"https://charts.bitnami.com/bitnami"}, "charts.bitnami.com-bitnami"},
+		{"stable", args{"https://charts.helm.sh/stable"}, "charts.helm.sh-stable"},
+		{"grafana", args{"https://grafana.github.io/helm-charts"}, "grafana.github.io-helm-charts"},
+		{"nginx", args{"https://helm.nginx.com/stable"}, "helm.nginx.com-stable"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
