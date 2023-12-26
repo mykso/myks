@@ -135,7 +135,7 @@ func (p PluginCmd) Exec(a *Application, args []string) error {
 		} else {
 			log.Info().
 				// writing std out into message to avoid wrapping
-				Msg(a.Msg(step, fmt.Sprintf("Plugin execution succeeded.")))
+				Msg(a.Msg(step, "Plugin execution succeeded."))
 		}
 	}
 	return err
