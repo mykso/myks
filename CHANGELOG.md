@@ -1,3 +1,10 @@
+## [3.0.4](https://github.com/mykso/myks/compare/v3.0.3...v3.0.4) (2023-12-26)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/alecthomas/chroma to v2 ([#185](https://github.com/mykso/myks/issues/185)) ([dd2d579](https://github.com/mykso/myks/commit/dd2d5790fbf347825047853a2cd21c73bdd06ee5))
+
 ## [3.0.3](https://github.com/mykso/myks/compare/v3.0.2...v3.0.3) (2023-12-25)
 
 ### Bug Fixes
