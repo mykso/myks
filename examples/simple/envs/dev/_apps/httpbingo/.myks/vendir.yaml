@@ -1,7 +1,7 @@
 apiVersion: vendir.k14s.io/v1alpha1
 kind: Config
 directories:
-- path: charts/httpbingo
+- path: envs/dev/_apps/httpbingo/vendor/charts/httpbingo
   contents:
   - path: .
     helmChart:

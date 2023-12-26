@@ -10,4 +10,4 @@ directories:
       - path: .
         directory:
           name: #@ app.name
-          path: ../../../../../../charts/render-test-chart
+          path: ../charts/render-test-chart
