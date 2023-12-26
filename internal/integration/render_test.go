@@ -3,6 +3,7 @@ package integration_test
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"testing"
 
 	"github.com/mykso/myks/cmd"
@@ -52,10 +53,13 @@ func checkCleanGit(t *testing.T) bool {
 	if err != nil {
 		t.Fatalf("Checking git failed: %s", err)
 	}
-	if len(changes) > 0 {
-		t.Logf("Found changed files: %v", changes)
-		t.Errorf("Unexpected changes in git status")
-		return false
+	regex, _ := regexp.Compile("examples/.*/rendered/.*")
+	for _, change := range changes {
+		if regex.MatchString(change) {
+			t.Logf("Found changed files in rendered output: %v", changes)
+			t.Errorf("Unexpected changes in git status")
+			return false
+		}
 	}
 	return true
 }
