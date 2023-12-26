@@ -26,6 +26,10 @@ Here's a quick example:
 ```console
 $ # Switch to an empty directory
 $ cd "$(mktemp -d)"
+$ # Initialize a repository
+$ git init
+$ # Make an initial commit
+$ git commit --allow-empty -m "Initial commit"
 $ # Initialize a new project with example configuration
 $ myks init
 $ # Optionally, check the generated files
@@ -156,6 +160,8 @@ $ # Switch to an empty directory
 $ cd $(mktemp -d)
 $ # Initialize a repository
 $ git init
+$ # Make an initial commit
+$ git commit --allow-empty -m "Initial commit"
 $ # Initialize a new myks project
 $ myks init
 $ # Optionally, check the generated files
