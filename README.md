@@ -40,6 +40,7 @@ $ find rendered
 
 Depending on the installation method and on the desired features, you may need to install some of the tools manually:
 
+- [git] is required;
 - [ytt] is required;
 - [vendir] is only needed for downloading upstream sources, but you most likely want it;
 - [helm] is only needed for rendering Helm charts.
@@ -153,7 +154,9 @@ $ go build -o myks ./cmd/myks
 ```console
 $ # Switch to an empty directory
 $ cd $(mktemp -d)
-$ # Initialize a new project
+$ # Initialize a repository
+$ git init
+$ # Initialize a new myks project
 $ myks init
 $ # Optionally, check the generated files
 $ find
