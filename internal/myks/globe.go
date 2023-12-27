@@ -19,7 +19,6 @@ const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 // Define the main structure
 // Globe configuration
 type Globe struct {
-
 	// Project root directory
 	RootDir string `default:"."`
 	// Base directory for environments
