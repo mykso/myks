@@ -30,7 +30,7 @@ func (a *Application) copyStaticFiles() (err error) {
 	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.e.g.EnvsDir, a.e.g.StaticFilesDirName))...)
 	logStaticFiles(staticFilesDirs)
 	// 4. Static files from the application
-	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.StaticFilesDirName))...)
+	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.StaticFilesDirName))...)
 	logStaticFiles(staticFilesDirs)
 
 	staticFilesDestination := filepath.Join(a.getDestinationDir(), a.e.g.StaticFilesDirName)
