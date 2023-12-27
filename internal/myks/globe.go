@@ -17,60 +17,64 @@ import (
 const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
 // Define the main structure
+// Globe configuration
 type Globe struct {
-	/// Globe configuration
+	// Project root directory
+	RootDir string `default:"."`
+	// Base directory for environments
+	EnvironmentBaseDir string `default:"envs"`
+	// Application prototypes directory
+	PrototypesDir string `default:"prototypes"`
+	// Ytt library directory name
+	YttLibraryDirName string `default:"lib"`
+	// Rendered kubernetes manifests directory
+	RenderedEnvsDir string `default:"rendered/envs"`
+	// Rendered argocd manifests directory
+	RenderedArgoDir string `default:"rendered/argocd"`
 
 	// Directory of application-specific configuration
 	AppsDir string `default:"_apps"`
+	// Directory of environment-specific configuration
+	EnvsDir string `default:"_env"`
 	// Directory of application-specific prototype overwrites
 	PrototypeOverrideDir string `default:"_proto"`
-	// Base directory for environments
-	EnvironmentBaseDir string `default:"envs"`
-	// Main branch name
-	MainBranchName string `default:"main"`
-	// Prefix for kubernetes namespaces
-	NamespacePrefix string `default:""`
-	// Application prototypes directory
-	PrototypesDir string `default:"prototypes"`
-	// Rendered kubernetes manifests directory
-	RenderedDir string `default:"rendered"`
-	// Project root directory
-	RootDir string `default:"."`
 
-	/// Globe constants
-
-	// Application data file name
-	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
-	// ArgoCD data directory name
-	ArgoCDDataDirName string `default:"argocd"`
 	// Data values schema file name
 	DataSchemaFileName string `default:"data-schema.ytt.yaml"`
+	// Application data file name
+	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
 	// Environment data file name
 	EnvironmentDataFileName string `default:"env-data.ytt.yaml"`
-	// Helm charts directory name
-	HelmChartsDirName string `default:"charts"`
-	// Myks runtime data file name
-	MyksDataFileName string `default:"myks-data.ytt.yaml"`
 	// Rendered environment data file name
 	RenderedEnvironmentDataFileName string `default:"env-data.yaml"`
-	// Static files directory name
-	StaticFilesDirName string `default:"static"`
+	// Myks runtime data file name
+	MyksDataFileName string `default:"myks-data.ytt.yaml"`
 	// Service directory name
 	ServiceDirName string `default:".myks"`
 	// Temporary directory name
 	TempDirName string `default:"tmp"`
+
 	// Rendered vendir config file name
 	VendirConfigFileName string `default:"vendir.yaml"`
 	// Rendered vendir lock file name
 	VendirLockFileName string `default:"vendir.lock.yaml"`
-	// Rendered vendir sync file name
-	VendirSyncFileName string `default:"vendir.sync.yaml"`
 	// Prefix for vendir secret environment variables
 	VendirSecretEnvPrefix string `default:"VENDIR_SECRET_"`
+
 	// Downloaded third-party sources
 	VendorDirName string `default:"vendor"`
-	// Ytt library directory name
-	YttLibraryDirName string `default:"lib"`
+	// Helm charts directory name
+	HelmChartsDirName string `default:"charts"`
+
+	// Plugin subdirectories
+	// ArgoCD data directory name
+	ArgoCDDataDirName string `default:"argocd"`
+	// Helm step directory name
+	HelmStepDirName string `default:"helm"`
+	// Static files directory name
+	StaticFilesDirName string `default:"static"`
+	// Vendir step directory name
+	VendirStepDirName string `default:"vendir"`
 	// Ytt step directory name
 	YttPkgStepDirName string `default:"ytt-pkg"`
 	// Ytt step directory name
@@ -84,6 +88,9 @@ type Globe struct {
 	GitRepoBranch string
 	// Git repository URL
 	GitRepoUrl string
+
+	// Prefix for kubernetes namespaces, only used in helm rendering
+	NamespacePrefix string `default:""`
 
 	// Collected environments for processing
 	environments map[string]*Environment
@@ -239,8 +246,8 @@ func (g *Globe) Cleanup() error {
 		legalEnvs[env.Id] = true
 	}
 
-	for _, dir := range [...]string{"argocd", "envs"} {
-		dirPath := filepath.Join(g.RootDir, g.RenderedDir, dir)
+	for _, dir := range [...]string{g.RenderedArgoDir, g.RenderedEnvsDir} {
+		dirPath := filepath.Join(g.RootDir, dir)
 		files, err := os.ReadDir(dirPath)
 		if err != nil {
 			if os.IsNotExist(err) {
