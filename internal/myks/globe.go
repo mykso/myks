@@ -29,7 +29,9 @@ type Globe struct {
 	// Ytt library directory name
 	YttLibraryDirName string `default:"lib"`
 	// Rendered kubernetes manifests directory
-	RenderedDir string `default:"rendered"`
+	RenderedEnvsDir string `default:"rendered/envs"`
+	// Rendered argocd manifests directory
+	RenderedArgoDir string `default:"rendered/argocd"`
 
 	// Directory of application-specific configuration
 	AppsDir string `default:"_apps"`
@@ -245,8 +247,8 @@ func (g *Globe) Cleanup() error {
 		legalEnvs[env.Id] = true
 	}
 
-	for _, dir := range [...]string{"argocd", "envs"} {
-		dirPath := filepath.Join(g.RootDir, g.RenderedDir, dir)
+	for _, dir := range [...]string{g.RenderedArgoDir, g.RenderedEnvsDir} {
+		dirPath := filepath.Join(g.RootDir, dir)
 		files, err := os.ReadDir(dirPath)
 		if err != nil {
 			if os.IsNotExist(err) {

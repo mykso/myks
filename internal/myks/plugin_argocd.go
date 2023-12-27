@@ -55,7 +55,7 @@ func (e *Environment) renderArgoCD() (err error) {
 }
 
 func (e *Environment) getArgoCDDestinationDir() string {
-	return filepath.Join(e.g.RootDir, e.g.RenderedDir, "argocd", e.Id)
+	return filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.Id)
 }
 
 func (a *Application) renderArgoCD() (err error) {
@@ -140,7 +140,7 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 }
 
 func (a *Application) getArgoCDDestinationDir() string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedDir, "argocd", a.e.Id)
+	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedArgoDir, a.e.Id)
 }
 
 func getArgoCDEnvFileName(envName string) string {

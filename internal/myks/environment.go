@@ -164,11 +164,11 @@ func (e *Environment) Cleanup() error {
 	for _, app := range apps {
 		if _, ok := e.foundApplications[app]; !ok {
 			log.Info().Str("app", app).Msg(e.Msg("Removing app as it is not configured"))
-			err := os.RemoveAll(filepath.Join(e.g.RootDir, e.g.RenderedDir, "envs", e.Id, app))
+			err := os.RemoveAll(filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.Id, app))
 			if err != nil {
 				return fmt.Errorf("unable to remove dir: %w", err)
 			}
-			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedDir, "argocd", e.Id, getArgoCDAppFileName(app)))
+			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.Id, getArgoCDAppFileName(app)))
 			if err != nil {
 				return fmt.Errorf("unable to remove file: %w", err)
 			}
@@ -181,7 +181,7 @@ func (e *Environment) Cleanup() error {
 // renderedApplications returns list of applications in rendered dir
 func (e *Environment) renderedApplications() ([]string, error) {
 	apps := []string{}
-	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedDir, "envs", e.Id)
+	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.Id)
 	files, err := os.ReadDir(dirEnvRendered)
 	if err != nil {
 		if os.IsNotExist(err) {
