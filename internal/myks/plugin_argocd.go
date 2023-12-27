@@ -59,7 +59,7 @@ func (e *Environment) getArgoCDDestinationDir() string {
 }
 
 func (a *Application) renderArgoCD() (err error) {
-	if a.argoCDEnabled == false {
+	if !a.argoCDEnabled {
 		log.Debug().Msg(a.Msg(ArgoCDStepName, "ArgoCD is disabled"))
 		return
 	}

@@ -45,31 +45,37 @@ func (h *Helm) Render(_ string) (string, error) {
 		return "", nil
 	}
 
+	helmConfig, err := h.getHelmConfig()
+	if err != nil {
+		log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to get helm config"))
+		return "", err
+	}
+
 	var commonHelmArgs []string
 
 	// FIXME: move Namespace to a per-chart config
-	if h.app.HelmConfig.Namespace == "" {
-		h.app.HelmConfig.Namespace = h.app.e.g.NamespacePrefix + h.app.Name
+	if helmConfig.Namespace == "" {
+		helmConfig.Namespace = h.app.e.g.NamespacePrefix + h.app.Name
 	}
-	commonHelmArgs = append(commonHelmArgs, "--namespace", h.app.HelmConfig.Namespace)
+	commonHelmArgs = append(commonHelmArgs, "--namespace", helmConfig.Namespace)
 
-	if h.app.HelmConfig.KubeVersion != "" {
-		commonHelmArgs = append(commonHelmArgs, "--kube-version", h.app.HelmConfig.KubeVersion)
+	if helmConfig.KubeVersion != "" {
+		commonHelmArgs = append(commonHelmArgs, "--kube-version", helmConfig.KubeVersion)
 	}
 
 	// FIXME: move IncludeCRDs to a per-chart config
-	if h.app.HelmConfig.IncludeCRDs {
+	if helmConfig.IncludeCRDs {
 		commonHelmArgs = append(commonHelmArgs, "--include-crds")
 	}
 
-	for _, capa := range h.app.HelmConfig.Capabilities {
+	for _, capa := range helmConfig.Capabilities {
 		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
 	}
 	var outputs []string
 
 	for _, chartDir := range chartDirs {
 
-		if h.app.HelmConfig.BuildDependencies {
+		if helmConfig.BuildDependencies {
 			err = h.helmBuild(chartDir)
 			if err != nil {
 				return "", err
@@ -116,7 +122,7 @@ func (h *Helm) Render(_ string) (string, error) {
 
 func (h *Helm) helmBuild(chartDir string) error {
 	chartPath := filepath.Join(chartDir, "Chart.yaml")
-	if exists, _ := isExist(chartDir); exists == false {
+	if exists, _ := isExist(chartDir); !exists {
 		return fmt.Errorf("can't locate Chart.yaml at: %s", chartPath)
 	}
 

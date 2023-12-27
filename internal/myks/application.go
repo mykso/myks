@@ -32,7 +32,6 @@ type Application struct {
 	includeNamespace bool
 	yttPkgDirs       []string
 	yttDataFiles     []string
-	HelmConfig       *HelmConfig
 }
 
 type HelmConfig struct {
@@ -121,18 +120,6 @@ func (a *Application) Init() error {
 	if argoData.ArgoConfig.Enabled {
 		a.argoCDEnabled = true
 	}
-
-	// Transfer HelmConfig
-	var helmConfig struct {
-		Helm HelmConfig
-	}
-	err = yaml.Unmarshal(dataYaml, &helmConfig)
-	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(helmStepName, "Unable to unmarshal helm config"))
-		return err
-	}
-	a.HelmConfig = &helmConfig.Helm
-
 	return nil
 }
 
