@@ -134,7 +134,7 @@ func (h *Helm) helmBuild(chartDir string) error {
 	for _, dependency := range dependencies {
 		depMap := dependency.(map[string]interface{})
 		repo := depMap["repository"].(string)
-		if strings.HasPrefix(repo, "http") {
+		if strings.HasPrefix(repo, "http") || strings.HasPrefix(repo, "oci://") {
 			args := []string{"repo", "add", createURLSlug(repo), repo}
 			_, err := h.app.runCmd(helmStepName, "helm repo add", "helm", nil, append(args, cacheArgs...))
 			if err != nil {
