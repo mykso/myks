@@ -23,7 +23,7 @@ func (a *Application) copyStaticFiles() (err error) {
 	}
 	logStaticFiles(staticFilesDirs)
 	// 2. Static files from prototype overrides
-	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join("_proto", a.prototypeDirName(), a.e.g.StaticFilesDirName))...)
+	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), a.e.g.StaticFilesDirName))...)
 	logStaticFiles(staticFilesDirs)
 
 	// 3. Static files from the environment
