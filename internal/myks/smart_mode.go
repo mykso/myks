@@ -62,7 +62,13 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	}
 
 	// Subdirectories of apps and prototypes are named after plugins
-	plugins := []string{g.YttStepDirName, "helm", "vendir", g.YttPkgStepDirName, g.ArgoCDDataDirName}
+	plugins := []string{
+		g.ArgoCDDataDirName,
+		g.HelmStepDirName,
+		g.VendirStepDirName,
+		g.YttPkgStepDirName,
+		g.YttStepDirName,
+	}
 	pluginsPattern := "(?:" + strings.Join(plugins, "|") + ")"
 
 	exprMap := map[string][]*regexp.Regexp{
