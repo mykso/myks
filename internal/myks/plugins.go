@@ -2,6 +2,7 @@ package myks
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,7 +97,7 @@ func (p PluginCmd) Name() string {
 }
 
 func (p PluginCmd) Exec(a *Application, args []string) error {
-	step := "Plugin " + p.Name()
+	step := p.Name()
 	log.Trace().Msg(a.Msg(step, "execution started"))
 
 	env, err := p.generateEnv(a)
@@ -114,16 +115,28 @@ func (p PluginCmd) Exec(a *Application, args []string) error {
 	// log env
 	log.Debug().Msg(a.Msg(step, msgRunCmd("", p.cmd, args)))
 	err = cmd.Run()
+	allOutput := stderrBs.String() + stdoutBs.String()
 	if err != nil {
 		log.Error().Msg(msgRunCmd("Failed on step: "+step, p.cmd, args))
-		log.Error().Err(err).
-			Str("stdout", stdoutBs.String()).
-			// writing std error into message to avoid wrapping
-			Msg(a.Msg(step, "Plugin execution failed: "+stderrBs.String()))
+		if allOutput != "" {
+			log.Error().Err(err).
+				// writing std error into message to avoid wrapping
+				Msg(a.Msg(step, fmt.Sprintf("Plugin execution failed:\n\n%s", allOutput)))
+		} else {
+			log.Error().Err(err).
+				// writing std error into message to avoid wrapping
+				Msg(a.Msg(step, "Plugin execution failed"))
+		}
 	} else {
-		log.Info().
-			// writing std out into message to avoid wrapping
-			Msg(a.Msg(step, "Plugin execution succeeded: "+stdoutBs.String()))
+		if allOutput != "" {
+			log.Info().
+				// writing std out into message to avoid wrapping
+				Msg(a.Msg(step, fmt.Sprintf("Plugin execution succeeded:\n\n%s", allOutput)))
+		} else {
+			log.Info().
+				// writing std out into message to avoid wrapping
+				Msg(a.Msg(step, "Plugin execution succeeded."))
+		}
 	}
 	return err
 }

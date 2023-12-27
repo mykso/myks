@@ -28,6 +28,7 @@ var (
 
 func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cobra.OnInitialize(initLogger)
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	cmd := newRootCmd(version, commit, date)
 	cmd.AddCommand(allCmd)
 	cmd.AddCommand(renderCmd)
