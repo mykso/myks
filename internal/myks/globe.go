@@ -89,7 +89,7 @@ type Globe struct {
 	// Git repository URL
 	GitRepoUrl string
 
-	// Prefix for kubernetes namespacesM only used in helm rendering
+	// Prefix for kubernetes namespaces, only used in helm rendering
 	NamespacePrefix string `default:""`
 
 	// Collected environments for processing
