@@ -27,7 +27,7 @@ func (a *Application) copyStaticFiles() (err error) {
 	logStaticFiles(staticFilesDirs)
 
 	// 3. Static files from the environment
-	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join("_env", a.e.g.StaticFilesDirName))...)
+	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.e.g.EnvsDir, a.e.g.StaticFilesDirName))...)
 	logStaticFiles(staticFilesDirs)
 	// 4. Static files from the application
 	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join("_apps", a.Name, a.e.g.StaticFilesDirName))...)
