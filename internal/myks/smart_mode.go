@@ -65,6 +65,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	plugins := []string{
 		g.ArgoCDDataDirName,
 		g.HelmStepDirName,
+		g.StaticFilesDirName,
 		g.VendirStepDirName,
 		g.YttPkgStepDirName,
 		g.YttStepDirName,
