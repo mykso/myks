@@ -43,10 +43,6 @@ type HelmConfig struct {
 	BuildDependencies bool     `yaml:"buildDependencies"`
 }
 
-type Destination struct {
-	Namespace string `yaml:"namespace"`
-}
-
 type ArgoConfig struct {
 	Enabled bool `yaml:"enabled"`
 }
