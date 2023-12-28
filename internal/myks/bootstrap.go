@@ -84,7 +84,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string) error {
 func (g *Globe) createBaseFileStructure(force bool) error {
 	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
 	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
-	renderedDir := filepath.Join(g.RootDir, g.RenderedDir)
+	renderedDir := filepath.Join(g.RootDir, g.RenderedEnvsDir)
 	gitignoreFile := filepath.Join(g.RootDir, ".gitignore")
 	myksConfigFile := filepath.Join(g.RootDir, ".myks.yaml")
 

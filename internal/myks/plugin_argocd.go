@@ -39,7 +39,7 @@ func (e *Environment) renderArgoCD() (err error) {
 	// 1. Collection of environment main data values and schemas
 	yttFiles := e.collectBySubpath(e.g.EnvironmentDataFileName)
 	// 2. Collection of environment argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join("_env", e.g.ArgoCDDataDirName))...)
+	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join(e.g.EnvsDir, e.g.ArgoCDDataDirName))...)
 
 	res, err := e.yttS(
 		"create ArgoCD project yaml",
@@ -55,7 +55,7 @@ func (e *Environment) renderArgoCD() (err error) {
 }
 
 func (e *Environment) getArgoCDDestinationDir() string {
-	return filepath.Join(e.g.RootDir, e.g.RenderedDir, "argocd", e.Id)
+	return filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.Id)
 }
 
 func (a *Application) renderArgoCD() (err error) {
@@ -82,7 +82,7 @@ func (a *Application) renderArgoCD() (err error) {
 		yttFiles = append(yttFiles, prototypeArgoCDDir)
 	}
 	// 4. Collection of environment argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join("_env", a.e.g.ArgoCDDataDirName))...)
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.e.g.EnvsDir, a.e.g.ArgoCDDataDirName))...)
 	// 5. Collection of application argocd-specific data values and schemas, and overlays
 	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.ArgoCDDataDirName))...)
 
@@ -140,7 +140,7 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 }
 
 func (a *Application) getArgoCDDestinationDir() string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedDir, "argocd", a.e.Id)
+	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedArgoDir, a.e.Id)
 }
 
 func getArgoCDEnvFileName(envName string) string {
