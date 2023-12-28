@@ -316,7 +316,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 
 			for env, apps := range tt.rendered {
 				for _, app := range apps {
-					dir := filepath.Join(tmpDir, g.RenderedDir, "envs", env, app)
+					dir := filepath.Join(tmpDir, g.RenderedEnvsDir, env, app)
 					if err := createDirectory(dir); err != nil {
 						t.Errorf("failed to create directory %s", dir)
 					}

@@ -147,7 +147,7 @@ func (p PluginCmd) generateEnv(a *Application) (map[string]string, error) {
 		"MYKS_APP":              a.Name,
 		"MYKS_APP_PROTOTYPE":    a.Prototype,
 		"MYKS_ENV_DIR":          a.e.Dir,
-		"MYKS_RENDERED_APP_DIR": "rendered/envs/" + a.e.Id + "/" + a.Name, // TODO: provide func and use it everywhere
+		"MYKS_RENDERED_APP_DIR": a.getDestinationDir(),
 	}
 
 	result, err := a.ytt(p.Name(), "get data values", a.yttDataFiles, "--data-values-inspect")

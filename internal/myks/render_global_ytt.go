@@ -29,7 +29,7 @@ func (g *GlobalYtt) Render(previousStepFile string) (string, error) {
 		yttFiles = append(yttFiles, previousStepFile)
 	}
 
-	yttFiles = append(yttFiles, g.app.e.collectBySubpath(filepath.Join("_env", g.app.e.g.YttStepDirName))...)
+	yttFiles = append(yttFiles, g.app.e.collectBySubpath(filepath.Join(g.app.e.g.EnvsDir, g.app.e.g.YttStepDirName))...)
 
 	if len(yttFiles) == 0 {
 		log.Debug().Msg(g.app.Msg(globalYttStepName, "No ytt files found"))
