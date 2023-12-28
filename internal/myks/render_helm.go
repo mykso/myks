@@ -141,7 +141,7 @@ func (h *Helm) helmBuild(chartDir string) error {
 		depMap := dependency.(map[string]interface{})
 		repo := depMap["repository"].(string)
 		if strings.HasPrefix(repo, "http") || strings.HasPrefix(repo, "oci://") {
-			args := []string{"repo", "add", createURLSlug(repo), repo}
+			args := []string{"repo", "add", createURLSlug(repo), repo, "--force-update"}
 			_, err := h.app.runCmd(helmStepName, "helm repo add", "helm", nil, append(args, cacheArgs...))
 			if err != nil {
 				return fmt.Errorf("failed to add repository %s in %s ", repo, chartPath)
@@ -149,7 +149,7 @@ func (h *Helm) helmBuild(chartDir string) error {
 		}
 	}
 
-	buildArgs := []string{"dependencies", "build", chartDir}
+	buildArgs := []string{"dependencies", "build", chartDir, "--skip-refresh"}
 	_, err = h.app.runCmd(helmStepName, "helm dependencies build", "helm", nil, append(buildArgs, cacheArgs...))
 	if err != nil {
 		return fmt.Errorf("failed to build dependencies for chart %s", chartDir)
