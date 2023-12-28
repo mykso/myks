@@ -133,7 +133,7 @@ func (a Application) cleanupVendorDir(vendorDir, vendirConfigFile string) error 
 		dirs = append(dirs, filepath.Clean(path)+string(filepath.Separator))
 	}
 
-	log.Debug().Strs("managed dirs", dirs).Msg("")
+	log.Debug().Strs("vendir-managed dirs", dirs).Msg("")
 
 	return filepath.WalkDir(vendorDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
@@ -143,18 +143,14 @@ func (a Application) cleanupVendorDir(vendorDir, vendirConfigFile string) error 
 		if !d.IsDir() {
 			return nil
 		}
-		log.Debug().Msg(a.Msg(syncStepName, "Checking directory "+path))
 
 		path = path + string(filepath.Separator)
 		for _, dir := range dirs {
-			log.Debug().Str("dir", dir).Str("path", path).Msg("Checking dir")
 			if dir == path {
-				log.Debug().Msgf("%s == %s", dir, path)
 				return fs.SkipDir
 			}
 
 			if strings.HasPrefix(dir, path) {
-				log.Debug().Msgf("%s has prefix %s", dir, path)
 				return nil
 			}
 
