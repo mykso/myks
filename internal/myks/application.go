@@ -30,8 +30,8 @@ type Application struct {
 
 	argoCDEnabled    bool
 	includeNamespace bool
-	yttPkgDirs       []string
 	yttDataFiles     []string
+	yttPkgDirs       []string
 }
 
 type HelmConfig struct {
@@ -40,10 +40,6 @@ type HelmConfig struct {
 	IncludeCRDs       bool     `yaml:"includeCRDs"`
 	Capabilities      []string `yaml:"capabilities"`
 	BuildDependencies bool     `yaml:"buildDependencies"`
-}
-
-type ArgoConfig struct {
-	Enabled bool `yaml:"enabled"`
 }
 
 var (
@@ -105,21 +101,10 @@ func (a *Application) Init() error {
 	if err != nil {
 		return err
 	}
+	a.argoCDEnabled = applicationData.ArgoCD.Enabled
 	a.includeNamespace = applicationData.Render.IncludeNamespace
 	a.yttPkgDirs = applicationData.YttPkg.Dirs
 
-	// Transfer ArgoConfig if enabled
-	var argoData struct {
-		ArgoConfig ArgoConfig `yaml:"argocd"`
-	}
-	err = yaml.Unmarshal(dataYaml, &argoData)
-	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(helmStepName, "Unable to unmarshal argo config"))
-		return err
-	}
-	if argoData.ArgoConfig.Enabled {
-		a.argoCDEnabled = true
-	}
 	return nil
 }
 
