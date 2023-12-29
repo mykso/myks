@@ -35,10 +35,11 @@ type Application struct {
 }
 
 type HelmConfig struct {
-	Namespace    string   `yaml:"namespace"`
-	KubeVersion  string   `yaml:"kubeVersion"`
-	IncludeCRDs  bool     `yaml:"includeCRDs"`
-	Capabilities []string `yaml:"capabilities"`
+	Namespace         string   `yaml:"namespace"`
+	KubeVersion       string   `yaml:"kubeVersion"`
+	IncludeCRDs       bool     `yaml:"includeCRDs"`
+	Capabilities      []string `yaml:"capabilities"`
+	BuildDependencies bool     `yaml:"buildDependencies"`
 }
 
 var (
