@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -24,21 +25,21 @@ func (y *YttPkg) Ident() string {
 func (y *YttPkg) Render(_ string) (string, error) {
 	yttPkgRootDir, err := y.app.getVendoredDir(y.app.e.g.YttPkgStepDirName)
 	if err != nil {
-		log.Error().Err(err).Msg(y.app.Msg(yttPkgStepName, "Unable to get ytt package dir"))
+		log.Error().Err(err).Msg(y.app.Msg(y.getStepName(), "Unable to get ytt package dir"))
 		return "", err
 	}
 	if yttPkgRootDir == "" {
-		log.Debug().Msg(y.app.Msg(yttPkgStepName, "No ytt packages found"))
+		log.Debug().Msg(y.app.Msg(y.getStepName(), "No ytt packages found"))
 		return "", nil
 	}
 
 	yttPkgSubDirs, err := getSubDirs(yttPkgRootDir)
 	if err != nil {
-		log.Error().Err(err).Msg(y.app.Msg(yttPkgStepName, "Unable to get ytt package sub dirs"))
+		log.Error().Err(err).Msg(y.app.Msg(y.getStepName(), "Unable to get ytt package sub dirs"))
 		return "", err
 	}
 	if len(yttPkgSubDirs) == 0 {
-		log.Debug().Msg(y.app.Msg(yttPkgStepName, "No ytt packages found"))
+		log.Debug().Msg(y.app.Msg(y.getStepName(), "No ytt packages found"))
 		return "", nil
 	}
 
@@ -57,14 +58,14 @@ func (y *YttPkg) Render(_ string) (string, error) {
 
 		var yttArgs []string
 		if pkgValuesFile, err := y.app.prepareValuesFile(y.app.e.g.YttPkgStepDirName, pkgName); err != nil {
-			log.Error().Err(err).Msg(y.app.Msg(yttPkgStepName, "Unable to prepare a values file for the ytt package"))
+			log.Error().Err(err).Msg(y.app.Msg(y.getStepName(), "Unable to prepare a values file for the ytt package"))
 			return "", err
 		} else if pkgValuesFile != "" {
 			yttArgs = []string{"--data-values-file=" + pkgValuesFile}
 		}
 
 		res, err := runYttWithFilesAndStdin(yttFiles, nil, func(name string, err error, stderr string, args []string) {
-			purpose := yttPkgStepName + " render step"
+			purpose := y.getStepName() + " render step"
 			cmd := msgRunCmd(purpose, name, args)
 			if err != nil {
 				log.Error().Msg(cmd)
@@ -78,14 +79,18 @@ func (y *YttPkg) Render(_ string) (string, error) {
 		}
 
 		if res.Stdout == "" {
-			log.Warn().Str("pkgName", pkgName).Msg(y.app.Msg(yttPkgStepName, "No ytt package output"))
+			log.Warn().Str("pkgName", pkgName).Msg(y.app.Msg(y.getStepName(), "No ytt package output"))
 			continue
 		}
 
 		outputs = append(outputs, res.Stdout)
 	}
 
-	log.Info().Msg(y.app.Msg(yttPkgStepName, "Ytt package rendered"))
+	log.Info().Msg(y.app.Msg(y.getStepName(), "Ytt package rendered"))
 
 	return strings.Join(outputs, "---\n"), nil
+}
+
+func (h *YttPkg) getStepName() string {
+	return fmt.Sprintf("%s-%s", renderStepName, h.Ident())
 }

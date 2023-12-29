@@ -38,7 +38,6 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 	outputYaml := ""
 	lastStepOutputFile := ""
 	for nr, yamlTool := range yamlTemplatingTools {
-		log.Debug().Msg(a.Msg(yamlTool.Ident(), "Starting"))
 		stepOutputYaml, err := yamlTool.Render(lastStepOutputFile)
 		if err != nil {
 			log.Error().Err(err).Msg(a.Msg(yamlTool.Ident(), "Failed during render step: "+yamlTool.Ident()))

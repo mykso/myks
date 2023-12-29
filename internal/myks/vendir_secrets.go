@@ -14,7 +14,7 @@ import (
 //go:embed templates/vendir/secret.ytt.yaml
 var vendirSecretTemplate []byte
 
-func (g *Globe) collectVendirSecrets() map[string]*VendirCredentials {
+func (v *Vendir) collectVendirSecrets(g *Globe) map[string]*VendirCredentials {
 	vendirCredentials := make(map[string]*VendirCredentials)
 
 	usrRgx := regexp.MustCompile("^" + g.VendirSecretEnvPrefix + "(.+)_USERNAME=(.*)$")
@@ -54,13 +54,14 @@ func (g *Globe) collectVendirSecrets() map[string]*VendirCredentials {
 	for secretName := range vendirCredentials {
 		secretNames = append(secretNames, secretName)
 	}
-	log.Debug().Msg(g.Msg("Found vendir secrets: " + strings.Join(secretNames, ", ")))
+	log.Debug().Msg(g.MsgWithSteps("sync", v.Ident(), "Found vendir secrets: "+strings.Join(secretNames, ", ")))
 
 	return vendirCredentials
 }
 
-func (g *Globe) generateVendirSecretYamls() (string, error) {
-	vendirCredentials := g.collectVendirSecrets()
+func (v *Vendir) GenerateSecrets(g *Globe) (string, error) {
+	log.Debug().Msg(g.MsgWithSteps("sync", v.Ident(), "Generating Secrets"))
+	vendirCredentials := v.collectVendirSecrets(g)
 
 	// sort secret names to produce deterministic output for testing
 	var secretNames []string
@@ -72,7 +73,7 @@ func (g *Globe) generateVendirSecretYamls() (string, error) {
 	var secretYamls string
 	for _, secretName := range secretNames {
 		credentials := vendirCredentials[secretName]
-		secretYaml, err := g.generateVendirSecretYaml(secretName, credentials.Username, credentials.Password)
+		secretYaml, err := v.generateVendirSecretYaml(g, secretName, credentials.Username, credentials.Password)
 		if err != nil {
 			return secretYamls, err
 		}
@@ -82,7 +83,7 @@ func (g *Globe) generateVendirSecretYamls() (string, error) {
 	return secretYamls, nil
 }
 
-func (g *Globe) generateVendirSecretYaml(secretName string, username string, password string) (string, error) {
+func (v *Vendir) generateVendirSecretYaml(g *Globe, secretName string, username string, password string) (string, error) {
 	res, err := runYttWithFilesAndStdin(
 		nil,
 		bytes.NewReader(vendirSecretTemplate),

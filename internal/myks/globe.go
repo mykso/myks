@@ -16,6 +16,8 @@ import (
 
 const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
+const GlobalExtendedLogFormat = "\033[1m[global > %s > %s]\033[0m %s"
+
 // Define the main structure
 // Globe configuration
 type Globe struct {
@@ -190,17 +192,24 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 }
 
 func (g *Globe) Sync(asyncLevel int) error {
-	vendirSecrets, err := g.generateVendirSecretYamls()
-	if err != nil {
-		return err
-	}
-	return process(asyncLevel, g.environments, func(item interface{}) error {
-		env, ok := item.(*Environment)
-		if !ok {
-			return fmt.Errorf("Unable to cast item to *Environment")
+	yamlSyncTools := g.getSyncTools()
+	for _, yamlSyncTool := range yamlSyncTools {
+		secrets, err := yamlSyncTool.GenerateSecrets(g)
+		if err != nil {
+			return err
 		}
-		return env.Sync(asyncLevel, vendirSecrets)
-	})
+		err = process(asyncLevel, g.environments, func(item interface{}) error {
+			env, ok := item.(*Environment)
+			if !ok {
+				return fmt.Errorf("Unable to cast item to *Environment")
+			}
+			return env.Sync(asyncLevel, yamlSyncTool, secrets)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (g *Globe) Render(asyncLevel int) error {
@@ -214,17 +223,36 @@ func (g *Globe) Render(asyncLevel int) error {
 }
 
 func (g *Globe) SyncAndRender(asyncLevel int) error {
-	vendirSecrets, err := g.generateVendirSecretYamls()
-	if err != nil {
-		return err
+	yamlSyncTools := g.getSyncTools()
+	// First do all the syncing
+	for _, yamlSyncTool := range yamlSyncTools {
+		secrets, err := yamlSyncTool.GenerateSecrets(g)
+		if err != nil {
+			return err
+		}
+		err = process(asyncLevel, g.environments, func(item interface{}) error {
+			env, ok := item.(*Environment)
+			if !ok {
+				return fmt.Errorf("Unable to cast item to *Environment")
+			}
+			return env.Sync(asyncLevel, yamlSyncTool, secrets)
+		})
+		if err != nil {
+			return err
+		}
 	}
-	return process(asyncLevel, g.environments, func(item interface{}) error {
+	// Then render all the environments
+	err := process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.SyncAndRender(asyncLevel, vendirSecrets)
+		return env.Render(asyncLevel)
 	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // ExecPlugin executes a plugin in the context of the globe
@@ -425,4 +453,17 @@ func (g *Globe) setGitRepoBranch() error {
 func (g *Globe) Msg(msg string) string {
 	formattedMessage := fmt.Sprintf(GlobalLogFormat, msg)
 	return formattedMessage
+}
+
+func (a *Globe) MsgWithSteps(step1 string, step2 string, msg string) string {
+	formattedMessage := fmt.Sprintf(GlobalExtendedLogFormat, step1, step2, msg)
+	return formattedMessage
+}
+
+func (g *Globe) getSyncTools() []YamlSyncTool {
+	yamlSyncTools := []YamlSyncTool{
+		&Vendir{ident: "vendir"},
+		&HelmRepo{ident: "helm"},
+	}
+	return yamlSyncTools
 }
