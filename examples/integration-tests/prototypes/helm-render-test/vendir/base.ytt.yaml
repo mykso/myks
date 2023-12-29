@@ -9,5 +9,4 @@ directories:
     contents:
       - path: .
         directory:
-          name: #@ app.name
           path: ../charts/render-test-chart
