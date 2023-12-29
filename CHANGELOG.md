@@ -1,3 +1,17 @@
+# [3.1.0](https://github.com/mykso/myks/compare/v3.0.4...v3.1.0) (2023-12-29)
+
+
+### Bug Fixes
+
+* **deps:** update golang.org/x/exp digest to 02704c9 ([#160](https://github.com/mykso/myks/issues/160)) ([e9fe05e](https://github.com/mykso/myks/commit/e9fe05eb9646d8452e1fd60c0e03216747af73d8))
+* **plugins:** improve logging ([#190](https://github.com/mykso/myks/issues/190)) ([ba31a3b](https://github.com/mykso/myks/commit/ba31a3bc4587feb5b07035768dd6bfd5d5718abd))
+* **smart_mode:** add static files directory ([#193](https://github.com/mykso/myks/issues/193)) ([3f52709](https://github.com/mykso/myks/commit/3f52709d3c10f5bff1317f2d6bbd1b851c77c4d9))
+
+
+### Features
+
+* Execute helm dependency build ([#154](https://github.com/mykso/myks/issues/154)) ([c2c0baa](https://github.com/mykso/myks/commit/c2c0baa26f2e3204d1e7f2da7264f44cfdbd1445)), closes [#146](https://github.com/mykso/myks/issues/146)
+
 ## [3.0.4](https://github.com/mykso/myks/compare/v3.0.3...v3.0.4) (2023-12-26)
 
 
