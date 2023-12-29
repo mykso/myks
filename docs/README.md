@@ -101,11 +101,11 @@ Myks has two main stages of operation: `sync` and `render`.
 The `sync` stage downloads and caches upstream sources, while the `render` stage renders the manifests.
 The `all` command runs both stages in sequence for convenience.
 All of the commands support accept two optional arguments: environments and applications to process.
-When no arguments are provided, myks will use the [Smart Mode](docs/SMARTMODE.md) to detect what to process.
+When no arguments are provided, myks will use the [Smart Mode](SMARTMODE.md) to detect what to process.
 
 ### Examples
 
-A few example setups are available in the [examples](examples) directory.
+A few example setups are available in the [examples](/examples) directory.
 
 And here are some real-world examples:
 
