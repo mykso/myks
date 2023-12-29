@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -73,6 +74,14 @@ func (h *Helm) Render(_ string) (string, error) {
 	var outputs []string
 
 	for _, chartDir := range chartDirs {
+
+		if helmConfig.BuildDependencies {
+			err = h.helmBuild(chartDir)
+			if err != nil {
+				return "", err
+			}
+		}
+
 		chartName := filepath.Base(chartDir)
 		var helmValuesFile string
 		if helmValuesFile, err = h.app.prepareValuesFile("helm", chartName); err != nil {
@@ -109,6 +118,43 @@ func (h *Helm) Render(_ string) (string, error) {
 	log.Info().Msg(h.app.Msg(helmStepName, "Helm chart rendered"))
 
 	return strings.Join(outputs, "---\n"), nil
+}
+
+func (h *Helm) helmBuild(chartDir string) error {
+	chartPath := filepath.Join(chartDir, "Chart.yaml")
+	if exists, _ := isExist(chartDir); !exists {
+		return fmt.Errorf("can't locate Chart.yaml at: %s", chartPath)
+	}
+
+	chart, err := unmarshalYamlToMap(chartPath)
+	if err != nil {
+		return fmt.Errorf("failure to unmarshal Chart.yaml at: %s", chartPath)
+	}
+
+	helmCache := h.app.expandTempPath("helm-cache")
+	cacheArgs := []string{
+		"--repository-cache", filepath.Join(helmCache, "repository"),
+		"--repository-config", filepath.Join(helmCache, "repositories.yaml"),
+	}
+	dependencies := chart["dependencies"].([]interface{})
+	for _, dependency := range dependencies {
+		depMap := dependency.(map[string]interface{})
+		repo := depMap["repository"].(string)
+		if strings.HasPrefix(repo, "http") {
+			args := []string{"repo", "add", createURLSlug(repo), repo, "--force-update"}
+			_, err := h.app.runCmd(helmStepName, "helm repo add", "helm", nil, append(args, cacheArgs...))
+			if err != nil {
+				return fmt.Errorf("failed to add repository %s in %s ", repo, chartPath)
+			}
+		}
+	}
+
+	buildArgs := []string{"dependencies", "build", chartDir, "--skip-refresh"}
+	_, err = h.app.runCmd(helmStepName, "helm dependencies build", "helm", nil, append(buildArgs, cacheArgs...))
+	if err != nil {
+		return fmt.Errorf("failed to build dependencies for chart %s", chartDir)
+	}
+	return nil
 }
 
 func (h *Helm) getHelmConfig() (HelmConfig, error) {

@@ -273,9 +273,9 @@ func runCmd(name string, stdin io.Reader, args []string, logFn func(name string,
 func msgRunCmd(purpose string, cmd string, args []string) string {
 	msg := cmd + " " + strings.Join(reductSecrets(args), " ")
 	if purpose == "" {
-		return "Running \u001B[34m" + cmd + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
+		return "Ran \u001B[34m" + cmd + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
 	} else {
-		return "Running \u001B[34m" + cmd + "\u001B[0m to: \u001B[3m" + purpose + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
+		return "Ran \u001B[34m" + cmd + "\u001B[0m to: \u001B[3m" + purpose + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
 	}
 }
 
@@ -410,4 +410,12 @@ func mapToSlice(env map[string]string) []string {
 		envSlice = append(envSlice, k+"="+v)
 	}
 	return envSlice
+}
+
+func createURLSlug(url string) string {
+	url = strings.TrimPrefix(url, "http://")
+	url = strings.TrimPrefix(url, "https://")
+	url = strings.TrimPrefix(url, "oci://")
+	url = strings.ReplaceAll(url, "/", "-")
+	return url
 }
