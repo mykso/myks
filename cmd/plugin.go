@@ -73,7 +73,7 @@ func newPluginCmd(plugin myks.Plugin) *cobra.Command {
 			}
 
 			if err := g.ExecPlugin(asyncLevel, plugin, pluginArgs); err != nil {
-				log.Fatal().Err(err).Msg("Unable to render applications")
+				log.Fatal().Err(err).Msg("Plugin did not run successfully")
 				return err
 			}
 
