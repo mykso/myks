@@ -22,6 +22,8 @@ jobs:
           only: ytt, vendir
           vendir: latest
           ytt: latest
+      - name: Build myks
+        run: go install .
       - name: Test
         run: go test -failfast -race -coverpkg=./... -covermode=atomic -coverprofile=coverage.txt ./...
       - name: Upload coverage reports to Codecov
