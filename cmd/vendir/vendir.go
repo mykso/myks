@@ -1,6 +1,7 @@
 package vendir
 
 import (
+	"fmt"
 	"io"
 	"log"
 	"math/rand"
@@ -10,6 +11,7 @@ import (
 	carvelCmd "carvel.dev/vendir/pkg/vendir/cmd"
 	uierrs "github.com/cppforlife/go-cli-ui/errors"
 	"github.com/cppforlife/go-cli-ui/ui"
+	"github.com/spf13/cobra"
 )
 
 func RunEmbeddedVendir() bool {
@@ -46,4 +48,13 @@ func vendirMain() {
 	}
 
 	confUI.PrintLinef("Succeeded")
+}
+
+var VendirCmd = &cobra.Command{
+	Use:   "vendir",
+	Short: "Run embedded vendir",
+	Long:  "Vendir is embedded in myks to manage vendir.yaml files.",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return fmt.Errorf("build error 'vendir'. Please create an issue at https://github.com/mykso/myks/issues/new")
+	},
 }
