@@ -19,9 +19,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          only: ytt, vendir
-          vendir: latest
+          only: ytt
           ytt: latest
+      - name: Build myks
+        run: go install .
       - name: Test
         run: go test -failfast -race -coverpkg=./... -covermode=atomic -coverprofile=coverage.txt ./...
       - name: Upload coverage reports to Codecov
