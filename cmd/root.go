@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
+	"github.com/mykso/myks/cmd/vendir"
 	"github.com/mykso/myks/internal/myks"
 )
 
@@ -36,6 +37,7 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cmd.AddCommand(newInitCmd())
 	cmd.AddCommand(newPrintConfigCmd())
 	cmd.AddCommand(newSyncCmd())
+	cmd.AddCommand(vendir.VendirCmd)
 	initConfig()
 	addPlugins(cmd)
 	return cmd
