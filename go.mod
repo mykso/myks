@@ -109,4 +109,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace carvel.dev/vendir => github.com/mykso/vendir v0.0.0-20231230003508-84b2be48e389 // unique-tmp-dir
+replace carvel.dev/vendir => github.com/mykso/vendir v0.0.0-20231226140829-0b5478366ac6 // unique-tmp-dir
