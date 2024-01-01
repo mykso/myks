@@ -1,7 +1,7 @@
 apiVersion: vendir.k14s.io/v1alpha1
 kind: Config
 directories:
-- path: ytt/argocd
+- path: envs/mykso/dev/_apps/argocd/vendor/ytt/argocd
   contents:
   - path: .
     git:

@@ -84,8 +84,6 @@ github.com/cppforlife/cobrautil v0.0.0-20221021151949-d60711905d65 h1:+3J1K6yQFR
 github.com/cppforlife/cobrautil v0.0.0-20221021151949-d60711905d65/go.mod h1:2w+qxVu2KSGW78Ex/XaIqfh/OvBgjEsmN53S4T8vEyA=
 github.com/cppforlife/color v1.9.1-0.20200716202919-6706ac40b835 h1:mYQweUIBD+TBRjIeQnJmXr0GSVMpI6O0takyb/aaOgo=
 github.com/cppforlife/color v1.9.1-0.20200716202919-6706ac40b835/go.mod h1:dYeVsKp1vvK8XjdTPR1gF+uk+9doxKeO3hqQTOCr7T4=
-github.com/cppforlife/go-cli-ui v0.0.0-20220425131040-94f26b16bc14 h1:MjRdR01xh0sfkeS3OOBv+MYkYsrbHuTDc4rfBnVdFaI=
-github.com/cppforlife/go-cli-ui v0.0.0-20220425131040-94f26b16bc14/go.mod h1:AlgTssDlstr4mf92TR4DPITLfl5+7wEY4cKStCmeeto=
 github.com/cppforlife/go-cli-ui v0.0.0-20220622150351-995494831c6c h1:Au0iPWQ6E8TMil9HiGW/DI4CBttUpBOZWkzgqwq+PLg=
 github.com/cppforlife/go-cli-ui v0.0.0-20220622150351-995494831c6c/go.mod h1:ci7nWkU0g40w486NlpUpXXpTD3pkOBjH090Uc0wpER4=
 github.com/cpuguy83/go-md2man/v2 v2.0.2/go.mod h1:tgQtvFlXSQOSOSIRvRPT7W67SCa46tRHOmNcaadrF8o=
@@ -241,10 +239,8 @@ github.com/modern-go/reflect2 v1.0.1/go.mod h1:bx2lNnkwVCuqBIxFjflWJWanXIb3Rllmb
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/munnerz/goautoneg v0.0.0-20120707110453-a547fc61f48d/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/mxk/go-flowrate v0.0.0-20140419014527-cca7078d478f/go.mod h1:ZdcZmHo+o7JKHSa8/e818NopupXU1YMK5fe1lsApnBw=
-github.com/mykso/vendir v0.0.0-20231226140829-0b5478366ac6 h1:P44L6H/jK3ju8K6QJpFHE/5/FIfX6KfZxAk64BOfNkY=
-github.com/mykso/vendir v0.0.0-20231226140829-0b5478366ac6/go.mod h1:7cRMieK3dDvzokbq1LmKIOWzZ+hw9Rm+BAUOLoIaBG8=
-github.com/mykso/vendir v0.0.0-20231230003508-84b2be48e389 h1:i4g6aYWEDCpqO2xJ6vi5IfM/cApV9D/A1SJwSbDQ9BY=
-github.com/mykso/vendir v0.0.0-20231230003508-84b2be48e389/go.mod h1:7cRMieK3dDvzokbq1LmKIOWzZ+hw9Rm+BAUOLoIaBG8=
+github.com/mykso/vendir v0.38.0-unique-tmp-dir h1:xaqkHV4OEOnKgnt22WN6gOnSSENhFdz1BsEQF82M/QI=
+github.com/mykso/vendir v0.38.0-unique-tmp-dir/go.mod h1:7cRMieK3dDvzokbq1LmKIOWzZ+hw9Rm+BAUOLoIaBG8=
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=

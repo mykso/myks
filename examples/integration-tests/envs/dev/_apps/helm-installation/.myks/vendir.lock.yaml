@@ -3,5 +3,5 @@ directories:
 - contents:
   - directory: {}
     path: .
-  path: charts/render-test
+  path: envs/dev/_apps/helm-installation/vendor/charts/render-test
 kind: LockConfig
