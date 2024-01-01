@@ -103,12 +103,13 @@ func (a *Application) doSync(vendirSecrets string) error {
 
 func (a *Application) runVendirSync(vendirConfig, vendirLock, vendirSecrets string) error {
 	args := []string{
+		"vendir",
 		"sync",
 		"--file=" + vendirConfig,
 		"--lock-file=" + vendirLock,
 		"--file=-",
 	}
-	_, err := a.runCmd(syncStepName, "vendir sync", "vendir", strings.NewReader(vendirSecrets), args)
+	_, err := a.runCmd(syncStepName, "vendir sync", "myks", strings.NewReader(vendirSecrets), args)
 	if err != nil {
 		return err
 	}

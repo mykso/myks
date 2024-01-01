@@ -19,7 +19,7 @@ archives:
         format: zip
     files:
       - LICENSE
-      - README.md
+      - docs/*
 checksum:
   name_template: "checksums.txt"
 aurs:
