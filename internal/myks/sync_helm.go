@@ -9,19 +9,19 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-type HelmRepo struct {
+type HelmSyncer struct {
 	ident string
 }
 
-func (hr *HelmRepo) Ident() string {
+func (hr *HelmSyncer) Ident() string {
 	return hr.ident
 }
 
-func (hr *HelmRepo) GenerateSecrets(_ *Globe) (string, error) {
+func (hr *HelmSyncer) GenerateSecrets(_ *Globe) (string, error) {
 	return "", nil
 }
 
-func (hr *HelmRepo) Sync(a *Application, _ string) error {
+func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 	log.Debug().Msg(a.Msg(hr.getStepName(), "Starting"))
 	chartDir, err := a.getVendoredDir(a.e.g.HelmChartsDirName)
 	if err != nil {
@@ -62,7 +62,7 @@ func (hr *HelmRepo) Sync(a *Application, _ string) error {
 	return nil
 }
 
-func (hr *HelmRepo) helmBuild(a *Application, chartDir string) error {
+func (hr *HelmSyncer) helmBuild(a *Application, chartDir string) error {
 	chartPath := filepath.Join(chartDir, "Chart.yaml")
 	if exists, _ := isExist(chartDir); !exists {
 		return fmt.Errorf("can't locate Chart.yaml at: %s", chartPath)
@@ -99,7 +99,7 @@ func (hr *HelmRepo) helmBuild(a *Application, chartDir string) error {
 	return nil
 }
 
-func (hr *HelmRepo) getHelmConfig(a *Application) (HelmConfig, error) {
+func (hr *HelmSyncer) getHelmConfig(a *Application) (HelmConfig, error) {
 	dataValuesYaml, err := a.ytt(hr.getStepName(), "get helm config", a.yttDataFiles, "--data-values-inspect")
 	if err != nil {
 		return HelmConfig{}, err
@@ -117,6 +117,6 @@ func (hr *HelmRepo) getHelmConfig(a *Application) (HelmConfig, error) {
 	return helmConfig.Helm, nil
 }
 
-func (hr *HelmRepo) getStepName() string {
+func (hr *HelmSyncer) getStepName() string {
 	return fmt.Sprintf("%s-%s", syncStepName, hr.Ident())
 }

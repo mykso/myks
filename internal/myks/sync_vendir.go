@@ -21,15 +21,15 @@ directories:
     #@overlay/replace via=lambda l, r: (r + "/" + l).replace("//", "/")
     path: %s`
 
-type Vendir struct {
+type VendirSyncer struct {
 	ident string
 }
 
-func (h *Vendir) Ident() string {
-	return h.ident
+func (v *VendirSyncer) Ident() string {
+	return v.ident
 }
 
-func (v *Vendir) Sync(a *Application, vendirSecrets string) error {
+func (v *VendirSyncer) Sync(a *Application, vendirSecrets string) error {
 	log.Debug().Msg(a.Msg(v.getStepName(), "Starting"))
 	if err := v.prepareSync(a); err != nil {
 		if err == ErrNoVendirConfig {
@@ -45,7 +45,7 @@ func (v *Vendir) Sync(a *Application, vendirSecrets string) error {
 	return nil
 }
 
-func (v *Vendir) prepareSync(a *Application) error {
+func (v *VendirSyncer) prepareSync(a *Application) error {
 	// Collect ytt arguments following the following steps:
 	// 1. If exists, use the `apps/<prototype>/vendir` directory.
 	// 2. If exists, for every level of environments use `<env>/_apps/<app>/vendir` directory.
@@ -94,7 +94,7 @@ func (v *Vendir) prepareSync(a *Application) error {
 	return nil
 }
 
-func (v *Vendir) doSync(a *Application, vendirSecrets string) error {
+func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 	vendirConfigPath := a.expandServicePath(a.e.g.VendirConfigFileName)
 	vendirLockFilePath := a.expandServicePath(a.e.g.VendirLockFileName)
 
@@ -108,7 +108,7 @@ func (v *Vendir) doSync(a *Application, vendirSecrets string) error {
 	return v.cleanupVendorDir(a, vendorDir, vendirConfigPath)
 }
 
-func (v *Vendir) runVendirSync(a *Application, vendirConfig, vendirLock, vendirSecrets string) error {
+func (v *VendirSyncer) runVendirSync(a *Application, vendirConfig, vendirLock, vendirSecrets string) error {
 	args := []string{
 		"vendir",
 		"sync",
@@ -124,7 +124,7 @@ func (v *Vendir) runVendirSync(a *Application, vendirConfig, vendirLock, vendirS
 	return nil
 }
 
-func (v Vendir) cleanupVendorDir(a *Application, vendorDir, vendirConfigFile string) error {
+func (v VendirSyncer) cleanupVendorDir(a *Application, vendorDir, vendirConfigFile string) error {
 	config, err := unmarshalYamlToMap(vendirConfigFile)
 	if err != nil {
 		return err
@@ -175,6 +175,6 @@ func (v Vendir) cleanupVendorDir(a *Application, vendorDir, vendirConfigFile str
 	})
 }
 
-func (v *Vendir) getStepName() string {
+func (v *VendirSyncer) getStepName() string {
 	return fmt.Sprintf("%s-%s", syncStepName, v.Ident())
 }

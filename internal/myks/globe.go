@@ -192,9 +192,9 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 }
 
 func (g *Globe) Sync(asyncLevel int) error {
-	yamlSyncTools := g.getSyncTools()
-	for _, yamlSyncTool := range yamlSyncTools {
-		secrets, err := yamlSyncTool.GenerateSecrets(g)
+	syncTools := g.getSyncTools()
+	for _, syncTool := range syncTools {
+		secrets, err := syncTool.GenerateSecrets(g)
 		if err != nil {
 			return err
 		}
@@ -203,7 +203,7 @@ func (g *Globe) Sync(asyncLevel int) error {
 			if !ok {
 				return fmt.Errorf("Unable to cast item to *Environment")
 			}
-			return env.Sync(asyncLevel, yamlSyncTool, secrets)
+			return env.Sync(asyncLevel, syncTool, secrets)
 		})
 		if err != nil {
 			return err
@@ -223,36 +223,11 @@ func (g *Globe) Render(asyncLevel int) error {
 }
 
 func (g *Globe) SyncAndRender(asyncLevel int) error {
-	yamlSyncTools := g.getSyncTools()
-	// First do all the syncing
-	for _, yamlSyncTool := range yamlSyncTools {
-		secrets, err := yamlSyncTool.GenerateSecrets(g)
-		if err != nil {
-			return err
-		}
-		err = process(asyncLevel, g.environments, func(item interface{}) error {
-			env, ok := item.(*Environment)
-			if !ok {
-				return fmt.Errorf("Unable to cast item to *Environment")
-			}
-			return env.Sync(asyncLevel, yamlSyncTool, secrets)
-		})
-		if err != nil {
-			return err
-		}
-	}
-	// Then render all the environments
-	err := process(asyncLevel, g.environments, func(item interface{}) error {
-		env, ok := item.(*Environment)
-		if !ok {
-			return fmt.Errorf("Unable to cast item to *Environment")
-		}
-		return env.Render(asyncLevel)
-	})
+	err := g.Sync(asyncLevel)
 	if err != nil {
 		return err
 	}
-	return nil
+	return g.Render(asyncLevel)
 }
 
 // ExecPlugin executes a plugin in the context of the globe
@@ -460,10 +435,10 @@ func (a *Globe) MsgWithSteps(step1 string, step2 string, msg string) string {
 	return formattedMessage
 }
 
-func (g *Globe) getSyncTools() []YamlSyncTool {
-	yamlSyncTools := []YamlSyncTool{
-		&Vendir{ident: "vendir"},
-		&HelmRepo{ident: "helm"},
+func (g *Globe) getSyncTools() []SyncTool {
+	syncTools := []SyncTool{
+		&VendirSyncer{ident: "vendir"},
+		&HelmSyncer{ident: "helm"},
 	}
-	return yamlSyncTools
+	return syncTools
 }

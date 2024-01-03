@@ -67,13 +67,13 @@ func (e *Environment) Init(applicationNames []string) error {
 	return nil
 }
 
-func (e *Environment) Sync(asyncLevel int, yamlSyncTool YamlSyncTool, vendirSecrets string) error {
+func (e *Environment) Sync(asyncLevel int, syncTool SyncTool, vendirSecrets string) error {
 	return process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
 		}
-		return app.Sync(yamlSyncTool, vendirSecrets)
+		return app.Sync(syncTool, vendirSecrets)
 	})
 }
 
@@ -110,7 +110,7 @@ func (e *Environment) Render(asyncLevel int) error {
 	return e.Cleanup()
 }
 
-func (e *Environment) SyncAndRender(asyncLevel int, yamlSyncTool YamlSyncTool, vendirSecrets string) error {
+func (e *Environment) SyncAndRender(asyncLevel int, syncTool SyncTool, vendirSecrets string) error {
 	if err := e.renderArgoCD(); err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func (e *Environment) SyncAndRender(asyncLevel int, yamlSyncTool YamlSyncTool, v
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
 		}
-		if err := app.Sync(yamlSyncTool, vendirSecrets); err != nil {
+		if err := app.Sync(syncTool, vendirSecrets); err != nil {
 			return err
 		}
 		yamlTemplatingTools := []YamlTemplatingTool{

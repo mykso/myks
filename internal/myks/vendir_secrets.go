@@ -14,7 +14,7 @@ import (
 //go:embed templates/vendir/secret.ytt.yaml
 var vendirSecretTemplate []byte
 
-func (v *Vendir) collectVendirSecrets(g *Globe) map[string]*VendirCredentials {
+func (v *VendirSyncer) collectVendirSecrets(g *Globe) map[string]*VendirCredentials {
 	vendirCredentials := make(map[string]*VendirCredentials)
 
 	usrRgx := regexp.MustCompile("^" + g.VendirSecretEnvPrefix + "(.+)_USERNAME=(.*)$")
@@ -59,7 +59,7 @@ func (v *Vendir) collectVendirSecrets(g *Globe) map[string]*VendirCredentials {
 	return vendirCredentials
 }
 
-func (v *Vendir) GenerateSecrets(g *Globe) (string, error) {
+func (v *VendirSyncer) GenerateSecrets(g *Globe) (string, error) {
 	log.Debug().Msg(g.MsgWithSteps("sync", v.Ident(), "Generating Secrets"))
 	vendirCredentials := v.collectVendirSecrets(g)
 
@@ -83,7 +83,7 @@ func (v *Vendir) GenerateSecrets(g *Globe) (string, error) {
 	return secretYamls, nil
 }
 
-func (v *Vendir) generateVendirSecretYaml(g *Globe, secretName string, username string, password string) (string, error) {
+func (v *VendirSyncer) generateVendirSecretYaml(g *Globe, secretName string, username string, password string) (string, error) {
 	res, err := runYttWithFilesAndStdin(
 		nil,
 		bytes.NewReader(vendirSecretTemplate),
