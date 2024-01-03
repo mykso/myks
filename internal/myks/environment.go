@@ -110,42 +110,6 @@ func (e *Environment) Render(asyncLevel int) error {
 	return e.Cleanup()
 }
 
-func (e *Environment) SyncAndRender(asyncLevel int, syncTool SyncTool, vendirSecrets string) error {
-	if err := e.renderArgoCD(); err != nil {
-		return err
-	}
-	err := process(asyncLevel, e.Applications, func(item interface{}) error {
-		app, ok := item.(*Application)
-		if !ok {
-			return fmt.Errorf("Unable to cast item to *Application")
-		}
-		if err := app.Sync(syncTool, vendirSecrets); err != nil {
-			return err
-		}
-		yamlTemplatingTools := []YamlTemplatingTool{
-			&Helm{ident: "helm", app: app, additive: true},
-			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
-			&Ytt{ident: "ytt", app: app, additive: false},
-			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
-		}
-		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
-			return err
-		}
-
-		if err := app.copyStaticFiles(); err != nil {
-			return err
-		}
-
-		return app.renderArgoCD()
-	})
-	if err != nil {
-		log.Error().Err(err).Msg(e.Msg("Unable to sync and render applications"))
-		return err
-	}
-
-	return e.Cleanup()
-}
-
 func (e *Environment) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
 	return process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
