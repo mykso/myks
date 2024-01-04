@@ -70,7 +70,8 @@ func Test_collectVendirSecrets(t *testing.T) {
 			for k, v := range tt.args.envvars {
 				t.Setenv(k, v)
 			}
-			got := New(".").collectVendirSecrets()
+			vendir := VendirSyncer{}
+			got := vendir.collectVendirSecrets(New("."))
 			assertEqual(t, got, tt.want)
 		})
 	}
@@ -133,7 +134,8 @@ func Test_generateVendirSecretYamls(t *testing.T) {
 			for k, v := range tt.args.envvars {
 				t.Setenv(k, v)
 			}
-			got, err := New(".").generateVendirSecretYamls()
+			vendir := VendirSyncer{}
+			got, err := vendir.GenerateSecrets(New("."))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -144,7 +146,6 @@ func Test_generateVendirSecretYamls(t *testing.T) {
 }
 
 func Test_generateVendirSecretYaml(t *testing.T) {
-	g := New(".")
 	type args struct {
 		secretName string
 		username   string
@@ -160,7 +161,8 @@ func Test_generateVendirSecretYaml(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := g.generateVendirSecretYaml(tt.args.secretName, tt.args.username, tt.args.password)
+			vendir := VendirSyncer{}
+			got, err := vendir.generateVendirSecretYaml(New("."), tt.args.secretName, tt.args.username, tt.args.password)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("generateVendirSecretYaml() error = %v, wantErr %v", err, tt.wantErr)
 				return

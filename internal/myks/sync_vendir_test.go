@@ -167,7 +167,8 @@ func Test_cleanupVendorDir(t *testing.T) {
 			}
 
 			// Run the tested function, it should cleanup directories in vendor directory that are not in vendir config
-			err := app.cleanupVendorDir(vendorDir, vendirConfigFile)
+			vendir := VendirSyncer{}
+			err := vendir.cleanupVendorDir(&app, vendorDir, vendirConfigFile)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("cleanupVendorDir() error = %v, wantErr %v", err, tt.wantErr)
 			}

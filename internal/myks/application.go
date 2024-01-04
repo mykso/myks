@@ -15,9 +15,6 @@ const (
 	renderStepName    = "render"
 	syncStepName      = "sync"
 	globalYttStepName = "global-ytt"
-	yttStepName       = "ytt"
-	yttPkgStepName    = "ytt-pkg"
-	helmStepName      = "helm"
 	sliceStepName     = "slice"
 	initStepName      = "init"
 )
