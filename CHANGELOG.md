@@ -1,3 +1,20 @@
+# [3.2.0](https://github.com/mykso/myks/compare/v3.1.0...v3.2.0) (2024-01-07)
+
+
+### Bug Fixes
+
+* **deps:** update github.com/cppforlife/go-cli-ui digest to 9954948 ([#201](https://github.com/mykso/myks/issues/201)) ([9836249](https://github.com/mykso/myks/commit/98362499ffdca43a68e750b88df699837e1e99e4))
+* **deps:** update golang.org/x/exp digest to be819d1 ([#204](https://github.com/mykso/myks/issues/204)) ([9928ad1](https://github.com/mykso/myks/commit/9928ad108873b2359b2a7acfb984f6b8fa3e9132))
+* **deps:** update module golang.org/x/sync to v0.6.0 ([#205](https://github.com/mykso/myks/issues/205)) ([d3b8ea0](https://github.com/mykso/myks/commit/d3b8ea031edb4131f82da4fb7bc74bf321a5a4e5))
+* **deps:** update module golang.org/x/term to v0.16.0 ([#206](https://github.com/mykso/myks/issues/206)) ([002cfe0](https://github.com/mykso/myks/commit/002cfe0a2f197c184481d9b192a3addddcf7b2eb))
+* **sync:** allow local paths in vendir config ([#191](https://github.com/mykso/myks/issues/191)) ([73233eb](https://github.com/mykso/myks/commit/73233ebd7327e8c0ea8653362006e3db2102023f))
+
+
+### Features
+
+* **cleanup:** added dedicated command ([#198](https://github.com/mykso/myks/issues/198)) ([48fa589](https://github.com/mykso/myks/commit/48fa589f94fb0129b58213bf1377cd6fa898acec)), closes [#130](https://github.com/mykso/myks/issues/130)
+* **vendir:** embed vendir into myks ([#199](https://github.com/mykso/myks/issues/199)) ([95ecfa8](https://github.com/mykso/myks/commit/95ecfa89ab625a31131579ed1866d62f4cb0ae58))
+
 # [3.1.0](https://github.com/mykso/myks/compare/v3.0.4...v3.1.0) (2023-12-29)
 
 
