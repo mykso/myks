@@ -114,14 +114,18 @@ type VendirCredentials struct {
 
 type EnvAppMap map[string][]string
 
-func New(rootDir string) *Globe {
-	g := &Globe{
-		RootDir:      rootDir,
-		environments: make(map[string]*Environment),
-	}
+func NewWithDefaults() *Globe {
+	g := &Globe{}
 	if err := defaults.Set(g); err != nil {
 		log.Fatal().Err(err).Msg("Unable to set defaults")
 	}
+	return g
+}
+
+func New(rootDir string) *Globe {
+	g := NewWithDefaults()
+	g.RootDir = rootDir
+	g.environments = make(map[string]*Environment)
 
 	if err := g.setGitPathPrefix(); err != nil {
 		log.Warn().Err(err).Msg("Unable to set git path prefix")
