@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: $TARGET_BRANCH
+          ref: ${{ env.TARGET_BRANCH }}
       - name: Reset branch
         run: |
           git fetch origin $SOURCE_BRANCH:$SOURCE_BRANCH
@@ -24,4 +24,4 @@ jobs:
       - name: Create Pull Request
         uses: peter-evans/create-pull-request@v5
         with:
-          branch: $PR_BRANCH
+          branch: ${{ env.PR_BRANCH }}
