@@ -29,3 +29,5 @@ jobs:
         with:
           branch: ${{ env.PR_BRANCH }}
           title: Prepare release
+        env:
+          GITHUB_TOKEN: ${{ secrets.MYKSO_BOT_GITHUB_TOKEN }}
