@@ -84,6 +84,8 @@ type Globe struct {
 
 	/// Runtime data
 
+	// Running in a git repository
+	WithGit bool
 	// Git repository path prefix (non-empty if running in a subdirectory of a git repository)
 	GitPathPrefix string
 	// Git repository branch
@@ -114,25 +116,41 @@ type VendirCredentials struct {
 
 type EnvAppMap map[string][]string
 
-func New(rootDir string) *Globe {
-	g := &Globe{
-		RootDir:      rootDir,
-		environments: make(map[string]*Environment),
-	}
+func NewWithDefaults() *Globe {
+	g := &Globe{}
 	if err := defaults.Set(g); err != nil {
 		log.Fatal().Err(err).Msg("Unable to set defaults")
 	}
+	return g
+}
 
-	if err := g.setGitPathPrefix(); err != nil {
-		log.Warn().Err(err).Msg("Unable to set git path prefix")
-	}
+func New(rootDir string) *Globe {
+	g := NewWithDefaults()
+	g.RootDir = rootDir
+	g.environments = make(map[string]*Environment)
 
-	if err := g.setGitRepoUrl(); err != nil {
-		log.Warn().Err(err).Msg("Unable to set git repo url")
-	}
+	if isGitRepo(g.RootDir) {
+		g.WithGit = true
 
-	if err := g.setGitRepoBranch(); err != nil {
-		log.Warn().Err(err).Msg("Unable to set git repo branch")
+		if gitPathPrefix, err := getGitPathPrefix(g.RootDir); err != nil {
+			log.Warn().Err(err).Msg("Unable to set git path prefix")
+		} else {
+			g.GitPathPrefix = gitPathPrefix
+		}
+
+		if gitRepoBranch, err := getGitRepoBranch(g.RootDir); err != nil {
+			log.Warn().Err(err).Msg("Unable to set git repo url")
+		} else {
+			g.GitRepoBranch = gitRepoBranch
+		}
+
+		if gitRepoUrl, err := getGitRepoUrl(g.RootDir); err != nil {
+			log.Warn().Err(err).Msg("Unable to set git repo branch")
+		} else {
+			g.GitRepoUrl = gitRepoUrl
+		}
+	} else {
+		log.Warn().Msg("Not in a git repository, Smart Mode and git-related data will not be available")
 	}
 
 	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
@@ -361,68 +379,6 @@ func (g Globe) isEnvPath(path string) bool {
 		}
 	}
 	return false
-}
-
-func (g *Globe) setGitPathPrefix() error {
-	if g.GitPathPrefix == "" {
-		gitArgs := []string{}
-		if g.RootDir != "" {
-			gitArgs = append(gitArgs, "-C", g.RootDir)
-		}
-		gitArgs = append(gitArgs, "rev-parse", "--show-prefix")
-		result, err := runCmd("git", nil, gitArgs, func(name string, err error, stderr string, args []string) {
-			cmd := msgRunCmd("set git path prefix", name, args)
-			if err != nil {
-				log.Error().Msg(cmd)
-				log.Error().Msg(stderr)
-			} else {
-				log.Debug().Msg(cmd)
-			}
-		})
-		if err != nil {
-			return err
-		}
-		g.GitPathPrefix = strings.Trim(result.Stdout, "\n")
-	}
-	return nil
-}
-
-func (g *Globe) setGitRepoUrl() error {
-	if g.GitRepoUrl == "" {
-		result, err := runCmd("git", nil, []string{"remote", "get-url", "origin"}, func(name string, err error, stderr string, args []string) {
-			cmd := msgRunCmd("set git repository url", name, args)
-			if err != nil {
-				log.Error().Msg(cmd)
-				log.Error().Msg(stderr)
-			} else {
-				log.Debug().Msg(cmd)
-			}
-		})
-		if err != nil {
-			return err
-		}
-		g.GitRepoUrl = strings.Trim(result.Stdout, "\n")
-	}
-	return nil
-}
-
-func (g *Globe) setGitRepoBranch() error {
-	if g.GitRepoBranch == "" {
-		result, err := runCmd("git", nil, []string{"rev-parse", "--abbrev-ref", "HEAD"}, func(name string, err error, stderr string, args []string) {
-			cmd := msgRunCmd("set git repository branch", name, args)
-			if err != nil {
-				log.Error().Msg(cmd)
-				log.Error().Msg(stderr)
-			} else {
-				log.Debug().Msg(cmd)
-			}
-		})
-		if err != nil {
-			return err
-		}
-		g.GitRepoBranch = strings.Trim(result.Stdout, "\n")
-	}
-	return nil
 }
 
 func (g *Globe) Msg(msg string) string {

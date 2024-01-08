@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -10,6 +11,10 @@ import (
 )
 
 func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error) {
+	if !g.WithGit {
+		return nil, errors.New("Git is unavailable")
+	}
+
 	// envAppMap is built later by calling g.runSmartMode
 	_ = g.collectEnvironments(nil)
 
