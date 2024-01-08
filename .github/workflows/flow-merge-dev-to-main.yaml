@@ -28,3 +28,4 @@ jobs:
         uses: peter-evans/create-pull-request@v5
         with:
           branch: ${{ env.PR_BRANCH }}
+          title: Prepare release
