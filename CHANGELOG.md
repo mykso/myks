@@ -1,3 +1,10 @@
+## [3.2.1](https://github.com/mykso/myks/compare/v3.2.0...v3.2.1) (2024-01-10)
+
+
+### Bug Fixes
+
+* decrease amount of git-related errors and warnings ([#208](https://github.com/mykso/myks/issues/208)) ([6635495](https://github.com/mykso/myks/commit/6635495f8f36c1f8c4ce2c5377e5eb8e88df499d))
+
 # [3.2.0](https://github.com/mykso/myks/compare/v3.1.0...v3.2.0) (2024-01-07)
 
 
