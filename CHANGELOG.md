@@ -1,3 +1,12 @@
+## [3.2.2](https://github.com/mykso/myks/compare/v3.2.1...v3.2.2) (2024-01-12)
+
+
+### Bug Fixes
+
+* **deps:** update golang.org/x/exp digest to 0dcbfd6 ([#213](https://github.com/mykso/myks/issues/213)) ([dee31a0](https://github.com/mykso/myks/commit/dee31a00e327f8936bb2215cb9ee0bc819a8d6d0))
+* **deps:** update golang.org/x/exp digest to db7319d ([#217](https://github.com/mykso/myks/issues/217)) ([69e3a30](https://github.com/mykso/myks/commit/69e3a30129bb142d5eb73c0487771a3cc0e77960))
+* don't fail on attempt to clean up non existing files ([#216](https://github.com/mykso/myks/issues/216)) ([5a20896](https://github.com/mykso/myks/commit/5a208965dd2349c27ff4fc3eb0be040ca663be15))
+
 ## [3.2.1](https://github.com/mykso/myks/compare/v3.2.0...v3.2.1) (2024-01-10)
 
 
