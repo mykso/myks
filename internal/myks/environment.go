@@ -129,11 +129,11 @@ func (e *Environment) Cleanup() error {
 		if _, ok := e.foundApplications[app]; !ok {
 			log.Info().Str("app", app).Msg(e.Msg("Removing app as it is not configured"))
 			err := os.RemoveAll(filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.Id, app))
-			if err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("unable to remove dir: %w", err)
 			}
 			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.Id, getArgoCDAppFileName(app)))
-			if err != nil {
+			if err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("unable to remove file: %w", err)
 			}
 		}
