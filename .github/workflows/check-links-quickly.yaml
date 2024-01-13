@@ -5,7 +5,6 @@ name: Check Links Quickly
   push:
     branches:
       - main
-      - dev
     paths:
       - .github/workflows/check-links-quickly.yaml
       - docs/**.md
