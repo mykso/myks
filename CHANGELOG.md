@@ -7,6 +7,19 @@
 * **deps:** update golang.org/x/exp digest to db7319d ([#217](https://github.com/mykso/myks/issues/217)) ([69e3a30](https://github.com/mykso/myks/commit/69e3a30129bb142d5eb73c0487771a3cc0e77960))
 * don't fail on attempt to clean up non existing files ([#216](https://github.com/mykso/myks/issues/216)) ([5a20896](https://github.com/mykso/myks/commit/5a208965dd2349c27ff4fc3eb0be040ca663be15))
 
+## [3.3.0](https://github.com/mykso/myks/compare/v3.2.2...v3.3.0) (2024-01-13)
+
+
+### Features
+
+* **ci:** sign checksum file with GPG ([a8673e9](https://github.com/mykso/myks/commit/a8673e99214582aa841b0914d5b1db0104054106))
+
+
+### Bug Fixes
+
+* **ci:** create release PR with PAT, remove lint and test checks ([16c01bb](https://github.com/mykso/myks/commit/16c01bb200e0383d246c331d9ac55039bae18351))
+* **ci:** lint and test on main before creating release PR ([f42dcf6](https://github.com/mykso/myks/commit/f42dcf66b1a37ebb8ffde04166670dafb497f400))
+
 ## [3.2.1](https://github.com/mykso/myks/compare/v3.2.0...v3.2.1) (2024-01-10)
 
 
