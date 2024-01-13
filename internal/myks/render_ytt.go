@@ -2,6 +2,7 @@ package myks
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 
 	"github.com/rs/zerolog/log"
@@ -59,11 +60,11 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 	yttFiles = append(yttFiles, collectBySubpath(y.app.e.g.RootDir, y.app.e.Dir, filepath.Join(y.app.e.g.AppsDir, y.app.Name, y.app.e.g.YttStepDirName))...)
 
 	if len(yttFiles) == 0 {
-		log.Debug().Msg(y.app.Msg(yttStepName, "No local ytt directory found"))
+		log.Debug().Msg(y.app.Msg(y.getStepName(), "No local ytt directory found"))
 		return "", nil
 	}
 
-	res, err := y.app.ytt(yttStepName, "render local ytt", yttFiles)
+	res, err := y.app.ytt(y.getStepName(), "render local ytt", yttFiles)
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +73,11 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 		return "", errors.New("empty ytt output")
 	}
 
-	log.Info().Msg(y.app.Msg(yttStepName, "Local ytt rendered"))
+	log.Info().Msg(y.app.Msg(y.getStepName(), "Local ytt rendered"))
 
 	return res.Stdout, nil
+}
+
+func (y *Ytt) getStepName() string {
+	return fmt.Sprintf("%s-%s", renderStepName, y.Ident())
 }

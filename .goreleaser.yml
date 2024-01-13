@@ -19,7 +19,7 @@ archives:
         format: zip
     files:
       - LICENSE
-      - README.md
+      - docs/*
 checksum:
   name_template: "checksums.txt"
 aurs:
@@ -31,10 +31,12 @@ aurs:
     license: "MIT"
     private_key: "{{ .Env.AUR_SSH_KEY }}"
     git_url: "ssh://aur@aur.archlinux.org/myks-bin.git"
+    depends:
+      - ytt
     optdepends:
-      - "carvel-tools: for vendir and ytt"
-      - "git: for git"
-      - "helm: for helm"
+      - "vendir: for downloading from external sources"
+      - "git: for smart detection of changes"
+      - "helm: for rendering helm charts"
     package: |-
       BIN=myks
 
@@ -72,3 +74,41 @@ brews:
       owner: mykso
       name: homebrew-tap
       token: "{{ .Env.HOMEBREW_TAP_REPO_TOKEN }}"
+dockers:
+  - goos: linux
+    goarch: amd64
+    image_templates:
+      - ghcr.io/mykso/myks:{{ .Tag }}-linux-amd64
+      - ghcr.io/mykso/myks:{{ .Major }}-linux-amd64
+      - ghcr.io/mykso/myks:{{ .Major }}.{{ .Minor }}-linux-amd64
+      - ghcr.io/mykso/myks:latest-linux-amd64
+    use: buildx
+    build_flag_templates:
+      - --platform=linux/amd64
+  - goos: linux
+    goarch: arm64
+    image_templates:
+      - ghcr.io/mykso/myks:{{ .Tag }}-linux-arm64
+      - ghcr.io/mykso/myks:{{ .Major }}-linux-arm64
+      - ghcr.io/mykso/myks:{{ .Major }}.{{ .Minor }}-linux-arm64
+      - ghcr.io/mykso/myks:latest-linux-arm64
+    use: buildx
+    build_flag_templates:
+      - --platform=linux/arm64
+docker_manifests:
+  - name_template: ghcr.io/mykso/myks:{{ .Tag }}
+    image_templates:
+      - ghcr.io/mykso/myks:{{ .Tag }}-linux-amd64
+      - ghcr.io/mykso/myks:{{ .Tag }}-linux-arm64
+  - name_template: ghcr.io/mykso/myks:{{ .Major }}
+    image_templates:
+      - ghcr.io/mykso/myks:{{ .Major }}-linux-amd64
+      - ghcr.io/mykso/myks:{{ .Major }}-linux-arm64
+  - name_template: ghcr.io/mykso/myks:{{ .Major }}.{{ .Minor }}
+    image_templates:
+      - ghcr.io/mykso/myks:{{ .Major }}.{{ .Minor }}-linux-amd64
+      - ghcr.io/mykso/myks:{{ .Major }}.{{ .Minor }}-linux-arm64
+  - name_template: ghcr.io/mykso/myks:latest
+    image_templates:
+      - ghcr.io/mykso/myks:latest-linux-amd64
+      - ghcr.io/mykso/myks:latest-linux-arm64

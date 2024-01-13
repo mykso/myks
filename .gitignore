@@ -5,3 +5,4 @@ dist
 /myks
 **/.myks/tmp
 coverage.txt
+vendor/

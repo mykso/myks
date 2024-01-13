@@ -16,61 +16,67 @@ import (
 
 const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
+const GlobalExtendedLogFormat = "\033[1m[global > %s > %s]\033[0m %s"
+
 // Define the main structure
+// Globe configuration
 type Globe struct {
-	/// Globe configuration
+	// Project root directory
+	RootDir string `default:"."`
+	// Base directory for environments
+	EnvironmentBaseDir string `default:"envs"`
+	// Application prototypes directory
+	PrototypesDir string `default:"prototypes"`
+	// Ytt library directory name
+	YttLibraryDirName string `default:"lib"`
+	// Rendered kubernetes manifests directory
+	RenderedEnvsDir string `default:"rendered/envs"`
+	// Rendered argocd manifests directory
+	RenderedArgoDir string `default:"rendered/argocd"`
 
 	// Directory of application-specific configuration
 	AppsDir string `default:"_apps"`
+	// Directory of environment-specific configuration
+	EnvsDir string `default:"_env"`
 	// Directory of application-specific prototype overwrites
 	PrototypeOverrideDir string `default:"_proto"`
-	// Base directory for environments
-	EnvironmentBaseDir string `default:"envs"`
-	// Main branch name
-	MainBranchName string `default:"main"`
-	// Prefix for kubernetes namespaces
-	NamespacePrefix string `default:""`
-	// Application prototypes directory
-	PrototypesDir string `default:"prototypes"`
-	// Rendered kubernetes manifests directory
-	RenderedDir string `default:"rendered"`
-	// Project root directory
-	RootDir string `default:"."`
 
-	/// Globe constants
-
-	// Application data file name
-	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
-	// ArgoCD data directory name
-	ArgoCDDataDirName string `default:"argocd"`
 	// Data values schema file name
 	DataSchemaFileName string `default:"data-schema.ytt.yaml"`
+	// Application data file name
+	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
 	// Environment data file name
 	EnvironmentDataFileName string `default:"env-data.ytt.yaml"`
-	// Helm charts directory name
-	HelmChartsDirName string `default:"charts"`
-	// Myks runtime data file name
-	MyksDataFileName string `default:"myks-data.ytt.yaml"`
 	// Rendered environment data file name
 	RenderedEnvironmentDataFileName string `default:"env-data.yaml"`
-	// Static files directory name
-	StaticFilesDirName string `default:"static"`
+	// Myks runtime data file name
+	MyksDataFileName string `default:"myks-data.ytt.yaml"`
 	// Service directory name
 	ServiceDirName string `default:".myks"`
 	// Temporary directory name
 	TempDirName string `default:"tmp"`
+
 	// Rendered vendir config file name
 	VendirConfigFileName string `default:"vendir.yaml"`
 	// Rendered vendir lock file name
 	VendirLockFileName string `default:"vendir.lock.yaml"`
-	// Rendered vendir sync file name
-	VendirSyncFileName string `default:"vendir.sync.yaml"`
 	// Prefix for vendir secret environment variables
 	VendirSecretEnvPrefix string `default:"VENDIR_SECRET_"`
+
 	// Downloaded third-party sources
 	VendorDirName string `default:"vendor"`
-	// Ytt library directory name
-	YttLibraryDirName string `default:"lib"`
+	// Helm charts directory name
+	HelmChartsDirName string `default:"charts"`
+
+	// Plugin subdirectories
+	// ArgoCD data directory name
+	ArgoCDDataDirName string `default:"argocd"`
+	// Helm step directory name
+	HelmStepDirName string `default:"helm"`
+	// Static files directory name
+	StaticFilesDirName string `default:"static"`
+	// Vendir step directory name
+	VendirStepDirName string `default:"vendir"`
 	// Ytt step directory name
 	YttPkgStepDirName string `default:"ytt-pkg"`
 	// Ytt step directory name
@@ -78,12 +84,17 @@ type Globe struct {
 
 	/// Runtime data
 
+	// Running in a git repository
+	WithGit bool
 	// Git repository path prefix (non-empty if running in a subdirectory of a git repository)
 	GitPathPrefix string
 	// Git repository branch
 	GitRepoBranch string
 	// Git repository URL
 	GitRepoUrl string
+
+	// Prefix for kubernetes namespaces, only used in helm rendering
+	NamespacePrefix string `default:""`
 
 	// Collected environments for processing
 	environments map[string]*Environment
@@ -105,25 +116,41 @@ type VendirCredentials struct {
 
 type EnvAppMap map[string][]string
 
-func New(rootDir string) *Globe {
-	g := &Globe{
-		RootDir:      rootDir,
-		environments: make(map[string]*Environment),
-	}
+func NewWithDefaults() *Globe {
+	g := &Globe{}
 	if err := defaults.Set(g); err != nil {
 		log.Fatal().Err(err).Msg("Unable to set defaults")
 	}
+	return g
+}
 
-	if err := g.setGitPathPrefix(); err != nil {
-		log.Warn().Err(err).Msg("Unable to set git path prefix")
-	}
+func New(rootDir string) *Globe {
+	g := NewWithDefaults()
+	g.RootDir = rootDir
+	g.environments = make(map[string]*Environment)
 
-	if err := g.setGitRepoUrl(); err != nil {
-		log.Warn().Err(err).Msg("Unable to set git repo url")
-	}
+	if isGitRepo(g.RootDir) {
+		g.WithGit = true
 
-	if err := g.setGitRepoBranch(); err != nil {
-		log.Warn().Err(err).Msg("Unable to set git repo branch")
+		if gitPathPrefix, err := getGitPathPrefix(g.RootDir); err != nil {
+			log.Warn().Err(err).Msg("Unable to set git path prefix")
+		} else {
+			g.GitPathPrefix = gitPathPrefix
+		}
+
+		if gitRepoBranch, err := getGitRepoBranch(g.RootDir); err != nil {
+			log.Warn().Err(err).Msg("Unable to set git repo url")
+		} else {
+			g.GitRepoBranch = gitRepoBranch
+		}
+
+		if gitRepoUrl, err := getGitRepoUrl(g.RootDir); err != nil {
+			log.Warn().Err(err).Msg("Unable to set git repo branch")
+		} else {
+			g.GitRepoUrl = gitRepoUrl
+		}
+	} else {
+		log.Warn().Msg("Not in a git repository, Smart Mode and git-related data will not be available")
 	}
 
 	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
@@ -183,17 +210,24 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 }
 
 func (g *Globe) Sync(asyncLevel int) error {
-	vendirSecrets, err := g.generateVendirSecretYamls()
-	if err != nil {
-		return err
-	}
-	return process(asyncLevel, g.environments, func(item interface{}) error {
-		env, ok := item.(*Environment)
-		if !ok {
-			return fmt.Errorf("Unable to cast item to *Environment")
+	syncTools := g.getSyncTools()
+	for _, syncTool := range syncTools {
+		secrets, err := syncTool.GenerateSecrets(g)
+		if err != nil {
+			return err
 		}
-		return env.Sync(asyncLevel, vendirSecrets)
-	})
+		err = process(asyncLevel, g.environments, func(item interface{}) error {
+			env, ok := item.(*Environment)
+			if !ok {
+				return fmt.Errorf("Unable to cast item to *Environment")
+			}
+			return env.Sync(asyncLevel, syncTool, secrets)
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (g *Globe) Render(asyncLevel int) error {
@@ -207,16 +241,21 @@ func (g *Globe) Render(asyncLevel int) error {
 }
 
 func (g *Globe) SyncAndRender(asyncLevel int) error {
-	vendirSecrets, err := g.generateVendirSecretYamls()
+	err := g.Sync(asyncLevel)
 	if err != nil {
 		return err
 	}
+	return g.Render(asyncLevel)
+}
+
+// ExecPlugin executes a plugin in the context of the globe
+func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
 	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Environment")
 		}
-		return env.SyncAndRender(asyncLevel, vendirSecrets)
+		return env.ExecPlugin(asyncLevel, p, args)
 	})
 }
 
@@ -228,8 +267,8 @@ func (g *Globe) Cleanup() error {
 		legalEnvs[env.Id] = true
 	}
 
-	for _, dir := range [...]string{"argocd", "envs"} {
-		dirPath := filepath.Join(g.RootDir, g.RenderedDir, dir)
+	for _, dir := range [...]string{g.RenderedArgoDir, g.RenderedEnvsDir} {
+		dirPath := filepath.Join(g.RootDir, dir)
 		files, err := os.ReadDir(dirPath)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -342,69 +381,20 @@ func (g Globe) isEnvPath(path string) bool {
 	return false
 }
 
-func (g *Globe) setGitPathPrefix() error {
-	if g.GitPathPrefix == "" {
-		gitArgs := []string{}
-		if g.RootDir != "" {
-			gitArgs = append(gitArgs, "-C", g.RootDir)
-		}
-		gitArgs = append(gitArgs, "rev-parse", "--show-prefix")
-		result, err := runCmd("git", nil, gitArgs, func(name string, err error, stderr string, args []string) {
-			cmd := msgRunCmd("set git path prefix", name, args)
-			if err != nil {
-				log.Error().Msg(cmd)
-				log.Error().Msg(stderr)
-			} else {
-				log.Debug().Msg(cmd)
-			}
-		})
-		if err != nil {
-			return err
-		}
-		g.GitPathPrefix = strings.Trim(result.Stdout, "\n")
-	}
-	return nil
-}
-
-func (g *Globe) setGitRepoUrl() error {
-	if g.GitRepoUrl == "" {
-		result, err := runCmd("git", nil, []string{"remote", "get-url", "origin"}, func(name string, err error, stderr string, args []string) {
-			cmd := msgRunCmd("set git repository url", name, args)
-			if err != nil {
-				log.Error().Msg(cmd)
-				log.Error().Msg(stderr)
-			} else {
-				log.Debug().Msg(cmd)
-			}
-		})
-		if err != nil {
-			return err
-		}
-		g.GitRepoUrl = strings.Trim(result.Stdout, "\n")
-	}
-	return nil
-}
-
-func (g *Globe) setGitRepoBranch() error {
-	if g.GitRepoBranch == "" {
-		result, err := runCmd("git", nil, []string{"rev-parse", "--abbrev-ref", "HEAD"}, func(name string, err error, stderr string, args []string) {
-			cmd := msgRunCmd("set git repository branch", name, args)
-			if err != nil {
-				log.Error().Msg(cmd)
-				log.Error().Msg(stderr)
-			} else {
-				log.Debug().Msg(cmd)
-			}
-		})
-		if err != nil {
-			return err
-		}
-		g.GitRepoBranch = strings.Trim(result.Stdout, "\n")
-	}
-	return nil
-}
-
 func (g *Globe) Msg(msg string) string {
 	formattedMessage := fmt.Sprintf(GlobalLogFormat, msg)
 	return formattedMessage
+}
+
+func (a *Globe) MsgWithSteps(step1 string, step2 string, msg string) string {
+	formattedMessage := fmt.Sprintf(GlobalExtendedLogFormat, step1, step2, msg)
+	return formattedMessage
+}
+
+func (g *Globe) getSyncTools() []SyncTool {
+	syncTools := []SyncTool{
+		&VendirSyncer{ident: "vendir"},
+		&HelmSyncer{ident: "helm"},
+	}
+	return syncTools
 }

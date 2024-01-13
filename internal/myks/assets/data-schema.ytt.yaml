@@ -98,6 +98,8 @@ helm:
   kubeVersion: ""
   #! If defined, passed as a value of `--namespace` for `helm template`.
   namespace: ""
+  #! If true, run "helm dependency build" before rendering. This is required for helm charts with dependencies that are pulled from git repositories.
+  buildDependencies: false
 #! Configuration of the step that renders ytt-packages.
 yttPkg:
   #! A ytt-package can be rendered as a whole, or can contain multiple sub-packages that should be rendered separately.

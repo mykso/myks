@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -10,6 +11,10 @@ import (
 )
 
 func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error) {
+	if !g.WithGit {
+		return nil, errors.New("Git is unavailable")
+	}
+
 	// envAppMap is built later by calling g.runSmartMode
 	_ = g.collectEnvironments(nil)
 
@@ -62,7 +67,14 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	}
 
 	// Subdirectories of apps and prototypes are named after plugins
-	plugins := []string{g.YttStepDirName, "helm", "vendir", g.YttPkgStepDirName, g.ArgoCDDataDirName}
+	plugins := []string{
+		g.ArgoCDDataDirName,
+		g.HelmStepDirName,
+		g.StaticFilesDirName,
+		g.VendirStepDirName,
+		g.YttPkgStepDirName,
+		g.YttStepDirName,
+	}
 	pluginsPattern := "(?:" + strings.Join(plugins, "|") + ")"
 
 	exprMap := map[string][]*regexp.Regexp{
@@ -72,8 +84,8 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		},
 		// Env search path is the only submatch
 		"env": {
-			e("(" + g.EnvironmentBaseDir + ".*)/_env/" + g.YttStepDirName + "/.*"),
-			e("(" + g.EnvironmentBaseDir + ".*)/_env/" + g.ArgoCDDataDirName + "/.*"),
+			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvsDir + "/" + g.YttStepDirName + "/.*"),
+			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvsDir + "/" + g.ArgoCDDataDirName + "/.*"),
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvironmentDataFileName),
 		},
 		// Prototype name is the only submatch

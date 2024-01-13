@@ -67,13 +67,13 @@ func (e *Environment) Init(applicationNames []string) error {
 	return nil
 }
 
-func (e *Environment) Sync(asyncLevel int, vendirSecrets string) error {
+func (e *Environment) Sync(asyncLevel int, syncTool SyncTool, vendirSecrets string) error {
 	return process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
 		}
-		return app.Sync(vendirSecrets)
+		return app.Sync(syncTool, vendirSecrets)
 	})
 }
 
@@ -110,40 +110,14 @@ func (e *Environment) Render(asyncLevel int) error {
 	return e.Cleanup()
 }
 
-func (e *Environment) SyncAndRender(asyncLevel int, vendirSecrets string) error {
-	if err := e.renderArgoCD(); err != nil {
-		return err
-	}
-	err := process(asyncLevel, e.Applications, func(item interface{}) error {
+func (e *Environment) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
+	return process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("Unable to cast item to *Application")
 		}
-		if err := app.Sync(vendirSecrets); err != nil {
-			return err
-		}
-		yamlTemplatingTools := []YamlTemplatingTool{
-			&Helm{ident: "helm", app: app, additive: true},
-			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
-			&Ytt{ident: "ytt", app: app, additive: false},
-			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
-		}
-		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
-			return err
-		}
-
-		if err := app.copyStaticFiles(); err != nil {
-			return err
-		}
-
-		return app.renderArgoCD()
+		return p.Exec(app, args)
 	})
-	if err != nil {
-		log.Error().Err(err).Msg(e.Msg("Unable to sync and render applications"))
-		return err
-	}
-
-	return e.Cleanup()
 }
 
 func (e *Environment) Cleanup() error {
@@ -154,12 +128,12 @@ func (e *Environment) Cleanup() error {
 	for _, app := range apps {
 		if _, ok := e.foundApplications[app]; !ok {
 			log.Info().Str("app", app).Msg(e.Msg("Removing app as it is not configured"))
-			err := os.RemoveAll(filepath.Join(e.g.RootDir, e.g.RenderedDir, "envs", e.Id, app))
-			if err != nil {
+			err := os.RemoveAll(filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.Id, app))
+			if err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("unable to remove dir: %w", err)
 			}
-			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedDir, "argocd", e.Id, getArgoCDAppFileName(app)))
-			if err != nil {
+			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.Id, getArgoCDAppFileName(app)))
+			if err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("unable to remove file: %w", err)
 			}
 		}
@@ -171,7 +145,7 @@ func (e *Environment) Cleanup() error {
 // renderedApplications returns list of applications in rendered dir
 func (e *Environment) renderedApplications() ([]string, error) {
 	apps := []string{}
-	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedDir, "envs", e.Id)
+	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.Id)
 	files, err := os.ReadDir(dirEnvRendered)
 	if err != nil {
 		if os.IsNotExist(err) {

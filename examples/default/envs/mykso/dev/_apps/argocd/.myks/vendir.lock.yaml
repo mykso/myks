@@ -7,5 +7,5 @@ directories:
       tags:
       - v2.7.3
     path: .
-  path: ytt/argocd
+  path: envs/mykso/dev/_apps/argocd/vendor/ytt/argocd
 kind: LockConfig

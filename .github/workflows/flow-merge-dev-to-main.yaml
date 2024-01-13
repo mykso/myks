@@ -1,0 +1,29 @@
+name: Create dev to main PR
+
+"on":
+  push:
+    branches:
+      - dev
+
+env:
+  SOURCE_BRANCH: dev
+  TARGET_BRANCH: main
+  PR_BRANCH: prepare-release
+
+jobs:
+  create_pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+      - name: Reset branch
+        run: |
+          git fetch origin $SOURCE_BRANCH:$SOURCE_BRANCH
+          git reset --hard $SOURCE_BRANCH
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          branch: ${{ env.PR_BRANCH }}
+          title: Prepare release
+          token: ${{ secrets.MYKSO_BOT_GITHUB_TOKEN }}

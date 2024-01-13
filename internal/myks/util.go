@@ -15,7 +15,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/alecthomas/chroma/quick"
+	"github.com/alecthomas/chroma/v2/quick"
 	aurora "github.com/logrusorgru/aurora/v4"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
@@ -272,7 +272,11 @@ func runCmd(name string, stdin io.Reader, args []string, logFn func(name string,
 
 func msgRunCmd(purpose string, cmd string, args []string) string {
 	msg := cmd + " " + strings.Join(reductSecrets(args), " ")
-	return "Running \u001B[34m" + cmd + "\u001B[0m to: \u001B[3m" + purpose + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
+	if purpose == "" {
+		return "Ran \u001B[34m" + cmd + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
+	} else {
+		return "Ran \u001B[34m" + cmd + "\u001B[0m to: \u001B[3m" + purpose + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
+	}
 }
 
 func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name string, err error, stderr string, args []string), args ...string) (CmdResult, error) {
@@ -314,7 +318,6 @@ func isExist(path string) (bool, error) {
 		return true, nil
 	}
 	if os.IsNotExist(err) {
-		log.Trace().Str("path", path).Msg("File does not exist")
 		return false, nil
 	}
 	log.Error().Err(err).Msg("Unable to stat file")
@@ -398,4 +401,21 @@ func copyFile(src, dst string) (err error) {
 	}
 
 	return nil
+}
+
+// mapToSlice converts a map of strings to a slice of strings in the form of key=value
+func mapToSlice(env map[string]string) []string {
+	var envSlice []string
+	for k, v := range env {
+		envSlice = append(envSlice, k+"="+v)
+	}
+	return envSlice
+}
+
+func createURLSlug(url string) string {
+	url = strings.TrimPrefix(url, "http://")
+	url = strings.TrimPrefix(url, "https://")
+	url = strings.TrimPrefix(url, "oci://")
+	url = strings.ReplaceAll(url, "/", "-")
+	return url
 }

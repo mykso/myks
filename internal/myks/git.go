@@ -58,3 +58,50 @@ func convertToChangedFiles(changes string) ChangedFiles {
 	}
 	return cfs
 }
+
+func runGitCmd(args []string, root string, silent bool) (string, error) {
+	logFn := func(name string, err error, stderr string, args []string) {
+		cmd := msgRunCmd("run git command", name, args)
+		if err == nil {
+			log.Debug().Msg(cmd)
+			return
+		}
+		if silent {
+			log.Debug().Msg(cmd)
+			log.Debug().Msg(stderr)
+			return
+		}
+		log.Error().Msg(cmd)
+		log.Error().Msg(stderr)
+	}
+
+	gitArgs := []string{}
+	if root != "" {
+		gitArgs = append(gitArgs, "-C", root)
+	}
+	gitArgs = append(gitArgs, args...)
+	result, err := runCmd("git", nil, gitArgs, logFn)
+	return strings.Trim(result.Stdout, "\n"), err
+}
+
+// isGitRepo returns true if the given directory is a git repository
+// It does it by running `git rev-parse --git-dir` and checking if it returns an error.
+func isGitRepo(root string) bool {
+	_, err := runGitCmd([]string{"rev-parse", "--git-dir"}, root, true)
+	return err == nil
+}
+
+func getGitPathPrefix(root string) (string, error) {
+	args := []string{"rev-parse", "--show-prefix"}
+	return runGitCmd(args, root, false)
+}
+
+func getGitRepoUrl(root string) (string, error) {
+	args := []string{"remote", "get-url", "origin"}
+	return runGitCmd(args, root, false)
+}
+
+func getGitRepoBranch(root string) (string, error) {
+	args := []string{"rev-parse", "--abbrev-ref", "HEAD"}
+	return runGitCmd(args, root, false)
+}

@@ -15,9 +15,6 @@ const (
 	renderStepName    = "render"
 	syncStepName      = "sync"
 	globalYttStepName = "global-ytt"
-	yttStepName       = "ytt"
-	yttPkgStepName    = "ytt-pkg"
-	helmStepName      = "helm"
 	sliceStepName     = "slice"
 	initStepName      = "init"
 )
@@ -35,10 +32,11 @@ type Application struct {
 }
 
 type HelmConfig struct {
-	Namespace    string   `yaml:"namespace"`
-	KubeVersion  string   `yaml:"kubeVersion"`
-	IncludeCRDs  bool     `yaml:"includeCRDs"`
-	Capabilities []string `yaml:"capabilities"`
+	Namespace         string   `yaml:"namespace"`
+	KubeVersion       string   `yaml:"kubeVersion"`
+	IncludeCRDs       bool     `yaml:"includeCRDs"`
+	Capabilities      []string `yaml:"capabilities"`
+	BuildDependencies bool     `yaml:"buildDependencies"`
 }
 
 var (

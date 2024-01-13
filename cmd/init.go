@@ -9,7 +9,7 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
-func init() {
+func newInitCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize new myks project",
@@ -30,7 +30,7 @@ func init() {
 				log.Fatal().Err(err).Msg("Failed to read flag")
 			}
 
-			if err := myks.New(".").Bootstrap(force, onlyPrint, components); errors.As(err, &myks.ErrBootstrapTargetExists{}) {
+			if err := myks.NewWithDefaults().Bootstrap(force, onlyPrint, components); errors.As(err, &myks.ErrBootstrapTargetExists{}) {
 				log.Error().Err(err).Msg("The target already exists. Use --force to overwrite data.")
 			} else if err != nil {
 				log.Fatal().Err(err).Msg("Failed to initialize project")
@@ -53,5 +53,5 @@ func init() {
 	}
 	cmd.Flags().StringSlice("components", componentsDefault, "components to initialize")
 
-	rootCmd.AddCommand(cmd)
+	return cmd
 }

@@ -38,7 +38,6 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 	outputYaml := ""
 	lastStepOutputFile := ""
 	for nr, yamlTool := range yamlTemplatingTools {
-		log.Debug().Msg(a.Msg(yamlTool.Ident(), "Starting"))
 		stepOutputYaml, err := yamlTool.Render(lastStepOutputFile)
 		if err != nil {
 			log.Error().Err(err).Msg(a.Msg(yamlTool.Ident(), "Failed during render step: "+yamlTool.Ident()))
@@ -133,7 +132,7 @@ func (a *Application) storeStepResult(output string, stepName string, stepNumber
 }
 
 func (a *Application) getDestinationDir() string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedDir, "envs", a.e.Id, a.Name)
+	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedEnvsDir, a.e.Id, a.Name)
 }
 
 // Generates a file name for each document using kind and name if available

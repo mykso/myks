@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -25,28 +26,28 @@ func (h *Helm) Ident() string {
 func (h *Helm) Render(_ string) (string, error) {
 	chartDir, err := h.app.getVendoredDir(h.app.e.g.HelmChartsDirName)
 	if err != nil {
-		log.Err(err).Msg(h.app.Msg(helmStepName, "Unable to get helm charts dir"))
+		log.Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to get helm charts dir"))
 		return "", err
 	}
 
 	if chartDir == "" {
-		log.Debug().Msg(h.app.Msg(helmStepName, "No Helm charts found"))
+		log.Debug().Msg(h.app.Msg(h.getStepName(), "No Helm charts found"))
 		return "", nil
 	}
 
 	chartDirs, err := getSubDirs(chartDir)
 	if err != nil {
-		log.Err(err).Msg(h.app.Msg(helmStepName, "Unable to get helm charts sub dirs"))
+		log.Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to get helm charts sub dirs"))
 		return "", err
 	}
 	if len(chartDirs) == 0 {
-		log.Debug().Msg(h.app.Msg(helmStepName, "No Helm charts found"))
+		log.Debug().Msg(h.app.Msg(h.getStepName(), "No Helm charts found"))
 		return "", nil
 	}
 
 	helmConfig, err := h.getHelmConfig()
 	if err != nil {
-		log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to get helm config"))
+		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to get helm config"))
 		return "", err
 	}
 
@@ -73,10 +74,11 @@ func (h *Helm) Render(_ string) (string, error) {
 	var outputs []string
 
 	for _, chartDir := range chartDirs {
+
 		chartName := filepath.Base(chartDir)
 		var helmValuesFile string
 		if helmValuesFile, err = h.app.prepareValuesFile("helm", chartName); err != nil {
-			log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to prepare helm values"))
+			log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to prepare helm values"))
 			return "", err
 		}
 
@@ -92,13 +94,13 @@ func (h *Helm) Render(_ string) (string, error) {
 			helmArgs = append(helmArgs, "--values", helmValuesFile)
 		}
 
-		res, err := h.app.runCmd(helmStepName, "helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
+		res, err := h.app.runCmd(h.getStepName(), "helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
 		if err != nil {
 			return "", err
 		}
 
 		if res.Stdout == "" {
-			log.Warn().Str("chart", chartName).Msg(h.app.Msg(helmStepName, "No helm output"))
+			log.Warn().Str("chart", chartName).Msg(h.app.Msg(h.getStepName(), "No helm output"))
 			continue
 		}
 
@@ -106,13 +108,13 @@ func (h *Helm) Render(_ string) (string, error) {
 
 	}
 
-	log.Info().Msg(h.app.Msg(helmStepName, "Helm chart rendered"))
+	log.Info().Msg(h.app.Msg(h.getStepName(), "Helm chart rendered"))
 
 	return strings.Join(outputs, "---\n"), nil
 }
 
 func (h *Helm) getHelmConfig() (HelmConfig, error) {
-	dataValuesYaml, err := h.app.ytt(helmStepName, "get helm config", h.app.yttDataFiles, "--data-values-inspect")
+	dataValuesYaml, err := h.app.ytt(h.getStepName(), "get helm config", h.app.yttDataFiles, "--data-values-inspect")
 	if err != nil {
 		return HelmConfig{}, err
 	}
@@ -122,9 +124,13 @@ func (h *Helm) getHelmConfig() (HelmConfig, error) {
 	}
 	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &helmConfig)
 	if err != nil {
-		log.Warn().Err(err).Msg(h.app.Msg(helmStepName, "Unable to unmarshal data values"))
+		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to unmarshal data values"))
 		return HelmConfig{}, err
 	}
 
 	return helmConfig.Helm, nil
+}
+
+func (h *Helm) getStepName() string {
+	return fmt.Sprintf("%s-%s", renderStepName, h.Ident())
 }

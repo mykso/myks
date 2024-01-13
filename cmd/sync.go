@@ -7,7 +7,7 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
-func init() {
+func newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
 		Short: "Sync vendir configs",
@@ -37,5 +37,5 @@ For example, if you reference a secret named "mycreds" in your vendir.yaml, you 
 		},
 	}
 
-	rootCmd.AddCommand(cmd)
+	return cmd
 }
