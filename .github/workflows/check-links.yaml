@@ -17,7 +17,7 @@ jobs:
 
       - name: Restore lychee cache
         id: restore-cache
-        uses: actions/cache/restore@v3
+        uses: actions/cache/restore@v4
         with:
           path: .lycheecache
           key: cache-lychee-${{ github.sha }}
@@ -29,7 +29,7 @@ jobs:
           args: "--base . --verbose --no-progress --cache --max-cache-age 3d 'docs/**/*.md'"
 
       - name: Save lychee cache
-        uses: actions/cache/save@v3
+        uses: actions/cache/save@v4
         if: always()
         with:
           path: .lycheecache
