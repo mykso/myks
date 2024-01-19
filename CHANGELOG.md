@@ -1,69 +1,60 @@
-## [3.2.2](https://github.com/mykso/myks/compare/v3.2.1...v3.2.2) (2024-01-12)
-
-
-### Bug Fixes
-
-* **deps:** update golang.org/x/exp digest to 0dcbfd6 ([#213](https://github.com/mykso/myks/issues/213)) ([dee31a0](https://github.com/mykso/myks/commit/dee31a00e327f8936bb2215cb9ee0bc819a8d6d0))
-* **deps:** update golang.org/x/exp digest to db7319d ([#217](https://github.com/mykso/myks/issues/217)) ([69e3a30](https://github.com/mykso/myks/commit/69e3a30129bb142d5eb73c0487771a3cc0e77960))
-* don't fail on attempt to clean up non existing files ([#216](https://github.com/mykso/myks/issues/216)) ([5a20896](https://github.com/mykso/myks/commit/5a208965dd2349c27ff4fc3eb0be040ca663be15))
-
 ## [3.3.0](https://github.com/mykso/myks/compare/v3.2.2...v3.3.0) (2024-01-13)
-
 
 ### Features
 
-* **ci:** sign checksum file with GPG ([a8673e9](https://github.com/mykso/myks/commit/a8673e99214582aa841b0914d5b1db0104054106))
-
+- **ci:** sign checksum file with GPG ([a8673e9](https://github.com/mykso/myks/commit/a8673e99214582aa841b0914d5b1db0104054106))
 
 ### Bug Fixes
 
-* **ci:** create release PR with PAT, remove lint and test checks ([16c01bb](https://github.com/mykso/myks/commit/16c01bb200e0383d246c331d9ac55039bae18351))
-* **ci:** lint and test on main before creating release PR ([f42dcf6](https://github.com/mykso/myks/commit/f42dcf66b1a37ebb8ffde04166670dafb497f400))
+- **ci:** create release PR with PAT, remove lint and test checks ([16c01bb](https://github.com/mykso/myks/commit/16c01bb200e0383d246c331d9ac55039bae18351))
+- **ci:** lint and test on main before creating release PR ([f42dcf6](https://github.com/mykso/myks/commit/f42dcf66b1a37ebb8ffde04166670dafb497f400))
+
+## [3.2.2](https://github.com/mykso/myks/compare/v3.2.1...v3.2.2) (2024-01-12)
+
+### Bug Fixes
+
+- **deps:** update golang.org/x/exp digest to 0dcbfd6 ([#213](https://github.com/mykso/myks/issues/213)) ([dee31a0](https://github.com/mykso/myks/commit/dee31a00e327f8936bb2215cb9ee0bc819a8d6d0))
+- **deps:** update golang.org/x/exp digest to db7319d ([#217](https://github.com/mykso/myks/issues/217)) ([69e3a30](https://github.com/mykso/myks/commit/69e3a30129bb142d5eb73c0487771a3cc0e77960))
+- don't fail on attempt to clean up non existing files ([#216](https://github.com/mykso/myks/issues/216)) ([5a20896](https://github.com/mykso/myks/commit/5a208965dd2349c27ff4fc3eb0be040ca663be15))
 
 ## [3.2.1](https://github.com/mykso/myks/compare/v3.2.0...v3.2.1) (2024-01-10)
 
-
 ### Bug Fixes
 
-* decrease amount of git-related errors and warnings ([#208](https://github.com/mykso/myks/issues/208)) ([6635495](https://github.com/mykso/myks/commit/6635495f8f36c1f8c4ce2c5377e5eb8e88df499d))
+- decrease amount of git-related errors and warnings ([#208](https://github.com/mykso/myks/issues/208)) ([6635495](https://github.com/mykso/myks/commit/6635495f8f36c1f8c4ce2c5377e5eb8e88df499d))
 
 # [3.2.0](https://github.com/mykso/myks/compare/v3.1.0...v3.2.0) (2024-01-07)
 
-
 ### Bug Fixes
 
-* **deps:** update github.com/cppforlife/go-cli-ui digest to 9954948 ([#201](https://github.com/mykso/myks/issues/201)) ([9836249](https://github.com/mykso/myks/commit/98362499ffdca43a68e750b88df699837e1e99e4))
-* **deps:** update golang.org/x/exp digest to be819d1 ([#204](https://github.com/mykso/myks/issues/204)) ([9928ad1](https://github.com/mykso/myks/commit/9928ad108873b2359b2a7acfb984f6b8fa3e9132))
-* **deps:** update module golang.org/x/sync to v0.6.0 ([#205](https://github.com/mykso/myks/issues/205)) ([d3b8ea0](https://github.com/mykso/myks/commit/d3b8ea031edb4131f82da4fb7bc74bf321a5a4e5))
-* **deps:** update module golang.org/x/term to v0.16.0 ([#206](https://github.com/mykso/myks/issues/206)) ([002cfe0](https://github.com/mykso/myks/commit/002cfe0a2f197c184481d9b192a3addddcf7b2eb))
-* **sync:** allow local paths in vendir config ([#191](https://github.com/mykso/myks/issues/191)) ([73233eb](https://github.com/mykso/myks/commit/73233ebd7327e8c0ea8653362006e3db2102023f))
-
+- **deps:** update github.com/cppforlife/go-cli-ui digest to 9954948 ([#201](https://github.com/mykso/myks/issues/201)) ([9836249](https://github.com/mykso/myks/commit/98362499ffdca43a68e750b88df699837e1e99e4))
+- **deps:** update golang.org/x/exp digest to be819d1 ([#204](https://github.com/mykso/myks/issues/204)) ([9928ad1](https://github.com/mykso/myks/commit/9928ad108873b2359b2a7acfb984f6b8fa3e9132))
+- **deps:** update module golang.org/x/sync to v0.6.0 ([#205](https://github.com/mykso/myks/issues/205)) ([d3b8ea0](https://github.com/mykso/myks/commit/d3b8ea031edb4131f82da4fb7bc74bf321a5a4e5))
+- **deps:** update module golang.org/x/term to v0.16.0 ([#206](https://github.com/mykso/myks/issues/206)) ([002cfe0](https://github.com/mykso/myks/commit/002cfe0a2f197c184481d9b192a3addddcf7b2eb))
+- **sync:** allow local paths in vendir config ([#191](https://github.com/mykso/myks/issues/191)) ([73233eb](https://github.com/mykso/myks/commit/73233ebd7327e8c0ea8653362006e3db2102023f))
 
 ### Features
 
-* **cleanup:** added dedicated command ([#198](https://github.com/mykso/myks/issues/198)) ([48fa589](https://github.com/mykso/myks/commit/48fa589f94fb0129b58213bf1377cd6fa898acec)), closes [#130](https://github.com/mykso/myks/issues/130)
-* **vendir:** embed vendir into myks ([#199](https://github.com/mykso/myks/issues/199)) ([95ecfa8](https://github.com/mykso/myks/commit/95ecfa89ab625a31131579ed1866d62f4cb0ae58))
+- **cleanup:** added dedicated command ([#198](https://github.com/mykso/myks/issues/198)) ([48fa589](https://github.com/mykso/myks/commit/48fa589f94fb0129b58213bf1377cd6fa898acec)), closes [#130](https://github.com/mykso/myks/issues/130)
+- **vendir:** embed vendir into myks ([#199](https://github.com/mykso/myks/issues/199)) ([95ecfa8](https://github.com/mykso/myks/commit/95ecfa89ab625a31131579ed1866d62f4cb0ae58))
 
 # [3.1.0](https://github.com/mykso/myks/compare/v3.0.4...v3.1.0) (2023-12-29)
 
-
 ### Bug Fixes
 
-* **deps:** update golang.org/x/exp digest to 02704c9 ([#160](https://github.com/mykso/myks/issues/160)) ([e9fe05e](https://github.com/mykso/myks/commit/e9fe05eb9646d8452e1fd60c0e03216747af73d8))
-* **plugins:** improve logging ([#190](https://github.com/mykso/myks/issues/190)) ([ba31a3b](https://github.com/mykso/myks/commit/ba31a3bc4587feb5b07035768dd6bfd5d5718abd))
-* **smart_mode:** add static files directory ([#193](https://github.com/mykso/myks/issues/193)) ([3f52709](https://github.com/mykso/myks/commit/3f52709d3c10f5bff1317f2d6bbd1b851c77c4d9))
-
+- **deps:** update golang.org/x/exp digest to 02704c9 ([#160](https://github.com/mykso/myks/issues/160)) ([e9fe05e](https://github.com/mykso/myks/commit/e9fe05eb9646d8452e1fd60c0e03216747af73d8))
+- **plugins:** improve logging ([#190](https://github.com/mykso/myks/issues/190)) ([ba31a3b](https://github.com/mykso/myks/commit/ba31a3bc4587feb5b07035768dd6bfd5d5718abd))
+- **smart_mode:** add static files directory ([#193](https://github.com/mykso/myks/issues/193)) ([3f52709](https://github.com/mykso/myks/commit/3f52709d3c10f5bff1317f2d6bbd1b851c77c4d9))
 
 ### Features
 
-* Execute helm dependency build ([#154](https://github.com/mykso/myks/issues/154)) ([c2c0baa](https://github.com/mykso/myks/commit/c2c0baa26f2e3204d1e7f2da7264f44cfdbd1445)), closes [#146](https://github.com/mykso/myks/issues/146)
+- Execute helm dependency build ([#154](https://github.com/mykso/myks/issues/154)) ([c2c0baa](https://github.com/mykso/myks/commit/c2c0baa26f2e3204d1e7f2da7264f44cfdbd1445)), closes [#146](https://github.com/mykso/myks/issues/146)
 
 ## [3.0.4](https://github.com/mykso/myks/compare/v3.0.3...v3.0.4) (2023-12-26)
 
-
 ### Bug Fixes
 
-* **deps:** update module github.com/alecthomas/chroma to v2 ([#185](https://github.com/mykso/myks/issues/185)) ([dd2d579](https://github.com/mykso/myks/commit/dd2d5790fbf347825047853a2cd21c73bdd06ee5))
+- **deps:** update module github.com/alecthomas/chroma to v2 ([#185](https://github.com/mykso/myks/issues/185)) ([dd2d579](https://github.com/mykso/myks/commit/dd2d5790fbf347825047853a2cd21c73bdd06ee5))
 
 ## [3.0.3](https://github.com/mykso/myks/compare/v3.0.2...v3.0.3) (2023-12-25)
 
