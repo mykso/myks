@@ -12,6 +12,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// This string defines an overlay that prefixes paths of all vendir directories with the vendor directory name.
+// This makes the paths relative to the root directory, allowing to use other relative paths as sources for vendir.
 const vendorDirOverlayTemplate = `
 #@ load("@ytt:overlay", "overlay")
 #@overlay/match by=overlay.subset({"kind": "Config", "apiVersion": "vendir.k14s.io/v1alpha1"})
