@@ -1,3 +1,5 @@
+# Changelog
+
 ## [3.3.0](https://github.com/mykso/myks/compare/v3.2.2...v3.3.0) (2024-01-13)
 
 ### Features
