@@ -14,9 +14,13 @@ import (
 
 // This string defines an overlay that prefixes paths of all vendir directories with the vendor directory name.
 // This makes the paths relative to the root directory, allowing to use other relative paths as sources for vendir.
+//
+// Despite vendir disallows using multiple config files, by using `expects="1+"` we explicitly allow to have multiple
+// of them on the config generation step. In case there are multiple vendir configs, processing will fail on the vendir
+// sync step. This will provide a better error message for the user.
 const vendorDirOverlayTemplate = `
 #@ load("@ytt:overlay", "overlay")
-#@overlay/match by=overlay.subset({"kind": "Config", "apiVersion": "vendir.k14s.io/v1alpha1"})
+#@overlay/match by=overlay.subset({"kind": "Config", "apiVersion": "vendir.k14s.io/v1alpha1"}), expects="1+"
 ---
 directories:
   - #@overlay/match by=overlay.all, expects="1+"
