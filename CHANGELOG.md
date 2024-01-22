@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.3.1](https://github.com/mykso/myks/compare/v3.3.0...v3.3.1) (2024-01-22)
+
+
+### Bug Fixes
+
+* **deps:** update golang.org/x/exp digest to 1b97071 ([#221](https://github.com/mykso/myks/issues/221)) ([d1affb1](https://github.com/mykso/myks/commit/d1affb1aab507b30922f3c618d7133aa69489141))
+* **deps:** update module carvel.dev/vendir to v0.39.0 ([#225](https://github.com/mykso/myks/issues/225)) ([3a99a5d](https://github.com/mykso/myks/commit/3a99a5da407ee0f1fb992516e14f554b6079dc27))
+* **ui:** provide better error message on multiple vendir configs ([143cdf1](https://github.com/mykso/myks/commit/143cdf1d1eb80b65d1c0dc2bda75abc4f52c368b))
+
 ## [3.3.0](https://github.com/mykso/myks/compare/v3.2.2...v3.3.0) (2024-01-13)
 
 ### Features
