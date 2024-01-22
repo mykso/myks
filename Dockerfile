@@ -23,7 +23,7 @@ FROM downloader AS vendir
 ARG TARGETOS
 ARG TARGETARCH
 # renovate: datasource=github-releases depName=carvel-dev/vendir
-ARG VENDIR_VERSION=v0.38.0
+ARG VENDIR_VERSION=v0.39.0
 RUN curl -fsSL \
       https://github.com/carvel-dev/vendir/releases/download/${VENDIR_VERSION}/vendir-${TARGETOS}-${TARGETARCH} \
     > vendir
