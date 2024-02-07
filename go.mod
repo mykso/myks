@@ -12,7 +12,7 @@ require (
 	github.com/rs/zerolog v1.32.0
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/viper v1.18.2
-	golang.org/x/exp v0.0.0-20240119083558-1b970713d09a
+	golang.org/x/exp v0.0.0-20240205201215-2c58cdc269a3
 	golang.org/x/sync v0.6.0
 	golang.org/x/term v0.16.0
 	gopkg.in/yaml.v3 v3.0.1
