@@ -17,6 +17,7 @@ var allCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		RunAllCmd()
 	},
+	ValidArgsFunction: shellCompletion,
 }
 
 func RunAllCmd() {

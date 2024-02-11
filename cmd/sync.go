@@ -1,10 +1,9 @@
 package cmd
 
 import (
+	"github.com/mykso/myks/internal/myks"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-
-	"github.com/mykso/myks/internal/myks"
 )
 
 func newSyncCmd() *cobra.Command {
@@ -35,6 +34,7 @@ For example, if you reference a secret named "mycreds" in your vendir.yaml, you 
 				log.Fatal().Err(err).Msg("Unable to sync vendir configs")
 			}
 		},
+		ValidArgsFunction: shellCompletion,
 	}
 
 	return cmd
