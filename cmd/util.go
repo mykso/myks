@@ -1,10 +1,12 @@
 package cmd
 
 import (
-	"github.com/mykso/myks/internal/myks"
-	"github.com/spf13/cobra"
 	"path/filepath"
 	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/mykso/myks/internal/myks"
 )
 
 // shellCompletion provides shell completion for envs and apps selection
@@ -13,7 +15,10 @@ func shellCompletion(cmd *cobra.Command, args []string, toComplete string) ([]st
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
 	tmp := myks.New(".")
-	tmp.Init(asyncLevel, make(map[string][]string, 0))
+	err := tmp.Init(asyncLevel, make(map[string][]string, 0))
+	if err != nil {
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	}
 	// return envs
 	if len(args) == 0 {
 		return getEnvNames(tmp), cobra.ShellCompDirectiveNoFileComp
