@@ -412,7 +412,7 @@ func (g *Globe) AddBaseDirToEnvAppMap(envSearchPathToAppMap EnvAppMap) EnvAppMap
 }
 
 func (g *Globe) AddBaseDirToEnvPath(envName string) string {
-	if strings.HasPrefix(envName, g.EnvironmentBaseDir+filepath.Separator) {
+	if strings.HasPrefix(envName, g.EnvironmentBaseDir+string(filepath.Separator)) {
 		return envName
 	}
 	return filepath.Join(g.EnvironmentBaseDir, envName)
