@@ -35,6 +35,7 @@ For example, if you reference a secret named "mycreds" in your vendir.yaml, you 
 				log.Fatal().Err(err).Msg("Unable to sync vendir configs")
 			}
 		},
+		ValidArgsFunction: shellCompletion,
 	}
 
 	return cmd

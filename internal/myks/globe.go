@@ -190,7 +190,7 @@ func (g *Globe) ValidateRootDir() error {
 }
 
 func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
-	envAppMap := g.collectEnvironments(envSearchPathToAppMap)
+	envAppMap := g.collectEnvironments(g.AddBaseDirToEnvAppMap(envSearchPathToAppMap))
 
 	return process(asyncLevel, maps.Keys(envAppMap), func(item interface{}) error {
 		envPath, ok := item.(string)
@@ -372,7 +372,7 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 	return result
 }
 
-func (g Globe) isEnvPath(path string) bool {
+func (g *Globe) isEnvPath(path string) bool {
 	for envPath := range g.environments {
 		if strings.HasPrefix(envPath, path) {
 			return true
@@ -397,4 +397,23 @@ func (g *Globe) getSyncTools() []SyncTool {
 		&HelmSyncer{ident: "helm"},
 	}
 	return syncTools
+}
+
+func (g *Globe) GetEnvs() map[string]*Environment {
+	return g.environments
+}
+
+func (g *Globe) AddBaseDirToEnvAppMap(envSearchPathToAppMap EnvAppMap) EnvAppMap {
+	envAppMap := EnvAppMap{}
+	for envPath, val := range envSearchPathToAppMap {
+		envAppMap[g.AddBaseDirToEnvPath(envPath)] = val
+	}
+	return envAppMap
+}
+
+func (g *Globe) AddBaseDirToEnvPath(envName string) string {
+	if strings.HasPrefix(envName, g.EnvironmentBaseDir+string(filepath.Separator)) {
+		return envName
+	}
+	return filepath.Join(g.EnvironmentBaseDir, envName)
 }

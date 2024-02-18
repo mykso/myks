@@ -36,4 +36,5 @@ var renderCmd = &cobra.Command{
 			}
 		}
 	},
+	ValidArgsFunction: shellCompletion,
 }

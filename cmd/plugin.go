@@ -79,5 +79,6 @@ func newPluginCmd(plugin myks.Plugin) *cobra.Command {
 
 			return nil
 		},
+		ValidArgsFunction: shellCompletion,
 	}
 }

@@ -387,3 +387,11 @@ func (e *Environment) yttS(purpose string, paths []string, stdin io.Reader, args
 		}
 	}, args...)
 }
+
+func (e *Environment) GetApplicationNames() []string {
+	var appNames []string
+	for _, app := range e.Applications {
+		appNames = append(appNames, app.Name)
+	}
+	return appNames
+}
