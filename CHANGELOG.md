@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.4.0](https://github.com/mykso/myks/compare/v3.3.1...v3.4.0) (2024-02-18)
+
+
+### Features
+
+* **ui:** shell completion for envs and apps ([#240](https://github.com/mykso/myks/issues/240)) ([ef03b96](https://github.com/mykso/myks/commit/ef03b965bb4d7924ab5dc8ce45e0e92423fe0aae))
+
+
+### Bug Fixes
+
+* **deps:** update golang.org/x/exp digest to 2c58cdc ([#233](https://github.com/mykso/myks/issues/233)) ([e9c329a](https://github.com/mykso/myks/commit/e9c329a49a0f28c4e8d607d20f629d256a3e01c9))
+* **deps:** update golang.org/x/exp digest to ec58324 ([#241](https://github.com/mykso/myks/issues/241)) ([c017fc5](https://github.com/mykso/myks/commit/c017fc5ff47ed9cb4ad189e83cc425c78db829ad))
+* **deps:** update module github.com/rs/zerolog to v1.32.0 ([#232](https://github.com/mykso/myks/issues/232)) ([b0e0822](https://github.com/mykso/myks/commit/b0e08229818344d66a5ec524f00b036f3d0cf07d))
+* **deps:** update module golang.org/x/term to v0.17.0 ([#237](https://github.com/mykso/myks/issues/237)) ([33ad190](https://github.com/mykso/myks/commit/33ad190dd0e13aa5f97ecf97caad179a14246275))
+
 ## [3.3.1](https://github.com/mykso/myks/compare/v3.3.0...v3.3.1) (2024-01-22)
 
 
