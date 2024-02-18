@@ -17,7 +17,7 @@ func shellCompletion(cmd *cobra.Command, args []string, toComplete string) ([]st
 	tmp := myks.New(".")
 	err := tmp.Init(asyncLevel, map[string][]string{})
 	if err != nil {
-		return nil, cobra.ShellCompDirectiveNoFileComp
+		return nil, cobra.ShellCompDirectiveError
 	}
 	// return envs
 	if len(args) == 0 {
