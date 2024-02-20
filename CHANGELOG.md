@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.4.1](https://github.com/mykso/myks/compare/v3.4.0...v3.4.1) (2024-02-20)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.40.0 ([#244](https://github.com/mykso/myks/issues/244)) ([5ab69b4](https://github.com/mykso/myks/commit/5ab69b49e156c8f9bcae7f9d0375b3b27163b606))
+
 ## [3.4.0](https://github.com/mykso/myks/compare/v3.3.1...v3.4.0) (2024-02-18)
 
 
