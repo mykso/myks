@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.4.2](https://github.com/mykso/myks/compare/v3.4.1...v3.4.2) (2024-03-13)
+
+
+### Bug Fixes
+
+* **deps:** update golang.org/x/exp digest to 814bf88 ([#247](https://github.com/mykso/myks/issues/247)) ([01a68ce](https://github.com/mykso/myks/commit/01a68ce71b554a3965c9cfd6bb361c454c2bea70))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.13.0 ([#250](https://github.com/mykso/myks/issues/250)) ([305a16d](https://github.com/mykso/myks/commit/305a16d2e1e591786e510e3a7974394f3db471f8))
+* **deps:** update module golang.org/x/term to v0.18.0 ([#249](https://github.com/mykso/myks/issues/249)) ([8043b46](https://github.com/mykso/myks/commit/8043b4651b90e3d13e385724a9a3d14e344e44ce))
+
 ## [3.4.1](https://github.com/mykso/myks/compare/v3.4.0...v3.4.1) (2024-02-20)
 
 
