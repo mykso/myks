@@ -22,7 +22,6 @@ func (hr *HelmSyncer) GenerateSecrets(_ *Globe) (string, error) {
 }
 
 func (hr *HelmSyncer) Sync(a *Application, _ string) error {
-
 	vendirConfigPath := a.expandServicePath(a.e.g.VendirPatchedConfigFileName)
 	// read vendir config
 	vendirConfig, err := unmarshalYamlToMap(vendirConfigPath)
@@ -32,7 +31,7 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 
 	for _, dir := range vendirConfig["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
-		var config = make(map[string]interface{})
+		config := make(map[string]interface{})
 		dirPath := dirMap["path"].(string)
 		config["path"] = dirPath
 		for _, content := range dirMap["contents"].([]interface{}) {
@@ -58,7 +57,6 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 			}
 
 			chartDirs, err := getSubDirs(chartDir)
-
 			if err != nil {
 				log.Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm charts sub dirs"))
 				return err

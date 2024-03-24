@@ -23,7 +23,6 @@ func (y *Ytt) Ident() string {
 }
 
 func (y *Ytt) Render(previousStepFile string) (string, error) {
-
 	var yttFiles []string
 
 	// add environment, prototype, and application data files
@@ -47,7 +46,7 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 	if len(vendirConfig) > 0 {
 		for _, dir := range vendirConfig["directories"].([]interface{}) {
 			dirMap := dir.(map[string]interface{})
-			var config = make(map[string]interface{})
+			config := make(map[string]interface{})
 			dirPath := dirMap["path"].(string)
 			config["path"] = dirPath
 			for _, content := range dirMap["contents"].([]interface{}) {

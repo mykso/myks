@@ -24,7 +24,6 @@ func (h *Helm) Ident() string {
 }
 
 func (h *Helm) Render(_ string) (string, error) {
-
 	log.Debug().Msg(h.app.Msg(h.getStepName(), "Starting"))
 	vendirConfigPath := h.app.expandServicePath(h.app.e.g.VendirPatchedConfigFileName)
 	// read vendir config
@@ -35,7 +34,7 @@ func (h *Helm) Render(_ string) (string, error) {
 	var outputs []string
 	for _, dir := range vendirConfig["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
-		var config = make(map[string]interface{})
+		config := make(map[string]interface{})
 		dirPath := dirMap["path"].(string)
 		config["path"] = dirPath
 		for _, content := range dirMap["contents"].([]interface{}) {
@@ -62,7 +61,6 @@ func (h *Helm) Render(_ string) (string, error) {
 			}
 
 			chartDirs, err := getSubDirs(chartDir)
-
 			if err != nil {
 				log.Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to get helm charts sub dirs"))
 				return "", err

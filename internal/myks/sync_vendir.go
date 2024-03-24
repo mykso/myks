@@ -52,7 +52,6 @@ func (v *VendirSyncer) Sync(a *Application, vendirSecrets string) error {
 
 // creates vendir yaml file
 func (v *VendirSyncer) prepareSync(a *Application) error {
-
 	// Collect ytt arguments following the following steps:
 	// 1. If exists, use the `apps/<prototype>/vendir` directory.
 	// 2. If exists, for every level of environments use `<env>/_apps/<app>/vendir` directory.
@@ -101,7 +100,6 @@ func (v *VendirSyncer) prepareSync(a *Application) error {
 }
 
 func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
-
 	vendirConfigPath := a.expandServicePath(a.e.g.VendirConfigFileName)
 	vendirPatchedConfigPath := a.expandServicePath(a.e.g.VendirPatchedConfigFileName)
 	vendirLockFilePath := a.expandServicePath(a.e.g.VendirLockFileName)
@@ -143,12 +141,11 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		}
 	}
 	return nil
-	//vendorDir := a.expandVendirCache(a.e.g.VendorDirName)
-	//return v.cleanupVendorDir(a, vendorDir, vendirConfigPath)
+	// vendorDir := a.expandVendirCache(a.e.g.VendorDirName)
+	// return v.cleanupVendorDir(a, vendorDir, vendirConfigPath)
 }
 
 func (v *VendirSyncer) runVendirSync(a *Application, vendirConfigPath, vendirConfigDirPath, vendirLock, vendirSecrets string) error {
-
 	// TODO sync retry - maybe as vendir MR
 	args := []string{
 		"vendir",
