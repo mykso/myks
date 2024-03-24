@@ -162,8 +162,8 @@ func genRenderedResourceFileName(resource map[string]interface{}, includeNamespa
 	return fmt.Sprintf("%s-%s_%s.yaml", strings.ToLower(kind), strings.ToLower(name), strings.ToLower(namespace)), nil
 }
 
-func (a *Application) getVendoredDir(dirname string) (string, error) {
-	resourceDir := a.expandPath(filepath.Join(a.e.g.VendorDirName, dirname))
+func (a *Application) getVendirConfigDir() (string, error) {
+	resourceDir := a.expandServicePath("")
 	if ok, err := isExist(resourceDir); err != nil {
 		return "", err
 	} else if ok {

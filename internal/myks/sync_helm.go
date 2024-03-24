@@ -22,43 +22,71 @@ func (hr *HelmSyncer) GenerateSecrets(_ *Globe) (string, error) {
 }
 
 func (hr *HelmSyncer) Sync(a *Application, _ string) error {
-	log.Debug().Msg(a.Msg(hr.getStepName(), "Starting"))
-	chartDir, err := a.getVendoredDir(a.e.g.HelmChartsDirName)
-	if err != nil {
-		log.Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm charts dir"))
+
+	vendirConfigPath := a.expandServicePath(a.e.g.VendirPatchedConfigFileName)
+	// read vendir config
+	vendirConfig, err := unmarshalYamlToMap(vendirConfigPath)
+	if len(vendirConfig) == 0 || err != nil {
 		return err
 	}
 
-	if chartDir == "" {
-		log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
-		return nil
-	}
+	for _, dir := range vendirConfig["directories"].([]interface{}) {
+		dirMap := dir.(map[string]interface{})
+		var config = make(map[string]interface{})
+		dirPath := dirMap["path"].(string)
+		config["path"] = dirPath
+		for _, content := range dirMap["contents"].([]interface{}) {
+			contentMap := content.(map[string]interface{})
+			path := filepath.Join(dirPath, contentMap["path"].(string))
 
-	chartDirs, err := getSubDirs(chartDir)
-	if err != nil {
-		log.Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm charts sub dirs"))
-		return err
-	}
-	if len(chartDirs) == 0 {
-		log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
-		return nil
-	}
+			// locate charts subpath in path
+			chartDir, found := findSubPath(path, a.e.g.HelmChartsDirName)
+			if !found {
+				log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
+				continue
+			}
 
-	helmConfig, err := hr.getHelmConfig(a)
-	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm config"))
-		return err
-	}
-
-	for _, chartDir := range chartDirs {
-		if helmConfig.BuildDependencies {
-			err = hr.helmBuild(a, chartDir)
+			exists, err := isExist(chartDir)
 			if err != nil {
+				log.Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm charts dir"))
 				return err
 			}
+
+			if !exists {
+				log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
+				continue
+			}
+
+			chartDirs, err := getSubDirs(chartDir)
+
+			if err != nil {
+				log.Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm charts sub dirs"))
+				return err
+			}
+
+			if len(chartDirs) == 0 {
+				log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
+				return nil
+			}
+
+			helmConfig, err := hr.getHelmConfig(a)
+			if err != nil {
+				log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm config"))
+				return err
+			}
+
+			for _, chartDir := range chartDirs {
+				if helmConfig.BuildDependencies {
+					err = hr.helmBuild(a, chartDir)
+					if err != nil {
+						return err
+					}
+				}
+			}
+			log.Info().Msg(a.Msg(hr.getStepName(), "Synced"))
+			return nil
 		}
 	}
-	log.Info().Msg(a.Msg(hr.getStepName(), "Synced"))
 	return nil
 }
 

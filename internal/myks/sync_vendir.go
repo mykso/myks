@@ -36,7 +36,6 @@ func (v *VendirSyncer) Ident() string {
 }
 
 func (v *VendirSyncer) Sync(a *Application, vendirSecrets string) error {
-	log.Debug().Msg(a.Msg(v.getStepName(), "Starting"))
 	if err := v.prepareSync(a); err != nil {
 		if err == ErrNoVendirConfig {
 			log.Info().Msg(a.Msg(v.getStepName(), "No vendir config found"))
@@ -51,7 +50,9 @@ func (v *VendirSyncer) Sync(a *Application, vendirSecrets string) error {
 	return nil
 }
 
+// creates vendir yaml file
 func (v *VendirSyncer) prepareSync(a *Application) error {
+
 	// Collect ytt arguments following the following steps:
 	// 1. If exists, use the `apps/<prototype>/vendir` directory.
 	// 2. If exists, for every level of environments use `<env>/_apps/<app>/vendir` directory.
@@ -72,9 +73,8 @@ func (v *VendirSyncer) prepareSync(a *Application) error {
 		return ErrNoVendirConfig
 	}
 
-	vendorDir := a.expandPath(a.e.g.VendorDirName)
-	overlayReader := strings.NewReader(fmt.Sprintf(vendorDirOverlayTemplate, vendorDir))
-	vendirConfig, err := a.yttS(v.getStepName(), "creating vendir config", yttFiles, overlayReader)
+	// create vendir config yaml
+	vendirConfig, err := a.yttS(v.getStepName(), "creating vendir config", yttFiles, nil)
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func (v *VendirSyncer) prepareSync(a *Application) error {
 
 	vendirConfigFilePath := a.expandServicePath(a.e.g.VendirConfigFileName)
 	// Create directory if it does not exist
-	err = os.MkdirAll(filepath.Dir(vendirConfigFilePath), 0o750)
+	err = createDirectory(filepath.Dir(vendirConfigFilePath))
 	if err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to create directory for vendir config file"))
 		return err
@@ -101,25 +101,62 @@ func (v *VendirSyncer) prepareSync(a *Application) error {
 }
 
 func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
+
 	vendirConfigPath := a.expandServicePath(a.e.g.VendirConfigFileName)
+	vendirPatchedConfigPath := a.expandServicePath(a.e.g.VendirPatchedConfigFileName)
 	vendirLockFilePath := a.expandServicePath(a.e.g.VendirLockFileName)
 
-	// TODO sync retry
-	if err := v.runVendirSync(a, vendirConfigPath, vendirLockFilePath, vendirSecrets); err != nil {
-		log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
+	// read vendir config
+	vendirConfig, err := unmarshalYamlToMap(vendirConfigPath)
+	if err != nil {
 		return err
 	}
 
-	vendorDir := a.expandPath(a.e.g.VendorDirName)
-	return v.cleanupVendorDir(a, vendorDir, vendirConfigPath)
+	for _, dir := range vendirConfig["directories"].([]interface{}) {
+		dirMap := dir.(map[string]interface{})
+		dirPath := dirMap["path"].(string)
+		for _, content := range dirMap["contents"].([]interface{}) {
+			contentMap := content.(map[string]interface{})
+			yaml, err := sortYaml(contentMap)
+			if err != nil {
+				return err
+			}
+			configDigest := hashString(yaml)
+			path := filepath.Join(dirPath, contentMap["path"].(string))
+			outputPath := a.expandVendirCache(fmt.Sprintf("%s-%s", filepath.Base(path), configDigest))
+			if exists, _ := isExist(outputPath); !exists {
+				overlayReader := strings.NewReader(fmt.Sprintf(vendorDirOverlayTemplate, outputPath))
+				yttFiles := []string{vendirConfigPath}
+				vendirConfig, err := a.yttS(v.getStepName(), "creating final vendir config", yttFiles, overlayReader)
+				if err != nil {
+					return err
+				}
+				writeFile(vendirPatchedConfigPath, []byte(vendirConfig.Stdout))
+				if err := v.runVendirSync(a, vendirPatchedConfigPath, filepath.Join(outputPath, path), vendirLockFilePath, vendirSecrets); err != nil {
+					log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
+					removeDirectory(outputPath)
+					return err
+				}
+			} else {
+				log.Info().Msg(a.Msg(v.getStepName(), "Skipping vendir sync, cache exists"))
+			}
+		}
+	}
+	return nil
+	//vendorDir := a.expandVendirCache(a.e.g.VendorDirName)
+	//return v.cleanupVendorDir(a, vendorDir, vendirConfigPath)
 }
 
-func (v *VendirSyncer) runVendirSync(a *Application, vendirConfig, vendirLock, vendirSecrets string) error {
+func (v *VendirSyncer) runVendirSync(a *Application, vendirConfigPath, vendirConfigDirPath, vendirLock, vendirSecrets string) error {
+
+	// TODO sync retry - maybe as vendir MR
 	args := []string{
 		"vendir",
 		"sync",
-		"--file=" + vendirConfig,
+		"--file=" + vendirConfigPath,
 		"--lock-file=" + vendirLock,
+		"--lazy=false", // we are introducing our own caching mechanism here, therefore lazy syncing is never required
+		"--directory=" + vendirConfigDirPath,
 		"--file=-",
 	}
 	_, err := a.runCmd(v.getStepName(), "vendir sync", "myks", strings.NewReader(vendirSecrets), args)
