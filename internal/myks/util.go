@@ -191,7 +191,16 @@ func sortYaml(yaml map[string]interface{}) (string, error) {
 
 func hashString(s string) string {
 	hash := sha256.Sum256([]byte(s))
-	return hex.EncodeToString(hash[:])
+	return hex.EncodeToString(hash[:])[:16] // hash is shortened a little to make it more readable while maintaining a decent level of uniqueness
+}
+
+func removeDirectory(dir string) error {
+	err := os.RemoveAll(dir)
+	if err != nil {
+		log.Error().Err(err).Str("dir", dir).Msg("Unable to remove directory")
+		return err
+	}
+	return nil
 }
 
 func createDirectory(dir string) error {
@@ -245,6 +254,14 @@ func getSubDirs(dir string) (subDirs []string, err error) {
 	}
 
 	return
+}
+
+func findSubPath(path, subPath string) (string, bool) {
+	index := strings.Index(path, subPath)
+	if index == -1 {
+		return "", false
+	}
+	return path[:index+len(subPath)], true
 }
 
 func runCmd(name string, stdin io.Reader, args []string, logFn func(name string, err error, stderr string, args []string)) (CmdResult, error) {

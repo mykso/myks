@@ -15,7 +15,7 @@ type SyncTool interface {
 func (a *Application) Sync(syncTool SyncTool, secrets string) error {
 	err := syncTool.Sync(a, secrets)
 	if err != nil {
-		log.Error().Err(err).Msg(a.Msg(syncTool.Ident(), "Failed during syn "))
+		log.Error().Err(err).Msg(a.Msg(syncTool.Ident(), "Failed during sync"))
 		return err
 	}
 	return nil

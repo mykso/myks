@@ -36,11 +36,35 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 
 	// we might have vendored some yamls or json files that we want to transform during this step
 	// therefore, add them as well
-	vendorYttDir := y.app.expandPath(filepath.Join(y.app.e.g.VendorDirName, y.app.e.g.YttStepDirName))
-	if ok, err := isExist(vendorYttDir); err != nil {
+	vendirConfigPath := y.app.expandServicePath(y.app.e.g.VendirPatchedConfigFileName)
+	// read vendir config
+	vendirConfig, err := unmarshalYamlToMap(vendirConfigPath)
+	if err != nil {
 		return "", err
-	} else if ok {
-		yttFiles = append(yttFiles, vendorYttDir)
+	}
+	// if vendir config exists
+	if len(vendirConfig) > 0 {
+		for _, dir := range vendirConfig["directories"].([]interface{}) {
+			dirMap := dir.(map[string]interface{})
+			config := make(map[string]interface{})
+			dirPath := dirMap["path"].(string)
+			config["path"] = dirPath
+			for _, content := range dirMap["contents"].([]interface{}) {
+				contentMap := content.(map[string]interface{})
+				path := filepath.Join(dirPath, contentMap["path"].(string))
+				vendorYttDir, found := findSubPath(path, y.app.e.g.YttStepDirName)
+				if !found {
+					log.Debug().Msg(y.app.Msg(y.getStepName(), "No YTT dir found"))
+					continue
+				}
+				if ok, err := isExist(vendorYttDir); err != nil {
+					log.Warn().Msg(y.app.Msg(y.getStepName(), "Vendored YTT dir expected, but not found: "+vendirConfigPath))
+					return "", err
+				} else if ok {
+					yttFiles = append(yttFiles, vendorYttDir)
+				}
+			}
+		}
 	}
 
 	// we obviously want to add the ytt files from the prototype dir

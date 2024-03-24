@@ -21,6 +21,8 @@ const GlobalExtendedLogFormat = "\033[1m[global > %s > %s]\033[0m %s"
 // Define the main structure
 // Globe configuration
 type Globe struct {
+	// Global vendir cache dir
+	VendirCache string `default:".vendor"`
 	// Project root directory
 	RootDir string `default:"."`
 	// Base directory for environments
@@ -57,7 +59,8 @@ type Globe struct {
 	TempDirName string `default:"tmp"`
 
 	// Rendered vendir config file name
-	VendirConfigFileName string `default:"vendir.yaml"`
+	VendirConfigFileName        string `default:"vendir.yaml"`
+	VendirPatchedConfigFileName string `default:"vendir-patched.yaml"`
 	// Rendered vendir lock file name
 	VendirLockFileName string `default:"vendir.lock.yaml"`
 	// Prefix for vendir secret environment variables
@@ -412,7 +415,7 @@ func (g *Globe) AddBaseDirToEnvAppMap(envSearchPathToAppMap EnvAppMap) EnvAppMap
 }
 
 func (g *Globe) AddBaseDirToEnvPath(envName string) string {
-	if strings.HasPrefix(envName, g.EnvironmentBaseDir+string(filepath.Separator)) {
+	if strings.HasPrefix(envName, g.EnvironmentBaseDir+string(filepath.Separator)) || envName == g.EnvironmentBaseDir {
 		return envName
 	}
 	return filepath.Join(g.EnvironmentBaseDir, envName)
