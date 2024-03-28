@@ -3,9 +3,10 @@
 This repository was created using `myks init`.
 
 Included are two prototypes:
-- Argocd: using  the prerendered`manifests/ha/install.yaml` from argoCD github repo
+
+- Argocd: using the prerendered`manifests/ha/install.yaml` from argoCD github repo
 - httpbingo: helm chart of small demo application
-and one environment (envs/mykso/dev).
+  and one environment (envs/mykso/dev).
 
 ## features
 
@@ -21,13 +22,15 @@ ArgoCD is installed to the cluster from a plain manifest. The manifest is change
 
 ### general overlays
 
-Overlays defined on root envs/_env folder are applied to all environments.
+Overlays defined on root envs/\_env folder are applied to all environments.
 Overlays can happen on every level:
+
 - root (`envs`)
 - group level (e.g. `envs/mykso/`)
 - environment specific (`envs/mykso/dev`)
 
 Example overlays:
+
 - `envs/_env/argocd/annotations.overlay.ytt.yaml`: Overlay to apply to all argoCD resources. Adds annotations.
 - `envs/_env/argocd/secret.overlay.ytt.yaml`: Extend the argoCD cluster definition (server URL and connect config)
 - `envs/_env/ytt/common.ytt.yaml`: Overlay applied on all kubernetes resources
