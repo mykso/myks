@@ -26,6 +26,16 @@ The processing scope goes from the smallest (nothing) to the largest
 a particular environment is selected for processing, all applications of that
 environment will be processed, no matter if they have changed or not.
 
+You can see the scope of processing using the `--smart-mode.only-print` flag:
+
+```console
+$ myks all --smart-mode.only-print
+
+Smart Mode detected:
+→ envs/alpha
+    traefik
+```
+
 ### Nothing to process
 
 If there are no changes that would have an impact on the rendered output of your
