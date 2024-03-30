@@ -2,12 +2,12 @@ apiVersion: v1
 kind: Service
 metadata:
   labels:
-    app.kubernetes.io/instance: httpbingo
+    app.kubernetes.io/instance: httpbingo-internal
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: httpbingo
     app.kubernetes.io/version: v2.2.2
-    helm.sh/chart: httpbingo-0.1.1
-  name: httpbingo
+    helm.sh/chart: httpbingo-0.1.0
+  name: httpbingo-internal
 spec:
   ports:
     - name: http
@@ -15,6 +15,6 @@ spec:
       protocol: TCP
       targetPort: http
   selector:
-    app.kubernetes.io/instance: httpbingo
+    app.kubernetes.io/instance: httpbingo-internal
     app.kubernetes.io/name: httpbingo
   type: ClusterIP

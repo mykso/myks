@@ -2,22 +2,22 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   labels:
-    app.kubernetes.io/instance: httpbingo
+    app.kubernetes.io/instance: httpbingo-internal
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: httpbingo
     app.kubernetes.io/version: v2.2.2
-    helm.sh/chart: httpbingo-0.1.1
-  name: httpbingo
+    helm.sh/chart: httpbingo-0.1.0
+  name: httpbingo-internal
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
-      app.kubernetes.io/instance: httpbingo
+      app.kubernetes.io/instance: httpbingo-internal
       app.kubernetes.io/name: httpbingo
   template:
     metadata:
       labels:
-        app.kubernetes.io/instance: httpbingo
+        app.kubernetes.io/instance: httpbingo-internal
         app.kubernetes.io/name: httpbingo
     spec:
       containers:
@@ -47,4 +47,4 @@ spec:
             runAsNonRoot: true
             runAsUser: 1000
       securityContext: {}
-      serviceAccountName: httpbingo
+      serviceAccountName: httpbingo-internal
