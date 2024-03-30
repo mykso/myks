@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  annotations:
+    a8r.io/repository: git@github.com:mykso/myks.git
+  labels:
+    app.kubernetes.io/instance: goldpinger
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: goldpinger
+    app.kubernetes.io/version: 3.9.0
+    helm.sh/chart: goldpinger-6.1.2
+  name: goldpinger
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: goldpinger
+      app.kubernetes.io/name: goldpinger
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: goldpinger
+        app.kubernetes.io/name: goldpinger
+    spec:
+      containers:
+        - env:
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: HOST
+              value: 0.0.0.0
+            - name: PORT
+              value: "8080"
+            - name: LABEL_SELECTOR
+              value: app.kubernetes.io/name=goldpinger
+          image: bloomberg/goldpinger:3.9.0
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          name: goldpinger-daemon
+          ports:
+            - containerPort: 8080
+              name: http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          resources: {}
+          volumeMounts:
+            - mountPath: /config
+              name: zap
+      priorityClassName: null
+      serviceAccountName: goldpinger
+      volumes:
+        - configMap:
+            name: goldpinger-zap
+          name: zap

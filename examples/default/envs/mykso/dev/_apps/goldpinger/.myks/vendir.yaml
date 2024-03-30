@@ -1,0 +1,20 @@
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+- path: envs/mykso/dev/_apps/goldpinger/vendor/charts/goldpinger
+  contents:
+  - path: .
+    helmChart:
+      name: goldpinger
+      version: 6.1.2
+      repository:
+        url: https://okgolove.github.io/helm-charts/
+- path: envs/mykso/dev/_apps/goldpinger/vendor/ytt/grafana-dashboards
+  contents:
+  - path: .
+    git:
+      url: https://github.com/bloomberg/goldpinger
+      ref: v3.9.0
+    newRootPath: extras
+    includePaths:
+    - extras/goldpinger-dashboard.json

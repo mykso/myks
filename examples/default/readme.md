@@ -72,6 +72,12 @@ The replicaCount is overwritten for the dev cluster (`envs/mykso/dev/_apps/httpb
 │   │   └── ytt
 │   │       ├── 'argocd-vault-plugin.ytt.yaml' # extend installation: add annotation and enable vault plugin
 │   │       └── 'ns.ytt.yaml' # create namespace resource for argoCD
+│   ├── goldpinger
+│   │   ├── helm
+│   │   │   └── 'goldpinger.yaml' # helm default values for this prototype
+│   │   ├── vendir # 2 vendir source definitions of helm chart AND grafana dashboards
+│   │   └── ytt
+│   │       └── 'grafana_dashboards.yaml' # load grafana dashboards (.json) into configmap
 │   └── httpbingo
 │       ├── helm
 │       │   └── 'httpbingo.yaml' # helm default values for this prototype
@@ -85,5 +91,6 @@ The replicaCount is overwritten for the dev cluster (`envs/mykso/dev/_apps/httpb
     └── envs
         └── mykso-dev
             ├── argocd # rendered manifests argocd
+            ├── goldpinger # rendered manifests goldpinger
             └── httpbingo # rendered manifests htttpbingo
 ```
