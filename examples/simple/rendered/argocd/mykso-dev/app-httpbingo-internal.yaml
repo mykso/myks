@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: mykso-dev-httpbingo
+  name: mykso-dev-httpbingo-internal
   namespace: argocd
   finalizers:
   - resources-finalizer.argocd.argoproj.io
@@ -9,9 +9,9 @@ spec:
   project: mykso-dev
   destination:
     name: mykso-dev
-    namespace: httpbingo
+    namespace: httpbingo-internal
   source:
-    path: examples/simple/rendered/envs/mykso-dev/httpbingo
+    path: examples/simple/rendered/envs/mykso-dev/httpbingo-internal
     plugin: null
     repoURL: git@github.com:mykso/myks.git
     targetRevision: main

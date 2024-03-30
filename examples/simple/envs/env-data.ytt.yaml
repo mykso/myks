@@ -11,6 +11,7 @@ environment:
   #! enable httpbingo app for all environments
   applications:
     - proto: httpbingo
+      name: httpbingo-internal
 
 argocd:
   app:

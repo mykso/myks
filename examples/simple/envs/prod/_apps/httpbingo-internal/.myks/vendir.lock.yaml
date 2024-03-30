@@ -3,7 +3,7 @@ directories:
 - contents:
   - helmChart:
       appVersion: v2.2.2
-      version: 0.1.1
+      version: 0.1.0
     path: .
-  path: envs/dev/_apps/httpbingo/vendor/charts/httpbingo
+  path: envs/prod/_apps/httpbingo-internal/vendor/charts/httpbingo
 kind: LockConfig
