@@ -82,11 +82,10 @@ func (h *Helm) Render(_ string) (string, error) {
 			return "", err
 		}
 
-		// FIXME: replace h.app.Name with a name of the chart being processed
 		helmArgs := []string{
 			"template",
 			"--skip-tests",
-			chartName,
+			h.app.Name,
 			chartDir,
 		}
 
