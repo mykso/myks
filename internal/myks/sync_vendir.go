@@ -129,7 +129,10 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 			if err != nil {
 				return err
 			}
-			writeFile(vendirPatchedConfigPath, []byte(vendirConfig.Stdout))
+			err = writeFile(vendirPatchedConfigPath, []byte(vendirConfig.Stdout))
+			if err != nil {
+				return err
+			}
 			// if vendir cache does not exist, sync vendir
 			if exists, _ := isExist(outputPath); !exists {
 				if err := v.runVendirSync(a, vendirPatchedConfigPath, filepath.Join(outputPath, path), vendirLockFilePath, vendirSecrets); err != nil {
@@ -212,7 +215,10 @@ func (v VendirSyncer) cleanupVendorDir(a *Application, vendorDir, vendirConfigFi
 			}
 		}
 		log.Debug().Msg(a.Msg(v.getStepName(), "Removing directory "+path))
-		os.RemoveAll(path)
+		err = os.RemoveAll(path)
+		if err != nil {
+			return err
+		}
 
 		return fs.SkipDir
 	})

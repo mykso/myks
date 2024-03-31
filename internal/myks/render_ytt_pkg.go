@@ -104,7 +104,6 @@ func (y *YttPkg) Render(_ string) (string, error) {
 	log.Info().Msg(y.app.Msg(y.getStepName(), "Ytt package rendered"))
 
 	return strings.Join(outputs, "---\n"), nil
-	return "", nil
 }
 
 func (h *YttPkg) getStepName() string {
