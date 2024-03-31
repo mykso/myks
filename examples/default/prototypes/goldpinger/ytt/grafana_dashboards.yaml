@@ -1,0 +1,31 @@
+#@ load("@ytt:data", "data")
+#@ load("@ytt:overlay", "overlay")
+
+#@ def get_basename(path, ext):
+#@  return path.split("/")[-1][:-len(ext)]
+#@ end
+
+#@ ext = ".json"
+
+#@ def generate_configmaps(name_prefix):
+#@ for file in [ f for f in data.list() if f.endswith(ext) ]:
+#@   name = (name_prefix + get_basename(file, ext)).lower()
+- apiVersion: v1
+  kind: ConfigMap
+  metadata:
+    labels:
+      grafana_dashboard: "1"
+    name: #@ name
+  data:
+    #! TODO This filename might not be unique, if another source provides a dashboard with the same name in another namespace
+    #@yaml/text-templated-strings
+    (@= name @).json: #@ data.read(file)
+#@ end
+#@ end
+
+---
+kind: List
+apiVersion: v1
+metadata:
+  name: dashboard-configmap
+items: #@ generate_configmaps(name_prefix="dashboard-")

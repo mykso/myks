@@ -1,38 +1,84 @@
 # Smart Mode
 
-Smart Mode looks at the changes you made and figures out which environments and applications need re-rendering.
+Smart Mode looks at the changes you made and figures out which environments and
+applications need syncing or rendering.
 
 It is activated by default.
 
 ## How it works
 
-### No changes relative to rendering
+The Smart Mode tries to be as efficient as possible by only processing the parts
+of your configuration that are affected by the changes you made. This is done by
+comparing the last state of your configuration with the current state. The
+decisions are based purely on names of files and directories, not on their
+content. Therefore, it is not always possible to avoid unnecessary processing.
 
-If you make changes that have no impact on the rendered output of your workloads, e.g. modify `Dockerfile`, myks
-will exit immediately, before any syncing or rendering happens.
+There are several scenarios in which myks will decide to process different parts
+of your configuration:
 
-### Re-rendering of an application
+- nothing
+- one or multiple applications
+- one or multiple environments
+- all environments and all applications
 
-An application of a specific environment get re-rendered when:
+The processing scope goes from the smallest (nothing) to the largest
+(everything). A broader scope always includes the narrower ones. Than means, if
+a particular environment is selected for processing, all applications of that
+environment will be processed, no matter if they have changed or not.
 
-- The `app-data.ytt.yaml` of that application has changed, e.g. `envs/env-1/_apps/app-1/app-data.ytt.yaml`
-- The prototype application has changed, e.g. `prototypes/app-1/helm/app-1.yaml`, in which case all environments that
-  use is re-render that application.
+You can see the scope of processing using the `--smart-mode.only-print` flag:
 
-### Re-rendering of an environment
+```console
+$ myks all --smart-mode.only-print
 
-All applications of an environment get re-rendered when:
+Smart Mode detected:
+→ envs/alpha
+    traefik
+```
 
-- The `env-data.ytt.yaml` of that environment has changed.
-- The `env-data.ytt.yaml` of a parent environment of that environment has changed.
-- **Edge case:** If you have made changes to an application in env-1, but at the same time have modified the
-  `env-data.ytt.yaml` of env-2, smart-mode will re-render all applications of env-1 AND env-2, even though this is not
-  strictly required for env-1.
+### Nothing to process
 
-### Complete rendering
+If there are no changes that would have an impact on the rendered output of your
+workloads (e.g. only `Dockerfile` is modified), myks will exit immediately,
+before any syncing or rendering happens.
 
-A complete rendering of all environments and all applications is required when:
+### Processing of one or multiple applications
 
-- A file in the common lib has changed, e.g. `/lib/common.lib.star`
-- A file in the global ytt folder has changed, e.g. `/envs/_env/ytt/annotate_crds.yaml`
-- The base `env-data.ytt.yaml` has changed: `/envs/env-data.ytt.yaml`
+An application of a specific environment gets processed in any of the following
+cases:
+
+- The `app-data.ytt.yaml` of that application has changed, for example:
+  - `envs/env-1/_apps/app-1/app-data.ytt.yaml`
+- Any files of the known plugins have changed, for example:
+  - `.../app-1/ytt/...`
+  - `.../app-1/helm/...`
+- The prototype of that application has changed, for example:
+  - `prototypes/app-1/vendir/...`
+
+> :information_source: In the latter case, when a prototype has changed, all
+> applications that use this prototype are selected for processing.
+
+### Processing all applications of one or multiple environments
+
+All applications of an environment are processed in any of the following cases:
+
+- The `env-data.ytt.yaml` of that environment has changed, for example:
+  - `envs/env-group/env-1/env-data.ytt.yaml`
+- The `env-data.ytt.yaml` of any of the parent environments has changed, for
+  example:
+  - `envs/env-group/env-data.ytt.yaml`
+- Any files of the known environment plugins have changed, for example:
+  - `.../env-1/_env/ytt/...`
+  - `.../env-1/_env/argocd/...`
+
+> :information_source: Changing the upper-level environment (e.g.
+> `/envs/env-data.ytt.yaml`) will naturally promote the scope of processing to
+> all environments and applications, as all environments depend on the
+> upper-level one.
+
+### Processing all environments and all applications
+
+A complete rendering of all environments and all applications is currently
+required only when the common lib directory has changed, for example:
+
+- `/lib/common.lib.star`
