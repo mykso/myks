@@ -1,9 +1,0 @@
-apiVersion: vendir.k14s.io/v1alpha1
-kind: Config
-directories:
-- path: envs/dev/_apps/helm-installation/vendor/charts/render-test
-  contents:
-  - path: .
-    directory:
-      name: render-test
-      path: ../charts/render-test-chart

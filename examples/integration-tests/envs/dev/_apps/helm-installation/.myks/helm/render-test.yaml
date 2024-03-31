@@ -1,9 +1,0 @@
-outputYaml:
-  fromPrototype: true
-  fromPrototypeAppData: true
-  fromPrototypeOverride: true
-  fromPrototypeOverrideFromAppData: true
-  fromEnvGroup: true
-  fromEnvGroupAppData: true
-  fromAppConfig: true
-  fromAppConfigAppData: true
