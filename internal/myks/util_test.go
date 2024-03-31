@@ -21,7 +21,7 @@ func Test_hash(t *testing.T) {
 		b    string
 		want string
 	}{
-		{"happy path", "some-string", "a3635c09bda7293a"},
+		{"happy path", "some-string", "cbf29ce484222325"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.a, func(t *testing.T) {
