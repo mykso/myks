@@ -2,10 +2,9 @@ package myks
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"io/fs"
 	"os"
@@ -190,8 +189,8 @@ func sortYaml(yaml map[string]interface{}) (string, error) {
 }
 
 func hashString(s string) string {
-	hash := sha256.Sum256([]byte(s))
-	return hex.EncodeToString(hash[:])[:16] // hash is shortened a little to make it more readable while maintaining a decent level of uniqueness
+	fnv.New64a().Write([]byte(s))
+	return fmt.Sprintf("%x", fnv.New64a().Sum64())
 }
 
 func removeDirectory(dir string) error {
