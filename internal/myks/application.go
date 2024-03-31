@@ -105,10 +105,6 @@ func (a *Application) Init() error {
 	return nil
 }
 
-func (a *Application) expandPath(path string) string {
-	return filepath.Join(a.e.Dir, a.e.g.AppsDir, a.Name, path)
-}
-
 func (a *Application) expandServicePath(path string) string {
 	return filepath.Join(a.e.g.ServiceDirName, a.e.Dir, a.e.g.AppsDir, a.Name, path)
 }

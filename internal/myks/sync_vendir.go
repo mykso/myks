@@ -4,7 +4,6 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -137,7 +136,7 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 			if exists, _ := isExist(outputPath); !exists {
 				if err := v.runVendirSync(a, vendirPatchedConfigPath, filepath.Join(outputPath, path), vendirLockFilePath, vendirSecrets); err != nil {
 					log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
-					removeDirectory(outputPath)
+					err := removeDirectory(outputPath)
 					return err
 				}
 				// else, do nothing
@@ -168,60 +167,6 @@ func (v *VendirSyncer) runVendirSync(a *Application, vendirConfigPath, vendirCon
 	}
 	log.Info().Msg(a.Msg(v.getStepName(), "Synced"))
 	return nil
-}
-
-func (v VendirSyncer) cleanupVendorDir(a *Application, vendorDir, vendirConfigFile string) error {
-	config, err := unmarshalYamlToMap(vendirConfigFile)
-	if err != nil {
-		return err
-	}
-
-	if _, ok := config["directories"]; !ok {
-		return errors.New("no directories found in vendir config")
-	}
-
-	dirs := []string{}
-	for _, dir := range config["directories"].([]interface{}) {
-		dirMap := dir.(map[string]interface{})
-		path := dirMap["path"].(string)
-		dirs = append(dirs, filepath.Clean(path)+string(filepath.Separator))
-	}
-
-	log.Debug().Strs("vendir-managed dirs", dirs).Msg("")
-
-	return filepath.WalkDir(vendorDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !d.IsDir() {
-			return nil
-		}
-
-		path = path + string(filepath.Separator)
-		for _, dir := range dirs {
-			if dir == path {
-				return fs.SkipDir
-			}
-
-			if strings.HasPrefix(dir, path) {
-				return nil
-			}
-
-			// This should never happen
-			if strings.HasPrefix(path, dir) {
-				log.Debug().Msgf("%s has prefix %s", path, dir)
-				return fs.SkipDir
-			}
-		}
-		log.Debug().Msg(a.Msg(v.getStepName(), "Removing directory "+path))
-		err = os.RemoveAll(path)
-		if err != nil {
-			return err
-		}
-
-		return fs.SkipDir
-	})
 }
 
 func (v *VendirSyncer) getStepName() string {
