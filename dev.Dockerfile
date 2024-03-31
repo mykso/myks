@@ -19,9 +19,7 @@ FROM --platform=$BUILDPLATFORM debian:bookworm AS download-tools
 ARG TARGETOS
 ARG TARGETARCH
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION=v3.13.3
-# renovate: datasource=github-releases depName=carvel-dev/vendir
-ARG VENDIR_VERSION=v0.38.0
+ARG HELM_VERSION=v3.14.3
 # renovate: datasource=github-releases depName=carvel-dev/ytt
 ARG YTT_VERSION=v0.46.3
 
@@ -38,9 +36,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN curl -fsSL \
       https://get.helm.sh/helm-v${HELM_VERSION}-${TARGETOS}-${TARGETARCH}.tar.gz \
     | tar -xzf - --strip-components=1 ${TARGETOS}-${TARGETARCH}/helm
-RUN curl -fsSL \
-      https://github.com/vmware-tanzu/carvel-vendir/releases/download/v${VENDIR_VERSION}/vendir-${TARGETOS}-${TARGETARCH} \
-    > vendir
 RUN curl -fsSL \
       https://github.com/vmware-tanzu/carvel-ytt/releases/download/v${YTT_VERSION}/ytt-${TARGETOS}-${TARGETARCH} \
     > ytt

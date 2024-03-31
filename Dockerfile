@@ -19,16 +19,6 @@ RUN curl -fsSL \
     | tar -xzf - --strip-components=1 ${TARGETOS}-${TARGETARCH}/helm
 
 
-FROM downloader AS vendir
-ARG TARGETOS
-ARG TARGETARCH
-# renovate: datasource=github-releases depName=carvel-dev/vendir
-ARG VENDIR_VERSION=v0.40.0
-RUN curl -fsSL \
-      https://github.com/carvel-dev/vendir/releases/download/${VENDIR_VERSION}/vendir-${TARGETOS}-${TARGETARCH} \
-    > vendir
-
-
 FROM downloader AS ytt
 ARG TARGETOS
 ARG TARGETARCH
@@ -51,7 +41,6 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --link --chmod=700 --from=helm /tools/helm /usr/local/bin/
-COPY --link --chmod=700 --from=vendir /tools/vendir /usr/local/bin/
 COPY --link --chmod=700 --from=ytt /tools/ytt /usr/local/bin/
 # This copies myks binary built by goreleaser
 COPY --link myks /usr/local/bin/

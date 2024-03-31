@@ -1,6 +1,7 @@
 # helm example
 
 Simple example with two environments dev & prod with one helm chart.
+
 - httpbingo helm chart version 0.1.0 is defined in the prototype
 - dev environments overwrites the helm chart version (vendir config) (`envs/dev/_apps/httpbingo/vendir/vendir-data.ytt.yaml`)
 - prod environments overwrites replica count (helm chart value) (`envs/prod/_apps/httpbingo/helm/httpbingo.yaml`)

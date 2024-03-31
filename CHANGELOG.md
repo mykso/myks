@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.4.3](https://github.com/mykso/myks/compare/v3.4.2...v3.4.3) (2024-03-29)
+
+
+### Bug Fixes
+
+* **deps:** update golang.org/x/exp digest to a685a6e ([#258](https://github.com/mykso/myks/issues/258)) ([6ea07fe](https://github.com/mykso/myks/commit/6ea07fe5a7475079f0ea19ac33928dbc152b4067))
+* **deps:** update golang.org/x/exp digest to a85f2c6 ([#254](https://github.com/mykso/myks/issues/254)) ([ead1322](https://github.com/mykso/myks/commit/ead13221f10166ae70c68e87d5fdfcc33d874fc4))
+* **deps:** update golang.org/x/exp digest to c7f7c64 ([#252](https://github.com/mykso/myks/issues/252)) ([b1968c7](https://github.com/mykso/myks/commit/b1968c782fc85752fb00be0ffbd0fd55e853f28f))
+* edge case when processing all environments ([2e17117](https://github.com/mykso/myks/commit/2e17117e98555708ae2f8257579c72f045eace91))
+
 ## [3.4.2](https://github.com/mykso/myks/compare/v3.4.1...v3.4.2) (2024-03-13)
 
 
