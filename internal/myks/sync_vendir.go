@@ -113,6 +113,7 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 	for _, dir := range vendirConfig["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
 		dirPath := dirMap["path"].(string)
+		// iterate over vendir contents
 		for _, content := range dirMap["contents"].([]interface{}) {
 			contentMap := content.(map[string]interface{})
 			yaml, err := sortYaml(contentMap)
@@ -122,19 +123,21 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 			configDigest := hashString(yaml)
 			path := filepath.Join(dirPath, contentMap["path"].(string))
 			outputPath := a.expandVendirCache(fmt.Sprintf("%s-%s", filepath.Base(path), configDigest))
+			overlayReader := strings.NewReader(fmt.Sprintf(vendorDirOverlayTemplate, outputPath))
+			yttFiles := []string{vendirConfigPath}
+			vendirConfig, err := a.yttS(v.getStepName(), "creating final vendir config", yttFiles, overlayReader)
+			if err != nil {
+				return err
+			}
+			writeFile(vendirPatchedConfigPath, []byte(vendirConfig.Stdout))
+			// if vendir cache does not exist, sync vendir
 			if exists, _ := isExist(outputPath); !exists {
-				overlayReader := strings.NewReader(fmt.Sprintf(vendorDirOverlayTemplate, outputPath))
-				yttFiles := []string{vendirConfigPath}
-				vendirConfig, err := a.yttS(v.getStepName(), "creating final vendir config", yttFiles, overlayReader)
-				if err != nil {
-					return err
-				}
-				writeFile(vendirPatchedConfigPath, []byte(vendirConfig.Stdout))
 				if err := v.runVendirSync(a, vendirPatchedConfigPath, filepath.Join(outputPath, path), vendirLockFilePath, vendirSecrets); err != nil {
 					log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
 					removeDirectory(outputPath)
 					return err
 				}
+				// else, do nothing
 			} else {
 				log.Info().Msg(a.Msg(v.getStepName(), "Skipping vendir sync, cache exists"))
 			}

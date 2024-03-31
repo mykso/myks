@@ -110,11 +110,7 @@ func (a *Application) expandPath(path string) string {
 }
 
 func (a *Application) expandServicePath(path string) string {
-	return filepath.Join(a.e.g.ServiceDirName, a.e.Dir, a.Name, path)
-}
-
-func (a *Application) expandTempPath(path string) string {
-	return a.expandServicePath(filepath.Join(a.e.g.TempDirName, path))
+	return filepath.Join(a.e.g.ServiceDirName, a.e.Dir, a.e.g.AppsDir, a.Name, path)
 }
 
 func (a *Application) expandVendirCache(path string) string {
@@ -123,10 +119,6 @@ func (a *Application) expandVendirCache(path string) string {
 
 func (a *Application) writeServiceFile(name string, content string) error {
 	return writeFile(a.expandServicePath(name), []byte(content))
-}
-
-func (a *Application) writeTempFile(name string, content string) error {
-	return writeFile(a.expandTempPath(name), []byte(content))
 }
 
 func (a *Application) collectDataFiles() {

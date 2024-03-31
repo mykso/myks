@@ -99,7 +99,7 @@ func (hr *HelmSyncer) helmBuild(a *Application, chartDir string) error {
 		return fmt.Errorf("failure to unmarshal Chart.yaml at: %s", chartPath)
 	}
 
-	helmCache := a.expandTempPath("helm-cache")
+	helmCache := a.expandServicePath("helm-cache")
 	cacheArgs := []string{
 		"--repository-cache", filepath.Join(helmCache, "repository"),
 		"--repository-config", filepath.Join(helmCache, "repositories.yaml"),

@@ -127,8 +127,8 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 // Returns path to the file or an error.
 func (a *Application) storeStepResult(output string, stepName string, stepNumber int) (string, error) {
 	fileName := filepath.Join("steps", fmt.Sprintf("%02d-%s.yaml", stepNumber, stepName))
-	file := a.expandTempPath(fileName)
-	return file, a.writeTempFile(fileName, output)
+	file := a.expandServicePath(fileName)
+	return file, a.writeServiceFile(fileName, output)
 }
 
 func (a *Application) getDestinationDir() string {
@@ -160,17 +160,6 @@ func genRenderedResourceFileName(resource map[string]interface{}, includeNamespa
 		return fmt.Sprintf("%s-%s.yaml", strings.ToLower(kind), strings.ToLower(name)), nil
 	}
 	return fmt.Sprintf("%s-%s_%s.yaml", strings.ToLower(kind), strings.ToLower(name), strings.ToLower(namespace)), nil
-}
-
-func (a *Application) getVendirConfigDir() (string, error) {
-	resourceDir := a.expandServicePath("")
-	if ok, err := isExist(resourceDir); err != nil {
-		return "", err
-	} else if ok {
-		return resourceDir, nil
-	} else {
-		return "", nil
-	}
 }
 
 // prepareValuesFile generates values.yaml file from ytt data files and ytt templates
@@ -209,13 +198,13 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 		return "", nil
 	}
 
-	err = a.writeTempFile(valuesFileName, resourceValuesYaml.Stdout)
+	err = a.writeServiceFile(valuesFileName, resourceValuesYaml.Stdout)
 	if err != nil {
 		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to write resource values file"))
 		return "", err
 	}
 
-	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandTempPath(valuesFileName))
+	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandServicePath(valuesFileName))
 	if err != nil {
 		return "", err
 	}

@@ -132,9 +132,9 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 		return
 	}
 
-	err = a.writeTempFile(name, buf.String())
+	err = a.writeServiceFile(name, buf.String())
 
-	filename = a.expandTempPath(name)
+	filename = a.expandServicePath(name)
 
 	return
 }
