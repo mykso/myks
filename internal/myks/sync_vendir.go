@@ -118,7 +118,14 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 	for _, dir := range vendirConfig["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
 		dirPath := dirMap["path"].(string)
-		// iterate over vendir contents
+		contents := dirMap["contents"].([]interface{})
+		if len(contents) == 0 {
+			log.Warn().Str("directory", dirPath).Msg(a.Msg(v.getStepName(), "No contents found in vendir config directory"))
+			continue
+		} else if len(contents) > 1 {
+			log.Warn().Str("directory", dirPath).Msg(a.Msg(v.getStepName(), "Multiple contents found in vendir config directory"))
+			return errors.New("multiple contents are not supported in vendir config directory")
+		}
 		for _, content := range dirMap["contents"].([]interface{}) {
 			contentMap := content.(map[string]interface{})
 			if err != nil {
