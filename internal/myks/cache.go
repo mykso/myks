@@ -24,8 +24,7 @@ func findCacheNamer(config map[string]interface{}) CacheNamer {
 	return DefaultCacheNamer{}
 }
 
-type DefaultCacheNamer struct {
-}
+type DefaultCacheNamer struct{}
 
 func (h DefaultCacheNamer) Name(path string, config map[string]interface{}) (string, error) {
 	yaml, err := sortYaml(config)
@@ -35,8 +34,7 @@ func (h DefaultCacheNamer) Name(path string, config map[string]interface{}) (str
 	return fmt.Sprintf("%s-%s", filepath.Base(path), hashString(yaml)), nil
 }
 
-type HelmCacheNamer struct {
-}
+type HelmCacheNamer struct{}
 
 func (h HelmCacheNamer) Name(_ string, config map[string]interface{}) (string, error) {
 	yaml, err := sortYaml(config)
@@ -47,9 +45,7 @@ func (h HelmCacheNamer) Name(_ string, config map[string]interface{}) (string, e
 		return "", fmt.Errorf("expected vendir config for helm chart, but did not find helmChart yaml key")
 	}
 	helmChart := config["helmChart"].(map[string]interface{})
-	var (
-		version, chartName string
-	)
+	var version, chartName string
 	if helmChart["name"] == nil {
 		return "", fmt.Errorf("expected name in vendir config for helm chart, but did not find it")
 	}
@@ -61,8 +57,7 @@ func (h HelmCacheNamer) Name(_ string, config map[string]interface{}) (string, e
 	return fmt.Sprintf("%s-%s-%s-%s", "helm", chartName, version, hashString(yaml)), nil
 }
 
-type GitCacheNamer struct {
-}
+type GitCacheNamer struct{}
 
 func (h GitCacheNamer) Name(_ string, config map[string]interface{}) (string, error) {
 	yaml, err := sortYaml(config)
@@ -73,9 +68,7 @@ func (h GitCacheNamer) Name(_ string, config map[string]interface{}) (string, er
 		return "", fmt.Errorf("expected vendir config for git, but did not find git yaml key")
 	}
 	git := config["git"].(map[string]interface{})
-	var (
-		repoUrl, ref string
-	)
+	var repoUrl, ref string
 	if git["url"] == nil {
 		return "", fmt.Errorf("expected url in vendir config for git, but did not find it")
 	}
@@ -91,8 +84,7 @@ func (h GitCacheNamer) Name(_ string, config map[string]interface{}) (string, er
 	return fmt.Sprintf("%s-%s-%s-%s", "git", dir, refSlug(ref), hashString(yaml)), nil
 }
 
-type DirectoryCacheNamer struct {
-}
+type DirectoryCacheNamer struct{}
 
 func (h DirectoryCacheNamer) Name(_ string, vendirConfig map[string]interface{}) (string, error) {
 	yaml, err := sortYaml(vendirConfig)

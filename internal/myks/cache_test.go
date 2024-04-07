@@ -3,7 +3,6 @@ package myks
 import "testing"
 
 func TestHelmCacheNamer_Name(t *testing.T) {
-
 	validVendirConfig := map[string]interface{}{
 		"helmChart": map[string]interface{}{
 			"name":    "test",
@@ -53,7 +52,6 @@ func TestHelmCacheNamer_Name(t *testing.T) {
 }
 
 func TestDirectoryCacheNamer_Name(t *testing.T) {
-
 	validVendirConfig := map[string]interface{}{
 		"directory": map[string]interface{}{
 			"path": "test",
@@ -96,7 +94,6 @@ func TestDirectoryCacheNamer_Name(t *testing.T) {
 }
 
 func TestGitCacheNamer_Name(t *testing.T) {
-
 	validVendirConfig := map[string]interface{}{
 		"git": map[string]interface{}{
 			"url": "https://kubernetes.github.io/ingress-nginx",
@@ -146,8 +143,7 @@ func TestGitCacheNamer_Name(t *testing.T) {
 }
 
 func Test_directorySlug(t *testing.T) {
-	type args struct {
-	}
+	type args struct{}
 	tests := []struct {
 		name string
 		path string

@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // This string defines an overlay that prefixes paths of all vendir directories with the vendor directory name.
@@ -25,6 +26,10 @@ directories:
   - #@overlay/match by=overlay.all, expects="1+"
     #@overlay/replace via=lambda l, r: (r + "/" + l).replace("//", "/")
     path: %s`
+
+type CacheConfig struct {
+	Enabled bool
+}
 
 type VendirSyncer struct {
 	ident string
@@ -108,6 +113,7 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 	if err != nil {
 		return err
 	}
+	cacheConfig, err := v.getCacheConfig(a)
 
 	for _, dir := range vendirConfig["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
@@ -134,8 +140,18 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 			if err != nil {
 				return err
 			}
-			// if vendir cache does not exist, sync vendir
-			if exists, _ := isExist(outputPath); !exists {
+			lazy := true
+			if contentMap["lazy"] != nil {
+				lazy = contentMap["lazy"].(bool)
+			}
+			exists, _ := isExist(outputPath)
+			if
+			// run sync if cache does not exist in any case
+			!exists ||
+				// lazy has been explicitly set to false in vendir config
+				!lazy ||
+				// run sync if caching was disabled for app
+				!cacheConfig.Enabled {
 				if err := v.runVendirSync(a, vendirPatchedConfigPath, filepath.Join(outputPath, path), vendirLockFilePath, vendirSecrets); err != nil {
 					log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
 					err := removeDirectory(outputPath)
@@ -159,7 +175,6 @@ func (v *VendirSyncer) runVendirSync(a *Application, vendirConfigPath, vendirCon
 		"sync",
 		"--file=" + vendirConfigPath,
 		"--lock-file=" + vendirLock,
-		"--lazy=false", // we are introducing our own caching mechanism here, therefore lazy syncing is never required
 		"--directory=" + vendirConfigDirPath,
 		"--file=-",
 	}
@@ -173,4 +188,22 @@ func (v *VendirSyncer) runVendirSync(a *Application, vendirConfigPath, vendirCon
 
 func (v *VendirSyncer) getStepName() string {
 	return fmt.Sprintf("%s-%s", syncStepName, v.Ident())
+}
+
+func (hr *VendirSyncer) getCacheConfig(a *Application) (CacheConfig, error) {
+	dataValuesYaml, err := a.ytt(hr.getStepName(), "get cache config", a.yttDataFiles, "--data-values-inspect")
+	if err != nil {
+		return CacheConfig{}, err
+	}
+
+	var cacheConfig struct {
+		Cache CacheConfig
+	}
+	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &cacheConfig)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Unable to unmarshal data values"))
+		return CacheConfig{}, err
+	}
+
+	return cacheConfig.Cache, nil
 }

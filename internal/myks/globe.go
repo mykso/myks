@@ -96,6 +96,9 @@ type Globe struct {
 	// Git repository URL
 	GitRepoUrl string
 
+	// CacheConfig
+	CacheEnabled bool
+
 	// Prefix for kubernetes namespaces, only used in helm rendering
 	NamespacePrefix string `default:""`
 
@@ -152,6 +155,7 @@ func New(rootDir string) *Globe {
 		} else {
 			g.GitRepoUrl = gitRepoUrl
 		}
+
 	} else {
 		log.Warn().Msg("Not in a git repository, Smart Mode and git-related data will not be available")
 	}

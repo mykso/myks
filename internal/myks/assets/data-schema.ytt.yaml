@@ -112,6 +112,11 @@ yttPkg:
 render:
   #! If true, the render output file names will include the namespace
   includeNamespace: false
+#! Configuration options for caching during vendir sync step.
+cache:
+  #! If true, the cache is enabled for all apps per default and can be selectively disabled with the vendir lazy flag.
+  #! If false, the cache is disabled for all apps per default and can be selectively enabled with the vendir lazy flag.
+  enabled: true
 #! Myks configuration and runtime data.
 #! Default values for these options are set by myks.
 myks:
