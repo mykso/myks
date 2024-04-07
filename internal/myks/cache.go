@@ -45,15 +45,14 @@ func (h HelmCacheNamer) Name(_ string, config map[string]interface{}) (string, e
 		return "", fmt.Errorf("expected vendir config for helm chart, but did not find helmChart yaml key")
 	}
 	helmChart := config["helmChart"].(map[string]interface{})
-	var version, chartName string
 	if helmChart["name"] == nil {
 		return "", fmt.Errorf("expected name in vendir config for helm chart, but did not find it")
 	}
 	if helmChart["version"] == nil {
 		return "", fmt.Errorf("expected version in vendir config for helm chart, but did not find it")
 	}
-	chartName = helmChart["name"].(string)
-	version = helmChart["version"].(string)
+	chartName := helmChart["name"].(string)
+	version := helmChart["version"].(string)
 	return fmt.Sprintf("%s-%s-%s-%s", "helm", chartName, version, hashString(yaml)), nil
 }
 
