@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.4.4](https://github.com/mykso/myks/compare/v3.4.3...v3.4.4) (2024-04-07)
+
+
+### Bug Fixes
+
+* **deps:** update golang.org/x/exp digest to c0f41cb ([#264](https://github.com/mykso/myks/issues/264)) ([59981d0](https://github.com/mykso/myks/commit/59981d0215a82e93529daa4a35fed28508d19e46))
+* **deps:** update module golang.org/x/sync to v0.7.0 ([#262](https://github.com/mykso/myks/issues/262)) ([d1d231d](https://github.com/mykso/myks/commit/d1d231d40e0542347c95a24c7543d3c3fcbffb17))
+* **deps:** update module golang.org/x/term to v0.19.0 ([#263](https://github.com/mykso/myks/issues/263)) ([2e28691](https://github.com/mykso/myks/commit/2e286919fbf542a6ac566ab748c044c07fd5e459))
+* **deps:** update, use upstream vendir ([f2a1159](https://github.com/mykso/myks/commit/f2a115979fc2edc2a7ca4aaac08023a75b8a4a35))
+
 ## [3.4.3](https://github.com/mykso/myks/compare/v3.4.2...v3.4.3) (2024-03-29)
 
 

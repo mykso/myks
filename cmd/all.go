@@ -28,11 +28,11 @@ func RunAllCmd() {
 	}
 
 	if err := g.Init(asyncLevel, envAppMap); err != nil {
-		log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
+		log.Fatal().Err(err).Msg("Unable to initialize myks' globe")
 	}
 
 	if err := g.SyncAndRender(asyncLevel); err != nil {
-		log.Fatal().Err(err).Msg("Unable to sync vendir configs")
+		log.Fatal().Err(err).Msg("Unable to sync and render applications")
 	}
 
 	// Cleaning up only if all environments and applications were processed
