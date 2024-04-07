@@ -132,11 +132,11 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 			outputPath := a.expandVendirCache(cacheName)
 			overlayReader := strings.NewReader(fmt.Sprintf(vendorDirOverlayTemplate, outputPath))
 			yttFiles := []string{vendirConfigPath}
-			vendirConfig, err := a.yttS(v.getStepName(), "creating final vendir config", yttFiles, overlayReader)
+			vendirPatchedConfig, err := a.yttS(v.getStepName(), "creating final vendir config", yttFiles, overlayReader)
 			if err != nil {
 				return err
 			}
-			err = writeFile(vendirPatchedConfigPath, []byte(vendirConfig.Stdout))
+			err = writeFile(vendirPatchedConfigPath, []byte(vendirPatchedConfig.Stdout))
 			if err != nil {
 				return err
 			}
