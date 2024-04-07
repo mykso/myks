@@ -110,7 +110,7 @@ func (a *Application) expandServicePath(path string) string {
 }
 
 func (a *Application) expandVendirCache(path string) string {
-	return filepath.Join(a.e.g.VendirCache, path)
+	return filepath.Join(a.e.g.ServiceDirName, a.e.g.VendirCache, path)
 }
 
 func (a *Application) writeServiceFile(name string, content string) error {
