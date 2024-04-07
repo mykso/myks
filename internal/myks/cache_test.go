@@ -31,7 +31,7 @@ func TestHelmCacheNamer_Name(t *testing.T) {
 		want         string
 		wantErr      bool
 	}{
-		{"happy path", validVendirConfig, "helm-test-1.1.0-cbf29ce484222325", false},
+		{"happy path", validVendirConfig, "helm-test-1.1.0-9ca59c856d6df4b6", false},
 		{"missing version", vendirConfigWithoutVersion, "", true},
 		{"missing name", vendirConfigWithoutName, "", true},
 		{"missing helm config", invalidVendirConfig, "", true},
@@ -74,7 +74,7 @@ func TestDirectoryCacheNamer_Name(t *testing.T) {
 		want         string
 		wantErr      bool
 	}{
-		{"happy path", validVendirConfig, "dir-test-cbf29ce484222325", false},
+		{"happy path", validVendirConfig, "dir-test-5628f4f146ea9abf", false},
 		{"missing Directory config", invalidVendirConfig, "", true},
 		{"missing path key", vendirConfigWithoutPath, "", true},
 	}
@@ -122,7 +122,7 @@ func TestGitCacheNamer_Name(t *testing.T) {
 		want         string
 		wantErr      bool
 	}{
-		{"happy path", validVendirConfig, "git-ingress-nginx-feature-test-cbf29ce484222325", false},
+		{"happy path", validVendirConfig, "git-ingress-nginx-feature-test-9668d10d6d16720b", false},
 		{"missing Git config", invalidVendirConfig, "", true},
 		{"missing url key", vendirConfigWithoutUrl, "", true},
 		{"missing ref key", vendirConfigWithoutRef, "", true},
