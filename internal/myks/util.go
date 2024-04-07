@@ -189,7 +189,9 @@ func sortYaml(yaml map[string]interface{}) (string, error) {
 }
 
 func hashString(s string) string {
-	return fmt.Sprintf("%x", fnv.New64a().Sum([]byte(s)))
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return fmt.Sprintf("%x", h.Sum64())
 }
 
 func removeDirectory(dir string) error {
