@@ -22,7 +22,7 @@ const GlobalExtendedLogFormat = "\033[1m[global > %s > %s]\033[0m %s"
 // Globe configuration
 type Globe struct {
 	// Global vendir cache dir
-	VendirCache string `default:".vendir-cache"`
+	VendirCache string `default:"vendir-cache"`
 	// Project root directory
 	RootDir string `default:"."`
 	// Base directory for environments

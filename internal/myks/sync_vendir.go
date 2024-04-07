@@ -115,13 +115,15 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		// iterate over vendir contents
 		for _, content := range dirMap["contents"].([]interface{}) {
 			contentMap := content.(map[string]interface{})
-			yaml, err := sortYaml(contentMap)
 			if err != nil {
 				return err
 			}
-			configDigest := hashString(yaml)
 			path := filepath.Join(dirPath, contentMap["path"].(string))
-			outputPath := a.expandVendirCache(fmt.Sprintf("%s-%s", filepath.Base(path), configDigest))
+			cacheName, err := findCacheNamer(contentMap).Name(path, contentMap)
+			if err != nil {
+				return err
+			}
+			outputPath := a.expandVendirCache(cacheName)
 			overlayReader := strings.NewReader(fmt.Sprintf(vendorDirOverlayTemplate, outputPath))
 			yttFiles := []string{vendirConfigPath}
 			vendirConfig, err := a.yttS(v.getStepName(), "creating final vendir config", yttFiles, overlayReader)
