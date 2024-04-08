@@ -12,21 +12,6 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// This string defines an overlay that prefixes paths of all vendir directories with the vendor directory name.
-// This makes the paths relative to the root directory, allowing to use other relative paths as sources for vendir.
-//
-// Despite vendir disallows using multiple config files, by using `expects="1+"` we explicitly allow to have multiple
-// of them on the config generation step. In case there are multiple vendir configs, processing will fail on the vendir
-// sync step. This will provide a better error message for the user.
-const vendorDirOverlayTemplate = `
-#@ load("@ytt:overlay", "overlay")
-#@overlay/match by=overlay.subset({"kind": "Config", "apiVersion": "vendir.k14s.io/v1alpha1"}), expects="1+"
----
-directories:
-  - #@overlay/match by=overlay.all, expects="1+"
-    #@overlay/replace via=lambda l, r: (r + "/" + l).replace("//", "/")
-    path: %s`
-
 type CacheConfig struct {
 	Enabled bool
 }
@@ -100,73 +85,33 @@ func (v *VendirSyncer) prepareSync(a *Application) error {
 		return err
 	}
 
+	if err := v.patchVendirConfig(a); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
-	vendirConfigPath := a.expandServicePath(a.e.g.VendirConfigFileName)
 	vendirPatchedConfigPath := a.expandServicePath(a.e.g.VendirPatchedConfigFileName)
 	vendirLockFilePath := a.expandServicePath(a.e.g.VendirLockFileName)
 
-	// read vendir config
-	vendirConfig, err := unmarshalYamlToMap(vendirConfigPath)
+	vendirPatchedConfig, err := unmarshalYamlToMap(vendirPatchedConfigPath)
 	if err != nil {
 		return err
 	}
-	cacheConfig, err := v.getCacheConfig(a)
 
-	for _, dir := range vendirConfig["directories"].([]interface{}) {
+	for _, dir := range vendirPatchedConfig["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
 		dirPath := dirMap["path"].(string)
-		contents := dirMap["contents"].([]interface{})
-		if len(contents) == 0 {
-			log.Warn().Str("directory", dirPath).Msg(a.Msg(v.getStepName(), "No contents found in vendir config directory"))
-			continue
-		} else if len(contents) > 1 {
-			log.Warn().Str("directory", dirPath).Msg(a.Msg(v.getStepName(), "Multiple contents found in vendir config directory"))
-			return errors.New("multiple contents are not supported in vendir config directory")
-		}
 		for _, content := range dirMap["contents"].([]interface{}) {
 			contentMap := content.(map[string]interface{})
-			if err != nil {
+			contentPath := contentMap["path"].(string)
+			syncPath := filepath.Join(dirPath, contentPath)
+			if err := v.runVendirSync(a, vendirPatchedConfigPath, syncPath, vendirLockFilePath, vendirSecrets); err != nil {
+				log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
+				err := removeDirectory(syncPath)
 				return err
-			}
-			path := filepath.Join(dirPath, contentMap["path"].(string))
-			cacheName, err := findCacheNamer(contentMap).Name(path, contentMap)
-			if err != nil {
-				return err
-			}
-			outputPath := a.expandVendirCache(cacheName)
-			overlayReader := strings.NewReader(fmt.Sprintf(vendorDirOverlayTemplate, outputPath))
-			yttFiles := []string{vendirConfigPath}
-			vendirPatchedConfig, err := a.yttS(v.getStepName(), "creating final vendir config", yttFiles, overlayReader)
-			if err != nil {
-				return err
-			}
-			err = writeFile(vendirPatchedConfigPath, []byte(vendirPatchedConfig.Stdout))
-			if err != nil {
-				return err
-			}
-			lazy := true
-			if contentMap["lazy"] != nil {
-				lazy = contentMap["lazy"].(bool)
-			}
-			exists, _ := isExist(outputPath)
-			if
-			// run sync if cache does not exist in any case
-			!exists ||
-				// lazy has been explicitly set to false in vendir config
-				!lazy ||
-				// run sync if caching was disabled for app
-				!cacheConfig.Enabled {
-				if err := v.runVendirSync(a, vendirPatchedConfigPath, filepath.Join(outputPath, path), vendirLockFilePath, vendirSecrets); err != nil {
-					log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
-					err := removeDirectory(outputPath)
-					return err
-				}
-				// else, do nothing
-			} else {
-				log.Info().Msg(a.Msg(v.getStepName(), "Skipping vendir sync, cache exists"))
 			}
 		}
 	}
@@ -197,8 +142,8 @@ func (v *VendirSyncer) getStepName() string {
 	return fmt.Sprintf("%s-%s", syncStepName, v.Ident())
 }
 
-func (hr *VendirSyncer) getCacheConfig(a *Application) (CacheConfig, error) {
-	dataValuesYaml, err := a.ytt(hr.getStepName(), "get cache config", a.yttDataFiles, "--data-values-inspect")
+func (v *VendirSyncer) getCacheConfig(a *Application) (CacheConfig, error) {
+	dataValuesYaml, err := a.ytt(v.getStepName(), "get cache config", a.yttDataFiles, "--data-values-inspect")
 	if err != nil {
 		return CacheConfig{}, err
 	}
@@ -208,9 +153,66 @@ func (hr *VendirSyncer) getCacheConfig(a *Application) (CacheConfig, error) {
 	}
 	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &cacheConfig)
 	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Unable to unmarshal data values"))
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to unmarshal data values"))
 		return CacheConfig{}, err
 	}
 
 	return cacheConfig.Cache, nil
+}
+
+func (v *VendirSyncer) patchVendirConfig(a *Application) error {
+	vendirConfig, err := unmarshalYamlToMap(a.expandServicePath(a.e.g.VendirConfigFileName))
+	if err != nil {
+		return err
+	}
+
+	vendirPatchedConfigPath := a.expandServicePath(a.e.g.VendirPatchedConfigFileName)
+	cacheConfig, err := v.getCacheConfig(a)
+	if err != nil {
+		return err
+	}
+
+	for _, dir := range vendirConfig["directories"].([]interface{}) {
+		dirMap := dir.(map[string]interface{})
+		dirPath := dirMap["path"].(string)
+		contents := dirMap["contents"].([]interface{})
+		if len(contents) == 0 {
+			log.Warn().Str("directory", dirPath).Msg(a.Msg(v.getStepName(), "No contents found in vendir config directory"))
+			continue
+		} else if len(contents) > 1 {
+			log.Warn().Str("directory", dirPath).Msg(a.Msg(v.getStepName(), "Multiple contents found in vendir config directory"))
+			return errors.New("multiple contents are not supported in vendir config directory")
+		}
+		contentMap := contents[0].(map[string]interface{})
+		contentPath := contentMap["path"].(string)
+
+		path := filepath.Join(dirPath, contentPath)
+		cacheName, err := findCacheNamer(contentMap).Name(path, contentMap)
+		if err != nil {
+			return err
+		}
+		dirMap["path"] = filepath.Join(a.expandVendirCache(cacheName), dirPath)
+
+		if _, ok := contentMap["lazy"]; !ok && cacheConfig.Enabled {
+			contentMap["lazy"] = true
+		}
+	}
+
+	data, err := yaml.Marshal(vendirConfig)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal patched vendir config"))
+		return err
+	}
+
+	if err = writeFile(vendirPatchedConfigPath, data); err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write patched vendir config"))
+		return err
+	}
+
+	return nil
+}
+
+func (v *VendirSyncer) getVendirConfig(a *Application) (map[string]interface{}, error) {
+	vendirConfigPath := a.expandServicePath(a.e.g.VendirConfigFileName)
+	return unmarshalYamlToMap(vendirConfigPath)
 }
