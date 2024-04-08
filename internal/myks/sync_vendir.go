@@ -211,8 +211,3 @@ func (v *VendirSyncer) patchVendirConfig(a *Application) error {
 
 	return nil
 }
-
-func (v *VendirSyncer) getVendirConfig(a *Application) (map[string]interface{}, error) {
-	vendirConfigPath := a.expandServicePath(a.e.g.VendirConfigFileName)
-	return unmarshalYamlToMap(vendirConfigPath)
-}

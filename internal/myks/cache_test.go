@@ -143,7 +143,6 @@ func TestGitCacheNamer_Name(t *testing.T) {
 }
 
 func Test_directorySlug(t *testing.T) {
-	type args struct{}
 	tests := []struct {
 		name string
 		path string
