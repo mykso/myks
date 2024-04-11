@@ -9,6 +9,13 @@
       matchUpdateTypes: ["minor", "patch", "pin", "digest"],
       automerge: true,
     },
+    {
+      // Stop Renovate from updating golang.org/x/exp.
+      // This library doesn't follow semver and Renovate spams with PRs.
+      // TODO(@zebradil): consider moving to another library.
+      "matchPackageNames": ["golang.org/x/exp"],
+      "enabled": false
+    }
   ],
   regexManagers: [
     {
