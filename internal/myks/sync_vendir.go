@@ -191,9 +191,10 @@ func (v *VendirSyncer) patchVendirConfig(a *Application) error {
 		if err != nil {
 			return err
 		}
-		dirMap["path"] = filepath.Join(a.expandVendirCache(cacheName), dirPath)
-
-		if _, ok := contentMap["lazy"]; !ok && cacheConfig.Enabled {
+		outputPath := filepath.Join(a.expandVendirCache(cacheName), dirPath)
+		dirMap["path"] = outputPath
+		exists, _ := isExist(outputPath)
+		if _, ok := contentMap["lazy"]; !ok && cacheConfig.Enabled && exists {
 			contentMap["lazy"] = true
 		}
 	}
