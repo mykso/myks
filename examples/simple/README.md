@@ -1,12 +1,18 @@
-# helm example
+# Simple example
 
-Simple example with two environments dev & prod with one helm chart.
+This example project consists of two environments (`dev` and `prod`) with a
+single helm chart.
 
-- httpbingo helm chart version 0.1.0 is defined in the prototype
-- dev environments overwrites the helm chart version (vendir config) (`envs/dev/_apps/httpbingo/vendir/vendir-data.ytt.yaml`)
-- prod environments overwrites replica count (helm chart value) (`envs/prod/_apps/httpbingo/helm/httpbingo.yaml`)
+- the single helm chart `httpbingo` of version `0.1.0` is defined in the
+  `prototypes` directory
+- the `dev` environment overwrites the version of the helm chart via the vendir
+  data values file in
+  [`envs/dev/_apps/httpbingo/vendir/vendir-data.ytt.yaml`](envs/dev/_apps/httpbingo/vendir/vendir-data.ytt.yaml)
+- the `prod` environment overwrites the replica count via the helm chart values
+  file in
+  [`envs/prod/_apps/httpbingo/helm/httpbingo.yaml`](envs/prod/_apps/httpbingo/helm/httpbingo.yaml)
 
-## tree
+## File tree
 
 ```python
 .
