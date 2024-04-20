@@ -429,6 +429,7 @@ func myksFullPath() string {
 	}
 	if strings.Contains(myks, ".test") {
 		// running go test, the test executable doesnot provide embedded binaries, fallback to myks
+		// TODO: either fallback to external executable or embed the binary in test
 		return "myks"
 	}
 	return myks
