@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/mykso/myks/cmd"
-	"github.com/mykso/myks/cmd/vendir"
+	embedded "github.com/mykso/myks/cmd/embedded"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 )
 
 func main() {
-	if vendir.RunEmbeddedVendir() {
+	if embedded.CheckAndRun() {
 		return
 	}
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})

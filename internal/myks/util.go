@@ -284,13 +284,15 @@ func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name st
 		paths = append(paths, "-")
 	}
 
-	cmdArgs := []string{}
+	cmdArgs := []string{
+		"ytt",
+	}
 	for _, path := range paths {
 		cmdArgs = append(cmdArgs, "--file="+path)
 	}
 
 	cmdArgs = append(cmdArgs, args...)
-	return runCmd("ytt", stdin, cmdArgs, logFn)
+	return runCmd("myks", stdin, cmdArgs, logFn)
 }
 
 func filterSlice[T any](slice []T, filterFunc func(v T) bool) []T {

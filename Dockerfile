@@ -19,15 +19,6 @@ RUN curl -fsSL \
     | tar -xzf - --strip-components=1 ${TARGETOS}-${TARGETARCH}/helm
 
 
-FROM downloader AS ytt
-ARG TARGETOS
-ARG TARGETARCH
-# renovate: datasource=github-releases depName=carvel-dev/ytt
-ARG YTT_VERSION=v0.48.0
-RUN curl -fsSL \
-      https://github.com/carvel-dev/ytt/releases/download/${YTT_VERSION}/ytt-${TARGETOS}-${TARGETARCH} \
-    > ytt
-
 
 FROM --platform=$BUILDPLATFORM debian:bookworm-slim
 
@@ -41,7 +32,6 @@ RUN apt-get update \
  && rm -rf /var/lib/apt/lists/*
 
 COPY --link --chmod=700 --from=helm /tools/helm /usr/local/bin/
-COPY --link --chmod=700 --from=ytt /tools/ytt /usr/local/bin/
 # This copies myks binary built by goreleaser
 COPY --link myks /usr/local/bin/
 
