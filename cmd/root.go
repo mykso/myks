@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 
-	"github.com/mykso/myks/cmd/vendir"
+	"github.com/mykso/myks/cmd/embedded"
 	"github.com/mykso/myks/internal/myks"
 )
 
@@ -37,7 +37,8 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cmd.AddCommand(newInitCmd())
 	cmd.AddCommand(newPrintConfigCmd())
 	cmd.AddCommand(newSyncCmd())
-	cmd.AddCommand(vendir.VendirCmd)
+	cmd.AddCommand(embedded.EmbeddedCmd("vendir", "Vendir is embedded in myks to manage vendir.yaml files."))
+	cmd.AddCommand(embedded.EmbeddedCmd("ytt", "Ytt is embedded in myks to manage yaml files."))
 	initConfig()
 	addPlugins(cmd)
 	return cmd
@@ -48,14 +49,14 @@ func newRootCmd(version, commit, date string) *cobra.Command {
 		Use:   "myks",
 		Short: "Myks helps to manage configuration for kubernetes clusters",
 		Long: `Myks fetches K8s workloads from a variety of sources, e.g. Helm charts or Git Repositories. It renders their respective yaml files to the file system in a structure of environments and their applications.
-	
+
 	It supports prototype applications that can be shared between environments and inheritance of configuration from parent environments to their "children".
-	
+
 	Myks supports two positional arguments:
-	
+
 	- A comma-separated list of environments to render. If you provide "ALL", all environments will be rendered.
 	- A comma-separated list of applications to render. If you don't provide this argument or provide "ALL", all applications will be rendered.
-	
+
 	If you do not provide any positional arguments, myks will run in "Smart Mode". In Smart Mode, myks will only render environments and applications that have changed since the last run.
 	`,
 	}
