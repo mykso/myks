@@ -168,7 +168,7 @@ secrets are cleaned up automatically after the sync is complete.
 
 For building and contributing:
 
-- [Go](https://golang.org/) 1.21+
+- [Go](https://golang.org/) 1.22+
 - [goreleaser](https://goreleaser.com/) 1.18+
 - optional:
   - [task](https://taskfile.dev/) 3.27+

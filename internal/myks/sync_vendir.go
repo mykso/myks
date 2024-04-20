@@ -130,7 +130,7 @@ func (v *VendirSyncer) runVendirSync(a *Application, vendirConfigPath, vendirCon
 		"--directory=" + vendirConfigDirPath,
 		"--file=-",
 	}
-	_, err := a.runCmd(v.getStepName(), "vendir sync", "myks", strings.NewReader(vendirSecrets), args)
+	_, err := a.runCmd(v.getStepName(), "vendir sync", myksFullPath(), strings.NewReader(vendirSecrets), args)
 	if err != nil {
 		return err
 	}

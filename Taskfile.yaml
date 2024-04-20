@@ -26,7 +26,8 @@ tasks:
 
   go:lint:sec:
     cmds:
-      - gosec -exclude=G304 ./... # G304: Potential file inclusion via variable is a false positive
+      # G304: Potential file inclusion via variable is a false positive
+      - gosec -exclude=G304 ./...
 
   go:lint:
     desc: Lint the code
@@ -39,13 +40,14 @@ tasks:
     desc: Build the binary
     cmds:
       - mkdir -p bin
-      - goreleaser build --snapshot --clean --single-target --output bin/{{.BIN_NAME}}
+      - goreleaser build --snapshot --clean --single-target --output
+        bin/{{.BIN_NAME}}
 
-  go:run:
-    desc: Run the binary
+  go:test:
+    desc: Test the code
     deps:
       - go:build
     cmds:
       - |
-        cd examples/more-real && \
-        ../../bin/{{.BIN_NAME}} {{.CLI_ARGS}}
+        export PATH="{{.ROOT_DIR}}/bin:$PATH"
+        go test -failfast -race ./...

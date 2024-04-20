@@ -14,13 +14,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.21"
-      - uses: carvel-dev/setup-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          only: ytt
-          ytt: latest
+          go-version: "1.22"
       - name: Build myks
         run: go install .
       - name: Test

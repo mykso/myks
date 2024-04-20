@@ -301,13 +301,15 @@ func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name st
 		paths = append(paths, "-")
 	}
 
-	cmdArgs := []string{}
+	cmdArgs := []string{
+		"ytt",
+	}
 	for _, path := range paths {
 		cmdArgs = append(cmdArgs, "--file="+path)
 	}
 
 	cmdArgs = append(cmdArgs, args...)
-	return runCmd("ytt", stdin, cmdArgs, logFn)
+	return runCmd(myksFullPath(), stdin, cmdArgs, logFn)
 }
 
 func filterSlice[T any](slice []T, filterFunc func(v T) bool) []T {
@@ -435,4 +437,16 @@ func createURLSlug(url string) string {
 	url = strings.TrimPrefix(url, "oci://")
 	url = strings.ReplaceAll(url, "/", "-")
 	return url
+}
+
+func myksFullPath() string {
+	myks, err := os.Executable()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to get myks executable")
+	}
+	if strings.Contains(myks, ".test") {
+		// running go test, the test executable doesn't provide embedded binaries, fallback to myks in PATH
+		return "myks"
+	}
+	return myks
 }
