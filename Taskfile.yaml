@@ -50,4 +50,4 @@ tasks:
     cmds:
       - |
         export PATH="{{.ROOT_DIR}}/bin:$PATH"
-        go test -failfast -race ./...
+        go test -failfast -race ./... {{.CLI_ARGS}}
