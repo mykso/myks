@@ -23,7 +23,7 @@ FROM downloader AS ytt
 ARG TARGETOS
 ARG TARGETARCH
 # renovate: datasource=github-releases depName=carvel-dev/ytt
-ARG YTT_VERSION=v0.48.0
+ARG YTT_VERSION=v0.49.0
 RUN curl -fsSL \
       https://github.com/carvel-dev/ytt/releases/download/${YTT_VERSION}/ytt-${TARGETOS}-${TARGETARCH} \
     > ytt
