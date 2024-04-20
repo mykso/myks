@@ -21,6 +21,8 @@ func CheckAndRun() bool {
 	case "vendir":
 		embeddedF = vendirMain
 	default:
+		fmt.Printf("Unknown embedded command '%s'\n", os.Args)
+		os.Exit(1)
 		return false
 	}
 

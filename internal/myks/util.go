@@ -292,7 +292,7 @@ func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name st
 	}
 
 	cmdArgs = append(cmdArgs, args...)
-	return runCmd("myks", stdin, cmdArgs, logFn)
+	return runCmd(myksFullPath(), stdin, cmdArgs, logFn)
 }
 
 func filterSlice[T any](slice []T, filterFunc func(v T) bool) []T {
@@ -420,4 +420,16 @@ func createURLSlug(url string) string {
 	url = strings.TrimPrefix(url, "oci://")
 	url = strings.ReplaceAll(url, "/", "-")
 	return url
+}
+
+func myksFullPath() string {
+	myks, err := os.Executable()
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to get myks executable")
+	}
+	if strings.Contains(myks, ".test") {
+		// running go test, the test executable doesnot provide embedded binaries, fallback to myks
+		return "myks"
+	}
+	return myks
 }
