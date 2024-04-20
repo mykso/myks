@@ -49,14 +49,14 @@ func findRepos(t *testing.T, basefolder string) []testRepo {
 
 func checkCleanGit(t *testing.T) bool {
 	t.Helper()
-	changes, err := myks.GetChangedFilesGit("")
+	changedFiles, err := myks.GetChangedFilesGit("")
 	if err != nil {
 		t.Fatalf("Checking git failed: %s", err)
 	}
 	regex, _ := regexp.Compile("examples/.*/rendered/.*")
-	for _, change := range changes {
-		if regex.MatchString(change) {
-			t.Logf("Found changed files in rendered output: %v", changes)
+	for file := range changedFiles {
+		if regex.MatchString(file) {
+			t.Logf("Found changed files in rendered output: %v", file)
 			t.Errorf("Unexpected changes in git status")
 			return false
 		}
