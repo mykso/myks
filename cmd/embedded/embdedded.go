@@ -36,7 +36,6 @@ func EmbeddedCmd(name string, description string) *cobra.Command {
 		Long:  description,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("build error with embedded '%s'. Please create an issue at https://github.com/mykso/myks/issues/new", name)
-
 		},
 	}
 }
