@@ -1,6 +1,6 @@
 kind: rendering
 metadata:
-  name: render-test
+  name: helm-render-test
 outputYaml:
   fromAppConfig: true
   fromAppConfigAppData: true

@@ -1,5 +1,5 @@
 kind: rendering
 metadata:
-  name: render-test
+  name: helm-{{ .Release.Name }}
 outputYaml:
 {{ toYaml .Values.outputYaml | indent 2 }}
