@@ -113,6 +113,10 @@ func (a *Application) expandVendirCache(path string) string {
 	return filepath.Join(a.e.g.ServiceDirName, a.e.g.VendirCache, path)
 }
 
+func (a *Application) expandVendorPath(path string) string {
+	return a.expandServicePath(filepath.Join(a.e.g.VendorDirName, path))
+}
+
 func (a *Application) writeServiceFile(name string, content string) error {
 	return writeFile(a.expandServicePath(name), []byte(content))
 }
