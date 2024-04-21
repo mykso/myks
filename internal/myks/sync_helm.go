@@ -2,6 +2,7 @@ package myks
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -22,69 +23,38 @@ func (hr *HelmSyncer) GenerateSecrets(_ *Globe) (string, error) {
 }
 
 func (hr *HelmSyncer) Sync(a *Application, _ string) error {
-	vendirConfigPath := a.expandServicePath(a.e.g.VendirPatchedConfigFileName)
-	// read vendir config
-	vendirConfig, err := unmarshalYamlToMap(vendirConfigPath)
-	if len(vendirConfig) == 0 || err != nil {
+	helmConfig, err := hr.getHelmConfig(a)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm config"))
 		return err
 	}
 
-	for _, dir := range vendirConfig["directories"].([]interface{}) {
-		dirMap := dir.(map[string]interface{})
-		config := make(map[string]interface{})
-		dirPath := dirMap["path"].(string)
-		config["path"] = dirPath
-		for _, content := range dirMap["contents"].([]interface{}) {
-			contentMap := content.(map[string]interface{})
-			path := filepath.Join(dirPath, contentMap["path"].(string))
+	if !helmConfig.BuildDependencies {
+		log.Debug().Msg(a.Msg(hr.getStepName(), ".helm.buildDependencies is disabled, skipping"))
+		return nil
+	}
 
-			// locate charts subpath in path
-			chartDir, found := findSubPath(path, a.e.g.HelmChartsDirName)
-			if !found {
-				log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
-				continue
-			}
+	chartsDir := a.expandVendorPath(a.e.g.HelmChartsDirName)
+	files, err := os.ReadDir(chartsDir)
+	if err != nil {
+		return err
+	}
+	if len(files) == 0 {
+		log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
+		return nil
+	}
+	for _, file := range files {
+		chartDir := filepath.Join(chartsDir, file.Name())
+		if err = ensureValidChartEntry(chartDir); err != nil {
+			log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Skipping invalid chart entry"))
+			continue
+		}
 
-			exists, err := isExist(chartDir)
-			if err != nil {
-				log.Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm charts dir"))
-				return err
-			}
-
-			if !exists {
-				log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
-				continue
-			}
-
-			chartDirs, err := getSubDirs(chartDir)
-			if err != nil {
-				log.Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm charts sub dirs"))
-				return err
-			}
-
-			if len(chartDirs) == 0 {
-				log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
-				return nil
-			}
-
-			helmConfig, err := hr.getHelmConfig(a)
-			if err != nil {
-				log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm config"))
-				return err
-			}
-
-			for _, chartDir := range chartDirs {
-				if helmConfig.BuildDependencies {
-					err = hr.helmBuild(a, chartDir)
-					if err != nil {
-						return err
-					}
-				}
-			}
-			log.Info().Msg(a.Msg(hr.getStepName(), "Synced"))
-			return nil
+		if err = hr.helmBuild(a, chartDir); err != nil {
+			return err
 		}
 	}
+	log.Info().Msg(a.Msg(hr.getStepName(), "Synced"))
 	return nil
 }
 
@@ -99,18 +69,22 @@ func (hr *HelmSyncer) helmBuild(a *Application, chartDir string) error {
 		return fmt.Errorf("failure to unmarshal Chart.yaml at: %s", chartPath)
 	}
 
+	dependencies, ok := chart["dependencies"]
+	if !ok {
+		return nil
+	}
+
 	helmCache := a.expandServicePath("helm-cache")
 	cacheArgs := []string{
 		"--repository-cache", filepath.Join(helmCache, "repository"),
 		"--repository-config", filepath.Join(helmCache, "repositories.yaml"),
 	}
-	dependencies := chart["dependencies"].([]interface{})
-	for _, dependency := range dependencies {
+	for _, dependency := range dependencies.([]interface{}) {
 		depMap := dependency.(map[string]interface{})
 		repo := depMap["repository"].(string)
 		if strings.HasPrefix(repo, "http") {
 			args := []string{"repo", "add", createURLSlug(repo), repo, "--force-update"}
-			_, err := a.runCmd(hr.getStepName(), "helm repo add", "helm", nil, append(args, cacheArgs...))
+			_, err = a.runCmd(hr.getStepName(), "helm repo add", "helm", nil, append(args, cacheArgs...))
 			if err != nil {
 				return fmt.Errorf("failed to add repository %s in %s ", repo, chartPath)
 			}
@@ -145,4 +119,40 @@ func (hr *HelmSyncer) getHelmConfig(a *Application) (HelmConfig, error) {
 
 func (hr *HelmSyncer) getStepName() string {
 	return fmt.Sprintf("%s-%s", syncStepName, hr.Ident())
+}
+
+func ensureValidChartEntry(entryPath string) error {
+	if entryPath == "" {
+		return fmt.Errorf("empty entry path")
+	}
+
+	fileInfo, err := os.Stat(entryPath)
+	if err != nil {
+		return err
+	}
+	canonicName := entryPath
+	if fileInfo.Mode()&os.ModeSymlink == 1 {
+		if name, readErr := os.Readlink(entryPath); readErr != nil {
+			return readErr
+		} else {
+			canonicName = name
+		}
+	}
+
+	fileInfo, err = os.Stat(canonicName)
+	if err != nil {
+		return err
+	}
+
+	if !fileInfo.IsDir() {
+		return fmt.Errorf("non-directory entry")
+	}
+
+	if exists, err := isExist(filepath.Join(canonicName, "Chart.yaml")); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("no Chart.yaml found")
+	}
+
+	return nil
 }
