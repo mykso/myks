@@ -1,0 +1,4 @@
+---
+kind: rendering
+metadata:
+  name: ytt-render-test-2
