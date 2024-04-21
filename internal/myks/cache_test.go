@@ -38,8 +38,7 @@ func TestHelmCacheNamer_Name(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := &HelmCacheNamer{}
-			got, err := h.Name("", tt.vendirConfig)
+			got, err := helmCacheNamer(tt.vendirConfig)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Name() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -80,8 +79,7 @@ func TestDirectoryCacheNamer_Name(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := &DirectoryCacheNamer{}
-			got, err := h.Name("", tt.vendirConfig)
+			got, err := directoryCacheNamer(tt.vendirConfig)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Name() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -129,8 +127,7 @@ func TestGitCacheNamer_Name(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := &GitCacheNamer{}
-			got, err := h.Name("", tt.vendirConfig)
+			got, err := gitCacheNamer(tt.vendirConfig)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Name() error = %v, wantErr %v", err, tt.wantErr)
 				return

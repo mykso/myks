@@ -61,6 +61,7 @@ type Globe struct {
 	// Rendered vendir config file name
 	VendirConfigFileName        string `default:"vendir.yaml"`
 	VendirPatchedConfigFileName string `default:"vendir-patched.yaml"`
+	VendirLinksMapFileName      string `default:"vendir-links.yaml"`
 	// Rendered vendir lock file name
 	VendirLockFileName string `default:"vendir.lock.yaml"`
 	// Prefix for vendir secret environment variables

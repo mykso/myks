@@ -5,16 +5,13 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 )
-
-type CacheConfig struct {
-	Enabled bool
-}
 
 type VendirSyncer struct {
 	ident string
@@ -85,7 +82,7 @@ func (v *VendirSyncer) prepareSync(a *Application) error {
 		return err
 	}
 
-	if err := v.patchVendirConfig(a); err != nil {
+	if err := v.extractCacheItems(a); err != nil {
 		return err
 	}
 
@@ -142,35 +139,13 @@ func (v *VendirSyncer) getStepName() string {
 	return fmt.Sprintf("%s-%s", syncStepName, v.Ident())
 }
 
-func (v *VendirSyncer) getCacheConfig(a *Application) (CacheConfig, error) {
-	dataValuesYaml, err := a.ytt(v.getStepName(), "get cache config", a.yttDataFiles, "--data-values-inspect")
-	if err != nil {
-		return CacheConfig{}, err
-	}
-
-	var cacheConfig struct {
-		Cache CacheConfig
-	}
-	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &cacheConfig)
-	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to unmarshal data values"))
-		return CacheConfig{}, err
-	}
-
-	return cacheConfig.Cache, nil
-}
-
-func (v *VendirSyncer) patchVendirConfig(a *Application) error {
+func (v *VendirSyncer) extractCacheItems(a *Application) error {
 	vendirConfig, err := unmarshalYamlToMap(a.expandServicePath(a.e.g.VendirConfigFileName))
 	if err != nil {
 		return err
 	}
 
-	vendirPatchedConfigPath := a.expandServicePath(a.e.g.VendirPatchedConfigFileName)
-	cacheConfig, err := v.getCacheConfig(a)
-	if err != nil {
-		return err
-	}
+	dirToCacheMap := map[string]string{}
 
 	for _, dir := range vendirConfig["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
@@ -184,31 +159,55 @@ func (v *VendirSyncer) patchVendirConfig(a *Application) error {
 			return errors.New("multiple contents are not supported in vendir config directory")
 		}
 		contentMap := contents[0].(map[string]interface{})
-		contentPath := contentMap["path"].(string)
 
-		path := filepath.Join(dirPath, contentPath)
-		cacheName, err := findCacheNamer(contentMap).Name(path, contentMap)
+		cacheName, err := genCacheName(contentMap)
 		if err != nil {
 			return err
 		}
-		outputPath := filepath.Join(a.expandVendirCache(cacheName), dirPath)
-		dirMap["path"] = outputPath
-		exists, _ := isExist(outputPath)
-		if _, ok := contentMap["lazy"]; !ok && cacheConfig.Enabled && exists {
-			contentMap["lazy"] = true
-		}
+		dirToCacheMap[dirPath] = cacheName
+		v.saveCacheVendirConfig(a, cacheName, buildCacheVendirConfig(vendirConfig, dirMap))
 	}
 
+	return v.saveLinksMap(a, dirToCacheMap)
+}
+
+func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, vendirConfig map[string]interface{}) error {
+	vendirConfigPath := path.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
 	data, err := yaml.Marshal(vendirConfig)
 	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal patched vendir config"))
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
 		return err
 	}
-
-	if err = writeFile(vendirPatchedConfigPath, data); err != nil {
-		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write patched vendir config"))
+	if err = writeFile(vendirConfigPath, data); err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config"))
 		return err
 	}
+	return nil
+}
 
+func buildCacheVendirConfig(vendirConfig map[string]interface{}, vendirDirConfig map[string]interface{}) map[string]interface{} {
+	knownKeys := []string{"apiVersion", "kind", "minimumRequiredVersion"}
+	newVendirConfig := map[string]interface{}{}
+	for _, key := range knownKeys {
+		if val, ok := vendirConfig[key]; ok {
+			newVendirConfig[key] = val
+		}
+	}
+	vendirDirConfig["path"] = "data"
+	newVendirConfig["directories"] = []interface{}{vendirDirConfig}
+	return newVendirConfig
+}
+
+func (v *VendirSyncer) saveLinksMap(a *Application, linksMap map[string]string) error {
+	linksMapPath := a.expandServicePath(a.e.g.VendirLinksMapFileName)
+	data, err := yaml.Marshal(linksMap)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal links map"))
+		return err
+	}
+	if err = writeFile(linksMapPath, data); err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write links map"))
+		return err
+	}
 	return nil
 }

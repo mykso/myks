@@ -7,36 +7,28 @@ import (
 	"strings"
 )
 
-type CacheNamer interface {
-	Name(path string, vendirConfig map[string]interface{}) (string, error)
+func genCacheName(config map[string]interface{}) (string, error) {
+	switch {
+	case config["helmChart"] != nil:
+		return helmCacheNamer(config)
+	case config["directory"] != nil:
+		return directoryCacheNamer(config)
+	case config["git"] != nil:
+		return gitCacheNamer(config)
+	default:
+		return defaultCacheNamer(config)
+	}
 }
 
-func findCacheNamer(config map[string]interface{}) CacheNamer {
-	if config["helmChart"] != nil {
-		return HelmCacheNamer{}
-	}
-	if config["directory"] != nil {
-		return DirectoryCacheNamer{}
-	}
-	if config["git"] != nil {
-		return GitCacheNamer{}
-	}
-	return DefaultCacheNamer{}
-}
-
-type DefaultCacheNamer struct{}
-
-func (h DefaultCacheNamer) Name(path string, config map[string]interface{}) (string, error) {
+func defaultCacheNamer(config map[string]interface{}) (string, error) {
 	yaml, err := sortYaml(config)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s-%s", filepath.Base(path), hashString(yaml)), nil
+	return fmt.Sprintf("unknown-%s", hashString(yaml)), nil
 }
 
-type HelmCacheNamer struct{}
-
-func (h HelmCacheNamer) Name(_ string, config map[string]interface{}) (string, error) {
+func helmCacheNamer(config map[string]interface{}) (string, error) {
 	yaml, err := sortYaml(config)
 	if err != nil {
 		return "", err
@@ -56,9 +48,7 @@ func (h HelmCacheNamer) Name(_ string, config map[string]interface{}) (string, e
 	return fmt.Sprintf("%s-%s-%s-%s", "helm", chartName, version, hashString(yaml)), nil
 }
 
-type GitCacheNamer struct{}
-
-func (h GitCacheNamer) Name(_ string, config map[string]interface{}) (string, error) {
+func gitCacheNamer(config map[string]interface{}) (string, error) {
 	yaml, err := sortYaml(config)
 	if err != nil {
 		return "", err
@@ -83,9 +73,7 @@ func (h GitCacheNamer) Name(_ string, config map[string]interface{}) (string, er
 	return fmt.Sprintf("%s-%s-%s-%s", "git", dir, refSlug(ref), hashString(yaml)), nil
 }
 
-type DirectoryCacheNamer struct{}
-
-func (h DirectoryCacheNamer) Name(_ string, vendirConfig map[string]interface{}) (string, error) {
+func directoryCacheNamer(vendirConfig map[string]interface{}) (string, error) {
 	yaml, err := sortYaml(vendirConfig)
 	if err != nil {
 		return "", err
