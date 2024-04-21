@@ -1,8 +1,6 @@
 package myks
 
 import (
-	_ "embed"
-
 	"github.com/rs/zerolog/log"
 )
 
