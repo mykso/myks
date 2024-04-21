@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -208,4 +209,27 @@ func (a *Application) yttS(step string, purpose string, paths []string, stdin io
 
 func (a *Application) prototypeDirName() string {
 	return strings.TrimPrefix(a.Prototype, a.e.g.PrototypesDir+string(filepath.Separator))
+}
+
+func (a *Application) getHelmChartsDirs(stepName string) ([]string, error) {
+	chartsDirs := []string{}
+	baseDir := a.expandVendorPath(a.e.g.HelmChartsDirName)
+	files, err := os.ReadDir(baseDir)
+	if err != nil {
+		return nil, err
+	}
+	if len(files) == 0 {
+		log.Debug().Msg(a.Msg(stepName, "No Helm charts found"))
+		return nil, nil
+	}
+	for _, file := range files {
+		chartDir := filepath.Join(baseDir, file.Name())
+		if err = ensureValidChartEntry(chartDir); err != nil {
+			log.Warn().Err(err).Msg(a.Msg(stepName, "Skipping invalid chart entry"))
+			continue
+		}
+		chartsDirs = append(chartsDirs, chartDir)
+	}
+
+	return chartsDirs, nil
 }

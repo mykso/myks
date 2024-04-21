@@ -450,3 +450,39 @@ func myksFullPath() string {
 	}
 	return myks
 }
+
+func ensureValidChartEntry(entryPath string) error {
+	if entryPath == "" {
+		return fmt.Errorf("empty entry path")
+	}
+
+	fileInfo, err := os.Stat(entryPath)
+	if err != nil {
+		return err
+	}
+	canonicName := entryPath
+	if fileInfo.Mode()&os.ModeSymlink == 1 {
+		if name, readErr := os.Readlink(entryPath); readErr != nil {
+			return readErr
+		} else {
+			canonicName = name
+		}
+	}
+
+	fileInfo, err = os.Stat(canonicName)
+	if err != nil {
+		return err
+	}
+
+	if !fileInfo.IsDir() {
+		return fmt.Errorf("non-directory entry")
+	}
+
+	if exists, err := isExist(filepath.Join(canonicName, "Chart.yaml")); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("no Chart.yaml found")
+	}
+
+	return nil
+}

@@ -2,7 +2,6 @@ package myks
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -34,22 +33,11 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 		return nil
 	}
 
-	chartsDir := a.expandVendorPath(a.e.g.HelmChartsDirName)
-	files, err := os.ReadDir(chartsDir)
+	chartsDirs, err := a.getHelmChartsDirs(hr.getStepName())
 	if err != nil {
 		return err
 	}
-	if len(files) == 0 {
-		log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
-		return nil
-	}
-	for _, file := range files {
-		chartDir := filepath.Join(chartsDir, file.Name())
-		if err = ensureValidChartEntry(chartDir); err != nil {
-			log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Skipping invalid chart entry"))
-			continue
-		}
-
+	for _, chartDir := range chartsDirs {
 		if err = hr.helmBuild(a, chartDir); err != nil {
 			return err
 		}
@@ -119,40 +107,4 @@ func (hr *HelmSyncer) getHelmConfig(a *Application) (HelmConfig, error) {
 
 func (hr *HelmSyncer) getStepName() string {
 	return fmt.Sprintf("%s-%s", syncStepName, hr.Ident())
-}
-
-func ensureValidChartEntry(entryPath string) error {
-	if entryPath == "" {
-		return fmt.Errorf("empty entry path")
-	}
-
-	fileInfo, err := os.Stat(entryPath)
-	if err != nil {
-		return err
-	}
-	canonicName := entryPath
-	if fileInfo.Mode()&os.ModeSymlink == 1 {
-		if name, readErr := os.Readlink(entryPath); readErr != nil {
-			return readErr
-		} else {
-			canonicName = name
-		}
-	}
-
-	fileInfo, err = os.Stat(canonicName)
-	if err != nil {
-		return err
-	}
-
-	if !fileInfo.IsDir() {
-		return fmt.Errorf("non-directory entry")
-	}
-
-	if exists, err := isExist(filepath.Join(canonicName, "Chart.yaml")); err != nil {
-		return err
-	} else if !exists {
-		return fmt.Errorf("no Chart.yaml found")
-	}
-
-	return nil
 }
