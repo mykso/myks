@@ -96,7 +96,9 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 
 	for dirPath, cacheName := range linksMap {
 		cacheDir := a.expandVendirCache(cacheName.(string))
-		if err := v.runVendirSync(a, cacheDir, a.e.g.VendirConfigFileName, a.e.g.VendirLockFileName, vendirSecrets); err != nil {
+		vendirConfigPath := filepath.Join(cacheDir, a.e.g.VendirConfigFileName)
+		vendirLockPath := filepath.Join(cacheDir, a.e.g.VendirLockFileName)
+		if err := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets); err != nil {
 			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
 			return err
 		}
@@ -132,12 +134,11 @@ func (v *VendirSyncer) linkVendorToCache(a *Application, vendorPath, cacheName s
 	return os.Symlink(relCacheDataPath, linkFullPath)
 }
 
-func (v *VendirSyncer) runVendirSync(a *Application, chdir, vendirConfig, vendirLock, vendirSecrets string) error {
+func (v *VendirSyncer) runVendirSync(a *Application, vendirConfig, vendirLock, vendirSecrets string) error {
 	// TODO sync retry - maybe as vendir MR
 	args := []string{
 		"vendir",
 		"sync",
-		"--chdir=" + chdir,
 		"--file=" + vendirConfig,
 		"--lock-file=" + vendirLock,
 		"--file=-",
@@ -176,8 +177,9 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 			return err
 		}
 		dirToCacheMap[dirPath] = cacheName
+		cacheDir := a.expandVendirCache(cacheName)
 		// FIXME: Possible race condition if multiple applications are running in parallel
-		v.saveCacheVendirConfig(a, cacheName, buildCacheVendirConfig(vendirConfig, dirMap))
+		v.saveCacheVendirConfig(a, cacheName, buildCacheVendirConfig(cacheDir, vendirConfig, dirMap))
 	}
 
 	return v.saveLinksMap(a, dirToCacheMap)
@@ -201,7 +203,7 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 	return nil
 }
 
-func buildCacheVendirConfig(vendirConfig map[string]interface{}, vendirDirConfig map[string]interface{}) map[string]interface{} {
+func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig map[string]interface{}) map[string]interface{} {
 	knownKeys := []string{"apiVersion", "kind", "minimumRequiredVersion"}
 	newVendirConfig := map[string]interface{}{}
 	for _, key := range knownKeys {
@@ -209,7 +211,8 @@ func buildCacheVendirConfig(vendirConfig map[string]interface{}, vendirDirConfig
 			newVendirConfig[key] = val
 		}
 	}
-	vendirDirConfig["path"] = "data"
+	// TODO: move "data" to the Globe config or to a constant
+	vendirDirConfig["path"] = filepath.Join(cacheDir, "data")
 	newVendirConfig["directories"] = []interface{}{vendirDirConfig}
 	return newVendirConfig
 }
