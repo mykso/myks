@@ -15,9 +15,9 @@ directories:
     contents:
       - path: .
         directory:
-          path: ../_lib/ytt/render-test
+          path: ../_lib/ytt/render-test-1
   - path: ytt/render-test-2
     contents:
       - path: .
         directory:
-          path: ../_lib/ytt/render-test
+          path: ../_lib/ytt/render-test-2
