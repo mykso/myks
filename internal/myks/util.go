@@ -194,15 +194,6 @@ func hashString(s string) string {
 	return fmt.Sprintf("%x", h.Sum64())
 }
 
-func removeDirectory(dir string) error {
-	err := os.RemoveAll(dir)
-	if err != nil {
-		log.Error().Err(err).Str("dir", dir).Msg("Unable to remove directory")
-		return err
-	}
-	return nil
-}
-
 func createDirectory(dir string) error {
 	if ok, err := isExist(dir); err != nil {
 		return err

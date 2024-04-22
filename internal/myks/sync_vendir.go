@@ -179,7 +179,9 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 		dirToCacheMap[dirPath] = cacheName
 		cacheDir := a.expandVendirCache(cacheName)
 		// FIXME: Possible race condition if multiple applications are running in parallel
-		v.saveCacheVendirConfig(a, cacheName, buildCacheVendirConfig(cacheDir, vendirConfig, dirMap))
+		if err = v.saveCacheVendirConfig(a, cacheName, buildCacheVendirConfig(cacheDir, vendirConfig, dirMap)); err != nil {
+			return err
+		}
 	}
 
 	return v.saveLinksMap(a, dirToCacheMap)
