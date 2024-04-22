@@ -486,3 +486,23 @@ func ensureValidChartEntry(entryPath string) error {
 
 	return nil
 }
+
+// readDirDereferenceLinks reads the directory and dereferences symlinks
+func readDirDereferenceLinks(dir string) (dirs []string, err error) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, file := range files {
+		fullPath := filepath.Join(dir, file.Name())
+		if file.Type()&fs.ModeSymlink != 0 {
+			if fullPath, err = os.Readlink(fullPath); err != nil {
+				return
+			}
+			fullPath = filepath.Clean(filepath.Join(dir, fullPath))
+		}
+		dirs = append(dirs, fullPath)
+	}
+
+	return
+}
