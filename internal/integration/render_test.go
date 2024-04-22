@@ -33,7 +33,7 @@ func findRepos(t *testing.T, basefolder string) []testRepo {
 		if !d.IsDir() {
 			continue
 		}
-		if d.Name() == "charts" {
+		if d.Name() == "_lib" {
 			continue
 		}
 		repos = append(repos, testRepo{
