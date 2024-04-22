@@ -59,7 +59,6 @@ type Globe struct {
 	TempDirName string `default:"tmp"`
 
 	// Rendered vendir config file name
-	VendirPatchedConfigFileName string `default:"vendir-patched.yaml"`
 	VendirConfigFileName string `default:"vendir.yaml"`
 	// Rendered vendir lock file name
 	VendirLockFileName string `default:"vendir.lock.yaml"`
