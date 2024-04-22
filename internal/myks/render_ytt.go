@@ -41,11 +41,11 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 		return "", err
 	} else if ok {
 		// symlinks to directories are not followed by ytt, so we need to dereference them
-		vendorYttDirs, err := readDirDereferenceLinks(vendorYttDir)
+		vendorYttFiles, err := readDirDereferenceLinks(vendorYttDir)
 		if err != nil {
 			return "", err
 		}
-		yttFiles = append(yttFiles, vendorYttDirs...)
+		yttFiles = append(yttFiles, vendorYttFiles...)
 	} else {
 		log.Debug().Msg(y.app.Msg(y.getStepName(), "No vendor ytt directory found"))
 	}
