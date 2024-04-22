@@ -211,6 +211,13 @@ func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig map[s
 			newVendirConfig[key] = val
 		}
 	}
+
+	// Enable lazy mode by default
+	contentMap := vendirDirConfig["contents"].([]interface{})[0].(map[string]interface{})
+	if _, ok := contentMap["lazy"]; !ok {
+		contentMap["lazy"] = true
+	}
+
 	// TODO: move "data" to the Globe config or to a constant
 	vendirDirConfig["path"] = filepath.Join(cacheDir, "data")
 	newVendirConfig["directories"] = []interface{}{vendirDirConfig}

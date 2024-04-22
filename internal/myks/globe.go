@@ -97,9 +97,6 @@ type Globe struct {
 	// Git repository URL
 	GitRepoUrl string
 
-	// CacheConfig
-	CacheEnabled bool
-
 	// Prefix for kubernetes namespaces, only used in helm rendering
 	NamespacePrefix string `default:""`
 
