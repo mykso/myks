@@ -214,6 +214,12 @@ func (a *Application) prototypeDirName() string {
 func (a *Application) getHelmChartsDirs(stepName string) ([]string, error) {
 	chartsDirs := []string{}
 	baseDir := a.expandVendorPath(a.e.g.HelmChartsDirName)
+	if ok, err := isExist(baseDir); err != nil {
+		return nil, err
+	} else if !ok {
+		log.Debug().Msg(a.Msg(stepName, "No Helm charts found"))
+		return nil, nil
+	}
 	files, err := os.ReadDir(baseDir)
 	if err != nil {
 		return nil, err

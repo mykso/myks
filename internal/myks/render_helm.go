@@ -26,6 +26,12 @@ func (h *Helm) Ident() string {
 func (h *Helm) Render(_ string) (string, error) {
 	log.Debug().Msg(h.app.Msg(h.getStepName(), "Starting"))
 	outputs := []string{}
+
+	chartsDirs, err := h.app.getHelmChartsDirs(h.getStepName())
+	if err != nil {
+		return "", err
+	}
+
 	helmConfig, err := h.getHelmConfig()
 	if err != nil {
 		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to get helm config"))
@@ -52,10 +58,6 @@ func (h *Helm) Render(_ string) (string, error) {
 		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
 	}
 
-	chartsDirs, err := h.app.getHelmChartsDirs(h.getStepName())
-	if err != nil {
-		return "", err
-	}
 	for _, chartDir := range chartsDirs {
 		chartName := filepath.Base(chartDir)
 		var helmValuesFile string
