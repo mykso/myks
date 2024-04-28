@@ -11,6 +11,40 @@
 ---
 #! Add here any application-specific data.
 application: {}
+#@schema/title "List of vendored applications managed by myks"
+#@schema/desc "Each vendored application is a git repository or a helm chart."
+prototypes:
+- #@schema/title "Prototype name"
+  #@schema/desc "For helm charts, this is the helm chart name."
+  #@schema/validation min_len=1
+  name: ""
+  #@schema/title "Protoytpe kind"
+  #@schema/desc "Depending of the vendored kind, further processing is done. For example, for helm charts, the chart is rendered."
+  #@schema/validation one_of=["ytt", "helm", "static", "ytt-pkg"]
+  kind: ""
+  #@schema/title "Prototype source as used by vendir"
+  #@schema/desc "Supports git and helm repositories."
+  #@schema/validation one_of=["git", "helmChart"]
+  source: ""
+  #@schema/title "Url to the application source"
+  #@schema/desc "For git repositories, this is the git url. For helm charts, this is the helm chart url."
+  #@schema/validation min_len=1
+  url: ""
+  #@schema/title "Lazy vendoring"
+  #@schema/desc "If true, the vendored application is not vendored until it is needed."
+  lazy: true
+  #@schema/title "Version of the prototype"
+  #@schema/desc "For git repositories, this is the git ref. For helm charts, this is the helm chart version."
+  #@schema/validation min_len=1
+  version: ""
+  #@schema/title "root path in the vendored application"
+  #@schema/desc "For git repositories, this is the root path in the git repository."
+  newRootPath: ""
+  #@schema/title "include files"
+  #@schema/desc "For git repositories, this is the list of files to include in the vendored application."
+  includePaths:
+    - includes.yaml
+
 argocd:
   enabled: true
   #! Namespace of the ArgoCD server.
