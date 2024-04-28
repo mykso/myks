@@ -13,7 +13,7 @@
 application: {}
 #@schema/title "List of vendored applications managed by myks"
 #@schema/desc "Each vendored application is a git repository or a helm chart."
-prototype-managed:
+prototypes:
 - #@schema/title "Prototype name"
   #@schema/desc "For helm charts, this is the helm chart name."
   #@schema/validation min_len=1

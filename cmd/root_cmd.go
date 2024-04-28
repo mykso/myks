@@ -34,6 +34,7 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cmd.AddCommand(allCmd)
 	cmd.AddCommand(renderCmd)
 	cmd.AddCommand(cleanUpCmd)
+	cmd.AddCommand(protoCmd)
 	cmd.AddCommand(newInitCmd())
 	cmd.AddCommand(newPrintConfigCmd())
 	cmd.AddCommand(newSyncCmd())

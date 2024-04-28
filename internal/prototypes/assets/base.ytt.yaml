@@ -1,6 +1,5 @@
 #@ load("@ytt:data", "data")
 
-#! TODO: This should be a library function
 #@ def pathForKind(kind, name):
 #@   if kind == "helm":
 #@     return "charts/" + name
@@ -9,12 +8,12 @@
 #@   end
 #@ end
 
-#@ proto = data.values.prototypes
+#@ app = data.values.application
 ---
 apiVersion: vendir.k14s.io/v1alpha1
 kind: Config
 directories:
-#@ for myApp in proto:
+#@ for myApp in app.managed:
 - path: #@ pathForKind(myApp.kind, myApp.name)
   contents:
     - path: .
