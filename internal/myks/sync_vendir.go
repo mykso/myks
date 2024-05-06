@@ -94,7 +94,7 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		return err
 	}
 
-	for dirPath, cacheName := range linksMap {
+	for contentPath, cacheName := range linksMap {
 		cacheDir := a.expandVendirCache(cacheName.(string))
 		vendirConfigPath := filepath.Join(cacheDir, a.e.g.VendirConfigFileName)
 		vendirLockPath := filepath.Join(cacheDir, a.e.g.VendirLockFileName)
@@ -102,7 +102,7 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
 			return err
 		}
-		if err := v.linkVendorToCache(a, dirPath, cacheName.(string)); err != nil {
+		if err := v.linkVendorToCache(a, contentPath, cacheName.(string)); err != nil {
 			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Unable to create link to cache"))
 			return err
 		}
@@ -157,34 +157,29 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 		return err
 	}
 
-	dirToCacheMap := map[string]string{}
+	vendorDirToCacheMap := map[string]string{}
 
 	for _, dir := range vendirConfig["directories"].([]interface{}) {
 		dirMap := dir.(map[string]interface{})
-		dirPath := dirMap["path"].(string)
 		contents := dirMap["contents"].([]interface{})
-		if len(contents) == 0 {
-			log.Warn().Str("directory", dirPath).Msg(a.Msg(v.getStepName(), "No contents found in vendir config directory"))
-			continue
-		} else if len(contents) > 1 {
-			log.Warn().Str("directory", dirPath).Msg(a.Msg(v.getStepName(), "Multiple contents found in vendir config directory"))
-			return errors.New("multiple contents are not supported in vendir config directory")
-		}
-		contentMap := contents[0].(map[string]interface{})
 
-		cacheName, err := genCacheName(contentMap)
-		if err != nil {
-			return err
-		}
-		dirToCacheMap[dirPath] = cacheName
-		cacheDir := a.expandVendirCache(cacheName)
-		// FIXME: Possible race condition if multiple applications are running in parallel
-		if err = v.saveCacheVendirConfig(a, cacheName, buildCacheVendirConfig(cacheDir, vendirConfig, dirMap)); err != nil {
-			return err
+		for _, content := range contents {
+			vendorDirPath := filepath.Join(dirMap["path"].(string), content.(map[string]interface{})["path"].(string))
+			contentMap := content.(map[string]interface{})
+			cacheName, err := genCacheName(contentMap)
+			if err != nil {
+				return err
+			}
+			vendorDirToCacheMap[vendorDirPath] = cacheName
+			cacheDir := a.expandVendirCache(cacheName)
+			// FIXME: Possible race condition if multiple applications are running in parallel
+			if err = v.saveCacheVendirConfig(a, cacheName, buildCacheVendirConfig(cacheDir, vendirConfig, dirMap, contentMap)); err != nil {
+				return err
+			}
 		}
 	}
 
-	return v.saveLinksMap(a, dirToCacheMap)
+	return v.saveLinksMap(a, vendorDirToCacheMap)
 }
 
 func (a *Application) getCacheVendirConfigPath(cacheName string) string {
@@ -205,7 +200,7 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 	return nil
 }
 
-func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig map[string]interface{}) map[string]interface{} {
+func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig, vendirContentConfig map[string]interface{}) map[string]interface{} {
 	knownKeys := []string{"apiVersion", "kind", "minimumRequiredVersion"}
 	newVendirConfig := map[string]interface{}{}
 	for _, key := range knownKeys {
@@ -214,15 +209,15 @@ func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig map[s
 		}
 	}
 
-	// Enable lazy mode by default
-	contentMap := vendirDirConfig["contents"].([]interface{})[0].(map[string]interface{})
-	if _, ok := contentMap["lazy"]; !ok {
-		contentMap["lazy"] = true
-	}
-
+	newDirConfig := map[string]interface{}{}
 	// TODO: move "data" to the Globe config or to a constant
-	vendirDirConfig["path"] = filepath.Join(cacheDir, "data")
-	newVendirConfig["directories"] = []interface{}{vendirDirConfig}
+	newDirConfig["path"] = filepath.Join(cacheDir, "data")
+	newDirConfig["permissions"] = vendirDirConfig["permissions"]
+
+	vendirContentConfig["path"] = "."
+
+	newDirConfig["contents"] = []interface{}{vendirContentConfig}
+	newVendirConfig["directories"] = []interface{}{newDirConfig}
 	return newVendirConfig
 }
 
