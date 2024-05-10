@@ -104,7 +104,10 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		vendirConfigPath := filepath.Join(cacheDir, a.e.g.VendirConfigFileName)
 		vendirLockPath := filepath.Join(cacheDir, a.e.g.VendirLockFileName)
 		if err := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets); err != nil {
-			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
+			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed, cleaning up the cache entry"))
+			if e := os.RemoveAll(cacheDir); e != nil {
+				log.Warn().Err(e).Msg(a.Msg(v.getStepName(), "Unable to remove cache directory"))
+			}
 			return err
 		}
 		if err := v.linkVendorToCache(a, contentPath, cacheName.(string)); err != nil {
