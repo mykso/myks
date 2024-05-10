@@ -1,16 +1,24 @@
 package myks
 
 import (
-	_ "embed"
 	"errors"
 	"fmt"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
+)
+
+var (
+	// vendirCacheConfigMutex is used to prevent concurrent writes to the vendir cache config files in saveCacheVendirConfig function
+	vendirCacheConfigMutex sync.Mutex
+
+	// vendirSyncMutex is used to prevent concurrent vendir sync operations in runVendirSync function
+	vendirSyncMutex sync.Mutex
 )
 
 type VendirSyncer struct {
@@ -137,6 +145,8 @@ func (v *VendirSyncer) linkVendorToCache(a *Application, vendorPath, cacheName s
 }
 
 func (v *VendirSyncer) runVendirSync(a *Application, vendirConfig, vendirLock, vendirSecrets string) error {
+	vendirSyncMutex.Lock()
+	defer vendirSyncMutex.Unlock()
 	// TODO sync retry - maybe as vendir MR
 	args := []string{
 		"vendir",
@@ -174,7 +184,6 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 			}
 			vendorDirToCacheMap[vendorDirPath] = cacheName
 			cacheDir := a.expandVendirCache(cacheName)
-			// FIXME: Possible race condition if multiple applications are running in parallel
 			if err = v.saveCacheVendirConfig(a, cacheName, buildCacheVendirConfig(cacheDir, vendirConfig, dirMap, contentMap)); err != nil {
 				return err
 			}
@@ -195,6 +204,8 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 		return err
 	}
 	vendirConfigPath := a.getCacheVendirConfigPath(cacheName)
+	vendirCacheConfigMutex.Lock()
+	defer vendirCacheConfigMutex.Unlock()
 	if err = writeFile(vendirConfigPath, data); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config"))
 		return err
