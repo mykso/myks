@@ -8,6 +8,7 @@ environment:
     - proto: helm-render-test
       name: helm-installation
     - proto: multiple-sources
+    - proto: multiple-contents-sources
     - proto: ytt-render-test
       name: ytt-installation
     - proto: static-test

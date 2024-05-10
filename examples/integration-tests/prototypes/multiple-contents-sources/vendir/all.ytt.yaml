@@ -1,0 +1,17 @@
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+  - path: .
+    contents:
+      - path: charts/render-test-1
+        directory:
+          path: ../_lib/charts/render-test-chart
+      - path: charts/render-test-2
+        directory:
+          path: ../_lib/charts/render-test-chart
+      - path: ytt/render-test-1
+        directory:
+          path: ../_lib/ytt/render-test-1
+      - path: ytt/render-test-2
+        directory:
+          path: ../_lib/ytt/render-test-2
