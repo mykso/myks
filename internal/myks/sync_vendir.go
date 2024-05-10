@@ -94,6 +94,11 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		return err
 	}
 
+	if err := os.RemoveAll(a.expandVendorPath("")); err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to remove vendor directory"))
+		return err
+	}
+
 	for contentPath, cacheName := range linksMap {
 		cacheDir := a.expandVendirCache(cacheName.(string))
 		vendirConfigPath := filepath.Join(cacheDir, a.e.g.VendirConfigFileName)
@@ -124,10 +129,6 @@ func (v *VendirSyncer) linkVendorToCache(a *Application, vendorPath, cacheName s
 	}
 
 	if err := createDirectory(linkDir); err != nil {
-		return err
-	}
-
-	if err := os.Remove(linkFullPath); err != nil && !os.IsNotExist(err) {
 		return err
 	}
 
