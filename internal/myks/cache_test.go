@@ -2,69 +2,62 @@ package myks
 
 import "testing"
 
-func TestHelmCacheNamer_Name(t *testing.T) {
-	validVendirConfig := map[string]interface{}{
+func TestCacheNameGen(t *testing.T) {
+	helmConfig := map[string]interface{}{
 		"helmChart": map[string]interface{}{
 			"name":    "test",
 			"version": "1.1.0",
 		},
 	}
-	vendirConfigWithoutVersion := map[string]interface{}{
-		"helmChart": map[string]interface{}{
-			"name": "test",
+	directoryConfig := map[string]interface{}{
+		"directory": map[string]interface{}{
+			"path": "test",
 		},
 	}
-	vendirConfigWithoutName := map[string]interface{}{
-		"helmChart": map[string]interface{}{
-			"version": "1.1.0",
+	gitConfig := map[string]interface{}{
+		"git": map[string]interface{}{
+			"url": "https://kubernetes.github.io/ingress-nginx",
+			"ref": "feature/test",
 		},
 	}
-	invalidVendirConfig := map[string]interface{}{
-		"nothing": map[string]interface{}{
-			"name": "test",
-		},
+	unknownConfig := map[string]interface{}{
+		"unknown": "test",
 	}
-
 	tests := []struct {
-		name         string
-		vendirConfig map[string]interface{}
-		want         string
-		wantErr      bool
+		name    string
+		config  map[string]interface{}
+		want    string
+		wantErr bool
 	}{
-		{"happy path", validVendirConfig, "helm-test-1.1.0-9ca59c856d6df4b6", false},
-		{"missing version", vendirConfigWithoutVersion, "", true},
-		{"missing name", vendirConfigWithoutName, "", true},
-		{"missing helm config", invalidVendirConfig, "", true},
+		{"helm", helmConfig, "helm-test-1.1.0-eb485eb68c39202e", false},
+		{"directory", directoryConfig, "dir-test-653bffc7e4203260", false},
+		{"git", gitConfig, "git-ingress-nginx-feature-test-950426b55fd7cc75", false},
+		{"unknown", unknownConfig, "unknown-62c82ff07115bba5", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := helmCacheNamer(tt.vendirConfig)
+			got, err := genCacheName(tt.config)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Name() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("genCacheName() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("Name() got = %v, want %v", got, tt.want)
+				t.Errorf("genCacheName() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestDirectoryCacheNamer_Name(t *testing.T) {
+func TestCacheNamer_Helm(t *testing.T) {
 	validVendirConfig := map[string]interface{}{
-		"directory": map[string]interface{}{
-			"path": "test",
-		},
+		"name":    "test",
+		"version": "1.1.0",
 	}
-	vendirConfigWithoutPath := map[string]interface{}{
-		"directory": map[string]interface{}{
-			"name": "test",
-		},
+	vendirConfigWithoutVersion := map[string]interface{}{
+		"name": "test",
 	}
-	invalidVendirConfig := map[string]interface{}{
-		"nothing": map[string]interface{}{
-			"name": "test",
-		},
+	vendirConfigWithoutName := map[string]interface{}{
+		"version": "1.1.0",
 	}
 
 	tests := []struct {
@@ -73,45 +66,65 @@ func TestDirectoryCacheNamer_Name(t *testing.T) {
 		want         string
 		wantErr      bool
 	}{
-		{"happy path", validVendirConfig, "dir-test-5628f4f146ea9abf", false},
-		{"missing Directory config", invalidVendirConfig, "", true},
+		{"happy path", validVendirConfig, "helm-test-1.1.0-eb485eb68c39202e", false},
+		{"missing version", vendirConfigWithoutVersion, "", true},
+		{"missing name", vendirConfigWithoutName, "", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := helmCacheNamer(tt.vendirConfig)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("helmCacheNamer() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("helmCacheNamer() got = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCacheNamer_Directory(t *testing.T) {
+	validVendirConfig := map[string]interface{}{
+		"path": "test",
+	}
+	vendirConfigWithoutPath := map[string]interface{}{
+		"name": "test",
+	}
+
+	tests := []struct {
+		name         string
+		vendirConfig map[string]interface{}
+		want         string
+		wantErr      bool
+	}{
+		{"happy path", validVendirConfig, "dir-test-653bffc7e4203260", false},
 		{"missing path key", vendirConfigWithoutPath, "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := directoryCacheNamer(tt.vendirConfig)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Name() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("directoryCacheNamer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("Name() got = %v, want %v", got, tt.want)
+				t.Errorf("directoryCacheNamer() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func TestGitCacheNamer_Name(t *testing.T) {
+func TestCacheNamer_Git(t *testing.T) {
 	validVendirConfig := map[string]interface{}{
-		"git": map[string]interface{}{
-			"url": "https://kubernetes.github.io/ingress-nginx",
-			"ref": "feature/test",
-		},
+		"url": "https://kubernetes.github.io/ingress-nginx",
+		"ref": "feature/test",
 	}
 	vendirConfigWithoutUrl := map[string]interface{}{
-		"git": map[string]interface{}{
-			"ref": "main",
-		},
+		"ref": "main",
 	}
 	vendirConfigWithoutRef := map[string]interface{}{
-		"git": map[string]interface{}{
-			"url": "https://kubernetes.github.io/ingress-nginx",
-		},
-	}
-	invalidVendirConfig := map[string]interface{}{
-		"nothing": map[string]interface{}{
-			"name": "test",
-		},
+		"url": "https://kubernetes.github.io/ingress-nginx",
 	}
 
 	tests := []struct {
@@ -120,8 +133,7 @@ func TestGitCacheNamer_Name(t *testing.T) {
 		want         string
 		wantErr      bool
 	}{
-		{"happy path", validVendirConfig, "git-ingress-nginx-feature-test-9668d10d6d16720b", false},
-		{"missing Git config", invalidVendirConfig, "", true},
+		{"happy path", validVendirConfig, "git-ingress-nginx-feature-test-950426b55fd7cc75", false},
 		{"missing url key", vendirConfigWithoutUrl, "", true},
 		{"missing ref key", vendirConfigWithoutRef, "", true},
 	}
@@ -129,17 +141,17 @@ func TestGitCacheNamer_Name(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := gitCacheNamer(tt.vendirConfig)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Name() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("gitCacheNamer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("Name() got = %v, want %v", got, tt.want)
+				t.Errorf("gitCacheNamer() got = %v, want %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_directorySlug(t *testing.T) {
+func TestCacheName_directorySlug(t *testing.T) {
 	tests := []struct {
 		name string
 		path string
@@ -158,7 +170,7 @@ func Test_directorySlug(t *testing.T) {
 	}
 }
 
-func Test_urlSlug(t *testing.T) {
+func TestCacheName_urlSlug(t *testing.T) {
 	tests := []struct {
 		name string
 		url  string
@@ -178,7 +190,7 @@ func Test_urlSlug(t *testing.T) {
 	}
 }
 
-func Test_refSlug(t *testing.T) {
+func TestCacheName_refSlug(t *testing.T) {
 	tests := []struct {
 		name string
 		ref  string
