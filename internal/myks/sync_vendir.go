@@ -114,8 +114,6 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 	}
 
 	return nil
-	// vendorDir := a.expandVendirCache(a.e.g.VendorDirName)
-	// return v.cleanupVendorDir(a, vendorDir, vendirConfigPath)
 }
 
 func (v *VendirSyncer) linkVendorToCache(a *Application, vendorPath, cacheName string) error {
