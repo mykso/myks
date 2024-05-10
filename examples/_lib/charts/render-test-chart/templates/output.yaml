@@ -1,0 +1,5 @@
+kind: rendering
+metadata:
+  name: helm-{{ .Release.Name }}
+outputYaml:
+{{ toYaml .Values.outputYaml | indent 2 }}

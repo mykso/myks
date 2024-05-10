@@ -1,7 +1,0 @@
-apiVersion: vendir.k14s.io/v1alpha1
-directories:
-- contents:
-  - directory: {}
-    path: .
-  path: envs/dev/_apps/helm-installation/vendor/charts/render-test
-kind: LockConfig

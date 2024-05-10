@@ -24,25 +24,12 @@ func (h *Helm) Ident() string {
 }
 
 func (h *Helm) Render(_ string) (string, error) {
-	chartDir, err := h.app.getVendoredDir(h.app.e.g.HelmChartsDirName)
-	if err != nil {
-		log.Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to get helm charts dir"))
-		return "", err
-	}
+	log.Debug().Msg(h.app.Msg(h.getStepName(), "Starting"))
+	outputs := []string{}
 
-	if chartDir == "" {
-		log.Debug().Msg(h.app.Msg(h.getStepName(), "No Helm charts found"))
-		return "", nil
-	}
-
-	chartDirs, err := getSubDirs(chartDir)
+	chartsDirs, err := h.app.getHelmChartsDirs(h.getStepName())
 	if err != nil {
-		log.Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to get helm charts sub dirs"))
 		return "", err
-	}
-	if len(chartDirs) == 0 {
-		log.Debug().Msg(h.app.Msg(h.getStepName(), "No Helm charts found"))
-		return "", nil
 	}
 
 	helmConfig, err := h.getHelmConfig()
@@ -50,7 +37,6 @@ func (h *Helm) Render(_ string) (string, error) {
 		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to get helm config"))
 		return "", err
 	}
-
 	var commonHelmArgs []string
 
 	// FIXME: move Namespace to a per-chart config
@@ -71,10 +57,8 @@ func (h *Helm) Render(_ string) (string, error) {
 	for _, capa := range helmConfig.Capabilities {
 		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
 	}
-	var outputs []string
 
-	for _, chartDir := range chartDirs {
-
+	for _, chartDir := range chartsDirs {
 		chartName := filepath.Base(chartDir)
 		var helmValuesFile string
 		if helmValuesFile, err = h.app.prepareValuesFile("helm", chartName); err != nil {
@@ -82,7 +66,6 @@ func (h *Helm) Render(_ string) (string, error) {
 			return "", err
 		}
 
-		// FIXME: replace h.app.Name with a name of the chart being processed
 		helmArgs := []string{
 			"template",
 			"--skip-tests",
@@ -105,11 +88,9 @@ func (h *Helm) Render(_ string) (string, error) {
 		}
 
 		outputs = append(outputs, res.Stdout)
-
 	}
 
 	log.Info().Msg(h.app.Msg(h.getStepName(), "Helm chart rendered"))
-
 	return strings.Join(outputs, "---\n"), nil
 }
 

@@ -1,31 +1,25 @@
 package myks
 
 import (
-	_ "embed"
 	"errors"
 	"fmt"
-	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/rs/zerolog/log"
+	yaml "gopkg.in/yaml.v3"
 )
 
-// This string defines an overlay that prefixes paths of all vendir directories with the vendor directory name.
-// This makes the paths relative to the root directory, allowing to use other relative paths as sources for vendir.
-//
-// Despite vendir disallows using multiple config files, by using `expects="1+"` we explicitly allow to have multiple
-// of them on the config generation step. In case there are multiple vendir configs, processing will fail on the vendir
-// sync step. This will provide a better error message for the user.
-const vendorDirOverlayTemplate = `
-#@ load("@ytt:overlay", "overlay")
-#@overlay/match by=overlay.subset({"kind": "Config", "apiVersion": "vendir.k14s.io/v1alpha1"}), expects="1+"
----
-directories:
-  - #@overlay/match by=overlay.all, expects="1+"
-    #@overlay/replace via=lambda l, r: (r + "/" + l).replace("//", "/")
-    path: %s`
+var (
+	// vendirCacheConfigMutex is used to prevent concurrent writes to the vendir cache config files in saveCacheVendirConfig function
+	vendirCacheConfigMutex sync.Mutex
+
+	// vendirSyncMutex is used to prevent concurrent vendir sync operations in runVendirSync function
+	vendirSyncMutex sync.Mutex
+)
 
 type VendirSyncer struct {
 	ident string
@@ -36,22 +30,26 @@ func (v *VendirSyncer) Ident() string {
 }
 
 func (v *VendirSyncer) Sync(a *Application, vendirSecrets string) error {
-	log.Debug().Msg(a.Msg(v.getStepName(), "Starting"))
-	if err := v.prepareSync(a); err != nil {
-		if err == ErrNoVendirConfig {
-			log.Info().Msg(a.Msg(v.getStepName(), "No vendir config found"))
-			return nil
-		}
+	if err := v.renderVendirConfig(a); err == ErrNoVendirConfig {
+		log.Info().Msg(a.Msg(v.getStepName(), "No vendir config found"))
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	if err := v.extractCacheItems(a); err != nil {
 		return err
 	}
 
 	if err := v.doSync(a, vendirSecrets); err != nil {
 		return err
 	}
+	log.Info().Msg(a.Msg(v.getStepName(), "Synced"))
 	return nil
 }
 
-func (v *VendirSyncer) prepareSync(a *Application) error {
+// creates vendir yaml file
+func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 	// Collect ytt arguments following the following steps:
 	// 1. If exists, use the `apps/<prototype>/vendir` directory.
 	// 2. If exists, for every level of environments use `<env>/_apps/<app>/vendir` directory.
@@ -72,27 +70,24 @@ func (v *VendirSyncer) prepareSync(a *Application) error {
 		return ErrNoVendirConfig
 	}
 
-	vendorDir := a.expandPath(a.e.g.VendorDirName)
-	overlayReader := strings.NewReader(fmt.Sprintf(vendorDirOverlayTemplate, vendorDir))
-	vendirConfig, err := a.yttS(v.getStepName(), "creating vendir config", yttFiles, overlayReader)
+	// create vendir config yaml
+	vendirConfig, err := a.yttS(v.getStepName(), "creating vendir config", yttFiles, nil)
 	if err != nil {
 		return err
 	}
 
 	if vendirConfig.Stdout == "" {
-		err = errors.New("Empty vendir config")
-		return err
+		return errors.New("rendered empty vendir config")
 	}
 
 	vendirConfigFilePath := a.expandServicePath(a.e.g.VendirConfigFileName)
 	// Create directory if it does not exist
-	err = os.MkdirAll(filepath.Dir(vendirConfigFilePath), 0o750)
-	if err != nil {
+	if err := createDirectory(filepath.Dir(vendirConfigFilePath)); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to create directory for vendir config file"))
 		return err
 	}
-	err = os.WriteFile(vendirConfigFilePath, []byte(vendirConfig.Stdout), 0o600)
-	if err != nil {
+
+	if err := os.WriteFile(vendirConfigFilePath, []byte(vendirConfig.Stdout), 0o600); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config file"))
 		return err
 	}
@@ -101,20 +96,58 @@ func (v *VendirSyncer) prepareSync(a *Application) error {
 }
 
 func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
-	vendirConfigPath := a.expandServicePath(a.e.g.VendirConfigFileName)
-	vendirLockFilePath := a.expandServicePath(a.e.g.VendirLockFileName)
-
-	// TODO sync retry
-	if err := v.runVendirSync(a, vendirConfigPath, vendirLockFilePath, vendirSecrets); err != nil {
-		log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed"))
+	linksMapPath := a.getLinksMapPath()
+	linksMap, err := unmarshalYamlToMap(linksMapPath)
+	if err != nil {
 		return err
 	}
 
-	vendorDir := a.expandPath(a.e.g.VendorDirName)
-	return v.cleanupVendorDir(a, vendorDir, vendirConfigPath)
+	if err := os.RemoveAll(a.expandVendorPath("")); err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to remove vendor directory"))
+		return err
+	}
+
+	for contentPath, cacheName := range linksMap {
+		cacheDir := a.expandVendirCache(cacheName.(string))
+		vendirConfigPath := filepath.Join(cacheDir, a.e.g.VendirConfigFileName)
+		vendirLockPath := filepath.Join(cacheDir, a.e.g.VendirLockFileName)
+		if err := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets); err != nil {
+			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed, cleaning up the cache entry"))
+			if e := os.RemoveAll(cacheDir); e != nil {
+				log.Warn().Err(e).Msg(a.Msg(v.getStepName(), "Unable to remove cache directory"))
+			}
+			return err
+		}
+		if err := v.linkVendorToCache(a, contentPath, cacheName.(string)); err != nil {
+			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Unable to create link to cache"))
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (v *VendirSyncer) linkVendorToCache(a *Application, vendorPath, cacheName string) error {
+	linkFullPath := a.expandVendorPath(vendorPath)
+	linkDir := filepath.Dir(linkFullPath)
+	cacheDataPath := path.Join(a.expandVendirCache(cacheName), "data")
+
+	relCacheDataPath, err := filepath.Rel(linkDir, cacheDataPath)
+	if err != nil {
+		return err
+	}
+
+	if err := createDirectory(linkDir); err != nil {
+		return err
+	}
+
+	return os.Symlink(relCacheDataPath, linkFullPath)
 }
 
 func (v *VendirSyncer) runVendirSync(a *Application, vendirConfig, vendirLock, vendirSecrets string) error {
+	vendirSyncMutex.Lock()
+	defer vendirSyncMutex.Unlock()
+	// TODO sync retry - maybe as vendir MR
 	args := []string{
 		"vendir",
 		"sync",
@@ -123,64 +156,98 @@ func (v *VendirSyncer) runVendirSync(a *Application, vendirConfig, vendirLock, v
 		"--file=-",
 	}
 	_, err := a.runCmd(v.getStepName(), "vendir sync", myksFullPath(), strings.NewReader(vendirSecrets), args)
-	if err != nil {
-		return err
-	}
-	log.Info().Msg(a.Msg(v.getStepName(), "Synced"))
-	return nil
-}
-
-func (v VendirSyncer) cleanupVendorDir(a *Application, vendorDir, vendirConfigFile string) error {
-	config, err := unmarshalYamlToMap(vendirConfigFile)
-	if err != nil {
-		return err
-	}
-
-	if _, ok := config["directories"]; !ok {
-		return errors.New("no directories found in vendir config")
-	}
-
-	dirs := []string{}
-	for _, dir := range config["directories"].([]interface{}) {
-		dirMap := dir.(map[string]interface{})
-		path := dirMap["path"].(string)
-		dirs = append(dirs, filepath.Clean(path)+string(filepath.Separator))
-	}
-
-	log.Debug().Strs("vendir-managed dirs", dirs).Msg("")
-
-	return filepath.WalkDir(vendorDir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !d.IsDir() {
-			return nil
-		}
-
-		path = path + string(filepath.Separator)
-		for _, dir := range dirs {
-			if dir == path {
-				return fs.SkipDir
-			}
-
-			if strings.HasPrefix(dir, path) {
-				return nil
-			}
-
-			// This should never happen
-			if strings.HasPrefix(path, dir) {
-				log.Debug().Msgf("%s has prefix %s", path, dir)
-				return fs.SkipDir
-			}
-		}
-		log.Debug().Msg(a.Msg(v.getStepName(), "Removing directory "+path))
-		os.RemoveAll(path)
-
-		return fs.SkipDir
-	})
+	return err
 }
 
 func (v *VendirSyncer) getStepName() string {
 	return fmt.Sprintf("%s-%s", syncStepName, v.Ident())
+}
+
+func (v *VendirSyncer) extractCacheItems(a *Application) error {
+	vendirConfig, err := unmarshalYamlToMap(a.expandServicePath(a.e.g.VendirConfigFileName))
+	if err != nil {
+		return err
+	}
+
+	vendorDirToCacheMap := map[string]string{}
+
+	for _, dir := range vendirConfig["directories"].([]interface{}) {
+		dirMap := dir.(map[string]interface{})
+		contents := dirMap["contents"].([]interface{})
+
+		for _, content := range contents {
+			vendorDirPath := filepath.Join(dirMap["path"].(string), content.(map[string]interface{})["path"].(string))
+			contentMap := content.(map[string]interface{})
+			cacheName, err := genCacheName(contentMap)
+			if err != nil {
+				return err
+			}
+			vendorDirToCacheMap[vendorDirPath] = cacheName
+			cacheDir := a.expandVendirCache(cacheName)
+			if err = v.saveCacheVendirConfig(a, cacheName, buildCacheVendirConfig(cacheDir, vendirConfig, dirMap, contentMap)); err != nil {
+				return err
+			}
+		}
+	}
+
+	return v.saveLinksMap(a, vendorDirToCacheMap)
+}
+
+func (a *Application) getCacheVendirConfigPath(cacheName string) string {
+	return path.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
+}
+
+func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, vendirConfig map[string]interface{}) error {
+	data, err := yaml.Marshal(vendirConfig)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
+		return err
+	}
+	vendirConfigPath := a.getCacheVendirConfigPath(cacheName)
+	vendirCacheConfigMutex.Lock()
+	defer vendirCacheConfigMutex.Unlock()
+	if err = writeFile(vendirConfigPath, data); err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config"))
+		return err
+	}
+	return nil
+}
+
+func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig, vendirContentConfig map[string]interface{}) map[string]interface{} {
+	knownKeys := []string{"apiVersion", "kind", "minimumRequiredVersion"}
+	newVendirConfig := map[string]interface{}{}
+	for _, key := range knownKeys {
+		if val, ok := vendirConfig[key]; ok {
+			newVendirConfig[key] = val
+		}
+	}
+
+	newDirConfig := map[string]interface{}{}
+	// TODO: move "data" to the Globe config or to a constant
+	newDirConfig["path"] = filepath.Join(cacheDir, "data")
+	newDirConfig["permissions"] = vendirDirConfig["permissions"]
+
+	vendirContentConfig["path"] = "."
+
+	newDirConfig["contents"] = []interface{}{vendirContentConfig}
+	newVendirConfig["directories"] = []interface{}{newDirConfig}
+	return newVendirConfig
+}
+
+func (a *Application) getLinksMapPath() string {
+	return a.expandServicePath(a.e.g.VendirLinksMapFileName)
+}
+
+func (v *VendirSyncer) saveLinksMap(a *Application, linksMap map[string]string) error {
+	linksMapPath := a.getLinksMapPath()
+	data, err := yaml.Marshal(linksMap)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal links map"))
+		return err
+	}
+	if err = writeFile(linksMapPath, data); err != nil {
+		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write links map"))
+		return err
+	}
+	return nil
 }

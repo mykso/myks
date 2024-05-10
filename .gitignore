@@ -2,7 +2,6 @@ bin/*
 dist
 .idea
 .run
-/myks
-**/.myks/tmp
+.myks
+.vendor
 coverage.txt
-vendor/

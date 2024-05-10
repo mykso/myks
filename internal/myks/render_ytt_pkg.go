@@ -23,21 +23,29 @@ func (y *YttPkg) Ident() string {
 }
 
 func (y *YttPkg) Render(_ string) (string, error) {
-	yttPkgRootDir, err := y.app.getVendoredDir(y.app.e.g.YttPkgStepDirName)
-	if err != nil {
-		log.Error().Err(err).Msg(y.app.Msg(y.getStepName(), "Unable to get ytt package dir"))
+	var yttPkgSubDirs []string
+
+	vendorYttPkgDir := y.app.expandVendorPath(y.app.e.g.YttPkgStepDirName)
+	if ok, err := isExist(vendorYttPkgDir); err != nil {
 		return "", err
-	}
-	if yttPkgRootDir == "" {
-		log.Debug().Msg(y.app.Msg(y.getStepName(), "No ytt packages found"))
-		return "", nil
+	} else if ok {
+		// symlinks to directories are not followed by ytt, so we need to dereference them
+		vendorYttPkgFiles, err := readDirDereferenceLinks(vendorYttPkgDir)
+		if err != nil {
+			return "", err
+		}
+		// select only directories
+		for _, file := range vendorYttPkgFiles {
+			if ok, err := isDir(file); err != nil {
+				return "", err
+			} else if ok {
+				yttPkgSubDirs = append(yttPkgSubDirs, file)
+			} else {
+				log.Warn().Str("file", file).Msg(y.app.Msg(y.getStepName(), "Ignoring non-directory file in ytt package directory"))
+			}
+		}
 	}
 
-	yttPkgSubDirs, err := getSubDirs(yttPkgRootDir)
-	if err != nil {
-		log.Error().Err(err).Msg(y.app.Msg(y.getStepName(), "Unable to get ytt package sub dirs"))
-		return "", err
-	}
 	if len(yttPkgSubDirs) == 0 {
 		log.Debug().Msg(y.app.Msg(y.getStepName(), "No ytt packages found"))
 		return "", nil

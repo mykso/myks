@@ -2,10 +2,9 @@ package myks
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"io/fs"
 	"os"
@@ -190,8 +189,9 @@ func sortYaml(yaml map[string]interface{}) (string, error) {
 }
 
 func hashString(s string) string {
-	hash := sha256.Sum256([]byte(s))
-	return hex.EncodeToString(hash[:])
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return fmt.Sprintf("%x", h.Sum64())
 }
 
 func createDirectory(dir string) error {
@@ -245,6 +245,14 @@ func getSubDirs(dir string) (subDirs []string, err error) {
 	}
 
 	return
+}
+
+func findSubPath(path, subPath string) (string, bool) {
+	index := strings.Index(path, subPath)
+	if index == -1 {
+		return "", false
+	}
+	return path[:index+len(subPath)], true
 }
 
 func runCmd(name string, stdin io.Reader, args []string, logFn func(name string, err error, stderr string, args []string)) (CmdResult, error) {
@@ -432,4 +440,68 @@ func myksFullPath() string {
 		return "myks"
 	}
 	return myks
+}
+
+func ensureValidChartEntry(entryPath string) error {
+	if entryPath == "" {
+		return fmt.Errorf("empty entry path")
+	}
+
+	fileInfo, err := os.Stat(entryPath)
+	if err != nil {
+		return err
+	}
+	canonicName := entryPath
+	if fileInfo.Mode()&os.ModeSymlink == 1 {
+		if name, readErr := os.Readlink(entryPath); readErr != nil {
+			return readErr
+		} else {
+			canonicName = name
+		}
+	}
+
+	fileInfo, err = os.Stat(canonicName)
+	if err != nil {
+		return err
+	}
+
+	if !fileInfo.IsDir() {
+		return fmt.Errorf("non-directory entry")
+	}
+
+	if exists, err := isExist(filepath.Join(canonicName, "Chart.yaml")); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("no Chart.yaml found")
+	}
+
+	return nil
+}
+
+// readDirDereferenceLinks reads the directory and dereferences symlinks
+func readDirDereferenceLinks(dir string) (dirs []string, err error) {
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, file := range files {
+		fullPath := filepath.Join(dir, file.Name())
+		if file.Type()&fs.ModeSymlink != 0 {
+			if fullPath, err = os.Readlink(fullPath); err != nil {
+				return
+			}
+			fullPath = filepath.Clean(filepath.Join(dir, fullPath))
+		}
+		dirs = append(dirs, fullPath)
+	}
+
+	return
+}
+
+func isDir(path string) (bool, error) {
+	fileInfo, err := os.Stat(path)
+	if err != nil {
+		return false, err
+	}
+	return fileInfo.IsDir(), nil
 }

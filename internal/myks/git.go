@@ -61,7 +61,7 @@ func convertToChangedFiles(changes string) ChangedFiles {
 
 func runGitCmd(args []string, root string, silent bool) (string, error) {
 	logFn := func(name string, err error, stderr string, args []string) {
-		cmd := msgRunCmd("run git command", name, args)
+		cmd := msgRunCmd("", name, args)
 		if err == nil {
 			log.Debug().Msg(cmd)
 			return

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -105,24 +106,20 @@ func (a *Application) Init() error {
 	return nil
 }
 
-func (a *Application) expandPath(path string) string {
-	return filepath.Join(a.e.Dir, a.e.g.AppsDir, a.Name, path)
-}
-
 func (a *Application) expandServicePath(path string) string {
-	return filepath.Join(a.e.Dir, a.e.g.AppsDir, a.Name, a.e.g.ServiceDirName, path)
+	return filepath.Join(a.e.g.ServiceDirName, a.e.Dir, a.e.g.AppsDir, a.Name, path)
 }
 
-func (a *Application) expandTempPath(path string) string {
-	return a.expandServicePath(filepath.Join(a.e.g.TempDirName, path))
+func (a *Application) expandVendirCache(path string) string {
+	return filepath.Join(a.e.g.ServiceDirName, a.e.g.VendirCache, path)
+}
+
+func (a *Application) expandVendorPath(path string) string {
+	return a.expandServicePath(filepath.Join(a.e.g.VendorDirName, path))
 }
 
 func (a *Application) writeServiceFile(name string, content string) error {
 	return writeFile(a.expandServicePath(name), []byte(content))
-}
-
-func (a *Application) writeTempFile(name string, content string) error {
-	return writeFile(a.expandTempPath(name), []byte(content))
 }
 
 func (a *Application) collectDataFiles() {
@@ -212,4 +209,33 @@ func (a *Application) yttS(step string, purpose string, paths []string, stdin io
 
 func (a *Application) prototypeDirName() string {
 	return strings.TrimPrefix(a.Prototype, a.e.g.PrototypesDir+string(filepath.Separator))
+}
+
+func (a *Application) getHelmChartsDirs(stepName string) ([]string, error) {
+	chartsDirs := []string{}
+	baseDir := a.expandVendorPath(a.e.g.HelmChartsDirName)
+	if ok, err := isExist(baseDir); err != nil {
+		return nil, err
+	} else if !ok {
+		log.Debug().Msg(a.Msg(stepName, "No Helm charts found"))
+		return nil, nil
+	}
+	files, err := os.ReadDir(baseDir)
+	if err != nil {
+		return nil, err
+	}
+	if len(files) == 0 {
+		log.Debug().Msg(a.Msg(stepName, "No Helm charts found"))
+		return nil, nil
+	}
+	for _, file := range files {
+		chartDir := filepath.Join(baseDir, file.Name())
+		if err = ensureValidChartEntry(chartDir); err != nil {
+			log.Warn().Err(err).Msg(a.Msg(stepName, "Skipping invalid chart entry"))
+			continue
+		}
+		chartsDirs = append(chartsDirs, chartDir)
+	}
+
+	return chartsDirs, nil
 }

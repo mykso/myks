@@ -21,7 +21,9 @@ func Test_hash(t *testing.T) {
 		b    string
 		want string
 	}{
-		{"happy path", "some-string", "a3635c09bda7293ae1f144a240f155cf151451f2420d11ac385d13cce4eb5fa2"},
+		{"happy path", "some-string", "90f97071bce4fa95"},
+		{"happy path", "some-other-string", "b14167e5c06889c"},
+		{"empty string", "", "cbf29ce484222325"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.a, func(t *testing.T) {
@@ -508,6 +510,31 @@ func Test_createURLSlug(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := createURLSlug(tt.args.input); got != tt.want {
 				t.Errorf("createURLSlug() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_findSubPath(t *testing.T) {
+	type args struct {
+		path    string
+		subPath string
+	}
+	tests := []struct {
+		name  string
+		args  args
+		want  string
+		want2 bool
+	}{
+		{"short path", args{"/tmp/test", "/tmp"}, "/tmp", true},
+		{"long path", args{"/tmp/test/charts/multus", "charts"}, "/tmp/test/charts", true},
+		{"no match", args{"/tmp/test/charts/multus", "no-match"}, "", false},
+		{"double match", args{"/tmp/test/charts/multus/charts/test", "charts"}, "/tmp/test/charts", true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got, found := findSubPath(tt.args.path, tt.args.subPath); got != tt.want || found != tt.want2 {
+				t.Errorf("findSubPath() = %v, want %v and want2 %v", got, tt.want, tt.want2)
 			}
 		})
 	}

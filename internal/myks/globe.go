@@ -21,6 +21,8 @@ const GlobalExtendedLogFormat = "\033[1m[global > %s > %s]\033[0m %s"
 // Define the main structure
 // Globe configuration
 type Globe struct {
+	// Global vendir cache dir
+	VendirCache string `default:"vendir-cache"`
 	// Project root directory
 	RootDir string `default:"."`
 	// Base directory for environments
@@ -60,6 +62,8 @@ type Globe struct {
 	VendirConfigFileName string `default:"vendir.yaml"`
 	// Rendered vendir lock file name
 	VendirLockFileName string `default:"vendir.lock.yaml"`
+	// Name of the file with directory-to-cache-dir mappings
+	VendirLinksMapFileName string `default:"vendir-links.yaml"`
 	// Prefix for vendir secret environment variables
 	VendirSecretEnvPrefix string `default:"VENDIR_SECRET_"`
 
@@ -149,6 +153,7 @@ func New(rootDir string) *Globe {
 		} else {
 			g.GitRepoUrl = gitRepoUrl
 		}
+
 	} else {
 		log.Warn().Msg("Not in a git repository, Smart Mode and git-related data will not be available")
 	}

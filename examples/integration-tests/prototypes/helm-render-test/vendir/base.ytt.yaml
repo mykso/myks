@@ -9,4 +9,4 @@ directories:
     contents:
       - path: .
         directory:
-          path: ../charts/render-test-chart
+          path: ../_lib/charts/render-test-chart

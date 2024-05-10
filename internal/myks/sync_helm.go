@@ -22,40 +22,24 @@ func (hr *HelmSyncer) GenerateSecrets(_ *Globe) (string, error) {
 }
 
 func (hr *HelmSyncer) Sync(a *Application, _ string) error {
-	log.Debug().Msg(a.Msg(hr.getStepName(), "Starting"))
-	chartDir, err := a.getVendoredDir(a.e.g.HelmChartsDirName)
-	if err != nil {
-		log.Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm charts dir"))
-		return err
-	}
-
-	if chartDir == "" {
-		log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
-		return nil
-	}
-
-	chartDirs, err := getSubDirs(chartDir)
-	if err != nil {
-		log.Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm charts sub dirs"))
-		return err
-	}
-	if len(chartDirs) == 0 {
-		log.Debug().Msg(a.Msg(hr.getStepName(), "No Helm charts found"))
-		return nil
-	}
-
 	helmConfig, err := hr.getHelmConfig(a)
 	if err != nil {
 		log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm config"))
 		return err
 	}
 
-	for _, chartDir := range chartDirs {
-		if helmConfig.BuildDependencies {
-			err = hr.helmBuild(a, chartDir)
-			if err != nil {
-				return err
-			}
+	if !helmConfig.BuildDependencies {
+		log.Debug().Msg(a.Msg(hr.getStepName(), ".helm.buildDependencies is disabled, skipping"))
+		return nil
+	}
+
+	chartsDirs, err := a.getHelmChartsDirs(hr.getStepName())
+	if err != nil {
+		return err
+	}
+	for _, chartDir := range chartsDirs {
+		if err = hr.helmBuild(a, chartDir); err != nil {
+			return err
 		}
 	}
 	log.Info().Msg(a.Msg(hr.getStepName(), "Synced"))
@@ -73,18 +57,22 @@ func (hr *HelmSyncer) helmBuild(a *Application, chartDir string) error {
 		return fmt.Errorf("failure to unmarshal Chart.yaml at: %s", chartPath)
 	}
 
-	helmCache := a.expandTempPath("helm-cache")
+	dependencies, ok := chart["dependencies"]
+	if !ok {
+		return nil
+	}
+
+	helmCache := a.expandServicePath("helm-cache")
 	cacheArgs := []string{
 		"--repository-cache", filepath.Join(helmCache, "repository"),
 		"--repository-config", filepath.Join(helmCache, "repositories.yaml"),
 	}
-	dependencies := chart["dependencies"].([]interface{})
-	for _, dependency := range dependencies {
+	for _, dependency := range dependencies.([]interface{}) {
 		depMap := dependency.(map[string]interface{})
 		repo := depMap["repository"].(string)
 		if strings.HasPrefix(repo, "http") {
 			args := []string{"repo", "add", createURLSlug(repo), repo, "--force-update"}
-			_, err := a.runCmd(hr.getStepName(), "helm repo add", "helm", nil, append(args, cacheArgs...))
+			_, err = a.runCmd(hr.getStepName(), "helm repo add", "helm", nil, append(args, cacheArgs...))
 			if err != nil {
 				return fmt.Errorf("failed to add repository %s in %s ", repo, chartPath)
 			}

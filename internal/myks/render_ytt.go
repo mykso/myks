@@ -36,11 +36,18 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 
 	// we might have vendored some yamls or json files that we want to transform during this step
 	// therefore, add them as well
-	vendorYttDir := y.app.expandPath(filepath.Join(y.app.e.g.VendorDirName, y.app.e.g.YttStepDirName))
+	vendorYttDir := y.app.expandVendorPath(y.app.e.g.YttStepDirName)
 	if ok, err := isExist(vendorYttDir); err != nil {
 		return "", err
 	} else if ok {
-		yttFiles = append(yttFiles, vendorYttDir)
+		// symlinks to directories are not followed by ytt, so we need to dereference them
+		vendorYttFiles, err := readDirDereferenceLinks(vendorYttDir)
+		if err != nil {
+			return "", err
+		}
+		yttFiles = append(yttFiles, vendorYttFiles...)
+	} else {
+		log.Debug().Msg(y.app.Msg(y.getStepName(), "No vendor ytt directory found"))
 	}
 
 	// we obviously want to add the ytt files from the prototype dir
