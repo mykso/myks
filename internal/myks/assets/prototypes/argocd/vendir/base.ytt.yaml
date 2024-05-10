@@ -11,4 +11,5 @@ directories:
           ref: #@ data.values.application.version
         includePaths:
           - manifests/ha/install.yaml
+        lazy: true
         newRootPath: manifests/ha

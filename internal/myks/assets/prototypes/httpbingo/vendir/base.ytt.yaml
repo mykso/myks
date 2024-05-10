@@ -13,3 +13,4 @@ directories:
           version: #@ app.version
           repository:
             url: #@ app.url
+        lazy: true
