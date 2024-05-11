@@ -1,5 +1,46 @@
 # Changelog
 
+## [4.0.0](https://github.com/mykso/myks/compare/v3.4.4...v4.0.0) (2024-05-11)
+
+### ℹ Upgrading to 4.0.0
+
+In the new major version we introduced a central cache for external sources downloaded by vendir. With that, we also changed location of most of the myks-managed files. Here is the list of changes (examples are using the file system structure created by the `myks init` command):
+
+* `<env>/_apps/<app>/.myks` and `<env>/_apps/<app>/vendor` directories are moved under the `.myks` directory in the repository root. For example:
+  * contents of `envs/mykso/dev/_apps/argocd/.myks` is moved under `.myks/envs/mykso/dev/_apps/argocd`,
+  * `envs/mykso/dev/_apps/argocd/vendor` directory is now `.myks/envs/mykso/dev/_apps/argocd/vendor`.
+* `vendor` directories now contain links to directories in the central cache instead of files and directories as before.
+* The new `.myks/vendir-cache` directory contains cache entries named using (upon availability) vendir contents type, name, version and config hash.
+
+There is nothing required to be done before you can start using the new myks. However, there are a few things to keep in mind:
+
+1. The first run of the new version will download all the sources used in your project, it might take a while.
+2. The old files are not cleaned up, so you can easily rollback to the old myks if needed. Otherwise, you have to do remove the files manually:
+
+   ```shell
+   # First, inspect what will be removed:
+   find envs -name .myks
+   # Then remove:
+   find envs -name .myks -exec rm -rf {} \;
+   ```
+
+### ⚠ BREAKING CHANGES
+
+* central cache with symlinks ([#274](https://github.com/mykso/myks/issues/274))
+
+### Features
+
+* central cache with symlinks ([#274](https://github.com/mykso/myks/issues/274)) ([fd450cd](https://github.com/mykso/myks/commit/fd450cda1ff2cef145ed557a87c06fc25ded9ef2))
+* embed ytt ([#272](https://github.com/mykso/myks/issues/272)) ([2520648](https://github.com/mykso/myks/commit/25206487e0fe4cba4eab27e3e315c545fb94fc90))
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.40.1 ([#270](https://github.com/mykso/myks/issues/270)) ([fec8d50](https://github.com/mykso/myks/commit/fec8d507b58cb9088375a0dd412c8f392d74f4da))
+* **deps:** update module golang.org/x/term to v0.20.0 ([#278](https://github.com/mykso/myks/issues/278)) ([7074c8e](https://github.com/mykso/myks/commit/7074c8eb0c043f71e1a014b4b2685e94116efa65))
+* remove ytt dependency everywhere ([#284](https://github.com/mykso/myks/issues/284)) ([8265abc](https://github.com/mykso/myks/commit/8265abc720174462c05460aabd74b880bb53e1f1))
+* ship example prototypes with `lazy` flag enabled ([1f91aa0](https://github.com/mykso/myks/commit/1f91aa01c749900851e87a40fca19bfab70ca490))
+
 ## [3.4.4](https://github.com/mykso/myks/compare/v3.4.3...v3.4.4) (2024-04-07)
 
 
