@@ -2,6 +2,27 @@
 
 ## [4.0.0](https://github.com/mykso/myks/compare/v3.4.4...v4.0.0) (2024-05-11)
 
+### ℹ Upgrading to 4.0.0
+
+In the new major version we introduced a central cache for external sources downloaded by vendir. With that, we also changed location of most of the myks-managed files. Here is the list of changes (examples are using the file system structure created by the `myks init` command):
+
+* `<env>/_apps/<app>/.myks` and `<env>/_apps/<app>/vendor` directories are moved under the `.myks` directory in the repository root. For example:
+  * contents of `envs/mykso/dev/_apps/argocd/.myks` is moved under `.myks/envs/mykso/dev/_apps/argocd`,
+  * `envs/mykso/dev/_apps/argocd/vendor` directory is now `.myks/envs/mykso/dev/_apps/argocd/vendor`.
+* `vendor` directories now contain links to directories in the central cache instead of files and directories as before.
+* The new `.myks/vendir-cache` directory contains cache entries named using (upon availability) vendir contents type, name, version and config hash.
+
+There is nothing required to be done before you can start using the new myks. However, there are a few things to keep in mind:
+
+1. The first run of the new version will download all the sources used in your project, it might take a while.
+2. The old files are not cleaned up, so you can easily rollback to the old myks if needed. Otherwise, you have to do remove the files manually:
+
+   ```shell
+   # First, inspect what will be removed:
+   find envs -name .myks
+   # Then remove:
+   find envs -name .myks -exec rm -rf {} \;
+   ```
 
 ### ⚠ BREAKING CHANGES
 
