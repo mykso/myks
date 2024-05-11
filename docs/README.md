@@ -63,9 +63,8 @@ Depending on the installation method and on the desired features, you may need
 to install some of the tools manually:
 
 - [git] is required
-- [ytt] is required
 - [helm] is only needed for rendering Helm charts
-- ([vendir] is now built into myks, no need to install separately)
+- [ytt] and [vendir] are now built into myks, no need to install separately. 
 
 At the moment, we do not track compatibility between versions of these tools and
 myks. Fairly recent versions should work fine.
@@ -83,8 +82,7 @@ yay -S myks-bin
 
 See the
 [container registry page](https://github.com/mykso/myks/pkgs/container/myks) for
-the list of available images. The image includes the latest versions of `helm`
-and `ytt`.
+the list of available images. The image includes the latest versions of `helm`.
 
 ```shell
 docker pull ghcr.io/mykso/myks:latest
@@ -179,8 +177,6 @@ For building and contributing:
 
 For running:
 
-- [ytt] 0.44+
-- [vendir] 0.34+
 - [helm] 3.12+
 
 ### Build

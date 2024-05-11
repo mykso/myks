@@ -42,8 +42,6 @@ aurs:
     license: "MIT"
     private_key: "{{ .Env.AUR_SSH_KEY }}"
     git_url: "ssh://aur@aur.archlinux.org/myks-bin.git"
-    depends:
-      - ytt
     optdepends:
       - "vendir: for downloading from external sources"
       - "git: for smart detection of changes"
@@ -76,10 +74,6 @@ brews:
       - name: git
         type: optional
       - name: helm
-        type: optional
-      - name: vendir
-        type: optional
-      - name: ytt
         type: optional
     repository:
       owner: mykso

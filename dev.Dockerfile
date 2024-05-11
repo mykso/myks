@@ -20,8 +20,6 @@ ARG TARGETOS
 ARG TARGETARCH
 # renovate: datasource=github-releases depName=helm/helm
 ARG HELM_VERSION=v3.14.3
-# renovate: datasource=github-releases depName=carvel-dev/ytt
-ARG YTT_VERSION=v0.46.3
 
 RUN apt-get update \
  && apt-get install --no-install-recommends -y \
@@ -36,9 +34,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN curl -fsSL \
       https://get.helm.sh/helm-v${HELM_VERSION}-${TARGETOS}-${TARGETARCH}.tar.gz \
     | tar -xzf - --strip-components=1 ${TARGETOS}-${TARGETARCH}/helm
-RUN curl -fsSL \
-      https://github.com/vmware-tanzu/carvel-ytt/releases/download/v${YTT_VERSION}/ytt-${TARGETOS}-${TARGETARCH} \
-    > ytt
 RUN chmod +x *
 
 
