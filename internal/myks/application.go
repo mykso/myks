@@ -239,3 +239,21 @@ func (a *Application) getHelmChartsDirs(stepName string) ([]string, error) {
 
 	return chartsDirs, nil
 }
+
+func (a *Application) getHelmConfig(step string) (HelmConfig, error) {
+	dataValuesYaml, err := a.ytt(step, "get helm config", a.yttDataFiles, "--data-values-inspect")
+	if err != nil {
+		return HelmConfig{}, err
+	}
+
+	var helmConfig struct {
+		Helm HelmConfig
+	}
+	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &helmConfig)
+	if err != nil {
+		log.Warn().Err(err).Msg(a.Msg(step, "Unable to unmarshal data values"))
+		return HelmConfig{}, err
+	}
+
+	return helmConfig.Helm, nil
+}

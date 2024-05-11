@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	yaml "gopkg.in/yaml.v3"
 )
 
 type Helm struct {
@@ -32,7 +31,7 @@ func (h *Helm) Render(_ string) (string, error) {
 		return "", err
 	}
 
-	helmConfig, err := h.getHelmConfig()
+	helmConfig, err := h.app.getHelmConfig(h.getStepName())
 	if err != nil {
 		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to get helm config"))
 		return "", err
@@ -92,24 +91,6 @@ func (h *Helm) Render(_ string) (string, error) {
 
 	log.Info().Msg(h.app.Msg(h.getStepName(), "Helm chart rendered"))
 	return strings.Join(outputs, "---\n"), nil
-}
-
-func (h *Helm) getHelmConfig() (HelmConfig, error) {
-	dataValuesYaml, err := h.app.ytt(h.getStepName(), "get helm config", h.app.yttDataFiles, "--data-values-inspect")
-	if err != nil {
-		return HelmConfig{}, err
-	}
-
-	var helmConfig struct {
-		Helm HelmConfig
-	}
-	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &helmConfig)
-	if err != nil {
-		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to unmarshal data values"))
-		return HelmConfig{}, err
-	}
-
-	return helmConfig.Helm, nil
 }
 
 func (h *Helm) getStepName() string {

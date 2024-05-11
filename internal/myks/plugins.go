@@ -142,12 +142,18 @@ func (p PluginCmd) Exec(a *Application, args []string) error {
 }
 
 func (p PluginCmd) generateEnv(a *Application) (map[string]string, error) {
+	helmConfig, err := a.getHelmConfig("generate-env")
+	if err != nil {
+		return nil, err
+	}
+
 	env := map[string]string{
 		"MYKS_ENV":              a.e.Id,
 		"MYKS_APP":              a.Name,
 		"MYKS_APP_PROTOTYPE":    a.Prototype,
 		"MYKS_ENV_DIR":          a.e.Dir,
 		"MYKS_RENDERED_APP_DIR": a.getDestinationDir(),
+		"MYKS_HELM_NAMESPACE":   helmConfig.Namespace,
 	}
 
 	result, err := a.ytt(p.Name(), "get data values", a.yttDataFiles, "--data-values-inspect")
