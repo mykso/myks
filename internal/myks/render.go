@@ -19,9 +19,8 @@ type YamlTemplatingTool interface {
 }
 
 func (a *Application) RenderAndSlice(yamlTemplatingTools []YamlTemplatingTool) error {
-	var lastStepOutputFile string
-	var err error
-	if lastStepOutputFile, err = a.Render(yamlTemplatingTools); err != nil {
+	lastStepOutputFile, err := a.Render(yamlTemplatingTools)
+	if err != nil {
 		log.Error().Str("env", a.e.Id).Err(err).Msg("Failed to render")
 		return err
 	}
