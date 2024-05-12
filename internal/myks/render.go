@@ -23,6 +23,7 @@ func (a *Application) RenderAndSlice(yamlTemplatingTools []YamlTemplatingTool) e
 	var err error
 	if lastStepOutputFile, err = a.Render(yamlTemplatingTools); err != nil {
 		log.Error().Str("env", a.e.Id).Err(err).Msg("Failed to render")
+		return err
 	}
 	err = a.runSliceFormatStore(lastStepOutputFile)
 	if err != nil {
@@ -41,6 +42,7 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 		stepOutputYaml, err := yamlTool.Render(lastStepOutputFile)
 		if err != nil {
 			log.Error().Err(err).Msg(a.Msg(yamlTool.Ident(), "Failed during render step: "+yamlTool.Ident()))
+			return "", err
 		}
 		if yamlTool.IsAdditive() {
 			outputYaml = outputYaml + "\n---\n" + stepOutputYaml
