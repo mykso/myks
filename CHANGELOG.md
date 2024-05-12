@@ -22,6 +22,10 @@ There is nothing required to be done before you can start using the new myks. Ho
    find envs -name .myks
    # Then remove:
    find envs -name .myks -exec rm -rf {} \;
+   # First, inspect what will be removed:
+   find envs -name vendor
+   # Then remove:
+   find envs -name vendor -exec rm -rf {} \;
    ```
 
 ### ⚠ BREAKING CHANGES
