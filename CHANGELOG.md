@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.0.1](https://github.com/mykso/myks/compare/v4.0.0...v4.0.1) (2024-05-12)
+
+
+### Bug Fixes
+
+* empty ytt rendering step output is not an error but warning ([8ba573a](https://github.com/mykso/myks/commit/8ba573a9da6b501ebd969a314f7035124d19e142))
+* propagate errors from rendering steps ([ca8f9ca](https://github.com/mykso/myks/commit/ca8f9ca89e8efa6b06d3ce31d734ecf6743995b7))
+
 ## [4.0.0](https://github.com/mykso/myks/compare/v3.4.4...v4.0.0) (2024-05-11)
 
 ### ℹ Upgrading to 4.0.0
