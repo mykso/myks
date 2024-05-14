@@ -264,9 +264,9 @@ func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
 	})
 }
 
-// Cleanup discovers rendered environments that are not known to the Globe struct and removes them.
+// CleanupRenderedManifests discovers rendered environments that are not known to the Globe struct and removes them.
 // This function should be only run when the Globe is not restricted by a list of environments.
-func (g *Globe) Cleanup() error {
+func (g *Globe) CleanupRenderedManifests() error {
 	legalEnvs := map[string]bool{}
 	for _, env := range g.environments {
 		legalEnvs[env.Id] = true

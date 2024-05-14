@@ -31,7 +31,7 @@ var renderCmd = &cobra.Command{
 
 		// Cleaning up only if all environments and applications were processed
 		if envAppMap == nil {
-			if err := g.Cleanup(); err != nil {
+			if err := g.CleanupRenderedManifests(); err != nil {
 				log.Fatal().Err(err).Msg("Unable to cleanup")
 			}
 		}

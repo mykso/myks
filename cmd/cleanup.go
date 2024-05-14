@@ -22,7 +22,7 @@ var cleanUpCmd = &cobra.Command{
 			log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 		}
 
-		if err := g.Cleanup(); err != nil {
+		if err := g.CleanupRenderedManifests(); err != nil {
 			log.Fatal().Err(err).Msg("Unable to cleanup")
 		}
 	},
