@@ -96,8 +96,7 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 }
 
 func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
-	linksMapPath := a.getLinksMapPath()
-	linksMap, err := unmarshalYamlToMap(linksMapPath)
+	linksMap, err := a.getLinksMap()
 	if err != nil {
 		return err
 	}
@@ -108,7 +107,7 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 	}
 
 	for contentPath, cacheName := range linksMap {
-		cacheDir := a.expandVendirCache(cacheName.(string))
+		cacheDir := a.expandVendirCache(cacheName)
 		vendirConfigPath := filepath.Join(cacheDir, a.e.g.VendirConfigFileName)
 		vendirLockPath := filepath.Join(cacheDir, a.e.g.VendirLockFileName)
 		if err := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets); err != nil {
@@ -118,7 +117,7 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 			}
 			return err
 		}
-		if err := v.linkVendorToCache(a, contentPath, cacheName.(string)); err != nil {
+		if err := v.linkVendorToCache(a, contentPath, cacheName); err != nil {
 			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Unable to create link to cache"))
 			return err
 		}
@@ -232,6 +231,18 @@ func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig, vend
 	newDirConfig["contents"] = []interface{}{vendirContentConfig}
 	newVendirConfig["directories"] = []interface{}{newDirConfig}
 	return newVendirConfig
+}
+
+func (a *Application) getLinksMap() (map[string]string, error) {
+	linksMap := map[string]string{}
+	linksMapRaw, err := unmarshalYamlToMap(a.getLinksMapPath())
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range linksMapRaw {
+		linksMap[k] = v.(string)
+	}
+	return linksMap, nil
 }
 
 func (a *Application) getLinksMapPath() string {
