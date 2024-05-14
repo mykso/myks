@@ -200,15 +200,15 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 	return process(asyncLevel, maps.Keys(envAppMap), func(item interface{}) error {
 		envPath, ok := item.(string)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to string")
+			return fmt.Errorf("unable to cast item to string")
 		}
 		env, ok := g.environments[envPath]
 		if !ok {
-			return fmt.Errorf("Unable to find environment for path: %s", envPath)
+			return fmt.Errorf("unable to find environment for path: %s", envPath)
 		}
 		appNames, ok := envAppMap[envPath]
 		if !ok {
-			return fmt.Errorf("Unable to find app names for path: %s", envPath)
+			return fmt.Errorf("unable to find app names for path: %s", envPath)
 		}
 		return env.Init(appNames)
 	})
@@ -224,7 +224,7 @@ func (g *Globe) Sync(asyncLevel int) error {
 		err = process(asyncLevel, g.environments, func(item interface{}) error {
 			env, ok := item.(*Environment)
 			if !ok {
-				return fmt.Errorf("Unable to cast item to *Environment")
+				return fmt.Errorf("unable to cast item to *Environment")
 			}
 			return env.Sync(asyncLevel, syncTool, secrets)
 		})
@@ -239,7 +239,7 @@ func (g *Globe) Render(asyncLevel int) error {
 	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to *Environment")
+			return fmt.Errorf("unable to cast item to *Environment")
 		}
 		return env.Render(asyncLevel)
 	})
@@ -258,7 +258,7 @@ func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
 	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to *Environment")
+			return fmt.Errorf("unable to cast item to *Environment")
 		}
 		return env.ExecPlugin(asyncLevel, p, args)
 	})
@@ -280,7 +280,7 @@ func (g *Globe) Cleanup() error {
 				log.Debug().Str("dir", dirPath).Msg("Skipping cleanup of non-existing directory")
 				continue
 			}
-			return fmt.Errorf("Unable to read dir: %w", err)
+			return fmt.Errorf("unable to read dir: %w", err)
 		}
 
 		for _, file := range files {

@@ -71,7 +71,7 @@ func (e *Environment) Sync(asyncLevel int, syncTool SyncTool, vendirSecrets stri
 	return process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to *Application")
+			return fmt.Errorf("unable to cast item to *Application")
 		}
 		return app.Sync(syncTool, vendirSecrets)
 	})
@@ -84,7 +84,7 @@ func (e *Environment) Render(asyncLevel int) error {
 	err := process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to *Application")
+			return fmt.Errorf("unable to cast item to *Application")
 		}
 		yamlTemplatingTools := []YamlTemplatingTool{
 			&Helm{ident: "helm", app: app, additive: true},
@@ -114,7 +114,7 @@ func (e *Environment) ExecPlugin(asyncLevel int, p Plugin, args []string) error 
 	return process(asyncLevel, e.Applications, func(item interface{}) error {
 		app, ok := item.(*Application)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to *Application")
+			return fmt.Errorf("unable to cast item to *Application")
 		}
 		return p.Exec(app, args)
 	})

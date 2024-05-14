@@ -21,7 +21,7 @@ func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error)
 	err := process(0, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to *Environment")
+			return fmt.Errorf("unable to cast item to *Environment")
 		}
 		return env.initEnvData()
 	})
