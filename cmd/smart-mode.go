@@ -55,8 +55,8 @@ func initTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 				envAppMap[env] = appNames
 			}
 		} else {
-			// TODO: Use Globe.EnvironmentBaseDir instead of the hardcoded key
-			envAppMap["envs"] = appNames
+			g := myks.NewWithDefaults()
+			envAppMap[g.EnvironmentBaseDir] = appNames
 		}
 
 	default:

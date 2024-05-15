@@ -13,7 +13,7 @@ var testApp = &Application{
 	Name:      appName,
 	Prototype: prototypeDir + "/" + appName,
 	e: &Environment{
-		Id: "test-env",
+		ID: "test-env",
 		g: &Globe{
 			TempDirName:   "/tmp",
 			PrototypesDir: prototypeDir,

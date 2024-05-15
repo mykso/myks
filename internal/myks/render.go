@@ -21,7 +21,7 @@ type YamlTemplatingTool interface {
 func (a *Application) RenderAndSlice(yamlTemplatingTools []YamlTemplatingTool) error {
 	lastStepOutputFile, err := a.Render(yamlTemplatingTools)
 	if err != nil {
-		log.Error().Str("env", a.e.Id).Err(err).Msg("Failed to render")
+		log.Error().Str("env", a.e.ID).Err(err).Msg("Failed to render")
 		return err
 	}
 	err = a.runSliceFormatStore(lastStepOutputFile)
@@ -68,13 +68,11 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 	destinationDir := a.getDestinationDir()
 
 	// Cleanup the destination directory before writing new files
-	err = os.RemoveAll(destinationDir)
-	if err != nil {
+	if err = os.RemoveAll(destinationDir); err != nil {
 		log.Warn().Err(err).Str("dir", destinationDir).Msg(a.Msg(sliceStepName, "Unable to remove destination directory"))
 		return err
 	}
-	err = os.MkdirAll(destinationDir, os.ModePerm)
-	if err != nil {
+	if err = os.MkdirAll(destinationDir, os.ModePerm); err != nil {
 		log.Warn().Err(err).Str("dir", destinationDir).Msg(a.Msg(sliceStepName, "Unable to create destination directory"))
 		return err
 	}
@@ -89,8 +87,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		}
 
 		var obj map[string]interface{}
-		err := yaml.Unmarshal([]byte(document), &obj)
-		if err != nil {
+		if err = yaml.Unmarshal([]byte(document), &obj); err != nil {
 			log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to unmarshal yaml"))
 			return err
 		}
@@ -110,13 +107,12 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 			return err
 		}
 		filePath := filepath.Join(destinationDir, fileName)
-		if ok, err := isExist(filePath); err != nil {
-			return err
+		if ok, errExists := isExist(filePath); errExists != nil {
+			return errExists
 		} else if ok {
 			log.Warn().Str("file", filePath).Msg(a.Msg(sliceStepName, "File already exists. Consider enabling render.includeNamespace"))
 		}
-		err = writeFile(filePath, data.Bytes())
-		if err != nil {
+		if err = writeFile(filePath, data.Bytes()); err != nil {
 			log.Warn().Err(err).Str("file", filePath).Msg(a.Msg(renderStepName, "Unable to write file"))
 			return err
 		}
@@ -133,7 +129,7 @@ func (a *Application) storeStepResult(output string, stepName string, stepNumber
 }
 
 func (a *Application) getDestinationDir() string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedEnvsDir, a.e.Id, a.Name)
+	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedEnvsDir, a.e.ID, a.Name)
 }
 
 // Generates a file name for each document using kind and name if available

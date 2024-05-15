@@ -8,7 +8,7 @@ import (
 
 const StaticFilesStepName = "static-files"
 
-func (a *Application) copyStaticFiles() (err error) {
+func (a *Application) copyStaticFiles() error {
 	logStaticFiles := func(files []string) {
 		log.Trace().Strs("staticFiles", files).Msg(a.Msg(StaticFilesStepName, "Static files"))
 	}
@@ -36,7 +36,7 @@ func (a *Application) copyStaticFiles() (err error) {
 	staticFilesDestination := filepath.Join(a.getDestinationDir(), a.e.g.StaticFilesDirName)
 
 	for _, staticFilesDir := range staticFilesDirs {
-		if err = copyDir(staticFilesDir, staticFilesDestination, true); err != nil {
+		if err := copyDir(staticFilesDir, staticFilesDestination, true); err != nil {
 			log.Error().Err(err).Msg(a.Msg(StaticFilesStepName, "Unable to copy static files"))
 			return err
 		}

@@ -24,7 +24,7 @@ func TestApplication_copyStaticFiles(t *testing.T) {
 	}
 
 	env := &Environment{
-		Id:  envName,
+		ID:  envName,
 		g:   globe,
 		Dir: filepath.Join(globe.EnvironmentBaseDir, envName),
 	}
