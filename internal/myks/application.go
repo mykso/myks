@@ -138,7 +138,7 @@ func (a *Application) collectDataFiles() {
 }
 
 func (a *Application) Msg(step string, msg string) string {
-	formattedMessage := fmt.Sprintf(ApplicationLogFormat, a.e.Id, a.Name, step, msg)
+	formattedMessage := fmt.Sprintf(ApplicationLogFormat, a.e.ID, a.Name, step, msg)
 	return formattedMessage
 }
 

@@ -20,7 +20,7 @@ type Environment struct {
 	// Environment data file
 	EnvironmentDataFile string
 	// Environment id
-	Id string
+	ID string
 	// Applications
 	Applications []*Application
 
@@ -48,7 +48,7 @@ func NewEnvironment(g *Globe, dir string) (*Environment, error) {
 
 	// Read an environment id from an environment data file.
 	// The environment data file must exist and contain an .environment.id field.
-	err := env.setId()
+	err := env.setID()
 	return env, err
 }
 
@@ -128,11 +128,11 @@ func (e *Environment) Cleanup() error {
 	for _, app := range apps {
 		if _, ok := e.foundApplications[app]; !ok {
 			log.Info().Str("app", app).Msg(e.Msg("Removing app as it is not configured"))
-			err := os.RemoveAll(filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.Id, app))
+			err := os.RemoveAll(filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.ID, app))
 			if err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("unable to remove dir: %w", err)
 			}
-			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.Id, getArgoCDAppFileName(app)))
+			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.ID, getArgoCDAppFileName(app)))
 			if err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("unable to remove file: %w", err)
 			}
@@ -145,7 +145,7 @@ func (e *Environment) Cleanup() error {
 // renderedApplications returns list of applications in rendered dir
 func (e *Environment) renderedApplications() ([]string, error) {
 	apps := []string{}
-	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.Id)
+	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.ID)
 	files, err := os.ReadDir(dirEnvRendered)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -186,7 +186,7 @@ func (e *Environment) missingApplications() ([]string, error) {
 	return missingApps, nil
 }
 
-func (e *Environment) setId() error {
+func (e *Environment) setID() error {
 	yamlBytes, err := os.ReadFile(e.EnvironmentDataFile)
 	if err != nil {
 		log.Debug().Err(err).Msg(e.Msg("Unable to read environment data file"))
@@ -195,7 +195,7 @@ func (e *Environment) setId() error {
 
 	var envData struct {
 		Environment struct {
-			Id string `yaml:"id"`
+			ID string `yaml:"id"`
 		} `yaml:"environment"`
 	}
 	err = yaml.Unmarshal(yamlBytes, &envData)
@@ -204,13 +204,13 @@ func (e *Environment) setId() error {
 		return err
 	}
 
-	if envData.Environment.Id == "" {
+	if envData.Environment.ID == "" {
 		err = errors.New("Environment data file missing id")
 		log.Debug().Err(err).Str("file", e.EnvironmentDataFile).Msg("Unable to set environment id")
 		return err
 	}
 
-	e.Id = envData.Environment.Id
+	e.ID = envData.Environment.ID
 
 	log.Debug().Interface("envData", envData).Msg(e.Msg("Environment data"))
 
@@ -367,7 +367,7 @@ func (e *Environment) collectBySubpath(subpath string) []string {
 }
 
 func (e *Environment) Msg(msg string) string {
-	formattedMessage := fmt.Sprintf(EnvLogFormat, e.Id, initStepName, msg)
+	formattedMessage := fmt.Sprintf(EnvLogFormat, e.ID, initStepName, msg)
 	return formattedMessage
 }
 

@@ -148,7 +148,7 @@ func New(rootDir string) *Globe {
 			g.GitRepoBranch = gitRepoBranch
 		}
 
-		if gitRepoURL, err := getGitRepoUrl(g.RootDir); err != nil {
+		if gitRepoURL, err := getGitRepoURL(g.RootDir); err != nil {
 			log.Warn().Err(err).Msg("Unable to set git repo branch")
 		} else {
 			g.GitRepoURL = gitRepoURL
@@ -269,7 +269,7 @@ func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
 func (g *Globe) CleanupRenderedManifests(dryRun bool) error {
 	legalEnvs := map[string]bool{}
 	for _, env := range g.environments {
-		legalEnvs[env.Id] = true
+		legalEnvs[env.ID] = true
 	}
 
 	for _, dir := range [...]string{g.RenderedArgoDir, g.RenderedEnvsDir} {

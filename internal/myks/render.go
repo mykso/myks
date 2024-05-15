@@ -21,7 +21,7 @@ type YamlTemplatingTool interface {
 func (a *Application) RenderAndSlice(yamlTemplatingTools []YamlTemplatingTool) error {
 	lastStepOutputFile, err := a.Render(yamlTemplatingTools)
 	if err != nil {
-		log.Error().Str("env", a.e.Id).Err(err).Msg("Failed to render")
+		log.Error().Str("env", a.e.ID).Err(err).Msg("Failed to render")
 		return err
 	}
 	err = a.runSliceFormatStore(lastStepOutputFile)
@@ -133,7 +133,7 @@ func (a *Application) storeStepResult(output string, stepName string, stepNumber
 }
 
 func (a *Application) getDestinationDir() string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedEnvsDir, a.e.Id, a.Name)
+	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedEnvsDir, a.e.ID, a.Name)
 }
 
 // Generates a file name for each document using kind and name if available

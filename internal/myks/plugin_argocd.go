@@ -12,12 +12,12 @@ import (
 const ArgoCDStepName = "argocd"
 
 //go:embed templates/argocd/environment.ytt.yaml
-var argocd_appproject_template []byte
+var argocdAppprojectTemplate []byte
 
 //go:embed templates/argocd/application.ytt.yaml
-var argocd_application_template []byte
+var argocdApplicationTemplate []byte
 
-const argocd_data_values_schema = `
+const argocdDataValuesSchema = `
 #@data/values-schema
 ---
 argocd:
@@ -44,18 +44,18 @@ func (e *Environment) renderArgoCD() (err error) {
 	res, err := e.yttS(
 		"create ArgoCD project yaml",
 		yttFiles,
-		bytes.NewReader(argocd_appproject_template),
+		bytes.NewReader(argocdAppprojectTemplate),
 	)
 	if err != nil {
 		return err
 	}
 
-	argoDestinationPath := filepath.Join(e.getArgoCDDestinationDir(), getArgoCDEnvFileName(e.Id))
+	argoDestinationPath := filepath.Join(e.getArgoCDDestinationDir(), getArgoCDEnvFileName(e.ID))
 	return writeFile(argoDestinationPath, []byte(res.Stdout))
 }
 
 func (e *Environment) getArgoCDDestinationDir() string {
-	return filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.Id)
+	return filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.ID)
 }
 
 func (a *Application) renderArgoCD() (err error) {
@@ -90,7 +90,7 @@ func (a *Application) renderArgoCD() (err error) {
 		"argocd",
 		"create ArgoCD application yaml",
 		yttFiles,
-		bytes.NewReader(argocd_application_template),
+		bytes.NewReader(argocdApplicationTemplate),
 	)
 	if err != nil {
 		log.Error().Err(err).
@@ -107,7 +107,7 @@ func (a *Application) renderArgoCD() (err error) {
 func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 	const name = "argocd_defaults.ytt.yaml"
 
-	tmpl, err := template.New(name).Parse(argocd_data_values_schema)
+	tmpl, err := template.New(name).Parse(argocdDataValuesSchema)
 	if err != nil {
 		return
 	}
@@ -140,7 +140,7 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 }
 
 func (a *Application) getArgoCDDestinationDir() string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedArgoDir, a.e.Id)
+	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedArgoDir, a.e.ID)
 }
 
 func getArgoCDEnvFileName(envName string) string {
