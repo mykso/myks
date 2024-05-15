@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.0](https://github.com/mykso/myks/compare/v4.0.1...v4.1.0) (2024-05-15)
+
+
+### Features
+
+* enchance cleanup command to take care of cache ([#288](https://github.com/mykso/myks/issues/288)) ([da36786](https://github.com/mykso/myks/commit/da3678625d8287c4e972fbc208b5a3e3817ebd15))
+
 ## [4.0.1](https://github.com/mykso/myks/compare/v4.0.0...v4.0.1) (2024-05-12)
 
 
