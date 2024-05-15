@@ -68,13 +68,11 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 	destinationDir := a.getDestinationDir()
 
 	// Cleanup the destination directory before writing new files
-	err = os.RemoveAll(destinationDir)
-	if err != nil {
+	if err = os.RemoveAll(destinationDir); err != nil {
 		log.Warn().Err(err).Str("dir", destinationDir).Msg(a.Msg(sliceStepName, "Unable to remove destination directory"))
 		return err
 	}
-	err = os.MkdirAll(destinationDir, os.ModePerm)
-	if err != nil {
+	if err = os.MkdirAll(destinationDir, os.ModePerm); err != nil {
 		log.Warn().Err(err).Str("dir", destinationDir).Msg(a.Msg(sliceStepName, "Unable to create destination directory"))
 		return err
 	}
@@ -89,8 +87,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		}
 
 		var obj map[string]interface{}
-		err := yaml.Unmarshal([]byte(document), &obj)
-		if err != nil {
+		if err = yaml.Unmarshal([]byte(document), &obj); err != nil {
 			log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to unmarshal yaml"))
 			return err
 		}
@@ -110,13 +107,12 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 			return err
 		}
 		filePath := filepath.Join(destinationDir, fileName)
-		if ok, err := isExist(filePath); err != nil {
-			return err
+		if ok, errExists := isExist(filePath); errExists != nil {
+			return errExists
 		} else if ok {
 			log.Warn().Str("file", filePath).Msg(a.Msg(sliceStepName, "File already exists. Consider enabling render.includeNamespace"))
 		}
-		err = writeFile(filePath, data.Bytes())
-		if err != nil {
+		if err = writeFile(filePath, data.Bytes()); err != nil {
 			log.Warn().Err(err).Str("file", filePath).Msg(a.Msg(renderStepName, "Unable to write file"))
 			return err
 		}

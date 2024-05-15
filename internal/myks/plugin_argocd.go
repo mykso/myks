@@ -58,15 +58,15 @@ func (e *Environment) getArgoCDDestinationDir() string {
 	return filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.ID)
 }
 
-func (a *Application) renderArgoCD() (err error) {
+func (a *Application) renderArgoCD() error {
 	if !a.argoCDEnabled {
 		log.Debug().Msg(a.Msg(ArgoCDStepName, "ArgoCD is disabled"))
-		return
+		return nil
 	}
 
 	defaultsPath, err := a.argoCDPrepareDefaults()
 	if err != nil {
-		return
+		return err
 	}
 
 	// 0. Global data values schema and library files are added later in the a.yttS call
@@ -76,8 +76,8 @@ func (a *Application) renderArgoCD() (err error) {
 	yttFiles = append(yttFiles, a.yttDataFiles...)
 	// 3. Use argocd-specific data values, schemas, and overlays from the prototype
 	prototypeArgoCDDir := filepath.Join(a.Prototype, a.e.g.ArgoCDDataDirName)
-	if ok, err := isExist(prototypeArgoCDDir); err != nil {
-		return err
+	if ok, errExists := isExist(prototypeArgoCDDir); errExists != nil {
+		return errExists
 	} else if ok {
 		yttFiles = append(yttFiles, prototypeArgoCDDir)
 	}
@@ -97,7 +97,7 @@ func (a *Application) renderArgoCD() (err error) {
 			Str("stdout", res.Stdout).
 			Str("stderr", res.Stderr).
 			Msg(a.Msg("argocd", "failed to render ArgoCD Application yaml"))
-		return
+		return err
 	}
 
 	argoDestinationPath := filepath.Join(a.getArgoCDDestinationDir(), getArgoCDAppFileName(a.Name))
