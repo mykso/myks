@@ -205,7 +205,7 @@ func (e *Environment) setID() error {
 	}
 
 	if envData.Environment.ID == "" {
-		err = errors.New("Environment data file missing id")
+		err = errors.New("environment data file missing id")
 		log.Debug().Err(err).Str("file", e.EnvironmentDataFile).Msg("Unable to set environment id")
 		return err
 	}
@@ -240,14 +240,14 @@ func (e *Environment) initEnvData() error {
 
 func (e *Environment) renderEnvData(envDataFiles []string) ([]byte, error) {
 	if len(envDataFiles) == 0 {
-		return nil, errors.New("No environment data files found")
+		return nil, errors.New("no environment data files found")
 	}
 	res, err := e.ytt("render environment data values file", envDataFiles, "--data-values-inspect")
 	if err != nil {
 		return nil, err
 	}
 	if res.Stdout == "" {
-		return nil, errors.New("Empty output from ytt")
+		return nil, errors.New("empty output from ytt")
 	}
 
 	envDataYaml := []byte(res.Stdout)

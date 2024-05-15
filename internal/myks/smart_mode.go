@@ -12,7 +12,7 @@ import (
 
 func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error) {
 	if !g.WithGit {
-		return nil, errors.New("Git is unavailable")
+		return nil, errors.New("git is unavailable")
 	}
 
 	// envAppMap is built later by calling g.runSmartMode
