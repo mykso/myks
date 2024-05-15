@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	MYKS_CONFIG_NAME = ".myks"
-	MYKS_CONFIG_TYPE = "yaml"
+	MyksConfigName = ".myks"
+	MyksConfigType = "yaml"
 )
 
 var (
@@ -84,7 +84,7 @@ func newRootCmd(version, commit, date string) *cobra.Command {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
 	}
 
-	configHelp := fmt.Sprintf("config file (default is the first %s.%s up the directory tree)", MYKS_CONFIG_NAME, MYKS_CONFIG_TYPE)
+	configHelp := fmt.Sprintf("config file (default is the first %s.%s up the directory tree)", MyksConfigName, MyksConfigType)
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", configHelp)
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
@@ -105,8 +105,8 @@ func initConfig() {
 		viper.SetConfigFile(cfgFile)
 	} else {
 		viper.AddConfigPath(".")
-		viper.SetConfigName(MYKS_CONFIG_NAME)
-		viper.SetConfigType(MYKS_CONFIG_TYPE)
+		viper.SetConfigName(MyksConfigName)
+		viper.SetConfigType(MyksConfigType)
 
 		// Add all parent directories to the config search path
 		dir, _ := os.Getwd()
