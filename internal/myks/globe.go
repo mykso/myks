@@ -264,9 +264,9 @@ func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
 	})
 }
 
-// Cleanup discovers rendered environments that are not known to the Globe struct and removes them.
+// CleanupRenderedManifests discovers rendered environments that are not known to the Globe struct and removes them.
 // This function should be only run when the Globe is not restricted by a list of environments.
-func (g *Globe) Cleanup() error {
+func (g *Globe) CleanupRenderedManifests(dryRun bool) error {
 	legalEnvs := map[string]bool{}
 	for _, env := range g.environments {
 		legalEnvs[env.Id] = true
@@ -284,14 +284,66 @@ func (g *Globe) Cleanup() error {
 		}
 
 		for _, file := range files {
-			_, ok := legalEnvs[file.Name()]
-			if file.IsDir() && !ok {
+			if !file.IsDir() {
+				log.Warn().Str("file", dir+"/"+file.Name()).Msg("Skipping non-directory entry")
+				continue
+			}
+			if _, ok := legalEnvs[file.Name()]; !ok {
+				if dryRun {
+					log.Info().Str("dir", dir+"/"+file.Name()).Msg("Would cleanup rendered environment directory")
+					continue
+				}
 				log.Debug().Str("dir", dir+"/"+file.Name()).Msg("Cleanup rendered environment directory")
 				fullPath := filepath.Join(dirPath, file.Name())
-				err = os.RemoveAll(fullPath)
-				if err != nil {
+				if err := os.RemoveAll(fullPath); err != nil {
 					log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
 				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// CleanupObsoleteCacheEntries removes cache entries that are not used by any application.
+// This function should be only run when the Globe is not restricted by a list of environments.
+func (g *Globe) CleanupObsoleteCacheEntries(dryRun bool) error {
+	validCacheDirs := map[string]bool{}
+	for _, env := range g.environments {
+		for _, app := range env.Applications {
+			linksMap, err := app.getLinksMap()
+			if err != nil {
+				return err
+			}
+			for _, cacheName := range linksMap {
+				validCacheDirs[cacheName] = true
+			}
+		}
+	}
+
+	cacheDir := filepath.Join(g.ServiceDirName, g.VendirCache)
+	cacheEntries, err := os.ReadDir(cacheDir)
+	if os.IsNotExist(err) {
+		log.Debug().Str("dir", cacheDir).Msg("Skipping cleanup of non-existing directory")
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("unable to read dir: %w", err)
+	}
+
+	for _, entry := range cacheEntries {
+		if !entry.IsDir() {
+			log.Warn().Str("file", cacheDir+"/"+entry.Name()).Msg("Skipping non-directory entry")
+			continue
+		}
+		if _, ok := validCacheDirs[entry.Name()]; !ok {
+			if dryRun {
+				log.Info().Str("dir", cacheDir+"/"+entry.Name()).Msg("Would cleanup cache entry")
+				continue
+			}
+			log.Debug().Str("dir", cacheDir+"/"+entry.Name()).Msg("Cleanup cache entry")
+			fullPath := filepath.Join(cacheDir, entry.Name())
+			if err = os.RemoveAll(fullPath); err != nil {
+				log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
 			}
 		}
 	}
