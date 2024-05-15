@@ -95,7 +95,7 @@ type Globe struct {
 	// Git repository branch
 	GitRepoBranch string
 	// Git repository URL
-	GitRepoUrl string
+	GitRepoURL string
 
 	// Prefix for kubernetes namespaces, only used in helm rendering
 	NamespacePrefix string `default:""`
@@ -110,7 +110,7 @@ type Globe struct {
 // YttGlobe controls runtime data available to ytt templates
 type YttGlobeData struct {
 	GitRepoBranch string `yaml:"gitRepoBranch"`
-	GitRepoUrl    string `yaml:"gitRepoUrl"`
+	GitRepoURL    string `yaml:"gitRepoUrl"`
 }
 
 type VendirCredentials struct {
@@ -148,10 +148,10 @@ func New(rootDir string) *Globe {
 			g.GitRepoBranch = gitRepoBranch
 		}
 
-		if gitRepoUrl, err := getGitRepoUrl(g.RootDir); err != nil {
+		if gitRepoURL, err := getGitRepoUrl(g.RootDir); err != nil {
 			log.Warn().Err(err).Msg("Unable to set git repo branch")
 		} else {
-			g.GitRepoUrl = gitRepoUrl
+			g.GitRepoURL = gitRepoURL
 		}
 
 	} else {
@@ -358,7 +358,7 @@ func (g *Globe) dumpConfigAsYaml() (string, error) {
 	}{
 		Myks: &YttGlobeData{
 			GitRepoBranch: g.GitRepoBranch,
-			GitRepoUrl:    g.GitRepoUrl,
+			GitRepoURL:    g.GitRepoURL,
 		},
 	}
 	var yamlData bytes.Buffer
