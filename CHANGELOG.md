@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.1](https://github.com/mykso/myks/compare/v4.1.0...v4.1.1) (2024-05-15)
+
+
+### Bug Fixes
+
+* switch generated data values to schema to lower priority ([#290](https://github.com/mykso/myks/issues/290)) ([8f86a11](https://github.com/mykso/myks/commit/8f86a1169debdccebe1459192df0dd200629038d))
+
 ## [4.1.0](https://github.com/mykso/myks/compare/v4.0.1...v4.1.0) (2024-05-15)
 
 
