@@ -367,7 +367,7 @@ func (g *Globe) dumpConfigAsYaml() (string, error) {
 	if err := enc.Encode(configData); err != nil {
 		return "", err
 	}
-	yttData := fmt.Sprintf("#@data/values\n---\n%s", yamlData.String())
+	yttData := fmt.Sprintf("#@data/values-schema\n---\n%s", yamlData.String())
 
 	configFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.MyksDataFileName)
 	if err := os.MkdirAll(filepath.Dir(configFileName), 0o750); err != nil {
