@@ -30,6 +30,9 @@ prototypes:
   #@schema/desc "For git repositories, this is the git url. For helm charts, this is the helm chart url."
   #@schema/validation min_len=1
   url: ""
+  #@schema/title "Lazy vendoring"
+  #@schema/desc "If true, the vendored application is not vendored until it is needed."
+  lazy: true
   #@schema/title "Version of the prototype"
   #@schema/desc "For git repositories, this is the git ref. For helm charts, this is the helm chart version."
   #@schema/validation min_len=1

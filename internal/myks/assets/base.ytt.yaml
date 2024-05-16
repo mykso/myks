@@ -27,6 +27,7 @@ directories:
         version: #@ myApp.version
         repository:
           url: #@ myApp.url
+      lazy: #@ myApp.lazy
       #@ if/end myApp.newRootPath:
       newRootPath: #@ myApp.newRootPath
       #@ if/end myApp.includePaths:
