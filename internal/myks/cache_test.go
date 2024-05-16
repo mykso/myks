@@ -120,7 +120,7 @@ func TestCacheNamer_Git(t *testing.T) {
 		"url": "https://kubernetes.github.io/ingress-nginx",
 		"ref": "feature/test",
 	}
-	vendirConfigWithoutUrl := map[string]interface{}{
+	vendirConfigWithoutURL := map[string]interface{}{
 		"ref": "main",
 	}
 	vendirConfigWithoutRef := map[string]interface{}{
@@ -134,7 +134,7 @@ func TestCacheNamer_Git(t *testing.T) {
 		wantErr      bool
 	}{
 		{"happy path", validVendirConfig, "git-ingress-nginx-feature-test-950426b55fd7cc75", false},
-		{"missing url key", vendirConfigWithoutUrl, "", true},
+		{"missing url key", vendirConfigWithoutURL, "", true},
 		{"missing ref key", vendirConfigWithoutRef, "", true},
 	}
 	for _, tt := range tests {

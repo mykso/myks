@@ -20,13 +20,13 @@ func findRepos(t *testing.T, basefolder string) []testRepo {
 	repos := []testRepo{}
 	dir, err := os.Open(basefolder)
 	if err != nil {
-		t.Errorf("Could not open directory: %s", err)
+		t.Errorf("could not open directory: %s", err)
 		return nil
 	}
 
 	dirs, err := dir.ReadDir(-1)
 	if err != nil {
-		t.Errorf("Could not read directories: %s", err)
+		t.Errorf("could not read directories: %s", err)
 		return nil
 	}
 	for _, d := range dirs {
@@ -42,7 +42,7 @@ func findRepos(t *testing.T, basefolder string) []testRepo {
 		})
 	}
 	if len(repos) == 0 {
-		t.Errorf("Did not find any examples to test")
+		t.Errorf("did not find any examples to test")
 	}
 	return repos
 }
@@ -57,7 +57,7 @@ func checkCleanGit(t *testing.T) bool {
 	for file := range changedFiles {
 		if regex.MatchString(file) {
 			t.Logf("Found changed files in rendered output: %v", file)
-			t.Errorf("Unexpected changes in git status")
+			t.Errorf("unexpected changes in git status")
 			return false
 		}
 	}

@@ -13,7 +13,7 @@ var testApp = &Application{
 	Name:      appName,
 	Prototype: prototypeDir + "/" + appName,
 	e: &Environment{
-		Id: "test-env",
+		ID: "test-env",
 		g: &Globe{
 			TempDirName:   "/tmp",
 			PrototypesDir: prototypeDir,
@@ -103,17 +103,17 @@ func TestApplication_Render(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := testApp.Render(tt.args)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Render() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("render() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("Render() got = %v, want %v", got, tt.want)
+				t.Errorf("render() got = %v, want %v", got, tt.want)
 			}
 			// check actual step file content
 			file, err := os.ReadFile(tt.want)
 			if err == nil {
 				if string(file) != tt.wantYaml {
-					t.Errorf("Render() got = %v, want %v", string(file), tt.wantYaml)
+					t.Errorf("render() got = %v, want %v", string(file), tt.wantYaml)
 				}
 			}
 		})

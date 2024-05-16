@@ -95,7 +95,7 @@ type Globe struct {
 	// Git repository branch
 	GitRepoBranch string
 	// Git repository URL
-	GitRepoUrl string
+	GitRepoURL string
 
 	// Prefix for kubernetes namespaces, only used in helm rendering
 	NamespacePrefix string `default:""`
@@ -110,7 +110,7 @@ type Globe struct {
 // YttGlobe controls runtime data available to ytt templates
 type YttGlobeData struct {
 	GitRepoBranch string `yaml:"gitRepoBranch"`
-	GitRepoUrl    string `yaml:"gitRepoUrl"`
+	GitRepoURL    string `yaml:"gitRepoUrl"`
 }
 
 type VendirCredentials struct {
@@ -148,10 +148,10 @@ func New(rootDir string) *Globe {
 			g.GitRepoBranch = gitRepoBranch
 		}
 
-		if gitRepoUrl, err := getGitRepoUrl(g.RootDir); err != nil {
+		if gitRepoURL, err := getGitRepoURL(g.RootDir); err != nil {
 			log.Warn().Err(err).Msg("Unable to set git repo branch")
 		} else {
-			g.GitRepoUrl = gitRepoUrl
+			g.GitRepoURL = gitRepoURL
 		}
 
 	} else {
@@ -200,15 +200,15 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 	return process(asyncLevel, maps.Keys(envAppMap), func(item interface{}) error {
 		envPath, ok := item.(string)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to string")
+			return fmt.Errorf("unable to cast item to string")
 		}
 		env, ok := g.environments[envPath]
 		if !ok {
-			return fmt.Errorf("Unable to find environment for path: %s", envPath)
+			return fmt.Errorf("unable to find environment for path: %s", envPath)
 		}
 		appNames, ok := envAppMap[envPath]
 		if !ok {
-			return fmt.Errorf("Unable to find app names for path: %s", envPath)
+			return fmt.Errorf("unable to find app names for path: %s", envPath)
 		}
 		return env.Init(appNames)
 	})
@@ -224,7 +224,7 @@ func (g *Globe) Sync(asyncLevel int) error {
 		err = process(asyncLevel, g.environments, func(item interface{}) error {
 			env, ok := item.(*Environment)
 			if !ok {
-				return fmt.Errorf("Unable to cast item to *Environment")
+				return fmt.Errorf("unable to cast item to *Environment")
 			}
 			return env.Sync(asyncLevel, syncTool, secrets)
 		})
@@ -239,7 +239,7 @@ func (g *Globe) Render(asyncLevel int) error {
 	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to *Environment")
+			return fmt.Errorf("unable to cast item to *Environment")
 		}
 		return env.Render(asyncLevel)
 	})
@@ -258,18 +258,18 @@ func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
 	return process(asyncLevel, g.environments, func(item interface{}) error {
 		env, ok := item.(*Environment)
 		if !ok {
-			return fmt.Errorf("Unable to cast item to *Environment")
+			return fmt.Errorf("unable to cast item to *Environment")
 		}
 		return env.ExecPlugin(asyncLevel, p, args)
 	})
 }
 
-// Cleanup discovers rendered environments that are not known to the Globe struct and removes them.
+// CleanupRenderedManifests discovers rendered environments that are not known to the Globe struct and removes them.
 // This function should be only run when the Globe is not restricted by a list of environments.
-func (g *Globe) Cleanup() error {
+func (g *Globe) CleanupRenderedManifests(dryRun bool) error {
 	legalEnvs := map[string]bool{}
 	for _, env := range g.environments {
-		legalEnvs[env.Id] = true
+		legalEnvs[env.ID] = true
 	}
 
 	for _, dir := range [...]string{g.RenderedArgoDir, g.RenderedEnvsDir} {
@@ -280,18 +280,70 @@ func (g *Globe) Cleanup() error {
 				log.Debug().Str("dir", dirPath).Msg("Skipping cleanup of non-existing directory")
 				continue
 			}
-			return fmt.Errorf("Unable to read dir: %w", err)
+			return fmt.Errorf("unable to read dir: %w", err)
 		}
 
 		for _, file := range files {
-			_, ok := legalEnvs[file.Name()]
-			if file.IsDir() && !ok {
+			if !file.IsDir() {
+				log.Warn().Str("file", dir+"/"+file.Name()).Msg("Skipping non-directory entry")
+				continue
+			}
+			if _, ok := legalEnvs[file.Name()]; !ok {
+				if dryRun {
+					log.Info().Str("dir", dir+"/"+file.Name()).Msg("Would cleanup rendered environment directory")
+					continue
+				}
 				log.Debug().Str("dir", dir+"/"+file.Name()).Msg("Cleanup rendered environment directory")
 				fullPath := filepath.Join(dirPath, file.Name())
-				err = os.RemoveAll(fullPath)
-				if err != nil {
+				if err := os.RemoveAll(fullPath); err != nil {
 					log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
 				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// CleanupObsoleteCacheEntries removes cache entries that are not used by any application.
+// This function should be only run when the Globe is not restricted by a list of environments.
+func (g *Globe) CleanupObsoleteCacheEntries(dryRun bool) error {
+	validCacheDirs := map[string]bool{}
+	for _, env := range g.environments {
+		for _, app := range env.Applications {
+			linksMap, err := app.getLinksMap()
+			if err != nil {
+				return err
+			}
+			for _, cacheName := range linksMap {
+				validCacheDirs[cacheName] = true
+			}
+		}
+	}
+
+	cacheDir := filepath.Join(g.ServiceDirName, g.VendirCache)
+	cacheEntries, err := os.ReadDir(cacheDir)
+	if os.IsNotExist(err) {
+		log.Debug().Str("dir", cacheDir).Msg("Skipping cleanup of non-existing directory")
+		return nil
+	} else if err != nil {
+		return fmt.Errorf("unable to read dir: %w", err)
+	}
+
+	for _, entry := range cacheEntries {
+		if !entry.IsDir() {
+			log.Warn().Str("file", cacheDir+"/"+entry.Name()).Msg("Skipping non-directory entry")
+			continue
+		}
+		if _, ok := validCacheDirs[entry.Name()]; !ok {
+			if dryRun {
+				log.Info().Str("dir", cacheDir+"/"+entry.Name()).Msg("Would cleanup cache entry")
+				continue
+			}
+			log.Debug().Str("dir", cacheDir+"/"+entry.Name()).Msg("Cleanup cache entry")
+			fullPath := filepath.Join(cacheDir, entry.Name())
+			if err = os.RemoveAll(fullPath); err != nil {
+				log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
 			}
 		}
 	}
@@ -306,7 +358,7 @@ func (g *Globe) dumpConfigAsYaml() (string, error) {
 	}{
 		Myks: &YttGlobeData{
 			GitRepoBranch: g.GitRepoBranch,
-			GitRepoUrl:    g.GitRepoUrl,
+			GitRepoURL:    g.GitRepoURL,
 		},
 	}
 	var yamlData bytes.Buffer
@@ -315,7 +367,7 @@ func (g *Globe) dumpConfigAsYaml() (string, error) {
 	if err := enc.Encode(configData); err != nil {
 		return "", err
 	}
-	yttData := fmt.Sprintf("#@data/values\n---\n%s", yamlData.String())
+	yttData := fmt.Sprintf("#@data/values-schema\n---\n%s", yamlData.String())
 
 	configFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.MyksDataFileName)
 	if err := os.MkdirAll(filepath.Dir(configFileName), 0o750); err != nil {

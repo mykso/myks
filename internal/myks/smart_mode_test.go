@@ -100,7 +100,7 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	g1.environments = map[string]*Environment{
 		"env1": {
 			g:  g1,
-			Id: "env1",
+			ID: "env1",
 			foundApplications: map[string]string{
 				"app1": "proto1",
 				"app2": "proto2",
@@ -111,7 +111,7 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	g2.environments = map[string]*Environment{
 		"env1": {
 			g:  g2,
-			Id: "env1",
+			ID: "env1",
 			foundApplications: map[string]string{
 				"app1":      "proto1",
 				"root/app2": "proto2",
@@ -122,14 +122,14 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	g3.environments = map[string]*Environment{
 		"env1": {
 			g:  g3,
-			Id: "env1",
+			ID: "env1",
 			foundApplications: map[string]string{
 				"app1": "proto1",
 			},
 		},
 		"env2": {
 			g:  g3,
-			Id: "env2",
+			ID: "env2",
 			foundApplications: map[string]string{
 				"app1": "proto1",
 			},
@@ -195,7 +195,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 	g.environments = map[string]*Environment{
 		"envs/env1": {
 			g:  g,
-			Id: "env1",
+			ID: "env1",
 			foundApplications: map[string]string{
 				"app1": "app1",
 				"app2": "app2",
@@ -203,7 +203,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		},
 		"envs/env2": {
 			g:  g,
-			Id: "env2",
+			ID: "env2",
 			foundApplications: map[string]string{
 				"app3": "app3",
 				"app2": "app2",

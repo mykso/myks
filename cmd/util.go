@@ -4,6 +4,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
 	"github.com/mykso/myks/internal/myks"
@@ -44,4 +45,16 @@ func getAppNamesForEnv(globe *myks.Globe, envPath string) []string {
 		return env.GetApplicationNames()
 	}
 	return []string{}
+}
+
+// readFlagBool reads a boolean flag from a cobra command and returns the value and whether the flag was set
+func readFlagBool(cmd *cobra.Command, name string) (bool, bool) {
+	flag, err := cmd.Flags().GetBool(name)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Failed to read flag")
+		// This should never happen
+		return false, false
+	}
+
+	return flag, cmd.Flags().Changed(name)
 }
