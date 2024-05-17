@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -71,14 +70,15 @@ func newProtoAddCmd() *cobra.Command {
 			p, err := prototypes.LoadPrototypeFile(file)
 			if err != nil {
 				if !os.IsNotExist(err) {
-					fmt.Printf("File %#v already exists, adding to it\n", file)
+					log.Err(err).Str("prototype", file).Msg("Invalid prototype file")
 					cobra.CheckErr(err)
 				}
 				log.Info().Str("prototype", file).Msg("Create new prototype")
 				p = prototypes.NewPrototypes(file)
 			}
+			protoSrcName := filepath.Base(uri)
 			p.AddPrototype(prototypes.Prototype{
-				Name:         name,
+				Name:         protoSrcName,
 				Kind:         prototypes.Kind(kind),
 				Source:       prototypes.Source(source),
 				Url:          uri,
