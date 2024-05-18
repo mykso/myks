@@ -148,7 +148,7 @@ func (p PluginCmd) generateEnv(a *Application) (map[string]string, error) {
 	}
 
 	env := map[string]string{
-		"MYKS_ENV":              a.e.Id,
+		"MYKS_ENV":              a.e.ID,
 		"MYKS_APP":              a.Name,
 		"MYKS_APP_PROTOTYPE":    a.Prototype,
 		"MYKS_ENV_DIR":          a.e.Dir,

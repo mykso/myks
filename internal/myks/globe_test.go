@@ -22,7 +22,7 @@ func Test_AddBaseDirToEnvPath(t *testing.T) {
 	for _, tt := range tests {
 		out := g.AddBaseDirToEnvPath(tt.in)
 		if out != tt.out {
-			t.Errorf("AddBaseDirToEnvPath(%s) = %s; want %s", tt.in, out, tt.out)
+			t.Errorf("addBaseDirToEnvPath(%s) = %s; want %s", tt.in, out, tt.out)
 		}
 	}
 }

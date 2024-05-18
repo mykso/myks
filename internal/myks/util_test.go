@@ -392,11 +392,11 @@ func TestProcess(t *testing.T) {
 
 			err := process(tc.asyncLevel, tc.collection, fnWrapper)
 			if fmt.Sprint(err) != fmt.Sprint(tc.expectedErr) {
-				t.Errorf("Expected error: %v, got: %v", tc.expectedErr, err)
+				t.Errorf("expected error: %v, got: %v", tc.expectedErr, err)
 			}
 
 			if tc.expectedFnCalls > 0 && counter != tc.expectedFnCalls {
-				t.Errorf("Expected fn to be called %d times, got: %d", tc.expectedFnCalls, counter)
+				t.Errorf("expected fn to be called %d times, got: %d", tc.expectedFnCalls, counter)
 			}
 		})
 	}
@@ -404,7 +404,7 @@ func TestProcess(t *testing.T) {
 
 func assertEqual(t *testing.T, got, want interface{}) {
 	if !reflect.DeepEqual(got, want) {
-		t.Errorf("Expected:\n%v\nGot:\n%v\nDifference:\n%v", want, got, diff(want, got))
+		t.Errorf("expected:\n%v\nGot:\n%v\nDifference:\n%v", want, got, diff(want, got))
 	}
 }
 

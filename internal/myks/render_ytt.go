@@ -1,7 +1,6 @@
 package myks
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 
@@ -77,7 +76,8 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 	}
 
 	if res.Stdout == "" {
-		return "", errors.New("empty ytt output")
+		log.Warn().Msg(y.app.Msg(y.getStepName(), "Empty ytt output"))
+		return "", nil
 	}
 
 	log.Info().Msg(y.app.Msg(y.getStepName(), "Local ytt rendered"))

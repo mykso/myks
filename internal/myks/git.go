@@ -96,7 +96,7 @@ func getGitPathPrefix(root string) (string, error) {
 	return runGitCmd(args, root, false)
 }
 
-func getGitRepoUrl(root string) (string, error) {
+func getGitRepoURL(root string) (string, error) {
 	args := []string{"remote", "get-url", "origin"}
 	return runGitCmd(args, root, false)
 }

@@ -138,7 +138,7 @@ func (a *Application) collectDataFiles() {
 }
 
 func (a *Application) Msg(step string, msg string) string {
-	formattedMessage := fmt.Sprintf(ApplicationLogFormat, a.e.Id, a.Name, step, msg)
+	formattedMessage := fmt.Sprintf(ApplicationLogFormat, a.e.ID, a.Name, step, msg)
 	return formattedMessage
 }
 
@@ -166,7 +166,7 @@ func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
 		"--data-values-inspect",
 	}
 	if len(dataFiles) == 0 {
-		return nil, errors.New("No data files found")
+		return nil, errors.New("no data files found")
 	}
 	step := "init"
 	res, err := runYttWithFilesAndStdin(dataFiles, nil, func(name string, err error, stderr string, args []string) {
@@ -177,7 +177,7 @@ func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
 		return nil, err
 	}
 	if res.Stdout == "" {
-		return nil, errors.New("Empty output from ytt")
+		return nil, errors.New("empty output from ytt")
 	}
 
 	dataYaml := []byte(res.Stdout)
