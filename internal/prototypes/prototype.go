@@ -90,12 +90,12 @@ func (p *Prototypes) Save() error {
 
 	t, err := assets.ReadFile(dataValuesTemplate)
 	if err != nil {
-		return fmt.Errorf("failed to read data-values template: %w", err)
+		return fmt.Errorf("failed to read data-values template: %w. This is a bug in myks", err)
 	}
 	tmpl, err := template.New("").Parse(string(t))
 
 	if err != nil {
-		return fmt.Errorf("failed to parse data-values template: %w", err)
+		return fmt.Errorf("failed to parse data-values template: %w. This is a bug in myks", err)
 	}
 	var buffer bytes.Buffer
 	err = tmpl.Execute(&buffer, string(dataValuesYaml))
@@ -110,7 +110,7 @@ func (p *Prototypes) Save() error {
 
 	baseYtt, err := assets.ReadFile(baseYttFile)
 	if err != nil {
-		return fmt.Errorf("failed to read base ytt file: %w", err)
+		return fmt.Errorf("failed to read base ytt file: %w. This is a bug in myks", err)
 	}
 	dest := filepath.Dir(p.file)
 	dest = filepath.Join(dest, "base.ytt.yaml")
