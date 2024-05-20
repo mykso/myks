@@ -36,7 +36,7 @@ signs:
 aurs:
   - name: myks-bin
     homepage: https://github.com/mykso/myks
-    description: A configuration framework for Kubernetes applications
+    description: Configuration framework for Kubernetes applications
     maintainers:
       - "German Lashevich <german.lashevich at gmail dot com>"
     license: "MIT"
@@ -63,8 +63,8 @@ aurs:
       email: german.lashevich+mykso-bot@gmail.com
 brews:
   - name: myks
-    description: A configuration framework for Kubernetes applications
-    folder: Formula
+    description: Configuration framework for Kubernetes applications
+    directory: Formula
     homepage: https://github.com/mykso/myks
     license: MIT
     commit_author:
@@ -117,3 +117,13 @@ docker_manifests:
     image_templates:
       - ghcr.io/mykso/myks:latest-linux-amd64
       - ghcr.io/mykso/myks:latest-linux-arm64
+nfpms:
+  - vendor: Mykso
+    homepage: https://github.com/mykso/myks
+    maintainer: German Lashevich <german.lashevich@gmail.com>
+    description: Configuration framework for Kubernetes applications
+    license: MIT
+    formats:
+      - apk
+      - deb
+      - rpm
