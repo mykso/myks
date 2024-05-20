@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.1.2](https://github.com/mykso/myks/compare/v4.1.1...v4.1.2) (2024-05-20)
+
+
+### Bug Fixes
+
+* adjust the initial .gitignore for the latest changes ([#294](https://github.com/mykso/myks/issues/294)) ([2e1940f](https://github.com/mykso/myks/commit/2e1940f6f0bef24015235971b3c1660a89bb0550))
+
 ## [4.1.1](https://github.com/mykso/myks/compare/v4.1.0...v4.1.1) (2024-05-15)
 
 
