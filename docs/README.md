@@ -64,7 +64,7 @@ to install some of the tools manually:
 
 - [git] is required
 - [helm] is only needed for rendering Helm charts
-- [ytt] and [vendir] are now built into myks, no need to install separately. 
+- [ytt] and [vendir] are now built into myks, no need to install separately.
 
 At the moment, we do not track compatibility between versions of these tools and
 myks. Fairly recent versions should work fine.
@@ -128,9 +128,9 @@ structure and some basic configuration in place. A new project can be
 initialized with `myks init` (see [an example](#hands-on)).
 
 Myks has two main stages of operation and the corresponding commands: `sync` and
-`render`. During the `sync` stage, myks downloads and caches external sources.
-Final kubernetes manifests are rendered from the retrieved and local sources
-during the `render` stage.
+`render`. During the `sync` stage, myks downloads and [caches](/docs/cache.md)
+external sources. Final kubernetes manifests are rendered from the retrieved and
+local sources during the `render` stage.
 
 The `all` command runs the both stages sequentially for convenience.
 
