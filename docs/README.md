@@ -78,6 +78,11 @@ On Arch-based distros, you can install
 yay -S myks-bin
 ```
 
+### APK, DEB, RPM
+
+See the [latest release page](https://github.com/mykso/myks/releases/latest) for
+the full list of packages.
+
 ### Docker
 
 See the
