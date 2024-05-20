@@ -64,7 +64,7 @@ to install some of the tools manually:
 
 - [git] is required
 - [helm] is only needed for rendering Helm charts
-- [ytt] and [vendir] are now built into myks, no need to install separately. 
+- [ytt] and [vendir] are now built into myks, no need to install separately.
 
 At the moment, we do not track compatibility between versions of these tools and
 myks. Fairly recent versions should work fine.
@@ -136,7 +136,10 @@ The `all` command runs the both stages sequentially for convenience.
 
 These commands (`sync`, `render`, `all`) accept two optional arguments:
 environments and applications to process. When no arguments are provided, myks
-will use the [Smart Mode](SMARTMODE.md) to detect what to process.
+will use the [Smart Mode](/docs/smart-mode.md) to detect what to process.
+
+> [!TIP]  
+> Check the [optimizations](/docs/optimizations.md) page to get most of myks.
 
 ### Examples
 
