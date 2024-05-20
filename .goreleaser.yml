@@ -64,7 +64,7 @@ aurs:
 brews:
   - name: myks
     description: Configuration framework for Kubernetes applications
-    folder: Formula
+    directory: Formula
     homepage: https://github.com/mykso/myks
     license: MIT
     commit_author:
