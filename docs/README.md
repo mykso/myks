@@ -128,15 +128,18 @@ structure and some basic configuration in place. A new project can be
 initialized with `myks init` (see [an example](#hands-on)).
 
 Myks has two main stages of operation and the corresponding commands: `sync` and
-`render`. During the `sync` stage, myks downloads and [caches](/docs/cache.md)
-external sources. Final kubernetes manifests are rendered from the retrieved and
-local sources during the `render` stage.
+`render`. During the `sync` stage, myks downloads and caches external sources.
+Final kubernetes manifests are rendered from the retrieved and local sources
+during the `render` stage.
 
 The `all` command runs the both stages sequentially for convenience.
 
 These commands (`sync`, `render`, `all`) accept two optional arguments:
 environments and applications to process. When no arguments are provided, myks
-will use the [Smart Mode](SMARTMODE.md) to detect what to process.
+will use the [Smart Mode](/docs/smart-mode.md) to detect what to process.
+
+> [!TIP]  
+> Check the [optimizations](/docs/optimizations.md) page to get most of myks.
 
 ### Examples
 
