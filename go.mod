@@ -99,8 +99,8 @@ require (
 	github.com/vbatts/tar-split v0.11.3 // indirect
 	github.com/vito/go-interact v1.0.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/crypto v0.21.0 // indirect
+	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/oauth2 v0.15.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
