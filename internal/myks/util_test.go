@@ -539,3 +539,28 @@ func Test_findSubPath(t *testing.T) {
 		})
 	}
 }
+
+func Test_unique(t *testing.T) {
+	type args struct {
+		slice []string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{"happy path", args{[]string{"test", "test", "test2"}}, []string{"test", "test2"}},
+		{"empty slice", args{[]string{}}, []string{}},
+		{"one element", args{[]string{"test"}}, []string{"test"}},
+		{"several duplicates", args{[]string{"test", "test", "test"}}, []string{"test"}},
+		{"grouped duplicates", args{[]string{"test", "test2", "test", "test2"}}, []string{"test", "test2"}},
+		{"no duplicates", args{[]string{"test", "test2"}}, []string{"test", "test2"}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := unique(tt.args.slice); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("unique() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

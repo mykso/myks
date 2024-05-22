@@ -13,6 +13,10 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+const (
+	VendirCacheDataDirName = "data"
+)
+
 var (
 	// vendirCacheConfigMutex is used to prevent concurrent writes to the vendir cache config files in saveCacheVendirConfig function
 	vendirCacheConfigMutex sync.Mutex
@@ -129,7 +133,7 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 func (v *VendirSyncer) linkVendorToCache(a *Application, vendorPath, cacheName string) error {
 	linkFullPath := a.expandVendorPath(vendorPath)
 	linkDir := filepath.Dir(linkFullPath)
-	cacheDataPath := path.Join(a.expandVendirCache(cacheName), "data")
+	cacheDataPath := path.Join(a.expandVendirCache(cacheName), VendirCacheDataDirName)
 
 	relCacheDataPath, err := filepath.Rel(linkDir, cacheDataPath)
 	if err != nil {
@@ -222,8 +226,7 @@ func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig, vend
 	}
 
 	newDirConfig := map[string]interface{}{}
-	// TODO: move "data" to the Globe config or to a constant
-	newDirConfig["path"] = filepath.Join(cacheDir, "data")
+	newDirConfig["path"] = filepath.Join(cacheDir, VendirCacheDataDirName)
 	newDirConfig["permissions"] = vendirDirConfig["permissions"]
 
 	vendirContentConfig["path"] = "."

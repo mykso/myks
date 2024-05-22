@@ -164,7 +164,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	for env, apps := range envAppMap {
 		if apps != nil {
 			// Remove duplicates
-			envAppMap[env] = removeDuplicates(apps)
+			envAppMap[env] = unique(apps)
 		}
 	}
 
