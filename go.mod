@@ -7,7 +7,7 @@ toolchain go1.22.3
 require (
 	carvel.dev/vendir v0.40.1
 	carvel.dev/ytt v0.49.0
-	github.com/alecthomas/chroma/v2 v2.13.0
+	github.com/alecthomas/chroma/v2 v2.14.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20220622150351-995494831c6c
 	github.com/creasty/defaults v1.7.0
 	github.com/logrusorgru/aurora/v4 v4.0.0
