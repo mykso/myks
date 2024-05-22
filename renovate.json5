@@ -13,6 +13,8 @@
       // Stop Renovate from updating golang.org/x/exp.
       // This library doesn't follow semver and Renovate spams with PRs.
       // TODO(@zebradil): consider moving to another library.
+      //   This probably can be done after updating to Go 1.23, which should ship with the following changes:
+      //   https://github.com/golang/go/commit/2b0f2f8169bed01e3bf72d49863cd2852bdf7c7e
       "matchPackageNames": ["golang.org/x/exp"],
       "enabled": false
     }
