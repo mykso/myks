@@ -505,3 +505,15 @@ func isDir(path string) (bool, error) {
 	}
 	return fileInfo.IsDir(), nil
 }
+
+func unique[T comparable](slice []T) []T {
+	seen := make(map[T]struct{})
+	result := []T{}
+	for _, item := range slice {
+		if _, exists := seen[item]; !exists {
+			seen[item] = struct{}{}
+			result = append(result, item)
+		}
+	}
+	return result
+}
