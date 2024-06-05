@@ -18,14 +18,16 @@ jobs:
       - name: Build myks
         run: go install .
       - name: Test
-        run: go test -failfast -race -coverpkg=./... -covermode=atomic -coverprofile=coverage.txt ./...
+        run:
+          go test -failfast -race -coverpkg=./... -covermode=atomic
+          -coverprofile=coverage.txt ./...
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           file: ./coverage.txt
-      - uses: goreleaser/goreleaser-action@v5
+      - uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
-          args: build --snapshot --rm-dist
+          args: build --snapshot --clean
