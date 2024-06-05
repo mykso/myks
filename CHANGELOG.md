@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.1.3](https://github.com/mykso/myks/compare/v4.1.2...v4.1.3) (2024-06-05)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.14.0 ([#301](https://github.com/mykso/myks/issues/301)) ([fc2ca8a](https://github.com/mykso/myks/commit/fc2ca8a8dbfd20aa5e8f6d3fd567c05f9fcf65e8))
+* **deps:** update module github.com/rs/zerolog to v1.33.0 ([#303](https://github.com/mykso/myks/issues/303)) ([9176268](https://github.com/mykso/myks/commit/9176268cc5def5e8ecd52d52bcb97260dff004c7))
+* **deps:** update module github.com/spf13/viper to v1.19.0 ([#305](https://github.com/mykso/myks/issues/305)) ([8a6d8b7](https://github.com/mykso/myks/commit/8a6d8b79c95248f4b6aebecf37fefef19294b4c5))
+* **deps:** update module golang.org/x/term to v0.21.0 ([#307](https://github.com/mykso/myks/issues/307)) ([5452ab9](https://github.com/mykso/myks/commit/5452ab9204113205d55e5ab9aa6167ab7ae422ec))
+
 ## [4.1.2](https://github.com/mykso/myks/compare/v4.1.1...v4.1.2) (2024-05-20)
 
 
