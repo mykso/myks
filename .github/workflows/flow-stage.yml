@@ -50,7 +50,7 @@ jobs:
         with:
           go-version: "1.22"
       - name: GoReleaser
-        uses: goreleaser/goreleaser-action@v5
+        uses: goreleaser/goreleaser-action@v6
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
           GITHUB_TOKEN: ${{ github.token }}
