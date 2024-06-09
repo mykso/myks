@@ -7,25 +7,27 @@ import (
 )
 
 type HelmConfig struct {
-	BuildDependencies bool                   `yaml:"buildDependencies"`
-	Capabilities      []string               `yaml:"capabilities"`
-	Charts            map[string]ChartConfig `yaml:"charts"`
-	IncludeCRDs       bool                   `yaml:"includeCRDs"`
-	KubeVersion       string                 `yaml:"kubeVersion"`
-	Namespace         string                 `yaml:"namespace"`
+	BuildDependencies bool     `yaml:"buildDependencies"`
+	Capabilities      []string `yaml:"capabilities"`
+	IncludeCRDs       bool     `yaml:"includeCRDs"`
+	KubeVersion       string   `yaml:"kubeVersion"`
+	Namespace         string   `yaml:"namespace"`
+	ReleaseName       string
+
+	Charts map[string]HelmChartOverride `yaml:"charts"`
 }
 
-type ChartConfig struct {
-	BuildDependencies bool   `yaml:"buildDependencies"`
-	IncludeCRDs       bool   `yaml:"includeCRDs"`
+type HelmChartOverride struct {
+	BuildDependencies *bool  `yaml:"buildDependencies"`
+	IncludeCRDs       *bool  `yaml:"includeCRDs"`
 	Namespace         string `yaml:"namespace"`
 	ReleaseName       string `yaml:"releaseName"`
 }
 
 func newHelmConfig(dataValuesYaml string) (HelmConfig, error) {
 	type originalChartConfig struct {
-		BuildDependencies bool   `yaml:"buildDependencies"`
-		IncludeCRDs       bool   `yaml:"includeCRDs"`
+		BuildDependencies *bool  `yaml:"buildDependencies"`
+		IncludeCRDs       *bool  `yaml:"includeCRDs"`
 		Name              string `yaml:"name"`
 		Namespace         string `yaml:"namespace"`
 		ReleaseName       string `yaml:"releaseName"`
@@ -39,6 +41,7 @@ func newHelmConfig(dataValuesYaml string) (HelmConfig, error) {
 		Namespace         string                `yaml:"namespace"`
 		Charts            []originalChartConfig `yaml:"charts"`
 	}
+
 	var helmConfigWrapper struct {
 		Helm fullHelmConfig `yaml:"helm"`
 	}
@@ -55,7 +58,7 @@ func newHelmConfig(dataValuesYaml string) (HelmConfig, error) {
 		Namespace:         helmConfigWrapper.Helm.Namespace,
 	}
 
-	chartConfigs := map[string]ChartConfig{}
+	chartConfigs := map[string]HelmChartOverride{}
 	for i, chart := range helmConfigWrapper.Helm.Charts {
 		if chart.Name == "" {
 			return HelmConfig{}, fmt.Errorf("helm.charts[%d].name is required", i)
@@ -63,7 +66,7 @@ func newHelmConfig(dataValuesYaml string) (HelmConfig, error) {
 		if _, ok := chartConfigs[chart.Name]; ok {
 			return HelmConfig{}, fmt.Errorf("helm.charts[%d].name is not unique", i)
 		}
-		chartConfigs[chart.Name] = ChartConfig{
+		chartConfigs[chart.Name] = HelmChartOverride{
 			BuildDependencies: chart.BuildDependencies,
 			IncludeCRDs:       chart.IncludeCRDs,
 			Namespace:         chart.Namespace,
@@ -74,8 +77,8 @@ func newHelmConfig(dataValuesYaml string) (HelmConfig, error) {
 	return helmConfig, nil
 }
 
-func (cfg *HelmConfig) getChartConfig(chartName string) ChartConfig {
-	chartConfig := ChartConfig{
+func (cfg *HelmConfig) getChartConfig(chartName string) HelmConfig {
+	chartConfig := HelmConfig{
 		BuildDependencies: cfg.BuildDependencies,
 		IncludeCRDs:       cfg.IncludeCRDs,
 		Namespace:         cfg.Namespace,
@@ -88,11 +91,11 @@ func (cfg *HelmConfig) getChartConfig(chartName string) ChartConfig {
 		if cc.ReleaseName != "" {
 			chartConfig.ReleaseName = cc.ReleaseName
 		}
-		if cc.BuildDependencies {
-			chartConfig.BuildDependencies = true
+		if cc.BuildDependencies != nil {
+			chartConfig.BuildDependencies = *cc.BuildDependencies
 		}
-		if cc.IncludeCRDs {
-			chartConfig.IncludeCRDs = true
+		if cc.IncludeCRDs != nil {
+			chartConfig.IncludeCRDs = *cc.IncludeCRDs
 		}
 	}
 
