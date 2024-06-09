@@ -58,6 +58,10 @@ func newHelmConfig(dataValuesYaml string) (HelmConfig, error) {
 		Namespace:         helmConfigWrapper.Helm.Namespace,
 	}
 
+	if len(helmConfigWrapper.Helm.Charts) == 0 {
+		return helmConfig, nil
+	}
+
 	chartConfigs := map[string]HelmChartOverride{}
 	for i, chart := range helmConfigWrapper.Helm.Charts {
 		if chart.Name == "" {
@@ -73,6 +77,7 @@ func newHelmConfig(dataValuesYaml string) (HelmConfig, error) {
 			ReleaseName:       chart.ReleaseName,
 		}
 	}
+	helmConfig.Charts = chartConfigs
 
 	return helmConfig, nil
 }
