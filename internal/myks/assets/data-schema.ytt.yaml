@@ -89,6 +89,8 @@ environment:
       name: ""
 #! Configuration of the step that renders Helm charts.
 helm:
+  #! If true, run "helm dependency build" before rendering. This is required for helm charts with dependencies that are pulled from git repositories.
+  buildDependencies: false
   #! If defined, passed as `--api-version` for `helm-template`.
   capabilities:
     - "" #! e.g. "monitoring.coreos.com/v1"
@@ -98,8 +100,16 @@ helm:
   kubeVersion: ""
   #! If defined, passed as a value of `--namespace` for `helm template`.
   namespace: ""
-  #! If true, run "helm dependency build" before rendering. This is required for helm charts with dependencies that are pulled from git repositories.
-  buildDependencies: false
+  #! Per-chart configuration. Values override the global configuration.
+  #! The `name` field is used to match the chart in the `charts` directory.
+  #! The list is used instead of a map due to a limitation in ytt schema spec.
+  #! See https://github.com/carvel-dev/ytt/issues/656 for more information.
+  charts:
+    - buildDependencies: false
+      includeCRDs: false
+      name: ""
+      namespace: ""
+      releaseName: ""
 #! Configuration of the step that renders ytt-packages.
 yttPkg:
   #! A ytt-package can be rendered as a whole, or can contain multiple sub-packages that should be rendered separately.

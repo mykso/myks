@@ -32,14 +32,6 @@ type Application struct {
 	yttPkgDirs       []string
 }
 
-type HelmConfig struct {
-	Namespace         string   `yaml:"namespace"`
-	KubeVersion       string   `yaml:"kubeVersion"`
-	IncludeCRDs       bool     `yaml:"includeCRDs"`
-	Capabilities      []string `yaml:"capabilities"`
-	BuildDependencies bool     `yaml:"buildDependencies"`
-}
-
 var (
 	ErrNoVendirConfig    = errors.New("no vendir config found")
 	ApplicationLogFormat = "\033[1m[%s > %s > %s]\033[0m %s"
