@@ -1,0 +1,8 @@
+#@data/values
+---
+helm:
+  charts:
+    - name: render-test-1
+      releaseName: overriden-release-name-1
+    - name: render-test-2
+      releaseName: overriden-release-name-2

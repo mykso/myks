@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-mykso-dev-per-chart-override
+  namespace: system-argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+spec:
+  project: env-mykso-dev
+  destination:
+    name: mykso-dev
+    namespace: per-chart-override
+  source:
+    path: examples/integration-tests/rendered/envs/mykso-dev/per-chart-override
+    plugin:
+      name: argocd-vault-plugin-v1.0.0
+    repoURL: git@github.com:mykso/myks.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+    - ServerSideApply=true
