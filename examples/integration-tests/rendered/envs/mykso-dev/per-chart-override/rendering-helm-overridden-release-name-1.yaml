@@ -1,5 +1,5 @@
 kind: rendering
 metadata:
-  name: helm-overriden-release-name-2
+  name: helm-overridden-release-name-1
 outputYaml:
   fromChartDefaultValues: true

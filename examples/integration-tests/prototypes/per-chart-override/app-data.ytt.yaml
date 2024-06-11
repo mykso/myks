@@ -3,6 +3,6 @@
 helm:
   charts:
     - name: render-test-1
-      releaseName: overriden-release-name-1
+      releaseName: overridden-release-name-1
     - name: render-test-2
-      releaseName: overriden-release-name-2
+      releaseName: overridden-release-name-2
