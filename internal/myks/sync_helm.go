@@ -3,6 +3,7 @@ package myks
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -31,8 +32,10 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 	if err != nil {
 		return err
 	}
+	chartNames := []string{}
 	for _, chartDir := range chartsDirs {
 		chartName := filepath.Base(chartDir)
+		chartNames = append(chartNames, chartName)
 		chartConfig := helmConfig.getChartConfig(chartName)
 		if !chartConfig.BuildDependencies {
 			log.Debug().Msg(a.Msg(hr.getStepName(), fmt.Sprintf(".helm.charts[%s].buildDependencies is disabled, skipping", chartName)))
@@ -40,6 +43,11 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 		}
 		if err = hr.helmBuild(a, chartDir); err != nil {
 			return err
+		}
+	}
+	for chart := range helmConfig.Charts {
+		if !slices.Contains(chartNames, chart) {
+			log.Warn().Msg(a.Msg(hr.getStepName(), fmt.Sprintf("'%s' chart defined in .helm.charts is not found in the charts directory", chart)))
 		}
 	}
 	log.Info().Msg(a.Msg(hr.getStepName(), "Synced"))

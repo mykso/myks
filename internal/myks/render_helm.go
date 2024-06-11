@@ -3,6 +3,7 @@ package myks
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -47,8 +48,10 @@ func (h *Helm) Render(_ string) (string, error) {
 		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
 	}
 
+	chartNames := []string{}
 	for _, chartDir := range chartsDirs {
 		chartName := filepath.Base(chartDir)
+		chartNames = append(chartNames, chartName)
 		chartConfig := helmConfig.getChartConfig(chartName)
 		var helmValuesFile string
 		if helmValuesFile, err = h.app.prepareValuesFile("helm", chartName); err != nil {
@@ -91,6 +94,12 @@ func (h *Helm) Render(_ string) (string, error) {
 		}
 
 		outputs = append(outputs, res.Stdout)
+	}
+
+	for chart := range helmConfig.Charts {
+		if !slices.Contains(chartNames, chart) {
+			log.Warn().Msg(h.app.Msg(h.getStepName(), fmt.Sprintf("'%s' chart defined in .helm.charts is not found in the charts directory", chart)))
+		}
 	}
 
 	log.Info().Msg(h.app.Msg(h.getStepName(), "Helm chart rendered"))
