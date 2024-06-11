@@ -67,6 +67,48 @@ helm:
 			},
 		},
 		{
+			name: "valid Helm config with multiple charts",
+			yamlContent: `
+helm:
+  buildDependencies: true
+  charts:
+    - name: chart1
+      releaseName: chart1-release
+    - name: chart2
+      releaseName: chart2-release
+    - name: chart3
+      releaseName: chart3-release
+`,
+			expectedError: false,
+			expectedCfg: HelmConfig{
+				BuildDependencies: true,
+				Capabilities:      nil,
+				IncludeCRDs:       false,
+				KubeVersion:       "",
+				Namespace:         "",
+				Charts: map[string]HelmChartOverride{
+					"chart1": {
+						BuildDependencies: nil,
+						IncludeCRDs:       nil,
+						Namespace:         "",
+						ReleaseName:       "chart1-release",
+					},
+					"chart2": {
+						BuildDependencies: nil,
+						IncludeCRDs:       nil,
+						Namespace:         "",
+						ReleaseName:       "chart2-release",
+					},
+					"chart3": {
+						BuildDependencies: nil,
+						IncludeCRDs:       nil,
+						Namespace:         "",
+						ReleaseName:       "chart3-release",
+					},
+				},
+			},
+		},
+		{
 			name: "valid Helm config without some fields",
 			yamlContent: `
 helm:
