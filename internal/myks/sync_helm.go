@@ -3,10 +3,10 @@ package myks
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	yaml "gopkg.in/yaml.v3"
 )
 
 type HelmSyncer struct {
@@ -28,18 +28,26 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 		return err
 	}
 
-	if !helmConfig.BuildDependencies {
-		log.Debug().Msg(a.Msg(hr.getStepName(), ".helm.buildDependencies is disabled, skipping"))
-		return nil
-	}
-
 	chartsDirs, err := a.getHelmChartsDirs(hr.getStepName())
 	if err != nil {
 		return err
 	}
+	chartNames := []string{}
 	for _, chartDir := range chartsDirs {
+		chartName := filepath.Base(chartDir)
+		chartNames = append(chartNames, chartName)
+		chartConfig := helmConfig.getChartConfig(chartName)
+		if !chartConfig.BuildDependencies {
+			log.Debug().Msg(a.Msg(hr.getStepName(), fmt.Sprintf(".helm.charts[%s].buildDependencies is disabled, skipping", chartName)))
+			continue
+		}
 		if err = hr.helmBuild(a, chartDir); err != nil {
 			return err
+		}
+	}
+	for chart := range helmConfig.Charts {
+		if !slices.Contains(chartNames, chart) {
+			log.Warn().Msg(a.Msg(hr.getStepName(), fmt.Sprintf("'%s' chart defined in .helm.charts is not found in the charts directory", chart)))
 		}
 	}
 	log.Info().Msg(a.Msg(hr.getStepName(), "Synced"))
@@ -93,16 +101,7 @@ func (hr *HelmSyncer) getHelmConfig(a *Application) (HelmConfig, error) {
 		return HelmConfig{}, err
 	}
 
-	var helmConfig struct {
-		Helm HelmConfig
-	}
-	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &helmConfig)
-	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Unable to unmarshal data values"))
-		return HelmConfig{}, err
-	}
-
-	return helmConfig.Helm, nil
+	return newHelmConfig(dataValuesYaml.Stdout)
 }
 
 func (hr *HelmSyncer) getStepName() string {

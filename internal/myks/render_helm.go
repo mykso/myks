@@ -3,10 +3,10 @@ package myks
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	yaml "gopkg.in/yaml.v3"
 )
 
 type Helm struct {
@@ -37,40 +37,46 @@ func (h *Helm) Render(_ string) (string, error) {
 		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to get helm config"))
 		return "", err
 	}
-	var commonHelmArgs []string
 
-	// FIXME: move Namespace to a per-chart config
-	if helmConfig.Namespace == "" {
-		helmConfig.Namespace = h.app.e.g.NamespacePrefix + h.app.Name
-	}
-	commonHelmArgs = append(commonHelmArgs, "--namespace", helmConfig.Namespace)
+	var commonHelmArgs []string
 
 	if helmConfig.KubeVersion != "" {
 		commonHelmArgs = append(commonHelmArgs, "--kube-version", helmConfig.KubeVersion)
-	}
-
-	// FIXME: move IncludeCRDs to a per-chart config
-	if helmConfig.IncludeCRDs {
-		commonHelmArgs = append(commonHelmArgs, "--include-crds")
 	}
 
 	for _, capa := range helmConfig.Capabilities {
 		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
 	}
 
+	chartNames := []string{}
 	for _, chartDir := range chartsDirs {
 		chartName := filepath.Base(chartDir)
+		chartNames = append(chartNames, chartName)
+		chartConfig := helmConfig.getChartConfig(chartName)
 		var helmValuesFile string
 		if helmValuesFile, err = h.app.prepareValuesFile("helm", chartName); err != nil {
 			log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to prepare helm values"))
 			return "", err
 		}
 
+		if chartConfig.ReleaseName == "" {
+			chartConfig.ReleaseName = chartName
+		}
+
 		helmArgs := []string{
 			"template",
 			"--skip-tests",
-			chartName,
+			chartConfig.ReleaseName,
 			chartDir,
+		}
+
+		if chartConfig.Namespace == "" {
+			chartConfig.Namespace = h.app.e.g.NamespacePrefix + h.app.Name
+		}
+		helmArgs = append(helmArgs, "--namespace", chartConfig.Namespace)
+
+		if chartConfig.IncludeCRDs {
+			helmArgs = append(helmArgs, "--include-crds")
 		}
 
 		if helmValuesFile != "" {
@@ -90,6 +96,12 @@ func (h *Helm) Render(_ string) (string, error) {
 		outputs = append(outputs, res.Stdout)
 	}
 
+	for chart := range helmConfig.Charts {
+		if !slices.Contains(chartNames, chart) {
+			log.Warn().Msg(h.app.Msg(h.getStepName(), fmt.Sprintf("'%s' chart defined in .helm.charts is not found in the charts directory", chart)))
+		}
+	}
+
 	log.Info().Msg(h.app.Msg(h.getStepName(), "Helm chart rendered"))
 	return strings.Join(outputs, "---\n"), nil
 }
@@ -100,16 +112,7 @@ func (h *Helm) getHelmConfig() (HelmConfig, error) {
 		return HelmConfig{}, err
 	}
 
-	var helmConfig struct {
-		Helm HelmConfig
-	}
-	err = yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &helmConfig)
-	if err != nil {
-		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to unmarshal data values"))
-		return HelmConfig{}, err
-	}
-
-	return helmConfig.Helm, nil
+	return newHelmConfig(dataValuesYaml.Stdout)
 }
 
 func (h *Helm) getStepName() string {
