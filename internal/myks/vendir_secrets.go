@@ -14,6 +14,11 @@ import (
 //go:embed templates/vendir/secret.ytt.yaml
 var vendirSecretTemplate []byte
 
+type VendirCredentials struct {
+	Username string
+	Password string
+}
+
 func (v *VendirSyncer) collectVendirSecrets(g *Globe) map[string]*VendirCredentials {
 	vendirCredentials := make(map[string]*VendirCredentials)
 

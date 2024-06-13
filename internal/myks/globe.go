@@ -113,11 +113,6 @@ type YttGlobeData struct {
 	GitRepoURL    string `yaml:"gitRepoUrl"`
 }
 
-type VendirCredentials struct {
-	Username string
-	Password string
-}
-
 type EnvAppMap map[string][]string
 
 func NewWithDefaults() *Globe {
