@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.2.0](https://github.com/mykso/myks/compare/v4.1.3...v4.2.0) (2024-06-13)
+
+
+### Features
+
+* per-chart helm configuration ([#310](https://github.com/mykso/myks/issues/310)) ([79004ab](https://github.com/mykso/myks/commit/79004ab871767c1ac184a5e0c2392d8ec2b1e3cc))
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.40.2 ([#313](https://github.com/mykso/myks/issues/313)) ([7e71793](https://github.com/mykso/myks/commit/7e717933e5870e392bb0dd195600bb3c50dac222))
+* **deps:** update module carvel.dev/ytt to v0.49.1 ([#314](https://github.com/mykso/myks/issues/314)) ([10825c2](https://github.com/mykso/myks/commit/10825c2db5e62daa9be0415b00ea155e81c167b9))
+
 ## [4.1.3](https://github.com/mykso/myks/compare/v4.1.2...v4.1.3) (2024-06-05)
 
 
