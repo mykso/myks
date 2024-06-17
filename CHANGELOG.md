@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.1](https://github.com/mykso/myks/compare/v4.2.0...v4.2.1) (2024-06-17)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/spf13/cobra to v1.8.1 ([#317](https://github.com/mykso/myks/issues/317)) ([8be47e3](https://github.com/mykso/myks/commit/8be47e3b393b1c1ddbc93ce513a55bb0de013f0f))
+
 ## [4.2.0](https://github.com/mykso/myks/compare/v4.1.3...v4.2.0) (2024-06-13)
 
 
