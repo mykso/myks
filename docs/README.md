@@ -15,12 +15,13 @@ manifests.
 - create and reuse application "prototypes" combining helm charts, ytt templates
   and overlays, and plain YAML files;
 - download and cache third-party configurations from various sources (anything
-  that is supported by [vendir]: helm charts, git repositories, github releases,
+  that is supported by [vendir]: helm charts, git repositories, GitHub releases,
   etc.);
 - maintain a single source of truth for all clusters' manifests;
 - render manifests, validate and automatically inspect them before applying;
-- smart detection of what to render based on what was changed;
-- integrate with ArgoCD (FluxCD support is planned);
+- [smart detection](/docs/smart-mode.md) of what to render based on what was
+  changed;
+- integrate with ArgoCD;
 - apply changes to all applications in all clusters at once or to a specific
   subset;
 - [plugins](/docs/plugins.md) support for extending myks with custom tools.
@@ -63,7 +64,6 @@ find rendered
 Depending on the installation method and on the desired features, you may need
 to install some of the tools manually:
 
-- [git] is required
 - [helm] is only needed for rendering Helm charts
 - [ytt] and [vendir] are now built into myks, no need to install separately.
 
@@ -118,14 +118,6 @@ curl -sL https://github.com/mykso/myks/archive/refs/heads/main.tar.gz | tar xz
 cd myks-main
 go build -o myks main.go
 ```
-
-## Glossary
-
-- **Application** is a
-- **Prototype** is a set of /reusable/ configurations that is used to define an
-  application. A prototype can be empty with literally no configurations inside,
-  as well as
-- **Environment** is a container for applications.
 
 ## Usage
 
