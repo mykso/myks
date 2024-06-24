@@ -6,7 +6,7 @@ tools. To name but a few use cases where this is useful:
 - You are using `myks` without a GitOps CD tool like ArgoCD. With a `myks`
   plugin you can leverage a local deployment tool like `kubectl` or `kapp` to
   deploy your rendered K8s manifests to locally accessible clusters.
-- You are using `myks`without a secret management system like HashiCorp Vault.
+- You are using `myks` without a secret management system like HashiCorp Vault.
   With a `myks` plugin you can decrypt your locally held secrets before applying
   them and re-encrypt them afterward.
 - You would like to validate your rendered K8s manifests with a tool like
@@ -52,7 +52,7 @@ The following is an example of a `myks` plugin that uses `kapp` to deploy your
 rendered K8s manifests to a locally accessible cluster.
 
 1. Create a file named `kapp` in a `plugins` directory sitting at the root of
-   your gitops repository with the following content:
+   your GitOps repository with the following content:
 
    ```bash
      #! /usr/bin/env bash
