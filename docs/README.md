@@ -22,7 +22,8 @@ manifests.
 - smart detection of what to render based on what was changed;
 - integrate with ArgoCD (FluxCD support is planned);
 - apply changes to all applications in all clusters at once or to a specific
-  subset.
+  subset;
+- [plugins](/docs/plugins.md) support for extending myks with custom tools.
 
 ## How does it work?
 
