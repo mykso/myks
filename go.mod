@@ -1,12 +1,10 @@
 module github.com/mykso/myks
 
-go 1.22
-
-toolchain go1.22.5
+go 1.22.5
 
 require (
 	carvel.dev/vendir v0.40.2
-	carvel.dev/ytt v0.49.1
+	carvel.dev/ytt v0.50.0
 	github.com/alecthomas/chroma/v2 v2.14.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20220622150351-995494831c6c
 	github.com/creasty/defaults v1.7.0
