@@ -3,7 +3,7 @@ module github.com/mykso/myks
 go 1.22.5
 
 require (
-	carvel.dev/vendir v0.40.2
+	carvel.dev/vendir v0.41.0
 	carvel.dev/ytt v0.50.0
 	github.com/alecthomas/chroma/v2 v2.14.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20220622150351-995494831c6c
@@ -21,7 +21,7 @@ require (
 )
 
 require (
-	carvel.dev/imgpkg v0.42.2 // indirect
+	carvel.dev/imgpkg v0.43.0 // indirect
 	cloud.google.com/go/compute v1.24.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	github.com/Azure/azure-sdk-for-go v55.0.0+incompatible // indirect
@@ -66,7 +66,7 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/google/go-containerregistry v0.19.1 // indirect
+	github.com/google/go-containerregistry v0.20.0 // indirect
 	github.com/google/go-github v17.0.0+incompatible // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/hashicorp/go-version v1.6.0 // indirect
