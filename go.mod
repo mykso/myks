@@ -3,7 +3,7 @@ module github.com/mykso/myks
 go 1.22.5
 
 require (
-	carvel.dev/vendir v0.41.1
+	carvel.dev/vendir v0.42.0
 	carvel.dev/ytt v0.50.0
 	github.com/alecthomas/chroma/v2 v2.14.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20220622150351-995494831c6c
