@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.2.3](https://github.com/mykso/myks/compare/v4.2.2...v4.2.3) (2024-09-11)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.41.0 ([#325](https://github.com/mykso/myks/issues/325)) ([e7e3d51](https://github.com/mykso/myks/commit/e7e3d51ff432baaad51ec210f6cca5a992632d31))
+* **deps:** update module carvel.dev/vendir to v0.41.1 ([#332](https://github.com/mykso/myks/issues/332)) ([04b6fc4](https://github.com/mykso/myks/commit/04b6fc45ec5fb60a3bc753ed12649afc53939e7d))
+* **deps:** update module carvel.dev/vendir to v0.42.0 ([#334](https://github.com/mykso/myks/issues/334)) ([1149696](https://github.com/mykso/myks/commit/1149696e76e7e89c7a883556ada8dc3299d2c191))
+* **deps:** update module github.com/creasty/defaults to v1.8.0 ([#329](https://github.com/mykso/myks/issues/329)) ([1032aed](https://github.com/mykso/myks/commit/1032aeda8ffa97f7bb0655423ebf2bce580954e8))
+* **deps:** update module golang.org/x/sync to v0.8.0 ([#327](https://github.com/mykso/myks/issues/327)) ([9b8f7e3](https://github.com/mykso/myks/commit/9b8f7e3dd8ecd0f7ade67eaa4294567e5e915b31))
+* **deps:** update module golang.org/x/term to v0.23.0 ([#328](https://github.com/mykso/myks/issues/328)) ([2de0605](https://github.com/mykso/myks/commit/2de0605a87fd4d43bc4782d22046f2dc58ba5137))
+* **deps:** update module golang.org/x/term to v0.24.0 ([#333](https://github.com/mykso/myks/issues/333)) ([0c879da](https://github.com/mykso/myks/commit/0c879da0a09dae3685ea2240f9f0c4df0740b88e))
+
 ## [4.2.2](https://github.com/mykso/myks/compare/v4.2.1...v4.2.2) (2024-07-16)
 
 
