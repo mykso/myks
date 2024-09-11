@@ -1,7 +1,5 @@
 carvel.dev/imgpkg v0.43.1 h1:AjvY2Rpz7FIRd1jxOHMyAZwAV6MiqKOLyjT+gzhznbI=
 carvel.dev/imgpkg v0.43.1/go.mod h1:mLKnJumG8xtUY4ItDHZCj8XFfCwCdIr26pyxSvP3EPo=
-carvel.dev/vendir v0.41.1 h1:8Od52OyRGk7Xr6TmfwR4nMYmHt31i5s4fLArRPFU5Gw=
-carvel.dev/vendir v0.41.1/go.mod h1:1DHD/Ner7QGq489XApUrW9ZI4YVof7TcG1txoVIA604=
 carvel.dev/vendir v0.42.0 h1:5uz9rGq7n1ylwDBBB1tYutfimowGBAYKpHMVyxHGH68=
 carvel.dev/vendir v0.42.0/go.mod h1:yE0A4PAEM7YSxV8Q0VIlXHNqISOJ/LnqMluMi7tX1C8=
 carvel.dev/ytt v0.50.0 h1:otS2H45ya406sikV17k9FP9Xo0MOVwbHByuA+cPvc4E=
