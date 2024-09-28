@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"os"
+
 	"github.com/mykso/myks/internal/myks"
 	"github.com/mykso/myks/internal/prototypes"
 	"github.com/rs/zerolog/log"
@@ -8,14 +10,14 @@ import (
 )
 
 func init() {
-	Cmd.AddCommand(newProtoAddCmd())
+	Cmd.AddCommand(newProtoDelCmd())
 }
 
-func newProtoAddCmd() *cobra.Command {
+func newProtoDelCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Add prototype",
-		Long:  `Create a new prototype or extend an existing.`,
+		Use:   "delete",
+		Short: "Delete prototype",
+		Long:  `Delete a prototype`,
 		Run: func(cmd *cobra.Command, args []string) {
 			prototype, err := cmd.Flags().GetString("prototype")
 			cobra.CheckErr(err)
@@ -25,12 +27,16 @@ func newProtoAddCmd() *cobra.Command {
 			// start
 			g := myks.New(".")
 
-			p, err := prototypes.Create(g, prototype)
-			cobra.CheckErr(err)
-
-			err = p.Save()
-			cobra.CheckErr(err)
-			log.Info().Str("prototype", prototype).Msg("Prototype create")
+			err = prototypes.Delete(g, prototype)
+			if err != nil {
+				if !os.IsNotExist(err) {
+					log.Err(err).Str("prototype", prototype).Msg("Prototype was not deleted")
+					cobra.CheckErr(err)
+				}
+				log.Warn().Str("prototype", prototype).Msg("Prototype not found")
+				return
+			}
+			log.Info().Str("prototype", prototype).Msg("Prototype deleted")
 		},
 	}
 

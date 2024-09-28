@@ -88,7 +88,7 @@ func newProtoAddSrcCmd() *cobra.Command {
 			})
 			err = p.Save()
 			cobra.CheckErr(err)
-			log.Info().Str("prototype", prototype).Msg("Prototype added")
+			log.Info().Str("prototype", prototype).Msg("Prototype source added")
 		},
 	}
 

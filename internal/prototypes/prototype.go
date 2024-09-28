@@ -54,8 +54,8 @@ type Source struct {
 	IncludePaths []string `yaml:"includePaths,omitempty"`
 }
 
-func Create(m *myks.Globe, name string) (Prototypes, error) {
-	file := pathFromName(m, name)
+func Create(g *myks.Globe, name string) (Prototypes, error) {
+	file := pathFromName(g, name)
 	err := os.MkdirAll(filepath.Dir(file), os.ModePerm)
 	if err != nil {
 		return Prototypes{}, err
@@ -65,8 +65,8 @@ func Create(m *myks.Globe, name string) (Prototypes, error) {
 	}, nil
 }
 
-func Load(m *myks.Globe, protoName string) (Prototypes, error) {
-	filepath := pathFromName(m, protoName)
+func Load(g *myks.Globe, protoName string) (Prototypes, error) {
+	filepath := pathFromName(g, protoName)
 	protos := Prototypes{}
 	content, err := os.ReadFile(filepath)
 	if err != nil {
@@ -80,10 +80,15 @@ func Load(m *myks.Globe, protoName string) (Prototypes, error) {
 	return protos, nil
 }
 
-func pathFromName(m *myks.Globe, name string) string {
+func Delete(g *myks.Globe, name string) error {
+	filepath := pathFromName(g, name)
+	return os.Remove(filepath)
+}
+
+func pathFromName(g *myks.Globe, name string) string {
 	file := name
-	if !strings.HasPrefix(file, m.PrototypesDir) {
-		file = filepath.Join(m.PrototypesDir, file)
+	if !strings.HasPrefix(file, g.PrototypesDir) {
+		file = filepath.Join(g.PrototypesDir, file)
 	}
 	if !strings.HasSuffix("vendir/vendir-data.ytt.yaml", file) {
 		file = filepath.Join(file, "vendir/vendir-data.ytt.yaml")
@@ -108,6 +113,15 @@ func (p *Prototypes) AddSource(proto Source) {
 		}
 	}
 	p.Prototypes = append(p.Prototypes, proto)
+}
+
+func (p *Prototypes) DelSource(name string) {
+	for i, proto := range p.Prototypes {
+		if proto.Name == name {
+			p.Prototypes = append(p.Prototypes[:i], p.Prototypes[i+1:]...)
+			return
+		}
+	}
 }
 
 func (p *Prototypes) Save() error {
