@@ -1,9 +1,6 @@
 package proto
 
 import (
-	"path/filepath"
-	"strings"
-
 	"github.com/mykso/myks/internal/myks"
 	"github.com/mykso/myks/internal/prototypes"
 	"github.com/rs/zerolog/log"
@@ -20,32 +17,24 @@ func newProtoAddCmd() *cobra.Command {
 		Short: "Add prototype",
 		Long:  `Create a new prototype or extend an existing.`,
 		Run: func(cmd *cobra.Command, args []string) {
-			name, err := cmd.Flags().GetString("name")
+			prototype, err := cmd.Flags().GetString("prototype")
 			cobra.CheckErr(err)
-			if name == "" {
+			if prototype == "" {
 				cobra.CheckErr("Name must be provided")
 			}
 			// start
 			g := myks.New(".")
 
-			file := name
-			if !strings.HasPrefix(name, g.PrototypesDir) {
-				file = filepath.Join(g.PrototypesDir, name)
-			}
-			if !strings.HasSuffix("vendir/vendir-data.ytt.yaml", file) {
-				file = filepath.Join(file, "vendir/vendir-data.ytt.yaml")
-			}
-
-			p, err := prototypes.Create(file)
+			p, err := prototypes.Create(g, prototype)
 			cobra.CheckErr(err)
 
 			err = p.Save()
 			cobra.CheckErr(err)
-			log.Info().Str("prototype", file).Msg("Prototype create")
+			log.Info().Str("prototype", prototype).Msg("Prototype create")
 		},
 	}
 
-	cmd.Flags().StringP("name", "n", "", "Name of prototype, may include folder")
+	cmd.Flags().StringP("prototype", "p", "", "Name of prototype, may include folder")
 	cmd.MarkFlagRequired("name")
 
 	return cmd

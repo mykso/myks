@@ -3,8 +3,6 @@ package proto
 import (
 	"net/url"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/mykso/myks/internal/myks"
 	"github.com/mykso/myks/internal/prototypes"
@@ -60,28 +58,21 @@ func newProtoAddSrcCmd() *cobra.Command {
 			// start
 			g := myks.New(".")
 
-			file := prototype
-			if !strings.HasPrefix(prototype, g.PrototypesDir) {
-				file = filepath.Join(g.PrototypesDir, prototype)
-			}
-			if !strings.HasSuffix("vendir/vendir-data.ytt.yaml", file) {
-				file = filepath.Join(file, "vendir/vendir-data.ytt.yaml")
-			}
-
-			p, err := prototypes.Load(file)
+			p, err := prototypes.Load(g, prototype)
 			if err != nil {
 				if !os.IsNotExist(err) {
-					log.Err(err).Str("prototype", file).Msg("Invalid prototype file")
+					log.Err(err).Str("prototype", prototype).Msg("Invalid prototype file")
 					cobra.CheckErr(err)
 				}
 				if !create {
 					log.Error().Msg("Prototype does not exist. Use --create to create a new prototype")
 					return
 				}
-				log.Info().Str("prototype", file).Msg("Create new prototype")
-				p, err = prototypes.Create(file)
+				p, err = prototypes.Create(g, prototype)
 				cobra.CheckErr(err)
+				log.Info().Str("prototype", prototype).Msg("Created new prototype")
 			}
+
 			if _, exist := p.GetSource(name); exist {
 				log.Error().Str("source", name).Msg("Source already exists")
 				return
@@ -97,7 +88,7 @@ func newProtoAddSrcCmd() *cobra.Command {
 			})
 			err = p.Save()
 			cobra.CheckErr(err)
-			log.Info().Str("prototype", file).Msg("Prototype added")
+			log.Info().Str("prototype", prototype).Msg("Prototype added")
 		},
 	}
 

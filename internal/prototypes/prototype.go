@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/template"
 
 	_ "embed"
 
+	"github.com/mykso/myks/internal/myks"
 	"gopkg.in/yaml.v3"
 )
 
@@ -52,15 +54,19 @@ type Source struct {
 	IncludePaths []string `yaml:"includePaths,omitempty"`
 }
 
-func Create(file string) (Prototypes, error) {
+func Create(m *myks.Globe, name string) (Prototypes, error) {
+	file := pathFromName(m, name)
 	err := os.MkdirAll(filepath.Dir(file), os.ModePerm)
 	if err != nil {
 		return Prototypes{}, err
 	}
-	return NewPrototypes(file), nil
+	return Prototypes{
+		file: file,
+	}, nil
 }
 
-func Load(filepath string) (Prototypes, error) {
+func Load(m *myks.Globe, protoName string) (Prototypes, error) {
+	filepath := pathFromName(m, protoName)
 	protos := Prototypes{}
 	content, err := os.ReadFile(filepath)
 	if err != nil {
@@ -74,10 +80,15 @@ func Load(filepath string) (Prototypes, error) {
 	return protos, nil
 }
 
-func NewPrototypes(file string) Prototypes {
-	return Prototypes{
-		file: file,
+func pathFromName(m *myks.Globe, name string) string {
+	file := name
+	if !strings.HasPrefix(file, m.PrototypesDir) {
+		file = filepath.Join(m.PrototypesDir, file)
 	}
+	if !strings.HasSuffix("vendir/vendir-data.ytt.yaml", file) {
+		file = filepath.Join(file, "vendir/vendir-data.ytt.yaml")
+	}
+	return file
 }
 
 func (p *Prototypes) GetSource(name string) (Source, bool) {
