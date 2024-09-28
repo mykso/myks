@@ -1,4 +1,4 @@
-package cmd
+package proto
 
 import (
 	"net/url"
@@ -35,10 +35,10 @@ func newProtoAddSrcCmd() *cobra.Command {
 			if kind == "" || (kind != "ytt" && kind != "helm" && kind != "static" && kind != "ytt-pkg") {
 				cobra.CheckErr("Kind must be one of ytt, helm, static, ytt-pkg")
 			}
-			source, err := cmd.Flags().GetString("source")
+			repo, err := cmd.Flags().GetString("repo")
 			cobra.CheckErr(err)
-			if source == "" || (source != "git" && source != "helmChart") {
-				cobra.CheckErr("Source must be one of git, helmChart")
+			if repo == "" || (repo != "git" && repo != "helmChart") {
+				cobra.CheckErr("Repo must be one of git, helmChart")
 			}
 			uri, err := cmd.Flags().GetString("url")
 			cobra.CheckErr(err)
@@ -52,7 +52,7 @@ func newProtoAddSrcCmd() *cobra.Command {
 			if version == "" {
 				cobra.CheckErr("Version must be provided")
 			}
-			newRootPath, err := cmd.Flags().GetString("newRootPath")
+			rootPath, err := cmd.Flags().GetString("rootPath")
 			cobra.CheckErr(err)
 			includes, err := cmd.Flags().GetStringSlice("include")
 			cobra.CheckErr(err)
@@ -75,21 +75,24 @@ func newProtoAddSrcCmd() *cobra.Command {
 					cobra.CheckErr(err)
 				}
 				if !create {
-					log.Err(err).Str("prototype", file).Msg("Prototype file does not exist")
-					cobra.CheckErr(err)
+					log.Error().Msg("Prototype does not exist. Use --create to create a new prototype")
+					return
 				}
 				log.Info().Str("prototype", file).Msg("Create new prototype")
 				p, err = prototypes.Create(file)
 				cobra.CheckErr(err)
 			}
-			protoSrcName := filepath.Base(name)
-			p.AddPrototype(prototypes.Prototype{
-				Name:         protoSrcName,
+			if _, exist := p.GetSource(name); exist {
+				log.Error().Str("source", name).Msg("Source already exists")
+				return
+			}
+			p.AddSource(prototypes.Source{
+				Name:         name,
 				Kind:         prototypes.Kind(kind),
-				Source:       prototypes.Source(source),
+				Repo:         prototypes.Repo(repo),
 				Url:          uri,
 				Version:      version,
-				NewRootPath:  newRootPath,
+				NewRootPath:  rootPath,
 				IncludePaths: includes,
 			})
 			err = p.Save()
@@ -100,11 +103,11 @@ func newProtoAddSrcCmd() *cobra.Command {
 
 	cmd.Flags().StringP("prototype", "p", "", "Name of prototype to manage")
 	cmd.Flags().StringP("name", "n", "", "Name of prototype, may include folder")
-	cmd.Flags().StringP("kind", "k", "helm", "Kind of prototype")
-	cmd.Flags().StringP("source", "s", "git", "Source of prototype")
+	cmd.Flags().StringP("kind", "k", "helm", "Kind of prototype (helm/ytt/static/ytt-pkg)")
+	cmd.Flags().StringP("repo", "r", "git", "Source of prototype (git/helmChart)")
 	cmd.Flags().StringP("url", "u", "", "URL of prototype")
 	cmd.Flags().StringP("version", "v", "", "Version of prototype")
-	cmd.Flags().StringP("newRootPath", "r", "", "New root path of prototype")
+	cmd.Flags().String("rootPath", "", "New root path of prototype")
 	cmd.Flags().StringSliceP("include", "i", []string{}, "Include files")
 	cmd.Flags().BoolP("create", "c", false, "Create new prototype if not exists")
 

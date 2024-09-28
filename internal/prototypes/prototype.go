@@ -30,22 +30,22 @@ const (
 	YttPkg Kind = "ytt-pkg"
 )
 
-type Source string
+type Repo string
 
 const (
-	Git       Source = "git"
-	HelmChart Source = "helmChart"
+	Git       Repo = "git"
+	HelmChart Repo = "helmChart"
 )
 
 type Prototypes struct {
 	file       string
-	Prototypes []Prototype `yaml:"prototypes"`
+	Prototypes []Source `yaml:"prototypes"`
 }
 
-type Prototype struct {
+type Source struct {
 	Name         string   `yaml:"name"`
 	Kind         Kind     `yaml:"kind"`
-	Source       Source   `yaml:"source"`
+	Repo         Repo     `yaml:"repo"`
 	Url          string   `yaml:"url"`
 	Version      string   `yaml:"version"`
 	NewRootPath  string   `yaml:"newRootPath,omitempty"`
@@ -80,7 +80,16 @@ func NewPrototypes(file string) Prototypes {
 	}
 }
 
-func (p *Prototypes) AddPrototype(proto Prototype) {
+func (p *Prototypes) GetSource(name string) (Source, bool) {
+	for _, proto := range p.Prototypes {
+		if proto.Name == name {
+			return proto, true
+		}
+	}
+	return Source{}, false
+}
+
+func (p *Prototypes) AddSource(proto Source) {
 	for i := range p.Prototypes {
 		if p.Prototypes[i].Name == proto.Name {
 			p.Prototypes[i] = proto

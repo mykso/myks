@@ -1,7 +1,6 @@
-package cmd
+package proto
 
 import (
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -12,7 +11,7 @@ import (
 )
 
 func init() {
-	protoCmd.AddCommand(newProtoAddCmd())
+	Cmd.AddCommand(newProtoAddCmd())
 }
 
 func newProtoAddCmd() *cobra.Command {
@@ -36,8 +35,6 @@ func newProtoAddCmd() *cobra.Command {
 			if !strings.HasSuffix("vendir/vendir-data.ytt.yaml", file) {
 				file = filepath.Join(file, "vendir/vendir-data.ytt.yaml")
 			}
-			err = os.MkdirAll(filepath.Dir(file), os.ModePerm)
-			cobra.CheckErr(err)
 
 			p, err := prototypes.Create(file)
 			cobra.CheckErr(err)

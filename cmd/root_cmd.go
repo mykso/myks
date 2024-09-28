@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/viper"
 
 	"github.com/mykso/myks/cmd/embedded"
+	"github.com/mykso/myks/cmd/proto"
 	"github.com/mykso/myks/internal/myks"
 )
 
@@ -34,7 +35,7 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cmd.AddCommand(allCmd)
 	cmd.AddCommand(renderCmd)
 	cmd.AddCommand(newCleanupCmd())
-	cmd.AddCommand(protoCmd)
+	cmd.AddCommand(proto.Cmd)
 	cmd.AddCommand(newInitCmd())
 	cmd.AddCommand(newPrintConfigCmd())
 	cmd.AddCommand(newSyncCmd())

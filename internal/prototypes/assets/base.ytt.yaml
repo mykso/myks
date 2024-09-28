@@ -17,11 +17,11 @@ directories:
 - path: #@ pathForKind(src.kind, src.name)
   contents:
     - path: .
-      #@ if/end src.source == "git":
+      #@ if/end src.repo == "git":
       git:
         url: #@ src.url
         ref: #@ src.version
-      #@ if/end src.source == "helmChart":
+      #@ if/end src.repo == "helmChart":
       helmChart:
         name: #@ src.name
         version: #@ src.version

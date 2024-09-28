@@ -1,11 +1,11 @@
-package cmd
+package proto
 
 import (
 	"github.com/spf13/cobra"
 )
 
 func init() {
-	protoCmd.AddCommand(newProtoSrcCmd())
+	Cmd.AddCommand(newProtoSrcCmd())
 }
 
 func newProtoSrcCmd() *cobra.Command {
