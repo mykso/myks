@@ -111,10 +111,14 @@ func (p *Prototypes) AddSource(proto Source) {
 }
 
 func (p *Prototypes) Save() error {
-	dataValuesYaml, err := yaml.Marshal(p)
+	buf := bytes.Buffer{}
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	err := enc.Encode(&p)
 	if err != nil {
 		return err
 	}
+	dataValuesYaml := buf.String()
 
 	t, err := assets.ReadFile(dataValuesTemplate)
 	if err != nil {
