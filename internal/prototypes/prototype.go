@@ -52,7 +52,15 @@ type Prototype struct {
 	IncludePaths []string `yaml:"includePaths,omitempty"`
 }
 
-func LoadPrototypeFile(filepath string) (Prototypes, error) {
+func Create(file string) (Prototypes, error) {
+	err := os.MkdirAll(filepath.Dir(file), os.ModePerm)
+	if err != nil {
+		return Prototypes{}, err
+	}
+	return NewPrototypes(file), nil
+}
+
+func Load(filepath string) (Prototypes, error) {
 	protos := Prototypes{}
 	content, err := os.ReadFile(filepath)
 	if err != nil {

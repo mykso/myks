@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -27,33 +26,6 @@ func newProtoAddCmd() *cobra.Command {
 			if name == "" {
 				cobra.CheckErr("Name must be provided")
 			}
-			kind, err := cmd.Flags().GetString("kind")
-			cobra.CheckErr(err)
-			if kind == "" || (kind != "ytt" && kind != "helm" && kind != "static" && kind != "ytt-pkg") {
-				cobra.CheckErr("Kind must be one of ytt, helm, static, ytt-pkg")
-			}
-			source, err := cmd.Flags().GetString("source")
-			cobra.CheckErr(err)
-			if source == "" || (source != "git" && source != "helmChart") {
-				cobra.CheckErr("Source must be one of git, helmChart")
-			}
-			uri, err := cmd.Flags().GetString("url")
-			cobra.CheckErr(err)
-			if uri == "" {
-				cobra.CheckErr("URL must be provided")
-			}
-			_, err = url.ParseRequestURI(uri)
-			cobra.CheckErr(err)
-			version, err := cmd.Flags().GetString("version")
-			cobra.CheckErr(err)
-			if version == "" {
-				cobra.CheckErr("Version must be provided")
-			}
-			newRootPath, err := cmd.Flags().GetString("newRootPath")
-			cobra.CheckErr(err)
-			includes, err := cmd.Flags().GetStringSlice("include")
-			cobra.CheckErr(err)
-
 			// start
 			g := myks.New(".")
 
@@ -67,42 +39,17 @@ func newProtoAddCmd() *cobra.Command {
 			err = os.MkdirAll(filepath.Dir(file), os.ModePerm)
 			cobra.CheckErr(err)
 
-			p, err := prototypes.LoadPrototypeFile(file)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					log.Err(err).Str("prototype", file).Msg("Invalid prototype file")
-					cobra.CheckErr(err)
-				}
-				log.Info().Str("prototype", file).Msg("Create new prototype")
-				p = prototypes.NewPrototypes(file)
-			}
-			protoSrcName := filepath.Base(name)
-			p.AddPrototype(prototypes.Prototype{
-				Name:         protoSrcName,
-				Kind:         prototypes.Kind(kind),
-				Source:       prototypes.Source(source),
-				Url:          uri,
-				Version:      version,
-				NewRootPath:  newRootPath,
-				IncludePaths: includes,
-			})
+			p, err := prototypes.Create(file)
+			cobra.CheckErr(err)
+
 			err = p.Save()
 			cobra.CheckErr(err)
-			log.Info().Str("prototype", file).Msg("Prototype added")
+			log.Info().Str("prototype", file).Msg("Prototype create")
 		},
 	}
 
 	cmd.Flags().StringP("name", "n", "", "Name of prototype, may include folder")
-	cmd.Flags().StringP("kind", "k", "helm", "Kind of prototype")
-	cmd.Flags().StringP("source", "s", "git", "Source of prototype")
-	cmd.Flags().StringP("url", "u", "", "URL of prototype")
-	cmd.Flags().StringP("version", "v", "", "Version of prototype")
-	cmd.Flags().StringP("newRootPath", "r", "", "New root path of prototype")
-	cmd.Flags().StringSliceP("include", "i", []string{}, "Include files")
-
 	cmd.MarkFlagRequired("name")
-	cmd.MarkFlagRequired("url")
-	cmd.MarkFlagRequired("version")
 
 	return cmd
 }
