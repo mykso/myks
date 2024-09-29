@@ -89,7 +89,6 @@ func newProtoAddSrcCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringP("prototype", "p", "", "Name of prototype to manage")
 	cmd.Flags().StringP("name", "n", "", "Name of prototype, may include folder")
 	cmd.Flags().StringP("url", "u", "", "URL of prototype")
 	cmd.Flags().StringP("version", "v", "", "Version of prototype")
@@ -109,7 +108,6 @@ func newProtoAddSrcCmd() *cobra.Command {
 		"ytt-pkg": "Output contains ytt schema and data.",
 	}).EnableFlag(cmd, "kind", "k", "helm", "Kind of package")
 
-	cobra.CheckErr(cmd.MarkFlagRequired("prototype"))
 	cobra.CheckErr(cmd.MarkFlagRequired("name"))
 	cobra.CheckErr(cmd.MarkFlagRequired("url"))
 	cobra.CheckErr(cmd.MarkFlagRequired("version"))

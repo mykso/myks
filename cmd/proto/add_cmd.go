@@ -20,7 +20,7 @@ func newProtoAddCmd() *cobra.Command {
 			prototype, err := cmd.Flags().GetString("prototype")
 			cobra.CheckErr(err)
 			if prototype == "" {
-				cobra.CheckErr("Name must be provided")
+				cobra.CheckErr("Prototype must be provided")
 			}
 			// start
 			g := myks.New(".")
@@ -33,9 +33,6 @@ func newProtoAddCmd() *cobra.Command {
 			log.Info().Str("prototype", prototype).Msg("Prototype create")
 		},
 	}
-
-	cmd.Flags().StringP("prototype", "p", "", "Name of prototype, may include folder")
-	cobra.CheckErr(cmd.MarkFlagRequired("prototype"))
 
 	return cmd
 }

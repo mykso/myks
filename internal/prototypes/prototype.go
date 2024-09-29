@@ -19,6 +19,7 @@ var assets embed.FS
 const (
 	baseYttFile        = "assets/base.ytt.yaml"
 	dataValuesTemplate = "assets/data-values.ytt.yaml.template"
+	dataValuesFile     = "vendir/vendir-data.ytt.yaml"
 )
 
 type Prototype struct {
@@ -57,13 +58,53 @@ func Delete(g *myks.Globe, name string) error {
 	return os.Remove(filepath)
 }
 
+func CollectPrototypes() ([]string, error) {
+	var protos []string
+	g := myks.New(".")
+
+	err := filepath.Walk(g.PrototypesDir,
+		func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+			if strings.HasSuffix(path, dataValuesFile) {
+				name := strings.TrimSuffix(path, "/"+dataValuesFile)
+				name = strings.TrimPrefix(name, g.PrototypesDir+"/")
+				protos = append(protos, name)
+			}
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	// files, err := os.ReadDir(g.PrototypesDir)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// for _, f := range files {
+	// 	fmt.Println(f.Name())
+	// 	if f.IsDir() {
+	// 		continue
+	// 	}
+	// 	if strings.HasSuffix(f.Name(), dataValuesFile) {
+	// 		name := strings.TrimSuffix(f.Name(), dataValuesFile)
+	// 		name = strings.TrimPrefix(name, g.PrototypesDir)
+	// 		protos = append(protos, name)
+	// 	}
+	// }
+	return protos, nil
+}
+
 func pathFromName(g *myks.Globe, name string) string {
 	file := name
 	if !strings.HasPrefix(file, g.PrototypesDir) {
 		file = filepath.Join(g.PrototypesDir, file)
 	}
-	if !strings.HasSuffix("vendir/vendir-data.ytt.yaml", file) {
-		file = filepath.Join(file, "vendir/vendir-data.ytt.yaml")
+	if !strings.HasSuffix(dataValuesFile, file) {
+		file = filepath.Join(file, dataValuesFile)
 	}
 	return file
 }
