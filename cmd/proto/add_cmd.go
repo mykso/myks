@@ -13,11 +13,17 @@ func init() {
 
 func newProtoAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:               "add",
-		Short:             "Add prototype",
-		Long:              `Create a new prototype or extend an existing.`,
-		Args:              cobra.ExactArgs(1),
-		ValidArgsFunction: prototypeCompletion,
+		Use:   "add",
+		Short: "Add prototype",
+		Long:  `Create a new prototype or extend an existing.`,
+		Args:  cobra.ExactArgs(1),
+		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			var comps []string
+			if len(args) == 0 {
+				comps = cobra.AppendActiveHelp(comps, "Prototype name must be provided")
+			}
+			return comps, cobra.ShellCompDirectiveNoFileComp
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			// start
 			g := myks.New(".")

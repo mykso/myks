@@ -3,6 +3,7 @@ package proto
 import (
 	"fmt"
 
+	"github.com/mykso/myks/internal/myks"
 	"github.com/mykso/myks/internal/prototypes"
 	"github.com/spf13/cobra"
 )
@@ -13,6 +14,9 @@ var Cmd = &cobra.Command{
 	Short: "Manage prototypes",
 	Long:  `Manage prototypes with myks.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+		if len(args) == 0 {
+			return nil
+		}
 		proto := args[0]
 		if proto == "" {
 			return fmt.Errorf("prototype must be provided")
@@ -33,7 +37,7 @@ var prototypeCompletion = func(cmd *cobra.Command, args []string, toComplete str
 		// This is especially useful for all commands which are expecting a single prototype
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-	protos, err := prototypes.CollectPrototypes()
+	protos, err := prototypes.CollectPrototypes(myks.New("."))
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}

@@ -62,9 +62,8 @@ func Delete(g *myks.Globe, name string) error {
 	return os.Remove(filepath)
 }
 
-func CollectPrototypes() ([]string, error) {
+func CollectPrototypes(g *myks.Globe) ([]string, error) {
 	var protos []string
-	g := myks.New(".")
 
 	err := filepath.Walk(g.PrototypesDir,
 		func(path string, info os.FileInfo, err error) error {

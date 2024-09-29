@@ -13,10 +13,11 @@ type EnumFlag struct {
 	value   string
 }
 
-func NewEnumFlag(kind string, enumMap map[string]string) *EnumFlag {
+func NewEnumFlag(kind string, defaultValue string, enumMap map[string]string) *EnumFlag {
 	return &EnumFlag{
 		enumMap: enumMap,
 		kind:    kind,
+		value:   defaultValue,
 	}
 }
 

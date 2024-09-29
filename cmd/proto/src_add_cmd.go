@@ -12,11 +12,11 @@ import (
 )
 
 func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
-	repoFlag := utils.NewEnumFlag("repo", map[string]string{
+	repoFlag := utils.NewEnumFlag("repo", "helmChart", map[string]string{
 		"git":       "Git repository",
 		"helmChart": "Helm repository",
 	})
-	kindFlag := utils.NewEnumFlag("kind", map[string]string{
+	kindFlag := utils.NewEnumFlag("kind", "helm", map[string]string{
 		"ytt":     "Output will be rendered by ytt",
 		"helm":    "Output will be rendered by helm template. Requires helm installed.",
 		"static":  "Output will be copied as is",
@@ -33,17 +33,11 @@ func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
 		}
 	} else {
 		cmd = &cobra.Command{
-			Use:   "add",
-			Short: "Create prototype src",
-			Long:  `Create a new source for a prototype. Will fail if source already exists.`,
-			Args:  cobra.ExactArgs(1),
-			ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
-				var comps []string
-				if len(args) == 0 {
-					comps = cobra.AppendActiveHelp(comps, "Prototype name must be provided")
-				}
-				return comps, cobra.ShellCompDirectiveNoFileComp
-			},
+			Use:               "add",
+			Short:             "Create prototype src",
+			Long:              `Create a new source for a prototype. Will fail if source already exists.`,
+			Args:              cobra.ExactArgs(1),
+			ValidArgsFunction: prototypeCompletion,
 		}
 	}
 	cmd.Run = func(cmd *cobra.Command, args []string) {
