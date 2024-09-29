@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/mykso/myks/cmd/utils"
 	"github.com/mykso/myks/internal/myks"
 	"github.com/mykso/myks/internal/prototypes"
 	"github.com/rs/zerolog/log"
@@ -94,13 +95,23 @@ func newProtoAddSrcCmd() *cobra.Command {
 
 	cmd.Flags().StringP("prototype", "p", "", "Name of prototype to manage")
 	cmd.Flags().StringP("name", "n", "", "Name of prototype, may include folder")
-	cmd.Flags().StringP("kind", "k", "helm", "Kind of prototype (helm/ytt/static/ytt-pkg)")
-	cmd.Flags().StringP("repo", "r", "git", "Source of prototype (git/helmChart)")
 	cmd.Flags().StringP("url", "u", "", "URL of prototype")
 	cmd.Flags().StringP("version", "v", "", "Version of prototype")
 	cmd.Flags().String("rootPath", "", "New root path of prototype")
 	cmd.Flags().StringSliceP("include", "i", []string{}, "Include files")
 	cmd.Flags().BoolP("create", "c", false, "Create new prototype if not exists")
+
+	utils.NewEnumFlag(map[string]string{
+		"git":       "Git repository",
+		"helmChart": "Helm repository",
+	}).EnableFlag(cmd, "repo", "r", "git", "Source of prototype (git/helmChart)")
+
+	utils.NewEnumFlag(map[string]string{
+		"ytt":     "Output will be rendered by ytt",
+		"helm":    "Output will be rendered by helm template. Requires helm installed.",
+		"static":  "Output will be copied as is",
+		"ytt-pkg": "Output contains ytt schema and data.",
+	}).EnableFlag(cmd, "kind", "k", "helm", "Kind of package (helm/ytt/static/ytt-pkg)")
 
 	cobra.CheckErr(cmd.MarkFlagRequired("prototype"))
 	cobra.CheckErr(cmd.MarkFlagRequired("name"))

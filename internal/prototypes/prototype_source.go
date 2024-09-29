@@ -9,13 +9,6 @@ const (
 	YttPkg Kind = "ytt-pkg"
 )
 
-type Repo string
-
-const (
-	Git       Repo = "git"
-	HelmChart Repo = "helmChart"
-)
-
 type Source struct {
 	Name         string   `yaml:"name"`
 	Kind         Kind     `yaml:"kind"`
