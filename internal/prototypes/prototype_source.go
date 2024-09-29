@@ -20,7 +20,7 @@ type Source struct {
 }
 
 func (p *Prototype) GetSource(name string) (Source, bool) {
-	for _, proto := range p.Prototypes {
+	for _, proto := range p.Sources {
 		if proto.Name == name {
 			return proto, true
 		}
@@ -29,19 +29,19 @@ func (p *Prototype) GetSource(name string) (Source, bool) {
 }
 
 func (p *Prototype) AddSource(proto Source) {
-	for i := range p.Prototypes {
-		if p.Prototypes[i].Name == proto.Name {
-			p.Prototypes[i] = proto
+	for i := range p.Sources {
+		if p.Sources[i].Name == proto.Name {
+			p.Sources[i] = proto
 			return
 		}
 	}
-	p.Prototypes = append(p.Prototypes, proto)
+	p.Sources = append(p.Sources, proto)
 }
 
 func (p *Prototype) DelSource(name string) {
-	for i, proto := range p.Prototypes {
+	for i, proto := range p.Sources {
 		if proto.Name == name {
-			p.Prototypes = append(p.Prototypes[:i], p.Prototypes[i+1:]...)
+			p.Sources = append(p.Sources[:i], p.Sources[i+1:]...)
 			return
 		}
 	}

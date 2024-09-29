@@ -15,7 +15,8 @@ func newProtoSrcCmd() *cobra.Command {
 		Long:  `Add a new source to a prototype.`,
 	}
 
-	cmd.AddCommand(newProtoAddSrcCmd())
+	cmd.AddCommand(newProtoModSrcCmd(true))
+	cmd.AddCommand(newProtoModSrcCmd(false))
 	cmd.AddCommand(newProtoDelSrcCmd())
 	return cmd
 }

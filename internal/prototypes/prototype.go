@@ -23,8 +23,9 @@ const (
 )
 
 type Prototype struct {
-	file       string
-	Prototypes []Source `yaml:"prototypes"`
+	file    string
+	Sources []Source `yaml:"prototypes"`
+	g       *myks.Globe
 }
 
 func Create(g *myks.Globe, name string) (Prototype, error) {
@@ -35,12 +36,16 @@ func Create(g *myks.Globe, name string) (Prototype, error) {
 	}
 	return Prototype{
 		file: file,
+		g:    g,
 	}, nil
 }
 
 func Load(g *myks.Globe, protoName string) (Prototype, error) {
 	filepath := pathFromName(g, protoName)
-	protos := Prototype{}
+	protos := Prototype{
+		file: filepath,
+		g:    g,
+	}
 	content, err := os.ReadFile(filepath)
 	if err != nil {
 		return protos, err
@@ -49,7 +54,6 @@ func Load(g *myks.Globe, protoName string) (Prototype, error) {
 	if err != nil {
 		return protos, err
 	}
-	protos.file = filepath
 	return protos, nil
 }
 
@@ -107,6 +111,13 @@ func pathFromName(g *myks.Globe, name string) string {
 		file = filepath.Join(file, dataValuesFile)
 	}
 	return file
+}
+
+func (p *Prototype) Name() string {
+	name := p.file
+	name = strings.TrimSuffix(name, "/"+dataValuesFile)
+	name = strings.TrimPrefix(name, filepath.Dir(p.file)+"/")
+	return name
 }
 
 func (p *Prototype) Save() error {
