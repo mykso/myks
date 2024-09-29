@@ -23,51 +23,25 @@ const (
 	dataValuesTemplate = "assets/data-values.ytt.yaml.template"
 )
 
-type Kind string
-
-const (
-	Ytt    Kind = "ytt"
-	Helm   Kind = "helm"
-	Static Kind = "static"
-	YttPkg Kind = "ytt-pkg"
-)
-
-type Repo string
-
-const (
-	Git       Repo = "git"
-	HelmChart Repo = "helmChart"
-)
-
-type Prototypes struct {
+type Prototype struct {
 	file       string
 	Prototypes []Source `yaml:"prototypes"`
 }
 
-type Source struct {
-	Name         string   `yaml:"name"`
-	Kind         Kind     `yaml:"kind"`
-	Repo         Repo     `yaml:"repo"`
-	Url          string   `yaml:"url"`
-	Version      string   `yaml:"version"`
-	NewRootPath  string   `yaml:"newRootPath,omitempty"`
-	IncludePaths []string `yaml:"includePaths,omitempty"`
-}
-
-func Create(g *myks.Globe, name string) (Prototypes, error) {
+func Create(g *myks.Globe, name string) (Prototype, error) {
 	file := pathFromName(g, name)
 	err := os.MkdirAll(filepath.Dir(file), os.ModePerm)
 	if err != nil {
-		return Prototypes{}, err
+		return Prototype{}, err
 	}
-	return Prototypes{
+	return Prototype{
 		file: file,
 	}, nil
 }
 
-func Load(g *myks.Globe, protoName string) (Prototypes, error) {
+func Load(g *myks.Globe, protoName string) (Prototype, error) {
 	filepath := pathFromName(g, protoName)
-	protos := Prototypes{}
+	protos := Prototype{}
 	content, err := os.ReadFile(filepath)
 	if err != nil {
 		return protos, err
@@ -96,35 +70,7 @@ func pathFromName(g *myks.Globe, name string) string {
 	return file
 }
 
-func (p *Prototypes) GetSource(name string) (Source, bool) {
-	for _, proto := range p.Prototypes {
-		if proto.Name == name {
-			return proto, true
-		}
-	}
-	return Source{}, false
-}
-
-func (p *Prototypes) AddSource(proto Source) {
-	for i := range p.Prototypes {
-		if p.Prototypes[i].Name == proto.Name {
-			p.Prototypes[i] = proto
-			return
-		}
-	}
-	p.Prototypes = append(p.Prototypes, proto)
-}
-
-func (p *Prototypes) DelSource(name string) {
-	for i, proto := range p.Prototypes {
-		if proto.Name == name {
-			p.Prototypes = append(p.Prototypes[:i], p.Prototypes[i+1:]...)
-			return
-		}
-	}
-}
-
-func (p *Prototypes) Save() error {
+func (p *Prototype) Save() error {
 	buf := bytes.Buffer{}
 	enc := yaml.NewEncoder(&buf)
 	enc.SetIndent(2)
