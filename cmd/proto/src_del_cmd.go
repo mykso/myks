@@ -53,8 +53,8 @@ func newProtoDelSrcCmd() *cobra.Command {
 	cmd.Flags().StringP("prototype", "p", "", "Name of prototype to manage")
 	cmd.Flags().StringP("name", "n", "", "Name of prototype, may include folder")
 
-	cmd.MarkFlagRequired("prototype")
-	cmd.MarkFlagRequired("name")
+	cobra.CheckErr(cmd.MarkFlagRequired("prototype"))
+	cobra.CheckErr(cmd.MarkFlagRequired("name"))
 
 	return cmd
 }

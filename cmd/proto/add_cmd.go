@@ -35,7 +35,7 @@ func newProtoAddCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringP("prototype", "p", "", "Name of prototype, may include folder")
-	cmd.MarkFlagRequired("prototype")
+	cobra.CheckErr(cmd.MarkFlagRequired("prototype"))
 
 	return cmd
 }

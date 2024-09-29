@@ -102,10 +102,10 @@ func newProtoAddSrcCmd() *cobra.Command {
 	cmd.Flags().StringSliceP("include", "i", []string{}, "Include files")
 	cmd.Flags().BoolP("create", "c", false, "Create new prototype if not exists")
 
-	cmd.MarkFlagRequired("prototype")
-	cmd.MarkFlagRequired("name")
-	cmd.MarkFlagRequired("url")
-	cmd.MarkFlagRequired("version")
+	cobra.CheckErr(cmd.MarkFlagRequired("prototype"))
+	cobra.CheckErr(cmd.MarkFlagRequired("name"))
+	cobra.CheckErr(cmd.MarkFlagRequired("url"))
+	cobra.CheckErr(cmd.MarkFlagRequired("version"))
 
 	return cmd
 }

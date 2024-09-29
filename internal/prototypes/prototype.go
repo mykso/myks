@@ -9,8 +9,6 @@ import (
 	"strings"
 	"text/template"
 
-	_ "embed"
-
 	"github.com/mykso/myks/internal/myks"
 	"gopkg.in/yaml.v3"
 )
@@ -85,7 +83,6 @@ func (p *Prototype) Save() error {
 		return fmt.Errorf("failed to read data-values template: %w. This is a bug in myks", err)
 	}
 	tmpl, err := template.New("").Parse(string(t))
-
 	if err != nil {
 		return fmt.Errorf("failed to parse data-values template: %w. This is a bug in myks", err)
 	}
@@ -95,7 +92,7 @@ func (p *Prototype) Save() error {
 		return fmt.Errorf("failed to execute data-values template: %w", err)
 	}
 
-	err = os.WriteFile(p.file, buffer.Bytes(), 0644)
+	err = os.WriteFile(p.file, buffer.Bytes(), 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to write data-values file to %s: %w", p.file, err)
 	}
@@ -106,7 +103,7 @@ func (p *Prototype) Save() error {
 	}
 	dest := filepath.Dir(p.file)
 	dest = filepath.Join(dest, "base.ytt.yaml")
-	err = os.WriteFile(dest, baseYtt, 0644)
+	err = os.WriteFile(dest, baseYtt, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to write base ytt file to %s: %w", dest, err)
 	}
