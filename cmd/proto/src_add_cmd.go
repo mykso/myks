@@ -31,14 +31,10 @@ func newProtoAddSrcCmd() *cobra.Command {
 			cobra.CheckErr(err)
 			kind, err := cmd.Flags().GetString("kind")
 			cobra.CheckErr(err)
-			if kind == "" || (kind != "ytt" && kind != "helm" && kind != "static" && kind != "ytt-pkg") {
-				cobra.CheckErr("Kind must be one of ytt, helm, static, ytt-pkg")
-			}
+
 			repo, err := cmd.Flags().GetString("repo")
 			cobra.CheckErr(err)
-			if repo == "" || (repo != "git" && repo != "helmChart") {
-				cobra.CheckErr("Repo must be one of git, helmChart")
-			}
+
 			uri, err := cmd.Flags().GetString("url")
 			cobra.CheckErr(err)
 			if uri == "" {
@@ -101,17 +97,17 @@ func newProtoAddSrcCmd() *cobra.Command {
 	cmd.Flags().StringSliceP("include", "i", []string{}, "Include files")
 	cmd.Flags().BoolP("create", "c", false, "Create new prototype if not exists")
 
-	utils.NewEnumFlag(map[string]string{
+	utils.NewEnumFlag("repo", map[string]string{
 		"git":       "Git repository",
 		"helmChart": "Helm repository",
-	}).EnableFlag(cmd, "repo", "r", "git", "Source of prototype (git/helmChart)")
+	}).EnableFlag(cmd, "repo", "r", "git", "Source repository type")
 
-	utils.NewEnumFlag(map[string]string{
+	utils.NewEnumFlag("kind", map[string]string{
 		"ytt":     "Output will be rendered by ytt",
 		"helm":    "Output will be rendered by helm template. Requires helm installed.",
 		"static":  "Output will be copied as is",
 		"ytt-pkg": "Output contains ytt schema and data.",
-	}).EnableFlag(cmd, "kind", "k", "helm", "Kind of package (helm/ytt/static/ytt-pkg)")
+	}).EnableFlag(cmd, "kind", "k", "helm", "Kind of package")
 
 	cobra.CheckErr(cmd.MarkFlagRequired("prototype"))
 	cobra.CheckErr(cmd.MarkFlagRequired("name"))
