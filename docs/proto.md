@@ -52,23 +52,23 @@ Myks provides a flexible way of managing prototypes with the most common vendir 
 
 Create prototype:
 ```shell
-myks proto add -p myApp
-myks proto add -p anotherApp/frontend
-myks proto add -p anotherApp/backend
+myks proto add myApp
+myks proto add anotherApp/frontend
+myks proto add anotherApp/backend
 ```
 This created a the skeleton. It is still required to add sources for the applications.
 
 Add Sources to a prototype:
 ```shell
 # Add httpbingo source to our myApp prototype.
-myks proto src add --prototype myApp --name httpbingo --url https://estahn.github.io/charts --version 0.1.0
+myks proto src add myApp --name httpbingo --url https://estahn.github.io/charts --version 0.1.0
 
 # `--create` will create the prototype if necessary.
-myks proto src add --create -p httpbingo -n httpbingo -u https://estahn.github.io/charts -v 0.1.0
+myks proto src add --create httpbingo -n httpbingo -u https://estahn.github.io/charts -v 0.1.0
 
 # By default a helm chart is added from a chart repository.
 # It is also possible to add files from a git repository.
-myks proto src add --create -p argocd -n argocd --url https://github.com/argoproj/argo-cd --version v2.7.3 --kind ytt --repo git --include manifests/ha/install.yaml --rootPath manifests/ha
+myks proto src add --create argocd -n argocd --url https://github.com/argoproj/argo-cd --version v2.7.3 --kind ytt --repo git --include manifests/ha/install.yaml --rootPath manifests/ha
 ```
 This will generate `vendir-data.ytt.yaml` with the following content for argocd:
 ```yaml
@@ -91,10 +91,10 @@ It is usually safe to edit this file if following the schema. On each render ope
 
 Delete a src:
 ```shell
-myks proto src delete -p myApp -n httpbingo
+myks proto src delete myApp -n httpbingo
 ```
 
 Delete a prototype:
 ```shell
-myks proto delete -p myApp
+myks proto delete myApp
 ```

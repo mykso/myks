@@ -15,28 +15,26 @@ func init() {
 
 func newProtoDelCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete prototype",
-		Long:  `Delete a prototype`,
+		Use:               "delete",
+		Short:             "Delete prototype",
+		Long:              `Delete a prototype`,
+		Args:              cobra.MinimumNArgs(1),
+		ValidArgsFunction: prototypeCompletion,
 		Run: func(cmd *cobra.Command, args []string) {
-			prototype, err := cmd.Flags().GetString("prototype")
-			cobra.CheckErr(err)
-			if prototype == "" {
-				cobra.CheckErr("Prototype must be provided")
-			}
 			// start
 			g := myks.New(".")
-
-			err = prototypes.Delete(g, prototype)
-			if err != nil {
-				if !os.IsNotExist(err) {
-					log.Err(err).Str("prototype", prototype).Msg("Prototype was not deleted")
-					cobra.CheckErr(err)
+			for _, prototype := range args {
+				err := prototypes.Delete(g, prototype)
+				if err != nil {
+					if !os.IsNotExist(err) {
+						log.Err(err).Str("prototype", prototype).Msg("Prototype was not deleted")
+						cobra.CheckErr(err)
+					}
+					log.Warn().Str("prototype", prototype).Msg("Prototype not found")
+					return
 				}
-				log.Warn().Str("prototype", prototype).Msg("Prototype not found")
-				return
+				log.Info().Str("prototype", prototype).Msg("Prototype deleted")
 			}
-			log.Info().Str("prototype", prototype).Msg("Prototype deleted")
 		},
 	}
 

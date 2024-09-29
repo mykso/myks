@@ -11,15 +11,13 @@ import (
 
 func newProtoDelSrcCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "delete",
-		Short: "Delete prototype src",
-		Long:  `Delete a source prototype from a prototype.`,
+		Use:               "delete",
+		Short:             "Delete prototype src",
+		Long:              `Delete a source prototype from a prototype.`,
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: prototypeCompletion,
+
 		Run: func(cmd *cobra.Command, args []string) {
-			prototype, err := cmd.Flags().GetString("prototype")
-			cobra.CheckErr(err)
-			if prototype == "" {
-				cobra.CheckErr("Protoype must be provided")
-			}
 			name, err := cmd.Flags().GetString("name")
 			cobra.CheckErr(err)
 			if name == "" {

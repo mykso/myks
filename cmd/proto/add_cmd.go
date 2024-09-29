@@ -13,15 +13,12 @@ func init() {
 
 func newProtoAddCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "add",
-		Short: "Add prototype",
-		Long:  `Create a new prototype or extend an existing.`,
+		Use:               "add",
+		Short:             "Add prototype",
+		Long:              `Create a new prototype or extend an existing.`,
+		Args:              cobra.ExactArgs(1),
+		ValidArgsFunction: prototypeCompletion,
 		Run: func(cmd *cobra.Command, args []string) {
-			prototype, err := cmd.Flags().GetString("prototype")
-			cobra.CheckErr(err)
-			if prototype == "" {
-				cobra.CheckErr("Prototype must be provided")
-			}
 			// start
 			g := myks.New(".")
 
