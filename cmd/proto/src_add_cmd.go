@@ -12,16 +12,6 @@ import (
 )
 
 func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
-	repoFlag := utils.NewEnumFlag("repo", "helmChart", map[string]string{
-		"git":       "Git repository",
-		"helmChart": "Helm repository",
-	})
-	kindFlag := utils.NewEnumFlag("kind", "helm", map[string]string{
-		"ytt":     "Output will be rendered by ytt",
-		"helm":    "Output will be rendered by helm template. Requires helm installed.",
-		"static":  "Output will be copied as is",
-		"ytt-pkg": "Output contains ytt schema and data.",
-	})
 	var cmd *cobra.Command
 	if allowUpdate {
 		cmd = &cobra.Command{
@@ -40,25 +30,59 @@ func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
 			ValidArgsFunction: prototypeCompletion,
 		}
 	}
-	cmd.Run = func(cmd *cobra.Command, args []string) {
-		name, err := cmd.Flags().GetString("name")
+
+	name := cmd.Flags().StringP("name", "n", "", "Name of prototype, may include folder")
+	uri := cmd.Flags().StringP("url", "u", "", "URL of prototype")
+	version := cmd.Flags().StringP("version", "v", "", "Version of prototype")
+	cmd.Flags().String("rootPath", "", "New root path of prototype")
+	cmd.Flags().StringSliceP("include", "i", []string{}, "Include files")
+	cmd.Flags().BoolP("create", "c", false, "Create new prototype if not exists")
+	repoFlag := utils.NewEnumFlag("repo", "helmChart", map[string]string{
+		"git":       "Git repository",
+		"helmChart": "Helm repository",
+	})
+	kindFlag := utils.NewEnumFlag("kind", "helm", map[string]string{
+		"ytt":     "Output will be rendered by ytt",
+		"helm":    "Output will be rendered by helm template. Requires helm installed.",
+		"static":  "Output will be copied as is",
+		"ytt-pkg": "Output contains ytt schema and data.",
+	})
+	repoFlag.EnableFlag(cmd, "repo", "r", "git", "Source repository type")
+	kindFlag.EnableFlag(cmd, "kind", "k", "helm", "Kind of package")
+	if allowUpdate {
+		err := cmd.RegisterFlagCompletionFunc("name", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+			if len(args) == 0 {
+				help := cobra.AppendActiveHelp([]string{}, "A prototype name must be provided first.")
+				return help, cobra.ShellCompDirectiveNoFileComp
+			}
+			p, err := prototypes.Load(myks.New("."), args[0])
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			sources := make([]string, 0, len(p.Sources))
+			for _, s := range p.Sources {
+				sources = append(sources, s.Name)
+			}
+			return sources, cobra.ShellCompDirectiveNoFileComp
+		})
 		cobra.CheckErr(err)
-		if name == "" {
+	}
+
+	cobra.CheckErr(cmd.MarkFlagRequired("name"))
+	cobra.CheckErr(cmd.MarkFlagRequired("url"))
+	cobra.CheckErr(cmd.MarkFlagRequired("version"))
+
+	cmd.Run = func(cmd *cobra.Command, args []string) {
+		if len(*name) == 0 {
 			cobra.CheckErr("Name must be provided")
 		}
 		create, err := cmd.Flags().GetBool("create")
 		cobra.CheckErr(err)
 
-		uri, err := cmd.Flags().GetString("url")
+		_, err = url.ParseRequestURI(*uri)
 		cobra.CheckErr(err)
-		if uri == "" {
-			cobra.CheckErr("URL must be provided")
-		}
-		_, err = url.ParseRequestURI(uri)
-		cobra.CheckErr(err)
-		version, err := cmd.Flags().GetString("version")
-		cobra.CheckErr(err)
-		if version == "" {
+
+		if len(*version) == 0 {
 			cobra.CheckErr("Version must be provided")
 		}
 		rootPath, err := cmd.Flags().GetString("rootPath")
@@ -66,9 +90,7 @@ func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
 		includes, err := cmd.Flags().GetStringSlice("include")
 		cobra.CheckErr(err)
 
-		// start
 		g := myks.New(".")
-
 		p, err := prototypes.Load(g, prototype)
 		if err != nil {
 			if !os.IsNotExist(err) {
@@ -85,17 +107,17 @@ func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
 		}
 
 		if !allowUpdate {
-			if _, exist := p.GetSource(name); exist {
-				log.Error().Str("source", name).Msg("Source already exists")
+			if _, exist := p.GetSource(*name); exist {
+				log.Error().Str("source", *name).Msg("Source already exists")
 				return
 			}
 		}
 		p.AddSource(prototypes.Source{
-			Name:         name,
+			Name:         *name,
 			Kind:         prototypes.Kind(kindFlag.String()),
 			Repo:         prototypes.Repo(repoFlag.String()),
-			Url:          uri,
-			Version:      version,
+			Url:          *uri,
+			Version:      *version,
 			NewRootPath:  rootPath,
 			IncludePaths: includes,
 		})
@@ -103,20 +125,6 @@ func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
 		cobra.CheckErr(err)
 		log.Info().Str("prototype", prototype).Msg("Prototype source added")
 	}
-
-	cmd.Flags().StringP("name", "n", "", "Name of prototype, may include folder")
-	cmd.Flags().StringP("url", "u", "", "URL of prototype")
-	cmd.Flags().StringP("version", "v", "", "Version of prototype")
-	cmd.Flags().String("rootPath", "", "New root path of prototype")
-	cmd.Flags().StringSliceP("include", "i", []string{}, "Include files")
-	cmd.Flags().BoolP("create", "c", false, "Create new prototype if not exists")
-
-	repoFlag.EnableFlag(cmd, "repo", "r", "git", "Source repository type")
-	kindFlag.EnableFlag(cmd, "kind", "k", "helm", "Kind of package")
-
-	cobra.CheckErr(cmd.MarkFlagRequired("name"))
-	cobra.CheckErr(cmd.MarkFlagRequired("url"))
-	cobra.CheckErr(cmd.MarkFlagRequired("version"))
 
 	return cmd
 }
