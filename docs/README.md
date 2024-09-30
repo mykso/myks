@@ -142,7 +142,7 @@ These commands (`sync`, `render`, `all`) accept two optional arguments:
 environments and applications to process. When no arguments are provided, myks
 will use the [Smart Mode](/docs/smart-mode.md) to detect what to process.
 
-> [!TIP]
+> [!TIP]  
 > Check the [optimizations](/docs/optimizations.md) page to get most of myks.
 
 ### Examples
