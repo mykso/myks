@@ -11,9 +11,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
+// creates a new command for "adding" or "updating" a prototype source
+func newProtoModSrcCmd(updateCmd bool) *cobra.Command {
 	var cmd *cobra.Command
-	if allowUpdate {
+	if updateCmd {
 		cmd = &cobra.Command{
 			Use:               "update",
 			Short:             "Update prototype src",
@@ -49,8 +50,9 @@ func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
 	})
 	repoFlag.EnableFlag(cmd, "repo", "r", "git", "Source repository type")
 	kindFlag.EnableFlag(cmd, "kind", "k", "helm", "Kind of package")
-	if allowUpdate {
-		err := cmd.RegisterFlagCompletionFunc("name", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+
+	err := cmd.RegisterFlagCompletionFunc("name", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if updateCmd {
 			if len(args) == 0 {
 				help := cobra.AppendActiveHelp([]string{}, "A prototype name must be provided first.")
 				return help, cobra.ShellCompDirectiveNoFileComp
@@ -63,10 +65,48 @@ func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
 			for _, s := range p.Sources {
 				sources = append(sources, s.Name)
 			}
+
 			return sources, cobra.ShellCompDirectiveNoFileComp
-		})
-		cobra.CheckErr(err)
-	}
+		}
+
+		if repoFlag.String() == "helmChart" {
+			h := &prototypes.HelmClient{}
+			charts, err := h.Charts(toComplete)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return charts, cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+
+	})
+	cobra.CheckErr(err)
+
+	err = cmd.RegisterFlagCompletionFunc("url", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if repoFlag.String() == "helmChart" {
+			h := &prototypes.HelmClient{}
+			urls, err := h.RepoUrls()
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return urls, cobra.ShellCompDirectiveNoFileComp
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	})
+	cobra.CheckErr(err)
+
+	err = cmd.RegisterFlagCompletionFunc("version", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		if repoFlag.String() == "helmChart" {
+			h := &prototypes.HelmClient{}
+			versions, err := h.ChartVersion(*uri, *name)
+			if err != nil {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+			return versions, cobra.ShellCompDirectiveNoFileComp | cobra.ShellCompDirectiveKeepOrder
+		}
+		return nil, cobra.ShellCompDirectiveNoFileComp
+	})
+	cobra.CheckErr(err)
 
 	cobra.CheckErr(cmd.MarkFlagRequired("name"))
 	cobra.CheckErr(cmd.MarkFlagRequired("url"))
@@ -106,7 +146,7 @@ func newProtoModSrcCmd(allowUpdate bool) *cobra.Command {
 			log.Info().Str("prototype", prototype).Msg("Created new prototype")
 		}
 
-		if !allowUpdate {
+		if !updateCmd {
 			if _, exist := p.GetSource(*name); exist {
 				log.Error().Str("source", *name).Msg("Source already exists")
 				return
