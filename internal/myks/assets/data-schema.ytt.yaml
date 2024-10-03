@@ -22,10 +22,10 @@ prototypes:
   #@schema/desc "Depending of the vendored kind, further processing is done. For example, for helm charts, the chart is rendered."
   #@schema/validation one_of=["ytt", "helm", "static", "ytt-pkg"]
   kind: ""
-  #@schema/title "Prototype source as used by vendir"
+  #@schema/title "Prototype repo type as used by vendir"
   #@schema/desc "Supports git and helm repositories."
   #@schema/validation one_of=["git", "helmChart"]
-  source: ""
+  repo: ""
   #@schema/title "Url to the application source"
   #@schema/desc "For git repositories, this is the git url. For helm charts, this is the helm chart url."
   #@schema/validation min_len=1
