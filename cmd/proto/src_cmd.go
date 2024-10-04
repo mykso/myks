@@ -18,5 +18,6 @@ func newProtoSrcCmd() *cobra.Command {
 	cmd.AddCommand(newProtoModSrcCmd(true))
 	cmd.AddCommand(newProtoModSrcCmd(false))
 	cmd.AddCommand(newProtoDelSrcCmd())
+	cmd.AddCommand(newProtoBumpCmd())
 	return cmd
 }

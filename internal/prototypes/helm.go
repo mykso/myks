@@ -78,7 +78,7 @@ func (hc *HelmClient) Charts(search string) ([]string, error) {
 	return charts, nil
 }
 
-func (hc *HelmClient) RepoName(url string) (string, error) {
+func (hc *HelmClient) RepoName(srcUrl string) (string, error) {
 	cmd := exec.Command("helm", "repo", "list", "-o", "json")
 	output, err := cmd.Output()
 	if err != nil {
@@ -93,8 +93,11 @@ func (hc *HelmClient) RepoName(url string) (string, error) {
 		return "", err
 	}
 
+	// remove trailing slash to compare
+	srcUrl = strings.TrimSuffix(strings.TrimSpace(srcUrl), "/")
 	for _, repo := range repoList {
-		if repo.URL == url {
+		repoUrl := strings.TrimSuffix(strings.TrimSpace(repo.URL), "/")
+		if srcUrl == repoUrl {
 			return repo.Name, nil
 		}
 	}

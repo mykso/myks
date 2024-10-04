@@ -9,7 +9,7 @@ type Repo string
 
 const (
 	Git       Repo = "git"
-	HelmChart Repo = "helmchart"
+	HelmChart Repo = "helmChart"
 )
 
 func (r Repo) String() string {

@@ -1,5 +1,9 @@
 package prototypes
 
+import (
+	"errors"
+)
+
 type Kind string
 
 const (
@@ -45,4 +49,56 @@ func (p *Prototype) DelSource(name string) {
 			return
 		}
 	}
+}
+
+type BumpResult int
+
+const (
+	Failed BumpResult = iota
+	Bumped
+	UpToDate
+	Unsupported
+)
+
+func (p *Prototype) Bump(s Source) (BumpResult, error) {
+	change, err := s.bump()
+	if err != nil {
+		return Failed, err
+	}
+	p.AddSource(s)
+	return change, err
+}
+
+func (s *Source) bump() (BumpResult, error) {
+	switch s.Repo {
+	case HelmChart:
+		return s.bumpHelm()
+	default:
+		return Unsupported, nil
+	}
+}
+
+func (s *Source) bumpHelm() (BumpResult, error) {
+	h := &HelmClient{}
+	repo, err := h.RepoName(s.Url)
+	if err != nil {
+		return Failed, err
+	}
+	if repo == "" {
+		return Failed, errors.New("repository not found in helm repos. Consider adding it to helm")
+
+	}
+
+	version, err := h.ChartVersion(s.Url, s.Name)
+	if err != nil {
+		return Failed, err
+	}
+	if len(version) == 0 {
+		return Failed, errors.New("no versions found")
+	}
+	if version[0] == s.Version {
+		return UpToDate, nil
+	}
+	s.Version = version[0]
+	return Bumped, nil
 }
