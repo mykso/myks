@@ -1,4 +1,4 @@
-name: "job-lint"
+name: 'job-lint'
 
 on:
   workflow_call:
@@ -8,9 +8,11 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
           cache: false
       - name: Install gofumpt
         uses: jaxxstorm/action-install-gh-release@v1.12.0
@@ -21,9 +23,6 @@ jobs:
           extension-matching: nah
           rename-to: gofumpt
           chmod: 0700
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Check code formatting
         run: |
           set -euo pipefail

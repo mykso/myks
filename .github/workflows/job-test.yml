@@ -1,5 +1,5 @@
 ---
-name: "job-test"
+name: 'job-test'
 
 on:
   workflow_call:
@@ -13,14 +13,10 @@ jobs:
         with:
           fetch-depth: 0
       - uses: actions/setup-go@v5
-        with:
-          go-version: "1.22"
       - name: Build myks
         run: go install .
       - name: Test
-        run:
-          go test -failfast -race -coverpkg=./... -covermode=atomic
-          -coverprofile=coverage.txt ./...
+        run: go test -failfast -race -coverpkg=./... -covermode=atomic -coverprofile=coverage.txt ./...
       - name: Upload coverage reports to Codecov
         uses: codecov/codecov-action@v4
         env:
