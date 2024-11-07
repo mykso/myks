@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.2.4](https://github.com/mykso/myks/compare/v4.2.3...v4.2.4) (2024-11-07)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/ytt to v0.51.0 ([#342](https://github.com/mykso/myks/issues/342)) ([836e1fd](https://github.com/mykso/myks/commit/836e1fda537aefb1d66a7e0c3e5146529df9d09a))
+* **deps:** update module golang.org/x/term to v0.25.0 ([#338](https://github.com/mykso/myks/issues/338)) ([b94de99](https://github.com/mykso/myks/commit/b94de998a349113a66feab8793ea8906d9449374))
+
 ## [4.2.3](https://github.com/mykso/myks/compare/v4.2.2...v4.2.3) (2024-09-11)
 
 
