@@ -24,7 +24,7 @@ jobs:
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
-          file: ./coverage.txt
+          files: ./coverage.txt
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
