@@ -10,7 +10,8 @@ import (
 var allCmd = &cobra.Command{
 	Use:   "all",
 	Short: "Run sync and render",
-	Long:  "Run sync and render",
+	Long:  "Run sync and render for specified environments and applications",
+	Args:  cobra.RangeArgs(0, 2),
 	Annotations: map[string]string{
 		ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
 	},

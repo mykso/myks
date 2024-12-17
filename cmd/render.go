@@ -10,7 +10,7 @@ import (
 var renderCmd = &cobra.Command{
 	Use:   "render",
 	Short: "Render manifests",
-	Long:  "Render manifests",
+	Long:  "Render manifests for specified environments and applications",
 	Annotations: map[string]string{
 		ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
 	},
