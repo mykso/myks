@@ -1,5 +1,25 @@
 # Changelog
 
+## [4.2.5](https://github.com/mykso/myks/compare/v4.2.4...v4.2.5) (2024-12-10)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.43.0 ([#357](https://github.com/mykso/myks/issues/357)) ([ebf51cd](https://github.com/mykso/myks/commit/ebf51cdc5ed433a3440e0c8082648e7295a198a6))
+* **deps:** update module github.com/stretchr/testify to v1.10.0 ([#351](https://github.com/mykso/myks/issues/351)) ([a47b2ed](https://github.com/mykso/myks/commit/a47b2ed3fa1d77d49153a47246c5e09704919514))
+* **deps:** update module golang.org/x/sync to v0.10.0 ([#354](https://github.com/mykso/myks/issues/354)) ([7ed5e20](https://github.com/mykso/myks/commit/7ed5e20a8f01ba373ccd70c6761f4d77a9d1cd1a))
+* **deps:** update module golang.org/x/sync to v0.9.0 ([#345](https://github.com/mykso/myks/issues/345)) ([3abe265](https://github.com/mykso/myks/commit/3abe2650a586f83dc5417f7a63107bf0dee10743))
+* **deps:** update module golang.org/x/term to v0.26.0 ([#346](https://github.com/mykso/myks/issues/346)) ([edd9944](https://github.com/mykso/myks/commit/edd994416da29ba288dbf79a788aff2c6f317cae))
+* **deps:** update module golang.org/x/term to v0.27.0 ([#355](https://github.com/mykso/myks/issues/355)) ([78fe9b1](https://github.com/mykso/myks/commit/78fe9b1cb6dd17004e54cbfd81ee19fa42337fdb))
+
+## [4.2.4](https://github.com/mykso/myks/compare/v4.2.3...v4.2.4) (2024-11-07)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/ytt to v0.51.0 ([#342](https://github.com/mykso/myks/issues/342)) ([836e1fd](https://github.com/mykso/myks/commit/836e1fda537aefb1d66a7e0c3e5146529df9d09a))
+* **deps:** update module golang.org/x/term to v0.25.0 ([#338](https://github.com/mykso/myks/issues/338)) ([b94de99](https://github.com/mykso/myks/commit/b94de998a349113a66feab8793ea8906d9449374))
+
 ## [4.2.3](https://github.com/mykso/myks/compare/v4.2.2...v4.2.3) (2024-09-11)
 
 

@@ -28,39 +28,98 @@ var (
 	asyncLevel int
 )
 
+// Use this template for commands that accept environment and application arguments
+const envAppCommandUsageTemplate = `Usage:
+  {{.CommandPath}} [environments [applications]] [flags]
+
+Arguments:
+  0. When no arguments are provided, myks uses the Smart Mode to determine the environments and applications to process.
+     In Smart Mode, myks relies on git to only processes applications with changes.
+
+  1. environments    (Optional) Comma-separated list of environments or ALL
+                     ALL will process all environments
+                     Examples: ALL
+                               prod,stage,dev
+                               prod/region1,stage/region1
+                               dev
+
+  2. applications    (Optional) Comma-separated list of applications or ALL
+                     ALL will process all applications
+                     Example: app1,app2 or ALL
+
+{{if .HasAvailableFlags}}Flags:
+{{.Flags.FlagUsages | trimTrailingWhitespaces}}{{end}}
+
+Examples:
+  # Process all apps in production and staging
+  {{.CommandPath}} prod,stage ALL
+
+  # Process specific apps in all environments
+  {{.CommandPath}} ALL app1,app2
+
+  # Process specific apps in specific environments
+  {{.CommandPath}} prod,stage app1,app2
+`
+
 func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cobra.OnInitialize(initLogger)
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	cmd := newRootCmd(version, commit, date)
 	cmd.AddCommand(allCmd)
 	cmd.AddCommand(renderCmd)
+	cmd.AddCommand(syncCmd)
 	cmd.AddCommand(newCleanupCmd())
 	cmd.AddCommand(proto.Cmd)
 	cmd.AddCommand(newInitCmd())
 	cmd.AddCommand(newPrintConfigCmd())
-	cmd.AddCommand(newSyncCmd())
 	cmd.AddCommand(embedded.EmbeddedCmd("vendir", "Vendir is embedded in myks to manage vendir.yaml files."))
 	cmd.AddCommand(embedded.EmbeddedCmd("ytt", "Ytt is embedded in myks to manage yaml files."))
 	initConfig()
 	addPlugins(cmd)
+
+	allCmd.SetUsageTemplate(envAppCommandUsageTemplate)
+	renderCmd.SetUsageTemplate(envAppCommandUsageTemplate)
+	syncCmd.SetUsageTemplate(envAppCommandUsageTemplate)
+
 	return cmd
 }
 
 func newRootCmd(version, commit, date string) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "myks",
-		Short: "Myks helps to manage configuration for kubernetes clusters",
-		Long: `Myks fetches K8s workloads from a variety of sources, e.g. Helm charts or Git Repositories. It renders their respective yaml files to the file system in a structure of environments and their applications.
+		Short: "Myks generates Kubernetes manifests",
+		// TODO: Launch the documentation website and add a link here
+		Long: `
+Myks - Kubernetes Manifest Generator
 
-	It supports prototype applications that can be shared between environments and inheritance of configuration from parent environments to their "children".
+OVERVIEW
+  Myks simplifies Kubernetes manifest management through a standardized toolset
+  and GitOps-ready conventions.
 
-	Myks supports two positional arguments:
+CORE FEATURES
+  • External source management (via vendir)
+  • Helm chart rendering
+  • YAML templating and validation (via ytt)
+  • Idempotent output
+  • Automatic ArgoCD resource generation
+  • Environment-based configuration inheritance
+  • Intelligent change detection
 
-	- A comma-separated list of environments to render. If you provide "ALL", all environments will be rendered.
-	- A comma-separated list of applications to render. If you don't provide this argument or provide "ALL", all applications will be rendered.
+BASIC COMMANDS
+  init     Create a new Myks project in the current directory
+  sync     Download external dependencies
+  render   Generate Kubernetes manifests
+  all      Perform sync and render in one step
 
-	If you do not provide any positional arguments, myks will run in "Smart Mode". In Smart Mode, myks will only render environments and applications that have changed since the last run.
-	`,
+GETTING STARTED
+  1. Create a new project:    myks init
+  2. Download dependencies:   myks sync
+  3. Generate manifests:      myks render
+
+LEARN MORE
+  • Use 'myks <command> --help' for detailed information about a command
+  • Report issues at https://github.com/example/myks/issues
+`,
 	}
 
 	rootCmd.Version = fmt.Sprintf(`%s

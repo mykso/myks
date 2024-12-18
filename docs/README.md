@@ -101,6 +101,12 @@ brew tap mykso/tap
 brew install myks
 ```
 
+### Nix
+
+```
+nix-shell -p myks helm git
+```
+
 ### Download manually
 
 Download an archive for your OS from the
