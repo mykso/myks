@@ -2,6 +2,7 @@ package prototypes
 
 import (
 	"errors"
+	"os"
 )
 
 type Kind string
@@ -32,14 +33,30 @@ func (p *Prototype) GetSource(name string) (Source, bool) {
 	return Source{}, false
 }
 
-func (p *Prototype) AddSource(proto Source) {
+func (p *Prototype) AddSource(src Source) {
 	for i := range p.Sources {
-		if p.Sources[i].Name == proto.Name {
-			p.Sources[i] = proto
+		if p.Sources[i].Name == src.Name {
+			p.Sources[i] = src
 			return
 		}
 	}
-	p.Sources = append(p.Sources, proto)
+	// src is new, scaffold it
+	p.scaffoldSource(src)
+	p.Sources = append(p.Sources, src)
+}
+
+func (p *Prototype) scaffoldSource(src Source) error {
+	switch src.Kind {
+	case Helm:
+		err := os.MkdirAll(p.g.PrototypesDir+"/helm", os.ModePerm)
+		if err != nil {
+			return err
+		}
+		// create file
+		_, err = os.Create(p.g.PrototypesDir + "/helm/" + src.Name + ".yaml")
+		return err
+	}
+	return nil
 }
 
 func (p *Prototype) DelSource(name string) {
