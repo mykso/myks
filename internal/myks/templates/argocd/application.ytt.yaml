@@ -25,6 +25,7 @@ spec:
     namespace: #@ a.app.destination.namespace or a.app.name
   source:
     path: #@ a.app.source.path
+    #@ if/end a.app.source.plugin:
     plugin: #@ a.app.source.plugin
     repoURL: #@ a.app.source.repoURL
     targetRevision: #@ a.app.source.targetRevision
