@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.2.6](https://github.com/mykso/myks/compare/v4.2.5...v4.2.6) (2024-12-27)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/ytt to v0.51.1 ([#358](https://github.com/mykso/myks/issues/358)) ([e339a90](https://github.com/mykso/myks/commit/e339a90bf6fb0f38b883d44cfd9515e206f31926))
+* **docs:** overhaul help messages ([#362](https://github.com/mykso/myks/issues/362)) ([aa1f941](https://github.com/mykso/myks/commit/aa1f941d13dc341ec5f58c6e1f1a7cc684ff3a6e))
+* skip ArgoCD Application plugin if not set ([#365](https://github.com/mykso/myks/issues/365)) ([302667e](https://github.com/mykso/myks/commit/302667e607d5b7730b1dd28d5aca2cd584de53a8))
+
 ## [4.2.5](https://github.com/mykso/myks/compare/v4.2.4...v4.2.5) (2024-12-10)
 
 
