@@ -5,6 +5,8 @@ environment:
   #! applications:  # already defined one level above
   #!  - proto: httpbingo # already defined one level above
   applications:
+    - proto: ytt-render-test
+      name: argocd-tests
     - proto: helm-render-test
       name: helm-installation
     - proto: per-chart-override

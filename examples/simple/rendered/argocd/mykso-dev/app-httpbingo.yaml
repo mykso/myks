@@ -12,7 +12,6 @@ spec:
     namespace: httpbingo
   source:
     path: examples/simple/rendered/envs/mykso-dev/httpbingo
-    plugin: null
     repoURL: git@github.com:mykso/myks.git
     targetRevision: main
   syncPolicy:

@@ -1,17 +1,17 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: mykso-prod-httpbingo
-  namespace: argocd
+  name: app-mykso-dev-argocd-tests
+  namespace: system-argocd
   finalizers:
   - resources-finalizer.argocd.argoproj.io
 spec:
-  project: mykso-prod
+  project: env-mykso-dev
   destination:
-    name: mykso-prod
-    namespace: httpbingo
+    name: mykso-dev
+    namespace: argocd-tests
   source:
-    path: examples/simple/rendered/envs/mykso-prod/httpbingo
+    path: examples/integration-tests/rendered/envs/mykso-dev/argocd-tests
     repoURL: git@github.com:mykso/myks.git
     targetRevision: main
   syncPolicy:
