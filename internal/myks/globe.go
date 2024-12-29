@@ -46,7 +46,7 @@ type Globe struct {
 	// Data values schema file name
 	DataSchemaFileName string `default:"data-schema.ytt.yaml"`
 	// Application data file name
-	ApplicationDataFileName string `default:"app-data.ytt.yaml"`
+	ApplicationDataFileName string `default:"app-data.*.yaml"`
 	// Environment data file name
 	EnvironmentDataFileName string `default:"env-data.ytt.yaml"`
 	// Rendered environment data file name

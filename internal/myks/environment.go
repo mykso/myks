@@ -359,8 +359,8 @@ func (e *Environment) collectBySubpath(subpath string) []string {
 		}
 		currentPath = filepath.Join(currentPath, level)
 		item := filepath.Join(currentPath, subpath)
-		if ok, err := isExist(item); ok && err == nil {
-			items = append(items, item)
+		if files, err := filepath.Glob(item); err == nil {
+			items = append(items, files...)
 		}
 	}
 	return items

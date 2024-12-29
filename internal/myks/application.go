@@ -119,13 +119,14 @@ func (a *Application) collectDataFiles() {
 	a.yttDataFiles = append(a.yttDataFiles, environmentDataFiles...)
 
 	protoDataFile := filepath.Join(a.Prototype, a.e.g.ApplicationDataFileName)
-	if ok, err := isExist(protoDataFile); ok && err == nil {
-		a.yttDataFiles = append(a.yttDataFiles, protoDataFile)
+	if files, err := filepath.Glob(protoDataFile); err == nil {
+		a.yttDataFiles = append(a.yttDataFiles, files...)
 	}
 
 	protoOverrideDataFiles := a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), a.e.g.ApplicationDataFileName))
 	a.yttDataFiles = append(a.yttDataFiles, protoOverrideDataFiles...)
-	overrideDataFiles := append(protoOverrideDataFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.ApplicationDataFileName))...)
+
+	overrideDataFiles := a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.ApplicationDataFileName))
 	a.yttDataFiles = append(a.yttDataFiles, overrideDataFiles...)
 }
 
