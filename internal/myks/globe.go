@@ -46,9 +46,9 @@ type Globe struct {
 	// Data values schema file name
 	DataSchemaFileName string `default:"data-schema.ytt.yaml"`
 	// Application data file name
-	ApplicationDataFileName string `default:"app-data.*.yaml"`
+	ApplicationDataFileName string `default:"app-data*.yaml"`
 	// Environment data file name
-	EnvironmentDataFileName string `default:"env-data.ytt.yaml"`
+	EnvironmentDataFileName string `default:"env-data*.yaml"`
 	// Rendered environment data file name
 	RenderedEnvironmentDataFileName string `default:"env-data.yaml"`
 	// Myks runtime data file name
@@ -406,20 +406,27 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 			return err
 		}
 		if d != nil && d.IsDir() {
-			if ok, err := isExist(filepath.Join(path, g.EnvironmentDataFileName)); err != nil {
+			files, err := filepath.Glob(filepath.Join(path, g.EnvironmentDataFileName))
+			if err != nil {
 				return err
-			} else if ok {
-				env, err := NewEnvironment(g, path)
+			}
+			if len(files) == 0 {
+				return nil
+			}
+			// Try all files in the directory until a valid environment is found
+			for _, file := range files {
+				env, err := NewEnvironment(g, path, file)
 				if err == nil {
 					g.environments[path] = env
 					result = append(result, path)
-				} else {
-					log.Debug().
-						Err(err).
-						Str("path", path).
-						Msg("Unable to collect environment, might be base or parent environment. Skipping")
+					return nil
 				}
 			}
+			log.Debug().
+				Str("path", path).
+				Strs("files", files).
+				Msg("Unable to collect environment, might be base or parent environment. Skipping")
+
 		}
 		return nil
 	})

@@ -34,9 +34,7 @@ type Environment struct {
 	foundApplications map[string]string
 }
 
-func NewEnvironment(g *Globe, dir string) (*Environment, error) {
-	envDataFile := filepath.Join(dir, g.EnvironmentDataFileName)
-
+func NewEnvironment(g *Globe, dir string, envDataFile string) (*Environment, error) {
 	env := &Environment{
 		Dir:                     dir,
 		EnvironmentDataFile:     envDataFile,
