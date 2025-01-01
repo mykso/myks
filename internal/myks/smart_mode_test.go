@@ -238,7 +238,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		},
 		{
 			"change to app",
-			ChangedFiles{"envs/env1/_apps/app1/app-data.ytt.yaml": "M"},
+			ChangedFiles{"envs/env1/_apps/app1/app-data.variable.yaml": "M"},
 			renderedEnvApps,
 			EnvAppMap{
 				"envs/env1": {"app1"},

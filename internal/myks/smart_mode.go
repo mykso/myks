@@ -66,6 +66,13 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		return regexp.MustCompile("^" + g.GitPathPrefix + sample + "$")
 	}
 
+	globToRegexp := func(glob string) string {
+		r := glob
+		r = strings.ReplaceAll(r, ".", "\\.")
+		r = strings.ReplaceAll(r, "*", ".*")
+		return r
+	}
+
 	// Subdirectories of apps and prototypes are named after plugins
 	plugins := []string{
 		g.ArgoCDDataDirName,
@@ -86,17 +93,17 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		"env": {
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvsDir + "/" + g.YttStepDirName + "/.*"),
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvsDir + "/" + g.ArgoCDDataDirName + "/.*"),
-			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvironmentDataFileName),
+			e("(" + g.EnvironmentBaseDir + ".*)/" + globToRegexp(g.EnvironmentDataFileName)),
 		},
 		// Prototype name is the only submatch
 		"prototype": {
 			e(g.PrototypesDir + "/(.+)/" + pluginsPattern + "/.*"),
-			e(g.PrototypesDir + "/(.+)/" + g.ApplicationDataFileName),
+			e(g.PrototypesDir + "/(.+)/" + globToRegexp(g.ApplicationDataFileName)),
 		},
 		// Env path and app name are the submatches
 		"app": {
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + pluginsPattern + "/.*"),
-			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + g.ApplicationDataFileName),
+			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + globToRegexp(g.ApplicationDataFileName)),
 		},
 	}
 

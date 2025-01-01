@@ -34,9 +34,7 @@ type Environment struct {
 	foundApplications map[string]string
 }
 
-func NewEnvironment(g *Globe, dir string) (*Environment, error) {
-	envDataFile := filepath.Join(dir, g.EnvironmentDataFileName)
-
+func NewEnvironment(g *Globe, dir string, envDataFile string) (*Environment, error) {
 	env := &Environment{
 		Dir:                     dir,
 		EnvironmentDataFile:     envDataFile,
@@ -359,8 +357,8 @@ func (e *Environment) collectBySubpath(subpath string) []string {
 		}
 		currentPath = filepath.Join(currentPath, level)
 		item := filepath.Join(currentPath, subpath)
-		if ok, err := isExist(item); ok && err == nil {
-			items = append(items, item)
+		if files, err := filepath.Glob(item); err == nil {
+			items = append(items, files...)
 		}
 	}
 	return items
