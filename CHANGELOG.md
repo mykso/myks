@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.3.0](https://github.com/mykso/myks/compare/v4.2.6...v4.3.0) (2025-01-01)
+
+
+### Features
+
+* allow multiple files for app and env-data on each level ([#366](https://github.com/mykso/myks/issues/366)) ([3b2f68f](https://github.com/mykso/myks/commit/3b2f68f382a32c18297dc9b612f21a2a4c6cb250))
+
 ## [4.2.6](https://github.com/mykso/myks/compare/v4.2.5...v4.2.6) (2024-12-27)
 
 
