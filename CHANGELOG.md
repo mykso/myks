@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.3.1](https://github.com/mykso/myks/compare/v4.3.0...v4.3.1) (2025-01-06)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.15.0 ([#370](https://github.com/mykso/myks/issues/370)) ([1916955](https://github.com/mykso/myks/commit/19169557ed40f7dc561dbd52db5d518b7e4a4d01))
+* **deps:** update module golang.org/x/term to v0.28.0 ([#368](https://github.com/mykso/myks/issues/368)) ([cb36943](https://github.com/mykso/myks/commit/cb369437cf77cf4bb939a72115fa79e4c9e7e247))
+
 ## [4.3.0](https://github.com/mykso/myks/compare/v4.2.6...v4.3.0) (2025-01-01)
 
 
