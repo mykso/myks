@@ -106,7 +106,9 @@ helm:
   #! See https://github.com/carvel-dev/ytt/issues/656 for more information.
   #@schema/validation ("chart names must be unique", lambda x: len(set([c["name"] for c in x])) == len(x))
   charts:
-    - buildDependencies: false
+    - #@schema/nullable
+      buildDependencies: false
+      #@schema/nullable
       includeCRDs: false
       #@schema/validation min_len=1
       name: ""
