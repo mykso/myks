@@ -106,14 +106,14 @@ helm:
   #! See https://github.com/carvel-dev/ytt/issues/656 for more information.
   #@schema/validation ("chart names must be unique", lambda x: len(set([c["name"] for c in x])) == len(x))
   charts:
-    - #@schema/nullable
+    - releaseName: ""
+      #@schema/nullable
       buildDependencies: false
       #@schema/nullable
       includeCRDs: false
       #@schema/validation min_len=1
       name: ""
       namespace: ""
-      releaseName: ""
 #! Configuration of the step that renders ytt-packages.
 yttPkg:
   #! A ytt-package can be rendered as a whole, or can contain multiple sub-packages that should be rendered separately.
