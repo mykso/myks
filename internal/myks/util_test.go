@@ -34,7 +34,7 @@ func Test_hash(t *testing.T) {
 	}
 }
 
-func Test_sortYaml(t *testing.T) {
+func Test_mapToStableString(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    map[string]interface{}
@@ -62,13 +62,13 @@ func Test_sortYaml(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := sortYaml(tt.args)
+			got, err := mapToStableString(tt.args)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("sortYaml() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("mapToStableString() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("sortYaml() got = %v, wantArgs %v", got, tt.want)
+				t.Errorf("mapToStableString() got = %v, wantArgs %v", got, tt.want)
 			}
 		})
 	}

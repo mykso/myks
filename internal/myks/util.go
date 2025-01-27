@@ -176,7 +176,7 @@ func unmarshalYamlToMap(filePath string) (map[string]interface{}, error) {
 	return config, nil
 }
 
-func sortYaml(yaml map[string]interface{}) (string, error) {
+func mapToStableString(yaml map[string]interface{}) (string, error) {
 	if yaml == nil {
 		return "", nil
 	}
