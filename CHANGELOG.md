@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.3.2](https://github.com/mykso/myks/compare/v4.3.1...v4.3.2) (2025-01-27)
+
+
+### Bug Fixes
+
+* ensure buildDependencies is nullable ([#378](https://github.com/mykso/myks/issues/378)) ([4e65a3e](https://github.com/mykso/myks/commit/4e65a3ea59ec2429b18b0ae1434f514ae23c9f09))
+
 ## [4.3.1](https://github.com/mykso/myks/compare/v4.3.0...v4.3.1) (2025-01-23)
 
 
