@@ -49,6 +49,10 @@ func (e *Environment) renderArgoCD() (err error) {
 	if err != nil {
 		return err
 	}
+	if res.Stdout == "" {
+		log.Info().Msg(e.Msg("ArgoCD environment (AppProject and repository Secret) yaml is empty"))
+		return nil
+	}
 
 	argoDestinationPath := filepath.Join(e.getArgoCDDestinationDir(), getArgoCDEnvFileName(e.ID))
 	return writeFile(argoDestinationPath, []byte(res.Stdout))
