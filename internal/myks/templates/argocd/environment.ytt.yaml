@@ -6,6 +6,7 @@
 #@ env_name = a.env.prefix + (a.env.name or e.id)
 #@ project_name = a.project.name or a.project.prefix + (a.env.name or e.id)
 
+#@ if/end a.project.enabled:
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
