@@ -188,6 +188,22 @@ func mapToStableString(yaml map[string]interface{}) (string, error) {
 	return sorted.String(), nil
 }
 
+func sortYaml(content []byte) ([]byte, error) {
+	var obj map[string]interface{}
+	if err := yaml.Unmarshal(content, &obj); err != nil {
+		return nil, err
+	}
+
+	var data bytes.Buffer
+	enc := yaml.NewEncoder(&data)
+	enc.SetIndent(2)
+	err := enc.Encode(obj)
+	if err != nil {
+		return nil, err
+	}
+	return data.Bytes(), nil
+}
+
 func hashString(s string) string {
 	h := fnv.New64a()
 	h.Write([]byte(s))

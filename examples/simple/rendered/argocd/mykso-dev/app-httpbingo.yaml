@@ -1,15 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
   name: mykso-dev-httpbingo
   namespace: argocd
-  finalizers:
-  - resources-finalizer.argocd.argoproj.io
 spec:
-  project: mykso-dev
   destination:
     name: mykso-dev
     namespace: httpbingo
+  project: mykso-dev
   source:
     path: examples/simple/rendered/envs/mykso-dev/httpbingo
     repoURL: git@github.com:mykso/myks.git
@@ -19,5 +19,5 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-    - CreateNamespace=true
-    - ServerSideApply=true
+      - CreateNamespace=true
+      - ServerSideApply=true
