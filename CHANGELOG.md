@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.4.0](https://github.com/mykso/myks/compare/v4.3.2...v4.4.0) (2025-01-28)
+
+
+### Features
+
+* add argocd.project.enabled option ([753ad11](https://github.com/mykso/myks/commit/753ad1112e9331cec7ae2b976a01f10a86add058))
+
+
+### Bug Fixes
+
+* skip creation of empty ArgoCD environment file ([dfcb78b](https://github.com/mykso/myks/commit/dfcb78b7f87d475e94c02c4008b8da709402636d))
+* sort ArgoCD Application YAML ([600cfa9](https://github.com/mykso/myks/commit/600cfa9feda23c5455db799ff917a6a96e253d76))
+* use argocd.project.name if set ([8e0fabd](https://github.com/mykso/myks/commit/8e0fabd4b107af4cffa733fce9463cb6da34a7b9))
+
 ## [4.3.2](https://github.com/mykso/myks/compare/v4.3.1...v4.3.2) (2025-01-27)
 
 
