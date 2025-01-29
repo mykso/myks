@@ -21,15 +21,17 @@ func (g *GlobalYtt) IsAdditive() bool {
 }
 
 func (g *GlobalYtt) Render(previousStepFile string) (string, error) {
-	var yttFiles []string
-
-	yttFiles = append(yttFiles, g.app.yttDataFiles...)
+	yttFiles := make([]string, len(g.app.yttDataFiles))
+	copy(yttFiles, g.app.yttDataFiles)
 
 	if previousStepFile != "" {
 		yttFiles = append(yttFiles, previousStepFile)
 	}
 
-	yttFiles = append(yttFiles, g.app.e.collectBySubpath(filepath.Join(g.app.e.g.EnvsDir, g.app.e.g.YttStepDirName))...)
+	// Global or environment-specific ytt files.
+	// By default, located in `envs/<env>/_env/ytt`.
+	globalYttFiles := g.app.e.collectBySubpath(filepath.Join(g.app.e.g.EnvsDir, g.app.e.g.YttStepDirName))
+	yttFiles = append(yttFiles, globalYttFiles...)
 
 	if len(yttFiles) == 0 {
 		log.Debug().Msg(g.app.Msg(globalYttStepName, "No ytt files found"))
