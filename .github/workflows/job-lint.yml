@@ -1,4 +1,4 @@
-name: "job-lint"
+name: 'job-lint'
 
 on:
   workflow_call:
@@ -8,12 +8,15 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
-          go-version: "1.22"
+          fetch-depth: 0
+      - uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5
+        with:
           cache: false
+          go-version-file: go.mod
       - name: Install gofumpt
-        uses: jaxxstorm/action-install-gh-release@v1.12.0
+        uses: jaxxstorm/action-install-gh-release@cd6b2b78ad38bdd294341cda064ec0692b06215b # v1.14.0
         with:
           repo: mvdan/gofumpt
           tag: v0.5.0
@@ -21,9 +24,6 @@ jobs:
           extension-matching: nah
           rename-to: gofumpt
           chmod: 0700
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - name: Check code formatting
         run: |
           set -euo pipefail
@@ -34,4 +34,4 @@ jobs:
             ) \
             | tee /dev/stderr \
             | test $(wc -l) -eq 0
-      - uses: golangci/golangci-lint-action@v6
+      - uses: golangci/golangci-lint-action@ec5d18412c0aeab7936cb16880d708ba2a64e1ae # v6

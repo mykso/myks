@@ -4,8 +4,9 @@
 #@ e = data.values.environment
 
 #@ env_name = a.env.prefix + (a.env.name or e.id)
-#@ project_name = a.project.prefix + (a.env.name or e.id)
+#@ project_name = a.project.name or a.project.prefix + (a.env.name or e.id)
 
+#@ if/end a.project.enabled:
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: AppProject
@@ -18,8 +19,8 @@ metadata:
 spec:
   description: #@ 'Project for "{}" environment'.format(env_name)
   clusterResourceWhitelist:
-    - group: "*"
-      kind: "*"
+    - group: '*'
+      kind: '*'
   destinations:
     - namespace: #@ a.project.destination.namespace
       #@ if a.project.destination.server:
@@ -28,10 +29,10 @@ spec:
       name: #@ a.project.destination.name or env_name
       #@ end
   namespaceResourceWhitelist:
-    - group: "*"
-      kind: "*"
+    - group: '*'
+      kind: '*'
   sourceRepos:
-    - "*"
+    - '*'
 
 #@ if/end a.env.generateSecret:
 ---

@@ -1,15 +1,15 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
   name: app-mykso-dev-static-test
   namespace: system-argocd
-  finalizers:
-  - resources-finalizer.argocd.argoproj.io
 spec:
-  project: env-mykso-dev
   destination:
     name: mykso-dev
     namespace: static-test
+  project: env-mykso-dev
   source:
     path: examples/integration-tests/rendered/envs/mykso-dev/static-test
     plugin:
@@ -21,5 +21,5 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-    - CreateNamespace=true
-    - ServerSideApply=true
+      - CreateNamespace=true
+      - ServerSideApply=true

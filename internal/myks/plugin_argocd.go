@@ -49,6 +49,10 @@ func (e *Environment) renderArgoCD() (err error) {
 	if err != nil {
 		return err
 	}
+	if res.Stdout == "" {
+		log.Info().Msg(e.Msg("ArgoCD environment (AppProject and repository Secret) yaml is empty"))
+		return nil
+	}
 
 	argoDestinationPath := filepath.Join(e.getArgoCDDestinationDir(), getArgoCDEnvFileName(e.ID))
 	return writeFile(argoDestinationPath, []byte(res.Stdout))
@@ -96,12 +100,18 @@ func (a *Application) renderArgoCD() error {
 		log.Error().Err(err).
 			Str("stdout", res.Stdout).
 			Str("stderr", res.Stderr).
-			Msg(a.Msg("argocd", "failed to render ArgoCD Application yaml"))
+			Msg(a.Msg(ArgoCDStepName, "failed to render ArgoCD Application yaml"))
+		return err
+	}
+
+	sortedBytes, err := sortYaml([]byte(res.Stdout))
+	if err != nil {
+		log.Error().Err(err).Msg(a.Msg(ArgoCDStepName, "failed to sort ArgoCD Application yaml"))
 		return err
 	}
 
 	argoDestinationPath := filepath.Join(a.getArgoCDDestinationDir(), getArgoCDAppFileName(a.Name))
-	return writeFile(argoDestinationPath, []byte(res.Stdout))
+	return writeFile(argoDestinationPath, sortedBytes)
 }
 
 func (a *Application) argoCDPrepareDefaults() (filename string, err error) {

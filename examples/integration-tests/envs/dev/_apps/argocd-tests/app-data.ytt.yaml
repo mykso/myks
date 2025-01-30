@@ -1,0 +1,6 @@
+#@data/values
+---
+argocd:
+  app:
+    source:
+      plugin: null

@@ -176,7 +176,7 @@ func unmarshalYamlToMap(filePath string) (map[string]interface{}, error) {
 	return config, nil
 }
 
-func sortYaml(yaml map[string]interface{}) (string, error) {
+func mapToStableString(yaml map[string]interface{}) (string, error) {
 	if yaml == nil {
 		return "", nil
 	}
@@ -186,6 +186,22 @@ func sortYaml(yaml map[string]interface{}) (string, error) {
 		return "", err
 	}
 	return sorted.String(), nil
+}
+
+func sortYaml(content []byte) ([]byte, error) {
+	var obj map[string]interface{}
+	if err := yaml.Unmarshal(content, &obj); err != nil {
+		return nil, err
+	}
+
+	var data bytes.Buffer
+	enc := yaml.NewEncoder(&data)
+	enc.SetIndent(2)
+	err := enc.Encode(obj)
+	if err != nil {
+		return nil, err
+	}
+	return data.Bytes(), nil
 }
 
 func hashString(s string) string {

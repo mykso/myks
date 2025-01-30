@@ -3,17 +3,15 @@ kind: Application
 metadata:
   finalizers:
     - resources-finalizer.argocd.argoproj.io
-  name: app-mykso-dev-ytt-installation
+  name: app-mykso-dev-argocd-tests
   namespace: system-argocd
 spec:
   destination:
     name: mykso-dev
-    namespace: ytt-installation
+    namespace: argocd-tests
   project: env-mykso-dev
   source:
-    path: examples/integration-tests/rendered/envs/mykso-dev/ytt-installation
-    plugin:
-      name: argocd-vault-plugin-v1.0.0
+    path: examples/integration-tests/rendered/envs/mykso-dev/argocd-tests
     repoURL: git@github.com:mykso/myks.git
     targetRevision: main
   syncPolicy:

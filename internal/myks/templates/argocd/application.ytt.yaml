@@ -5,7 +5,7 @@
 
 #@ app_name = a.app.prefix + (a.env.name or e.id) + "-" + a.app.name
 #@ env_name = a.env.prefix + (a.env.name or e.id)
-#@ project_name = a.project.prefix + (a.env.name or e.id)
+#@ project_name = a.project.name or a.project.prefix + (a.env.name or e.id)
 
 ---
 apiVersion: argoproj.io/v1alpha1
@@ -25,6 +25,7 @@ spec:
     namespace: #@ a.app.destination.namespace or a.app.name
   source:
     path: #@ a.app.source.path
+    #@ if/end a.app.source.plugin:
     plugin: #@ a.app.source.plugin
     repoURL: #@ a.app.source.repoURL
     targetRevision: #@ a.app.source.targetRevision

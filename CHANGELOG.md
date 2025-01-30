@@ -1,5 +1,71 @@
 # Changelog
 
+## [4.4.0](https://github.com/mykso/myks/compare/v4.3.2...v4.4.0) (2025-01-28)
+
+
+### Features
+
+* add argocd.project.enabled option ([753ad11](https://github.com/mykso/myks/commit/753ad1112e9331cec7ae2b976a01f10a86add058))
+
+
+### Bug Fixes
+
+* skip creation of empty ArgoCD environment file ([dfcb78b](https://github.com/mykso/myks/commit/dfcb78b7f87d475e94c02c4008b8da709402636d))
+* sort ArgoCD Application YAML ([600cfa9](https://github.com/mykso/myks/commit/600cfa9feda23c5455db799ff917a6a96e253d76))
+* use argocd.project.name if set ([8e0fabd](https://github.com/mykso/myks/commit/8e0fabd4b107af4cffa733fce9463cb6da34a7b9))
+
+## [4.3.2](https://github.com/mykso/myks/compare/v4.3.1...v4.3.2) (2025-01-27)
+
+
+### Bug Fixes
+
+* ensure buildDependencies is nullable ([#378](https://github.com/mykso/myks/issues/378)) ([4e65a3e](https://github.com/mykso/myks/commit/4e65a3ea59ec2429b18b0ae1434f514ae23c9f09))
+
+## [4.3.1](https://github.com/mykso/myks/compare/v4.3.0...v4.3.1) (2025-01-23)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.15.0 ([#370](https://github.com/mykso/myks/issues/370)) ([1916955](https://github.com/mykso/myks/commit/19169557ed40f7dc561dbd52db5d518b7e4a4d01))
+* **deps:** update module golang.org/x/term to v0.28.0 ([#368](https://github.com/mykso/myks/issues/368)) ([cb36943](https://github.com/mykso/myks/commit/cb369437cf77cf4bb939a72115fa79e4c9e7e247))
+* make per-chart helm options nullable ([#374](https://github.com/mykso/myks/issues/374)) ([4fd9713](https://github.com/mykso/myks/commit/4fd9713374519dec6593808b325480b4e7655dff))
+
+## [4.3.0](https://github.com/mykso/myks/compare/v4.2.6...v4.3.0) (2025-01-01)
+
+
+### Features
+
+* allow multiple files for app and env-data on each level ([#366](https://github.com/mykso/myks/issues/366)) ([3b2f68f](https://github.com/mykso/myks/commit/3b2f68f382a32c18297dc9b612f21a2a4c6cb250))
+
+## [4.2.6](https://github.com/mykso/myks/compare/v4.2.5...v4.2.6) (2024-12-27)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/ytt to v0.51.1 ([#358](https://github.com/mykso/myks/issues/358)) ([e339a90](https://github.com/mykso/myks/commit/e339a90bf6fb0f38b883d44cfd9515e206f31926))
+* **docs:** overhaul help messages ([#362](https://github.com/mykso/myks/issues/362)) ([aa1f941](https://github.com/mykso/myks/commit/aa1f941d13dc341ec5f58c6e1f1a7cc684ff3a6e))
+* skip ArgoCD Application plugin if not set ([#365](https://github.com/mykso/myks/issues/365)) ([302667e](https://github.com/mykso/myks/commit/302667e607d5b7730b1dd28d5aca2cd584de53a8))
+
+## [4.2.5](https://github.com/mykso/myks/compare/v4.2.4...v4.2.5) (2024-12-10)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.43.0 ([#357](https://github.com/mykso/myks/issues/357)) ([ebf51cd](https://github.com/mykso/myks/commit/ebf51cdc5ed433a3440e0c8082648e7295a198a6))
+* **deps:** update module github.com/stretchr/testify to v1.10.0 ([#351](https://github.com/mykso/myks/issues/351)) ([a47b2ed](https://github.com/mykso/myks/commit/a47b2ed3fa1d77d49153a47246c5e09704919514))
+* **deps:** update module golang.org/x/sync to v0.10.0 ([#354](https://github.com/mykso/myks/issues/354)) ([7ed5e20](https://github.com/mykso/myks/commit/7ed5e20a8f01ba373ccd70c6761f4d77a9d1cd1a))
+* **deps:** update module golang.org/x/sync to v0.9.0 ([#345](https://github.com/mykso/myks/issues/345)) ([3abe265](https://github.com/mykso/myks/commit/3abe2650a586f83dc5417f7a63107bf0dee10743))
+* **deps:** update module golang.org/x/term to v0.26.0 ([#346](https://github.com/mykso/myks/issues/346)) ([edd9944](https://github.com/mykso/myks/commit/edd994416da29ba288dbf79a788aff2c6f317cae))
+* **deps:** update module golang.org/x/term to v0.27.0 ([#355](https://github.com/mykso/myks/issues/355)) ([78fe9b1](https://github.com/mykso/myks/commit/78fe9b1cb6dd17004e54cbfd81ee19fa42337fdb))
+
+## [4.2.4](https://github.com/mykso/myks/compare/v4.2.3...v4.2.4) (2024-11-07)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/ytt to v0.51.0 ([#342](https://github.com/mykso/myks/issues/342)) ([836e1fd](https://github.com/mykso/myks/commit/836e1fda537aefb1d66a7e0c3e5146529df9d09a))
+* **deps:** update module golang.org/x/term to v0.25.0 ([#338](https://github.com/mykso/myks/issues/338)) ([b94de99](https://github.com/mykso/myks/commit/b94de998a349113a66feab8793ea8906d9449374))
+
 ## [4.2.3](https://github.com/mykso/myks/compare/v4.2.2...v4.2.3) (2024-09-11)
 
 

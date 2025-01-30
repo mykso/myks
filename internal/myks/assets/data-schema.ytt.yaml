@@ -17,101 +17,107 @@ argocd:
   namespace: argocd
   app:
     #! If not set, the name of the currently rendered application is used.
-    name: ""
+    name: ''
     #! Prefix of the ArgoCD application name.
-    prefix: ""
+    prefix: ''
     #! List of finalizers of the ArgoCD application.
     #! See https://github.com/argoproj/argo-cd/blob/dc8d7290/docs/user-guide/app_deletion.md
     #@schema/default ["resources-finalizer.argocd.argoproj.io"]
-    finalizers: [""]
+    finalizers: ['']
     destination:
       #! spec.destination.name of the ArgoCD application.
       #! If not set, defaults to the name of the current environment.
-      name: ""
+      name: ''
       #! spec.destination.server of the ArgoCD application.
       #! If set, used instead of spec.destination.name.
-      server: ""
+      server: ''
       #! spec.destination.namespace of the ArgoCD application.
       #! If not set, defaults to argocd.app.name.
-      namespace: ""
+      namespace: ''
     source:
       #! spec.source.path of the ArgoCD application.
       #! If not set, defaults to the destination path of the currently rendered application.
       #! With the default myks configuration: `rendered/envs/<environment.id>/<app.name>`
-      path: ""
+      path: ''
       #! spec.source.plugin of the ArgoCD application.
       #@schema/type any=True
       plugin:
       #! spec.source.repoURL of the ArgoCD application.
       #! If not set, defaults to the current git repository URL.
-      repoURL: ""
+      repoURL: ''
       #! spec.source.targetRevision of the ArgoCD application.
       #! If not set, defaults to the current git branch.
-      targetRevision: ""
+      targetRevision: ''
   env:
     #! If not set, the name of the currently rendered environment is used (environment.id).
-    name: ""
+    name: ''
     #! Prefix of a target cluster name.
-    prefix: ""
+    prefix: ''
     #! If set to true, a dummy secret is generated for the target cluster.
     #! The user has to create an overlay to set correct values for the secret.
     #! See https://argo-cd.readthedocs.io/en/release-2.8/operator-manual/declarative-setup/#clusters
     #! TODO: add link to the example overlay.
     generateSecret: true
   project:
+    #! Set to false to disable rendering of the AppProject resource.
+    #! This can be useful when the AppProject is managed by another tool.
+    #! In this case, project.name should be set to the name of the existing AppProject.
+    enabled: true
     #! If not set, the name of the currently rendered environment is used (environment.id).
-    name: ""
+    name: ''
     #! Prefix of the ArgoCD project name.
-    prefix: ""
+    prefix: ''
     #! spec.destination[0] of the ArgoCD project.
     #! Add more destinations via overlays, if needed.
     destination:
       #! spec.destination.name of the ArgoCD project.
       #! If not set, defaults to the name of the current environment.
-      name: ""
+      name: ''
       #! spec.destination.server of the ArgoCD project.
       #! If set, used instead of spec.destination.name.
-      server: ""
+      server: ''
       #! spec.destination.namespace of the ArgoCD project.
       #! By default, all namespaces are allowed.
-      namespace: "*"
+      namespace: '*'
 environment:
   #! Unique identifier of the environment, required by myks.
   #@schema/validation min_len=1
   #@schema/nullable
-  id: ""
+  id: ''
   #! List of applications to be deployed in the environment.
   applications:
     - #! Prototype of the application.
       #@schema/validation min_len=1
-      proto: ""
+      proto: ''
       #! Name of the application. If not defined, the name of the prototype is used.
-      name: ""
+      name: ''
 #! Configuration of the step that renders Helm charts.
 helm:
   #! If true, run "helm dependency build" before rendering. This is required for helm charts with dependencies that are pulled from git repositories.
   buildDependencies: false
   #! If defined, passed as `--api-version` for `helm-template`.
   capabilities:
-    - "" #! e.g. "monitoring.coreos.com/v1"
+    - '' #! e.g. "monitoring.coreos.com/v1"
   #! If true, adds `--include-crds` flag to `helm template`.
   includeCRDs: true
   #! If defined, passed as a value of `--kube-version` for `helm template`.
-  kubeVersion: ""
+  kubeVersion: ''
   #! If defined, passed as a value of `--namespace` for `helm template`.
-  namespace: ""
+  namespace: ''
   #! Per-chart configuration. Values override the global configuration.
   #! The `name` field is used to match the chart in the `charts` directory.
   #! The list is used instead of a map due to a limitation in ytt schema spec.
   #! See https://github.com/carvel-dev/ytt/issues/656 for more information.
   #@schema/validation ("chart names must be unique", lambda x: len(set([c["name"] for c in x])) == len(x))
   charts:
-    - buildDependencies: false
+    - releaseName: ''
+      #@schema/nullable
+      buildDependencies: false
+      #@schema/nullable
       includeCRDs: false
       #@schema/validation min_len=1
-      name: ""
-      namespace: ""
-      releaseName: ""
+      name: ''
+      namespace: ''
 #! Configuration of the step that renders ytt-packages.
 yttPkg:
   #! A ytt-package can be rendered as a whole, or can contain multiple sub-packages that should be rendered separately.
@@ -119,7 +125,7 @@ yttPkg:
   #! If empty, the whole package is rendered at once.
   #! Example: ["sub1", "sub2", "nested/sub3", "nested/sub4"]
   dirs:
-    - ""
+    - ''
 #! Configuration options for the render step.
 render:
   #! If true, the render output file names will include the namespace
@@ -128,15 +134,15 @@ render:
 #! Default values for these options are set by myks.
 myks:
   #! Set to the current git branch if available.
-  gitRepoBranch: ""
+  gitRepoBranch: ''
   #! Set to the current git repository URL if available.
-  gitRepoUrl: ""
+  gitRepoUrl: ''
   #! context of the current operation
   #! EXPERIMENTAL: this configuration section can be changed in the future
   context:
     #! application name currently being processed
-    app: ""
+    app: ''
     #! name of prototype including full path (e.g. prototypes/argocd)
-    prototype: ""
+    prototype: ''
     #! rendering step: init, argocd, global_ytt, helm, ytt-pkg, ytt
-    step: ""
+    step: ''

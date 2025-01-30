@@ -24,7 +24,7 @@ func genCacheName(config map[string]interface{}) (string, error) {
 }
 
 func defaultCacheNamer(config map[string]interface{}) (string, error) {
-	yaml, err := sortYaml(config)
+	yaml, err := mapToStableString(config)
 	if err != nil {
 		return "", err
 	}
@@ -32,7 +32,7 @@ func defaultCacheNamer(config map[string]interface{}) (string, error) {
 }
 
 func helmCacheNamer(config map[string]interface{}) (string, error) {
-	yaml, err := sortYaml(config)
+	yaml, err := mapToStableString(config)
 	if err != nil {
 		return "", err
 	}
@@ -48,7 +48,7 @@ func helmCacheNamer(config map[string]interface{}) (string, error) {
 }
 
 func gitCacheNamer(config map[string]interface{}) (string, error) {
-	yaml, err := sortYaml(config)
+	yaml, err := mapToStableString(config)
 	if err != nil {
 		return "", err
 	}
@@ -68,7 +68,7 @@ func gitCacheNamer(config map[string]interface{}) (string, error) {
 }
 
 func directoryCacheNamer(config map[string]interface{}) (string, error) {
-	yaml, err := sortYaml(config)
+	yaml, err := mapToStableString(config)
 	if err != nil {
 		return "", err
 	}
