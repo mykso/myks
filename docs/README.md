@@ -103,9 +103,20 @@ brew install myks
 
 ### Nix
 
+The package is available in the Nixpkgs repository under the name
+[`myks`](https://search.nixos.org/packages?channel=unstable&show=myks&from=0&size=50&sort=relevance&type=packages&query=myks).
+
 ```
-nix-shell -p myks helm git
+nix-shell -p myks kubernetes-helm git
 ```
+
+> [!NOTE]  
+> The version in Nixpkgs is falling behind the latest release. If you need the
+> latest version, use the flake.
+>
+> ```shell
+> nix shell 'github:mykso/myks/main#myks' 'nixpkgs#helm' 'nixpkgs#git'
+> ```
 
 ### Download manually
 
@@ -227,7 +238,7 @@ Here are some of the requirements we had:
 - to have automatic updates and version management;
 - to provide a single source of truth for the configuration.
 
-[//]: # "Links"
+[//]: # 'Links'
 [ArgoCD]: https://argoproj.github.io/cd/
 [helm]: https://helm.sh/
 [sops]: https://github.com/getsops/sops
