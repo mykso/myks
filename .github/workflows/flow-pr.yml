@@ -9,15 +9,50 @@ jobs:
     uses: ./.github/workflows/job-test.yml
   nix-update:
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+      cancel-in-progress: true
+    permissions:
+      actions: read
+      contents: write
+      statuses: write
     steps:
       - name: Checkout
         uses: actions/checkout@692973e3d937129bcbf40652eb9f2f61becf3332 # v4
         with:
-          persist-credentials: false
+          # use more powerful token to trigger subsequent workflows
+          token: ${{ secrets.MYKSO_BOT_GITHUB_TOKEN }}
       - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
-      - name: Try to update nix flake
+      - name: Update nix flake
         run: nix run github:Mic92/nix-update -- --flake myks --version=skip
-      - name: Print changes
-        run: git diff
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@01dd5d3ca463c7f10f7f4f7b4f177225ac661ee4 # v6
+        with:
+          gpg_private_key: ${{ secrets.MYKSO_BOT_GPG_PRIVATE_KEY }}
+          git_user_signingkey: true
+          git_commit_gpgsign: true
+      - name: Commit changes
+        id: commit
+        uses: stefanzweifel/git-auto-commit-action@8621497c8c39c72f3e2a999a26b4ca1b5058a842 # v5
+        with:
+          commit_message: 'chore: nix-update'
+          commit_user_name: Mykso Bot
+          commit_user_email: 135390787+mykso-bot@users.noreply.github.com
+      - name: Set commit status
+        uses: myrotvorets/set-commit-status-action@3730c0a348a2ace3c110851bed53331bc6406e9f # v2.0.1
+        with:
+          context: nix-update
+          description:
+            ${{ steps.commit.outputs.changes_detected == 'true' && 'New changes
+            have been committed' || 'Flake is up to date' }}
+          # When running on a PR, set the commit status on the latest commit in
+          # the branch. Otherwise, the PR will be waiting for the commit status
+          # indefinitely. This, in particular, blocks Renovate from merging PRs
+          # automatically.
+          # If running on a push, set the commit status on the current commit.
+          sha:
+            ${{ steps.commit.outputs.commit_hash ||
+            github.event.pull_request.head.sha || github.sha }}
+          status: success
