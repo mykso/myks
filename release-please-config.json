@@ -4,7 +4,7 @@
   "packages": {
     ".": {
       "extra-files": [
-        "flake.nix"
+        "package.nix"
       ]
     }
   }
