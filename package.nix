@@ -13,6 +13,7 @@ in
     version = version;
 
     env.CGO_ENABLED = 0;
+    doCheck = false;
     ldflags = [
       "-s"
       "-w"
