@@ -12,7 +12,7 @@ in
     vendorHash = "sha256-cTRyQu3lXrIrBHtEYYQIdv0F705KrgyXgDS8meHVRJw=";
     version = version;
 
-    CGO_ENABLED = 0;
+    env.CGO_ENABLED = 0;
     ldflags = [
       "-s"
       "-w"
