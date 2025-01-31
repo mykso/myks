@@ -2,7 +2,7 @@
   pkgs,
   self,
 }: let
-  baseVersion = builtins.fromJSON (builtins.readFile ./.version.json).".";
+  baseVersion = (builtins.fromJSON (builtins.readFile "${self}/.version.json")).".";
   commit = self.shortRev or self.dirtyShortRev or "unknown";
   version = "${baseVersion}-${commit}";
 in
