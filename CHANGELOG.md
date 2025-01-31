@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.4.1](https://github.com/mykso/myks/compare/v4.4.0...v4.4.1) (2025-01-31)
+
+
+### Bug Fixes
+
+* **release:** testing latest changes ([d441782](https://github.com/mykso/myks/commit/d441782b10e99711de3624cb23bc3821982a037f))
+
 ## [4.4.0](https://github.com/mykso/myks/compare/v4.3.2...v4.4.0) (2025-01-28)
 
 
