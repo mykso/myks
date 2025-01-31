@@ -2,7 +2,7 @@
   pkgs,
   self,
 }: let
-  baseVersion = "4.2.3"; # x-release-please-version
+  baseVersion = builtins.fromJSON (builtins.readFile ./.version.json).".";
   commit = self.shortRev or self.dirtyShortRev or "unknown";
   version = "${baseVersion}-${commit}";
 in
