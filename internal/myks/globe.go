@@ -392,8 +392,8 @@ func (g *Globe) collectEnvironments(envSearchPathToAppMap EnvAppMap) EnvAppMap {
 
 	for searchPath, appNames := range envSearchPathToAppMap {
 		for _, envPath := range g.collectEnvironmentsInPath(searchPath) {
-			// If appNames is nil, it means all applications in the environment should be processed
-			if appNames == nil {
+			// If appNames is nil or empty, it means all applications in the environment should be processed
+			if len(appNames) == 0 {
 				envAppMap[envPath] = nil
 				continue
 			}
