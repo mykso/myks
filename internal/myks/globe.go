@@ -406,6 +406,9 @@ func (g *Globe) collectEnvironments(envSearchPathToAppMap EnvAppMap) EnvAppMap {
 			}
 		}
 	}
+	for env, apps := range envAppMap {
+		envAppMap[env] = unique(apps)
+	}
 
 	log.Debug().Interface("envToAppMap", envAppMap).Msg(g.Msg("Collected environments"))
 	return envAppMap
