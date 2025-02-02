@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.4.2](https://github.com/mykso/myks/compare/v4.4.1...v4.4.2) (2025-02-02)
+
+
+### Bug Fixes
+
+* correctly assign apps to nested envs ([#389](https://github.com/mykso/myks/issues/389)) ([39f185d](https://github.com/mykso/myks/commit/39f185d881db3e24729e77e60441baf537e97047))
+
 ## [4.4.1](https://github.com/mykso/myks/compare/v4.4.0...v4.4.1) (2025-01-31)
 
 
