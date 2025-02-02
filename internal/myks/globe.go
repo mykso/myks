@@ -196,6 +196,7 @@ func (g *Globe) ValidateRootDir() error {
 
 func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 	envAppMap := g.collectEnvironments(g.AddBaseDirToEnvAppMap(envSearchPathToAppMap))
+	log.Debug().Interface("envAppMap", envAppMap).Msg(g.Msg("Environments collected from search paths"))
 
 	return process(asyncLevel, maps.Keys(envAppMap), func(item interface{}) error {
 		envPath, ok := item.(string)
@@ -391,8 +392,22 @@ func (g *Globe) collectEnvironments(envSearchPathToAppMap EnvAppMap) EnvAppMap {
 
 	for searchPath, appNames := range envSearchPathToAppMap {
 		for _, envPath := range g.collectEnvironmentsInPath(searchPath) {
-			envAppMap[envPath] = appNames
+			// If appNames is nil or empty, it means all applications in the environment should be processed
+			if len(appNames) == 0 {
+				envAppMap[envPath] = nil
+				continue
+			}
+			// If the environment is already in the map, append the appNames to the existing list,
+			// but only if its apps are not nil
+			if apps, ok := envAppMap[envPath]; !ok {
+				envAppMap[envPath] = appNames
+			} else if apps != nil {
+				envAppMap[envPath] = append(apps, appNames...)
+			}
 		}
+	}
+	for env, apps := range envAppMap {
+		envAppMap[env] = unique(apps)
 	}
 
 	log.Debug().Interface("envToAppMap", envAppMap).Msg(g.Msg("Collected environments"))
