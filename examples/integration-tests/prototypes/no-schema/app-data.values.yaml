@@ -1,0 +1,8 @@
+#@data/values
+---
+#@overlay/match-child-defaults missing_ok=True
+application:
+  name: no-schema-proto
+  some:
+    nested:
+      value: 42

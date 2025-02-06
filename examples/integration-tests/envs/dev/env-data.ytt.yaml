@@ -15,3 +15,4 @@ environment:
     - proto: ytt-render-test
       name: ytt-installation
     - proto: static-test
+    - proto: no-schema
