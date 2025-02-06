@@ -10,6 +10,7 @@
 #@data/values-schema
 ---
 #! Add here any application-specific data.
+#@schema/type any=True
 application: {}
 argocd:
   enabled: true
