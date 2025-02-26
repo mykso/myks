@@ -13,7 +13,7 @@ FROM downloader AS helm
 ARG TARGETOS
 ARG TARGETARCH
 # renovate: datasource=github-releases depName=helm/helm
-ARG HELM_VERSION=v3.17.0
+ARG HELM_VERSION=v3.17.1
 RUN curl -fsSL \
       https://get.helm.sh/helm-${HELM_VERSION}-${TARGETOS}-${TARGETARCH}.tar.gz \
     | tar -xzf - --strip-components=1 ${TARGETOS}-${TARGETARCH}/helm
