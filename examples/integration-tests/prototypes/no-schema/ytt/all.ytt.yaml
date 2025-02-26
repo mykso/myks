@@ -1,0 +1,7 @@
+#@ load("@ytt:data", "data")
+---
+kind: TestProto
+metadata:
+  name: #@ data.values.application.name
+spec:
+  value: #@ data.values.application.some.nested.value
