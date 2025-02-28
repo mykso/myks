@@ -1,5 +1,19 @@
 # Changelog
 
+## [4.5.0](https://github.com/mykso/myks/compare/v4.4.2...v4.5.0) (2025-02-28)
+
+
+### Features
+
+* specify "any" type for .application in schema ([#399](https://github.com/mykso/myks/issues/399)) ([ddcf2d4](https://github.com/mykso/myks/commit/ddcf2d41f4e3af282cbf23be9123c493d80086e1))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/spf13/cobra to v1.9.1 ([#405](https://github.com/mykso/myks/issues/405)) ([baf77bd](https://github.com/mykso/myks/commit/baf77bd275fef89a1d37ab186b93985741060d52))
+* **deps:** update module golang.org/x/sync to v0.11.0 ([#393](https://github.com/mykso/myks/issues/393)) ([0afc509](https://github.com/mykso/myks/commit/0afc5094e986823160e66392b111988b0d1ba910))
+* **deps:** update module golang.org/x/term to v0.29.0 ([#394](https://github.com/mykso/myks/issues/394)) ([f3664f1](https://github.com/mykso/myks/commit/f3664f1d8a961d06f8fcdde4e447e27abb0d66ac))
+
 ## [4.4.2](https://github.com/mykso/myks/compare/v4.4.1...v4.4.2) (2025-02-02)
 
 
