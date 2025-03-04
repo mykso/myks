@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.5.1](https://github.com/mykso/myks/compare/v4.5.0...v4.5.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* revert "feat: specify "any" type for .application in schema ([#399](https://github.com/mykso/myks/issues/399))" ([#411](https://github.com/mykso/myks/issues/411)) ([b6bbd59](https://github.com/mykso/myks/commit/b6bbd59ce44fb55aae9694f8b67960fd5c53d397))
+
 ## [4.5.0](https://github.com/mykso/myks/compare/v4.4.2...v4.5.0) (2025-02-28)
 
 
