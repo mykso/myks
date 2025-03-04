@@ -1,5 +1,0 @@
-kind: TestProto
-metadata:
-  name: no-schema-proto
-spec:
-  value: 42
