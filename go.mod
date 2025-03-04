@@ -2,7 +2,7 @@ module github.com/mykso/myks
 
 go 1.23.3
 
-toolchain go1.24.0
+toolchain go1.24.1
 
 require (
 	carvel.dev/vendir v0.43.0
