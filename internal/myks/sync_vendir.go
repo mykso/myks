@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -73,6 +74,9 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 	if len(yttFiles) == 0 {
 		return ErrNoVendirConfig
 	}
+
+	// add environment, prototype, and application data files
+	yttFiles = slices.Insert(yttFiles, 0, a.yttDataFiles...)
 
 	// create vendir config yaml
 	vendirConfig, err := a.yttS(v.getStepName(), "creating vendir config", yttFiles, nil)

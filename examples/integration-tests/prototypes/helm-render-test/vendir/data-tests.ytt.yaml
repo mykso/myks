@@ -1,0 +1,8 @@
+#! Test access to the wider data context
+
+#@ load("@ytt:assert", "assert")
+#@ load("@ytt:data", "data")
+
+#@ assert.equals(data.values.application.baseValue, True)
+#@ assert.equals(data.values.environment.id, "mykso-dev")
+#@ assert.equals(data.values.myks.gitRepoBranch, "main")
