@@ -10,3 +10,10 @@ directories:
       - path: .
         directory:
           path: ../_lib/charts/render-test-chart
+#!
+#! Test access to the wider data context
+#! If a value is not available, ytt will fail with an error message
+#!
+#@ protoValue = data.values.application.baseValue
+#@ envValue = data.values.environment.id
+#@ globalValue = data.values.myks.gitRepoBranch
