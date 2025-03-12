@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.6.0](https://github.com/mykso/myks/compare/v4.5.1...v4.6.0) (2025-03-12)
+
+
+### Features
+
+* extend vendir step with proto, env and app data values ([#422](https://github.com/mykso/myks/issues/422)) ([3456e0c](https://github.com/mykso/myks/commit/3456e0c72fa47481129a70c08fd03a5ae362bf21))
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/sync to v0.12.0 ([#414](https://github.com/mykso/myks/issues/414)) ([a6c5409](https://github.com/mykso/myks/commit/a6c5409148a595c4c23617b6cb5951f24dc50f03))
+* **deps:** update module golang.org/x/term to v0.30.0 ([#415](https://github.com/mykso/myks/issues/415)) ([946be2c](https://github.com/mykso/myks/commit/946be2c70cef27b1013f1dff73ccbc28e611485c))
+
 ## [4.5.1](https://github.com/mykso/myks/compare/v4.5.0...v4.5.1) (2025-03-04)
 
 
