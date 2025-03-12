@@ -59,6 +59,8 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 	// 2. If exists, for every level of environments use `<env>/_apps/<app>/vendir` directory.
 
 	var yttFiles []string
+	// add environment, prototype, and application data files
+	yttFiles = append(yttFiles, a.yttDataFiles...)
 
 	protoVendirDir := filepath.Join(a.Prototype, "vendir")
 	if ok, err := isExist(protoVendirDir); err != nil {
