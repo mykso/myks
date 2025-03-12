@@ -198,7 +198,7 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 	envAppMap := g.collectEnvironments(g.AddBaseDirToEnvAppMap(envSearchPathToAppMap))
 	log.Debug().Interface("envAppMap", envAppMap).Msg(g.Msg("Environments collected from search paths"))
 
-	return process(asyncLevel, maps.Keys(envAppMap), func(item interface{}) error {
+	return process(asyncLevel, maps.Keys(envAppMap), func(item any) error {
 		envPath, ok := item.(string)
 		if !ok {
 			return fmt.Errorf("unable to cast item to string")
@@ -222,7 +222,7 @@ func (g *Globe) Sync(asyncLevel int) error {
 		if err != nil {
 			return err
 		}
-		err = process(asyncLevel, g.environments, func(item interface{}) error {
+		err = process(asyncLevel, g.environments, func(item any) error {
 			env, ok := item.(*Environment)
 			if !ok {
 				return fmt.Errorf("unable to cast item to *Environment")
@@ -237,7 +237,7 @@ func (g *Globe) Sync(asyncLevel int) error {
 }
 
 func (g *Globe) Render(asyncLevel int) error {
-	return process(asyncLevel, g.environments, func(item interface{}) error {
+	return process(asyncLevel, g.environments, func(item any) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("unable to cast item to *Environment")
@@ -256,7 +256,7 @@ func (g *Globe) SyncAndRender(asyncLevel int) error {
 
 // ExecPlugin executes a plugin in the context of the globe
 func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
-	return process(asyncLevel, g.environments, func(item interface{}) error {
+	return process(asyncLevel, g.environments, func(item any) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("unable to cast item to *Environment")

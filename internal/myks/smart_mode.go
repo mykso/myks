@@ -18,7 +18,7 @@ func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error)
 	// envAppMap is built later by calling g.runSmartMode
 	_ = g.collectEnvironments(nil)
 
-	err := process(0, g.environments, func(item interface{}) error {
+	err := process(0, g.environments, func(item any) error {
 		env, ok := item.(*Environment)
 		if !ok {
 			return fmt.Errorf("unable to cast item to *Environment")

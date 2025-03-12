@@ -66,7 +66,7 @@ func (e *Environment) Init(applicationNames []string) error {
 }
 
 func (e *Environment) Sync(asyncLevel int, syncTool SyncTool, vendirSecrets string) error {
-	return process(asyncLevel, e.Applications, func(item interface{}) error {
+	return process(asyncLevel, e.Applications, func(item any) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("unable to cast item to *Application")
@@ -79,7 +79,7 @@ func (e *Environment) Render(asyncLevel int) error {
 	if err := e.renderArgoCD(); err != nil {
 		return err
 	}
-	err := process(asyncLevel, e.Applications, func(item interface{}) error {
+	err := process(asyncLevel, e.Applications, func(item any) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("unable to cast item to *Application")
@@ -109,7 +109,7 @@ func (e *Environment) Render(asyncLevel int) error {
 }
 
 func (e *Environment) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
-	return process(asyncLevel, e.Applications, func(item interface{}) error {
+	return process(asyncLevel, e.Applications, func(item any) error {
 		app, ok := item.(*Application)
 		if !ok {
 			return fmt.Errorf("unable to cast item to *Application")

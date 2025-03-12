@@ -86,7 +86,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 			continue
 		}
 
-		var obj map[string]interface{}
+		var obj map[string]any
 		if err = yaml.Unmarshal([]byte(document), &obj); err != nil {
 			log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to unmarshal yaml"))
 			return err
@@ -133,7 +133,7 @@ func (a *Application) getDestinationDir() string {
 }
 
 // Generates a file name for each document using kind and name if available
-func genRenderedResourceFileName(resource map[string]interface{}, includeNamespace bool) (string, error) {
+func genRenderedResourceFileName(resource map[string]any, includeNamespace bool) (string, error) {
 	kind := "NO_KIND"
 	if g, ok := resource["kind"]; ok {
 		kind = g.(string)
@@ -141,7 +141,7 @@ func genRenderedResourceFileName(resource map[string]interface{}, includeNamespa
 	name := "NO_NAME"
 	namespace := ""
 	if n, ok := resource["metadata"]; ok {
-		metadata := n.(map[string]interface{})
+		metadata := n.(map[string]any)
 		if n, ok := metadata["name"].(string); ok {
 			name = n
 		}
