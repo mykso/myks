@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -59,8 +60,6 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 	// 2. If exists, for every level of environments use `<env>/_apps/<app>/vendir` directory.
 
 	var yttFiles []string
-	// add environment, prototype, and application data files
-	yttFiles = append(yttFiles, a.yttDataFiles...)
 
 	protoVendirDir := filepath.Join(a.Prototype, "vendir")
 	if ok, err := isExist(protoVendirDir); err != nil {
@@ -75,6 +74,9 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 	if len(yttFiles) == 0 {
 		return ErrNoVendirConfig
 	}
+
+	// add environment, prototype, and application data files
+	yttFiles = slices.Insert(yttFiles, 0, a.yttDataFiles...)
 
 	// create vendir config yaml
 	vendirConfig, err := a.yttS(v.getStepName(), "creating vendir config", yttFiles, nil)
