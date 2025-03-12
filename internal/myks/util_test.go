@@ -37,19 +37,19 @@ func Test_hash(t *testing.T) {
 func Test_mapToStableString(t *testing.T) {
 	tests := []struct {
 		name    string
-		args    map[string]interface{}
+		args    map[string]any
 		want    string
 		wantErr bool
 	}{
 		{
 			"happy path",
-			map[string]interface{}{"key1": "A", "key2": "B"},
+			map[string]any{"key1": "A", "key2": "B"},
 			"map[key1:A key2:B]",
 			false,
 		},
 		{
 			"fix sorting",
-			map[string]interface{}{"key2": "B", "key1": "A"},
+			map[string]any{"key2": "B", "key1": "A"},
 			"map[key1:A key2:B]",
 			false,
 		},
@@ -81,11 +81,11 @@ func Test_unmarshalYaml(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    map[string]interface{}
+		want    map[string]any
 		wantErr bool
 	}{
-		{"happy path", args{"../../testData/util/yaml/simple.yaml"}, map[string]interface{}{"key1": "A", "key2": "B", "arr": []interface{}{"arr1", "arr2"}}, false},
-		{"file not exist", args{"non-existing.yaml"}, map[string]interface{}{}, false},
+		{"happy path", args{"../../testData/util/yaml/simple.yaml"}, map[string]any{"key1": "A", "key2": "B", "arr": []any{"arr1", "arr2"}}, false},
+		{"file not exist", args{"non-existing.yaml"}, map[string]any{}, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -288,9 +288,9 @@ func TestProcess(t *testing.T) {
 	testCases := []struct {
 		name            string
 		asyncLevel      int
-		collection      interface{}
+		collection      any
 		expectedFnCalls int
-		fn              func(interface{}) error
+		fn              func(any) error
 		expectedErr     error
 	}{
 		{
@@ -298,7 +298,7 @@ func TestProcess(t *testing.T) {
 			asyncLevel:      2,
 			collection:      []int{1, 2, 3, 4, 5},
 			expectedFnCalls: 5,
-			fn: func(item interface{}) error {
+			fn: func(item any) error {
 				return nil
 			},
 			expectedErr: nil,
@@ -308,7 +308,7 @@ func TestProcess(t *testing.T) {
 			asyncLevel:      2,
 			collection:      map[string]int{"one": 1, "two": 2, "three": 3},
 			expectedFnCalls: 3,
-			fn: func(item interface{}) error {
+			fn: func(item any) error {
 				return nil
 			},
 			expectedErr: nil,
@@ -318,7 +318,7 @@ func TestProcess(t *testing.T) {
 			asyncLevel:      0,
 			collection:      []int{1, 2, 3, 4, 5},
 			expectedFnCalls: 5,
-			fn: func(item interface{}) error {
+			fn: func(item any) error {
 				return nil
 			},
 			expectedErr: nil,
@@ -328,7 +328,7 @@ func TestProcess(t *testing.T) {
 			asyncLevel:      0,
 			collection:      map[string]int{"one": 1, "two": 2, "three": 3},
 			expectedFnCalls: 3,
-			fn: func(item interface{}) error {
+			fn: func(item any) error {
 				return nil
 			},
 			expectedErr: nil,
@@ -338,7 +338,7 @@ func TestProcess(t *testing.T) {
 			asyncLevel:      222,
 			collection:      []int{1, 2, 3, 4, 5},
 			expectedFnCalls: 5,
-			fn: func(item interface{}) error {
+			fn: func(item any) error {
 				return nil
 			},
 			expectedErr: nil,
@@ -347,7 +347,7 @@ func TestProcess(t *testing.T) {
 			name:       "Error in processing slice",
 			asyncLevel: 2,
 			collection: []int{1, 2, 3, 4, 5},
-			fn: func(item interface{}) error {
+			fn: func(item any) error {
 				if item.(int) == 3 {
 					return errors.New("error processing item")
 				}
@@ -359,7 +359,7 @@ func TestProcess(t *testing.T) {
 			name:       "Error in processing map",
 			asyncLevel: 2,
 			collection: map[string]int{"one": 1, "two": 2, "three": 3},
-			fn: func(item interface{}) error {
+			fn: func(item any) error {
 				if item.(int) == 2 {
 					return errors.New("error processing item")
 				}
@@ -371,7 +371,7 @@ func TestProcess(t *testing.T) {
 			name:       "Invalid collection type",
 			asyncLevel: 2,
 			collection: 42,
-			fn: func(item interface{}) error {
+			fn: func(item any) error {
 				return nil
 			},
 			expectedErr: fmt.Errorf("collection must be a slice, array or map, got %s", reflect.Int),
@@ -383,7 +383,7 @@ func TestProcess(t *testing.T) {
 			var counter int
 			var mu sync.Mutex
 
-			fnWrapper := func(item interface{}) error {
+			fnWrapper := func(item any) error {
 				mu.Lock()
 				counter++
 				mu.Unlock()
@@ -402,13 +402,13 @@ func TestProcess(t *testing.T) {
 	}
 }
 
-func assertEqual(t *testing.T, got, want interface{}) {
+func assertEqual(t *testing.T, got, want any) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("expected:\n%v\nGot:\n%v\nDifference:\n%v", want, got, diff(want, got))
 	}
 }
 
-func diff(expected, actual interface{}) string {
+func diff(expected, actual any) string {
 	jsonExpected, err := json.MarshalIndent(expected, "", "  ")
 	if err != nil {
 		return err.Error()

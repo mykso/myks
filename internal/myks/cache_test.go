@@ -3,29 +3,29 @@ package myks
 import "testing"
 
 func TestCacheNameGen(t *testing.T) {
-	helmConfig := map[string]interface{}{
-		"helmChart": map[string]interface{}{
+	helmConfig := map[string]any{
+		"helmChart": map[string]any{
 			"name":    "test",
 			"version": "1.1.0",
 		},
 	}
-	directoryConfig := map[string]interface{}{
-		"directory": map[string]interface{}{
+	directoryConfig := map[string]any{
+		"directory": map[string]any{
 			"path": "test",
 		},
 	}
-	gitConfig := map[string]interface{}{
-		"git": map[string]interface{}{
+	gitConfig := map[string]any{
+		"git": map[string]any{
 			"url": "https://kubernetes.github.io/ingress-nginx",
 			"ref": "feature/test",
 		},
 	}
-	unknownConfig := map[string]interface{}{
+	unknownConfig := map[string]any{
 		"unknown": "test",
 	}
 	tests := []struct {
 		name    string
-		config  map[string]interface{}
+		config  map[string]any
 		want    string
 		wantErr bool
 	}{
@@ -49,20 +49,20 @@ func TestCacheNameGen(t *testing.T) {
 }
 
 func TestCacheNamer_Helm(t *testing.T) {
-	validVendirConfig := map[string]interface{}{
+	validVendirConfig := map[string]any{
 		"name":    "test",
 		"version": "1.1.0",
 	}
-	vendirConfigWithoutVersion := map[string]interface{}{
+	vendirConfigWithoutVersion := map[string]any{
 		"name": "test",
 	}
-	vendirConfigWithoutName := map[string]interface{}{
+	vendirConfigWithoutName := map[string]any{
 		"version": "1.1.0",
 	}
 
 	tests := []struct {
 		name         string
-		vendirConfig map[string]interface{}
+		vendirConfig map[string]any
 		want         string
 		wantErr      bool
 	}{
@@ -85,16 +85,16 @@ func TestCacheNamer_Helm(t *testing.T) {
 }
 
 func TestCacheNamer_Directory(t *testing.T) {
-	validVendirConfig := map[string]interface{}{
+	validVendirConfig := map[string]any{
 		"path": "test",
 	}
-	vendirConfigWithoutPath := map[string]interface{}{
+	vendirConfigWithoutPath := map[string]any{
 		"name": "test",
 	}
 
 	tests := []struct {
 		name         string
-		vendirConfig map[string]interface{}
+		vendirConfig map[string]any
 		want         string
 		wantErr      bool
 	}{
@@ -116,20 +116,20 @@ func TestCacheNamer_Directory(t *testing.T) {
 }
 
 func TestCacheNamer_Git(t *testing.T) {
-	validVendirConfig := map[string]interface{}{
+	validVendirConfig := map[string]any{
 		"url": "https://kubernetes.github.io/ingress-nginx",
 		"ref": "feature/test",
 	}
-	vendirConfigWithoutURL := map[string]interface{}{
+	vendirConfigWithoutURL := map[string]any{
 		"ref": "main",
 	}
-	vendirConfigWithoutRef := map[string]interface{}{
+	vendirConfigWithoutRef := map[string]any{
 		"url": "https://kubernetes.github.io/ingress-nginx",
 	}
 
 	tests := []struct {
 		name         string
-		vendirConfig map[string]interface{}
+		vendirConfig map[string]any
 		want         string
 		wantErr      bool
 	}{

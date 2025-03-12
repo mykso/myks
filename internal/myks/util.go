@@ -53,8 +53,8 @@ func printFileNicely(name, content, syntax string) {
 	}
 }
 
-func process(asyncLevel int, collection interface{}, fn func(interface{}) error) error {
-	var items []interface{}
+func process(asyncLevel int, collection any, fn func(any) error) error {
+	var items []any
 
 	value := reflect.ValueOf(collection)
 	switch value.Kind() {
@@ -154,13 +154,13 @@ func copyFileSystemToPath(source fs.FS, sourcePath string, destinationPath strin
 	return err
 }
 
-func unmarshalYamlToMap(filePath string) (map[string]interface{}, error) {
+func unmarshalYamlToMap(filePath string) (map[string]any, error) {
 	ok, err := isExist(filePath)
 	if err != nil {
 		return nil, err
 	}
 	if !ok {
-		return make(map[string]interface{}), nil
+		return make(map[string]any), nil
 	}
 
 	file, err := os.ReadFile(filePath)
@@ -168,7 +168,7 @@ func unmarshalYamlToMap(filePath string) (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	var config map[string]interface{}
+	var config map[string]any
 	err = yaml.Unmarshal(file, &config)
 	if err != nil {
 		return nil, err
@@ -176,7 +176,7 @@ func unmarshalYamlToMap(filePath string) (map[string]interface{}, error) {
 	return config, nil
 }
 
-func mapToStableString(yaml map[string]interface{}) (string, error) {
+func mapToStableString(yaml map[string]any) (string, error) {
 	if yaml == nil {
 		return "", nil
 	}
@@ -189,7 +189,7 @@ func mapToStableString(yaml map[string]interface{}) (string, error) {
 }
 
 func sortYaml(content []byte) ([]byte, error) {
-	var obj map[string]interface{}
+	var obj map[string]any
 	if err := yaml.Unmarshal(content, &obj); err != nil {
 		return nil, err
 	}

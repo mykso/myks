@@ -7,23 +7,23 @@ import (
 	"strings"
 )
 
-func genCacheName(config map[string]interface{}) (string, error) {
+func genCacheName(config map[string]any) (string, error) {
 	if val, ok := config["helmChart"]; ok {
-		return helmCacheNamer(val.(map[string]interface{}))
+		return helmCacheNamer(val.(map[string]any))
 	}
 
 	if val, ok := config["directory"]; ok {
-		return directoryCacheNamer(val.(map[string]interface{}))
+		return directoryCacheNamer(val.(map[string]any))
 	}
 
 	if val, ok := config["git"]; ok {
-		return gitCacheNamer(val.(map[string]interface{}))
+		return gitCacheNamer(val.(map[string]any))
 	}
 
 	return defaultCacheNamer(config)
 }
 
-func defaultCacheNamer(config map[string]interface{}) (string, error) {
+func defaultCacheNamer(config map[string]any) (string, error) {
 	yaml, err := mapToStableString(config)
 	if err != nil {
 		return "", err
@@ -31,7 +31,7 @@ func defaultCacheNamer(config map[string]interface{}) (string, error) {
 	return fmt.Sprintf("unknown-%s", hashString(yaml)), nil
 }
 
-func helmCacheNamer(config map[string]interface{}) (string, error) {
+func helmCacheNamer(config map[string]any) (string, error) {
 	yaml, err := mapToStableString(config)
 	if err != nil {
 		return "", err
@@ -47,7 +47,7 @@ func helmCacheNamer(config map[string]interface{}) (string, error) {
 	return fmt.Sprintf("%s-%s-%s-%s", "helm", chartName, version, hashString(yaml)), nil
 }
 
-func gitCacheNamer(config map[string]interface{}) (string, error) {
+func gitCacheNamer(config map[string]any) (string, error) {
 	yaml, err := mapToStableString(config)
 	if err != nil {
 		return "", err
@@ -67,7 +67,7 @@ func gitCacheNamer(config map[string]interface{}) (string, error) {
 	return fmt.Sprintf("%s-%s-%s-%s", "git", dir, refSlug(ref), hashString(yaml)), nil
 }
 
-func directoryCacheNamer(config map[string]interface{}) (string, error) {
+func directoryCacheNamer(config map[string]any) (string, error) {
 	yaml, err := mapToStableString(config)
 	if err != nil {
 		return "", err

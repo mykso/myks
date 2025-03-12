@@ -75,8 +75,8 @@ func (hr *HelmSyncer) helmBuild(a *Application, chartDir string) error {
 		"--repository-cache", filepath.Join(helmCache, "repository"),
 		"--repository-config", filepath.Join(helmCache, "repositories.yaml"),
 	}
-	for _, dependency := range dependencies.([]interface{}) {
-		depMap := dependency.(map[string]interface{})
+	for _, dependency := range dependencies.([]any) {
+		depMap := dependency.(map[string]any)
 		repo := depMap["repository"].(string)
 		if strings.HasPrefix(repo, "http") {
 			args := []string{"repo", "add", createURLSlug(repo), repo, "--force-update"}
