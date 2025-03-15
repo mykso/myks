@@ -1,0 +1,35 @@
+#@ load("@ytt:data", "data")
+
+#@ def pathForKind(kind, name):
+#@   if kind == "helm":
+#@     return "charts/" + name
+#@   else:
+#@     return kind + "/" + name
+#@   end
+#@ end
+
+#@ protos = data.values.prototypes
+---
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+#@ for src in protos:
+- path: #@ pathForKind(src.kind, src.name)
+  contents:
+    - path: .
+      #@ if/end src.repo == "git":
+      git:
+        url: #@ src.url
+        ref: #@ src.version
+      #@ if/end src.repo == "helmChart":
+      helmChart:
+        name: #@ src.name
+        version: #@ src.version
+        repository:
+          url: #@ src.url
+      lazy: #@ src.lazy
+      #@ if/end src.newRootPath:
+      newRootPath: #@ src.newRootPath
+      #@ if/end src.includePaths:
+      includePaths: #@ src.includePaths
+#@ end
