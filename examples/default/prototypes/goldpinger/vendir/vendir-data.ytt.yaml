@@ -1,10 +1,16 @@
-#@data/values-schema
+#@data/values
 ---
-#@overlay/match-child-defaults missing_ok=True
-application:
-  #! IMPORTANT: Do not change order of the keys, they must go in the right
-  #!            order to be recognized by renovate.
-  #! renovate: datasource=helm
-  name: goldpinger
-  url: https://okgolove.github.io/helm-charts/
-  version: 6.1.2
+prototypes:
+    - name: goldpinger
+      kind: helm
+      repo: helmChart
+      url: https://okgolove.github.io/helm-charts/
+      version: 6.1.2
+    - name: grafana-dashboards
+      kind: ytt
+      repo: git
+      url: https://github.com/bloomberg/goldpinger
+      version: v3.9.0
+      newRootPath: extras
+      includePaths:
+        - extras/goldpinger-dashboard.json
