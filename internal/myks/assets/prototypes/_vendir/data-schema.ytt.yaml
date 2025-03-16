@@ -8,7 +8,7 @@ prototypes:
   #@schema/desc "For helm charts, this is the helm chart name."
   #@schema/validation min_len=1
   name: ""
-  #@schema/title "Protoytpe kind"
+  #@schema/title "Prototype kind"
   #@schema/desc "Depending of the vendored kind, further processing is done. For example, for helm charts, the chart is rendered."
   #@schema/validation one_of=["ytt", "helm", "static", "ytt-pkg"]
   kind: ""
