@@ -31,5 +31,6 @@
       matchStrings: [
         "#\\s+renovate:\\s+datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s+\\w+:\\s+(?<currentValue>[^\\s]+)",
       ],
+    },
   ],
 }
