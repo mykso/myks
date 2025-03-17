@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
+	"maps"
 	"os"
 	"reflect"
+	"slices"
 	"sync"
 	"testing"
 
@@ -390,7 +393,14 @@ func TestProcess(t *testing.T) {
 				return tc.fn(item)
 			}
 
-			err := process(tc.asyncLevel, tc.collection, fnWrapper)
+			var collection iter.Seq[any]
+			if slice, ok := tc.collection.([]any); ok {
+				collection = slices.Values(slice)
+			} else if m, ok := tc.collection.(map[string]any); ok {
+				collection = maps.Values(m)
+			}
+
+			err := process(tc.asyncLevel, collection, fnWrapper)
 			if fmt.Sprint(err) != fmt.Sprint(tc.expectedErr) {
 				t.Errorf("expected error: %v, got: %v", tc.expectedErr, err)
 			}

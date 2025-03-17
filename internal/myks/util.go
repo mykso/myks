@@ -7,10 +7,10 @@ import (
 	"hash/fnv"
 	"io"
 	"io/fs"
+	"iter"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 
@@ -53,33 +53,19 @@ func printFileNicely(name, content, syntax string) {
 	}
 }
 
-func process(asyncLevel int, collection any, fn func(any) error) error {
-	var items []any
-
-	value := reflect.ValueOf(collection)
-	switch value.Kind() {
-	case reflect.Slice, reflect.Array:
-		for i := range value.Len() {
-			items = append(items, value.Index(i).Interface())
-		}
-	case reflect.Map:
-		for _, key := range value.MapKeys() {
-			items = append(items, value.MapIndex(key).Interface())
-		}
-	default:
-		return fmt.Errorf("collection must be a slice, array or map, got %s", value.Kind())
-	}
-
+func process[Item any](asyncLevel int, collection iter.Seq[Item], fn func(Item) error) error {
 	var eg errgroup.Group
-	if asyncLevel == 0 { // no limit
+	if asyncLevel == 0 {
+		// no limit
 		asyncLevel = -1
 	}
 	eg.SetLimit(asyncLevel)
 
-	for _, item := range items {
-		item := item // Create a new variable to avoid capturing the same item in the closure
+	for item := range collection {
+		// Create a new variable to avoid capturing the same item in the closure
+		innerItem := item
 		eg.Go(func() error {
-			return fn(item)
+			return fn(innerItem)
 		})
 	}
 
