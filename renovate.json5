@@ -5,14 +5,12 @@
     "config:best-practices",
     "helpers:pinGitHubActionDigests",
   ],
-  packageRules: [
-    {
+  packageRules: [{
       matchUpdateTypes: ["minor", "patch", "pin", "digest"],
       automerge: true,
-    }
-  ],
-  regexManagers: [
-    {
+  }],
+  customManagers: [{
+      customType: "regex",
       fileMatch: [
         "^(Docker|Container)file$"
       ],
@@ -21,8 +19,8 @@
       matchStrings: [
         "#\\s+renovate:\\s+datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s+(ARG|ENV)\\s+\\S+=['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
       ],
-    },
-    {
+    },{
+      customType: "regex",
       fileMatch: [
         "(^|/)\\.github/workflows/.+\\.ya?ml$"
       ],
@@ -31,6 +29,5 @@
       matchStrings: [
         "#\\s+renovate:\\s+datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s+\\w+:\\s+(?<currentValue>[^\\s]+)",
       ],
-    },
-  ],
+  }],
 }
