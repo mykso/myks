@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/creasty/defaults"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/exp/maps"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -198,11 +198,7 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 	envAppMap := g.collectEnvironments(g.AddBaseDirToEnvAppMap(envSearchPathToAppMap))
 	log.Debug().Interface("envAppMap", envAppMap).Msg(g.Msg("Environments collected from search paths"))
 
-	return process(asyncLevel, maps.Keys(envAppMap), func(item any) error {
-		envPath, ok := item.(string)
-		if !ok {
-			return fmt.Errorf("unable to cast item to string")
-		}
+	return process(asyncLevel, maps.Keys(envAppMap), func(envPath string) error {
 		env, ok := g.environments[envPath]
 		if !ok {
 			return fmt.Errorf("unable to find environment for path: %s", envPath)
@@ -222,11 +218,7 @@ func (g *Globe) Sync(asyncLevel int) error {
 		if err != nil {
 			return err
 		}
-		err = process(asyncLevel, g.environments, func(item any) error {
-			env, ok := item.(*Environment)
-			if !ok {
-				return fmt.Errorf("unable to cast item to *Environment")
-			}
+		err = process(asyncLevel, maps.Values(g.environments), func(env *Environment) error {
 			return env.Sync(asyncLevel, syncTool, secrets)
 		})
 		if err != nil {
@@ -237,11 +229,7 @@ func (g *Globe) Sync(asyncLevel int) error {
 }
 
 func (g *Globe) Render(asyncLevel int) error {
-	return process(asyncLevel, g.environments, func(item any) error {
-		env, ok := item.(*Environment)
-		if !ok {
-			return fmt.Errorf("unable to cast item to *Environment")
-		}
+	return process(asyncLevel, maps.Values(g.environments), func(env *Environment) error {
 		return env.Render(asyncLevel)
 	})
 }
@@ -256,11 +244,7 @@ func (g *Globe) SyncAndRender(asyncLevel int) error {
 
 // ExecPlugin executes a plugin in the context of the globe
 func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
-	return process(asyncLevel, g.environments, func(item any) error {
-		env, ok := item.(*Environment)
-		if !ok {
-			return fmt.Errorf("unable to cast item to *Environment")
-		}
+	return process(asyncLevel, maps.Values(g.environments), func(env *Environment) error {
 		return env.ExecPlugin(asyncLevel, p, args)
 	})
 }
