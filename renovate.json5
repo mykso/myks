@@ -1,33 +1,23 @@
-// This file is in JSON5 format: https://json5.org
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  extends: [
-    "config:best-practices",
-    "helpers:pinGitHubActionDigests",
-  ],
+  extends: ["config:best-practices", "helpers:pinGitHubActionDigests"],
   packageRules: [
     {
       matchUpdateTypes: ["minor", "patch", "pin", "digest"],
       automerge: true,
-    }
+    },
   ],
-  regexManagers: [
+  customManagers: [
     {
-      fileMatch: [
-        "^(Docker|Container)file$"
-      ],
-      // # renovate: datasource=github-releases depName=carvel-dev/vendir
-      // ARG VENDIR_VERSION=0.33.1
+      customType: "regex",
+      fileMatch: ["^(Docker|Container)file$"],
       matchStrings: [
         "#\\s+renovate:\\s+datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s+(ARG|ENV)\\s+\\S+=['\"]?(?<currentValue>[^'\"\\s]+)['\"]?",
       ],
     },
     {
-      fileMatch: [
-        "(^|/)\\.github/workflows/.+\\.ya?ml$"
-      ],
-      // # renovate: datasource=github-releases depName=mvdan/gofumpt
-      // tag: v0.5.0
+      customType: "regex",
+      fileMatch: ["(^|/)\\.github/workflows/.+\\.ya?ml$"],
       matchStrings: [
         "#\\s+renovate:\\s+datasource=(?<datasource>\\S+)\\s+depName=(?<depName>\\S+)\\s+\\w+:\\s+(?<currentValue>[^\\s]+)",
       ],
