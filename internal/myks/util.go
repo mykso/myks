@@ -59,7 +59,7 @@ func process(asyncLevel int, collection any, fn func(any) error) error {
 	value := reflect.ValueOf(collection)
 	switch value.Kind() {
 	case reflect.Slice, reflect.Array:
-		for i := 0; i < value.Len(); i++ {
+		for i := range value.Len() {
 			items = append(items, value.Index(i).Interface())
 		}
 	case reflect.Map:

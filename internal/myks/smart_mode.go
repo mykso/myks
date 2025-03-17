@@ -3,11 +3,11 @@ package myks
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"golang.org/x/exp/maps"
 )
 
 func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error) {
@@ -133,7 +133,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	changedEnvs := []string{}
 	changedPrototypes := []string{}
 
-	for _, path := range maps.Keys(changedFiles) {
+	for path := range maps.Keys(changedFiles) {
 		// Check if the global configuration has changed
 		if extractMatches(exprMap["global"], path) != nil {
 			// If global configuration has changed, we need to render all environments

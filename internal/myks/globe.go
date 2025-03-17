@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/creasty/defaults"
 	"github.com/rs/zerolog/log"
-	"golang.org/x/exp/maps"
 	yaml "gopkg.in/yaml.v3"
 )
 
