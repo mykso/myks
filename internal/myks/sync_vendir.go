@@ -61,6 +61,13 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 
 	var yttFiles []string
 
+	baseDir := filepath.Join(a.e.g.PrototypesDir, "_vendir")
+	if ok, err := isExist(baseDir); err != nil {
+		return err
+	} else if ok {
+		yttFiles = append(yttFiles, baseDir)
+	}
+
 	protoVendirDir := filepath.Join(a.Prototype, "vendir")
 	if ok, err := isExist(protoVendirDir); err != nil {
 		return err
