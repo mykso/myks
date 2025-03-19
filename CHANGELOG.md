@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.6.1](https://github.com/mykso/myks/compare/v4.6.0...v4.6.1) (2025-03-19)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/spf13/viper to v1.20.0 ([#426](https://github.com/mykso/myks/issues/426)) ([52bb724](https://github.com/mykso/myks/commit/52bb72478d3f0d755abe2e7e65b00c97b11e980d))
+
 ## [4.6.0](https://github.com/mykso/myks/compare/v4.5.1...v4.6.0) (2025-03-12)
 
 
