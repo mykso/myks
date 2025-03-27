@@ -30,8 +30,10 @@ func Test_hash(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.a, func(t *testing.T) {
-			if got := hashString(tt.b); got != tt.want {
+			if got, err := hashString(tt.b); got != tt.want {
 				t.Errorf("hash() = %v, wantArgs %v", got, tt.want)
+			} else if err != nil {
+				t.Errorf("hash() error = %v", err)
 			}
 		})
 	}

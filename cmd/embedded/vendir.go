@@ -14,7 +14,7 @@ import (
 
 // copied from https://github.com/mykso/vendir/blob/unique-tmp-dir/cmd/vendir/vendir.go
 func vendirMain() {
-	rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
+	rand.New(rand.NewSource(time.Now().UTC().UnixNano())) // #nosec G404 -- should be fixed upstream
 
 	log.SetOutput(io.Discard)
 
