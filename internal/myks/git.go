@@ -2,7 +2,6 @@ package myks
 
 import (
 	"maps"
-	"regexp"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -26,34 +25,73 @@ func GetChangedFilesGit(baseRevision string) (ChangedFiles, error) {
 
 	files := ChangedFiles{}
 	if baseRevision != "" {
-		result, err := runCmd("git", nil, []string{"diff", "--name-status", baseRevision}, logFn)
+		result, err := runCmd("git", nil, []string{"diff", "--name-status", "-z", baseRevision}, logFn)
 		if err != nil {
 			return nil, err
 		}
-		maps.Copy(files, convertToChangedFiles(result.Stdout))
+		maps.Copy(files, convertDiffToChangedFiles(result.Stdout))
 	}
 
-	result, err := runCmd("git", nil, []string{"status", "--porcelain", "--untracked-files"}, logFn)
+	result, err := runCmd("git", nil, []string{"status", "-z", "--untracked-files"}, logFn)
 	if err != nil {
 		return nil, err
 	}
-	maps.Copy(files, convertToChangedFiles(result.Stdout))
+	maps.Copy(files, convertStatusToChangedFiles(result.Stdout))
 
 	return files, nil
 }
 
-func convertToChangedFiles(changes string) ChangedFiles {
-	cfs := ChangedFiles{}
-	expr := regexp.MustCompile(`^([A-Z]\t|[A-Z? ]{2} )(.*)$`)
-	for _, str := range strings.Split(changes, "\n") {
-		matches := expr.FindStringSubmatch(str)
-		if len(matches) == 3 {
-			// 1: the first character of the status, after trimming spaces and tabs
-			// 2: the file path
-			cfs[matches[2]] = strings.Trim(matches[1], " \t")[:1]
+// convertDiffToChangedFiles converts the output of `git diff --name-status -z` to a map of file paths to change modes
+func convertDiffToChangedFiles(diff string) ChangedFiles {
+	files := ChangedFiles{}
+	mode := ""
+	// If the second file in a rename is being processed
+	second := false
+	for _, str := range strings.Split(diff, "\x00") {
+		if str == "" {
+			continue
+		}
+		if mode == "" {
+			mode = str[:1]
+			continue
+		}
+		files[str] = mode
+		// The rename mode is processed differently, as two files are involved
+		if mode != "R" || second {
+			mode = ""
+			second = false
+		} else if mode == "R" {
+			second = true
 		}
 	}
-	return cfs
+	return files
+}
+
+// convertStatusToChangedFiles converts the output of `git status -z --untracked-files` to a map of file paths to change modes
+func convertStatusToChangedFiles(status string) ChangedFiles {
+	files := ChangedFiles{}
+	mode := ""
+	// If the second file in a rename is being processed
+	second := false
+	for _, str := range strings.Split(status, "\x00") {
+		if str == "" {
+			continue
+		}
+		if mode == "R" && second {
+			files[str] = mode
+			mode = ""
+			second = false
+			continue
+		}
+		mode = str[:1]
+		files[str[3:]] = mode
+		if mode == "R" {
+			second = true
+		} else {
+			mode = ""
+		}
+	}
+	return files
 }
 
 func runGitCmd(args []string, root string, silent bool) (string, error) {
