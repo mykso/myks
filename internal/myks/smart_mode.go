@@ -207,16 +207,6 @@ func (g *Globe) findPrototypeUsage(prototypes []string) EnvAppMap {
 	return envAppMap
 }
 
-func checkFileChanged(changedFiles []string, regExps ...string) bool {
-	for _, expr := range regExps {
-		changes, _ := getChanges(changedFiles, expr)
-		if len(changes) > 0 {
-			return true
-		}
-	}
-	return false
-}
-
 func getChanges(changedFilePaths []string, regExps ...string) ([]string, []string) {
 	var matches1 []string
 	var matches2 []string
