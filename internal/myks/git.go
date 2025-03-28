@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"maps"
 	"regexp"
 	"strings"
 
@@ -29,18 +30,14 @@ func GetChangedFilesGit(baseRevision string) (ChangedFiles, error) {
 		if err != nil {
 			return nil, err
 		}
-		for path, status := range convertToChangedFiles(result.Stdout) {
-			files[path] = status
-		}
+		maps.Copy(files, convertToChangedFiles(result.Stdout))
 	}
 
 	result, err := runCmd("git", nil, []string{"status", "--porcelain", "--untracked-files"}, logFn)
 	if err != nil {
 		return nil, err
 	}
-	for path, status := range convertToChangedFiles(result.Stdout) {
-		files[path] = status
-	}
+	maps.Copy(files, convertToChangedFiles(result.Stdout))
 
 	return files, nil
 }
