@@ -207,6 +207,12 @@ func (g *Globe) findPrototypeUsage(prototypes []string) EnvAppMap {
 	return envAppMap
 }
 
+// getChanges extracts matching substrings from a list of file paths using provided regular expressions.
+// It iterates over each regex pattern and each file path, applying the pattern to capture substrings.
+// If a match is found with only the full match (one element), that match is appended to the first result slice.
+// If the match provides two elements, the first capture group is appended to the first slice.
+// If more than two elements are captured, the first and second capturing groups are appended to the first and second slices respectively.
+// The function returns the two slices of extracted substrings.
 func getChanges(changedFilePaths []string, regExps ...string) ([]string, []string) {
 	var matches1 []string
 	var matches2 []string
