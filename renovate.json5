@@ -3,7 +3,8 @@
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
   extends: [
     "config:best-practices",
-    "helpers:pinGitHubActionDigests",
+    "helpers:pinGitHubActionDigestsToSemver",
+    "schedule:nonOfficeHours",
   ],
   packageRules: [{
       matchUpdateTypes: ["minor", "patch", "pin", "digest"],
