@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM debian:bookworm-slim AS downloader
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim@sha256:1209d8fd77def86ceb6663deef7956481cc6c14a25e1e64daec12c0ceffcc19d AS downloader
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 WORKDIR /tools
 RUN apt-get update \
@@ -20,7 +20,7 @@ RUN curl -fsSL \
 
 
 
-FROM --platform=$BUILDPLATFORM debian:bookworm-slim
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim@sha256:1209d8fd77def86ceb6663deef7956481cc6c14a25e1e64daec12c0ceffcc19d
 
 RUN apt-get update \
  && apt-get install --no-install-recommends -y \

@@ -106,7 +106,7 @@ func (p PluginCmd) Exec(a *Application, args []string) error {
 		return err
 	}
 
-	cmd := exec.Command(p.cmd, args...)
+	cmd := exec.Command(p.cmd, args...) // #nosec G204 -- this is a user-provided command
 
 	var stdoutBs, stderrBs bytes.Buffer
 	cmd.Stdout = &stdoutBs

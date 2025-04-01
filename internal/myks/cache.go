@@ -28,7 +28,11 @@ func defaultCacheNamer(config map[string]any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("unknown-%s", hashString(yaml)), nil
+	hash, err := hashString(yaml)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("unknown-%s", hash), nil
 }
 
 func helmCacheNamer(config map[string]any) (string, error) {
@@ -44,7 +48,11 @@ func helmCacheNamer(config map[string]any) (string, error) {
 	}
 	chartName := config["name"].(string)
 	version := config["version"].(string)
-	return fmt.Sprintf("%s-%s-%s-%s", "helm", chartName, version, hashString(yaml)), nil
+	hash, err := hashString(yaml)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s-%s-%s-%s", "helm", chartName, version, hash), nil
 }
 
 func gitCacheNamer(config map[string]any) (string, error) {
@@ -64,7 +72,12 @@ func gitCacheNamer(config map[string]any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s-%s-%s-%s", "git", dir, refSlug(ref), hashString(yaml)), nil
+	hash, err := hashString(yaml)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s-%s-%s-%s", "git", dir, refSlug(ref), hash), nil
 }
 
 func directoryCacheNamer(config map[string]any) (string, error) {
@@ -76,7 +89,12 @@ func directoryCacheNamer(config map[string]any) (string, error) {
 		return "", fmt.Errorf("expected path in vendir config for local directory, but did not find it")
 	}
 	path := config["path"].(string)
-	return fmt.Sprintf("%s-%s", directorySlug(path), hashString(yaml)), nil
+	hash, err := hashString(yaml)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%s-%s", directorySlug(path), hash), nil
 }
 
 func directorySlug(dirPath string) string {

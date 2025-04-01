@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.6.1](https://github.com/mykso/myks/compare/v4.6.0...v4.6.1) (2025-03-28)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.43.1 ([#452](https://github.com/mykso/myks/issues/452)) ([e9417b0](https://github.com/mykso/myks/commit/e9417b08015c7aace2b597bc97a3cf011b98dc8b))
+* **deps:** update module github.com/rs/zerolog to v1.34.0 ([#445](https://github.com/mykso/myks/issues/445)) ([c3b3d0b](https://github.com/mykso/myks/commit/c3b3d0b82d253c14a8833d4622a53cd643a8676a))
+* **deps:** update module github.com/spf13/viper to v1.20.0 ([#426](https://github.com/mykso/myks/issues/426)) ([52bb724](https://github.com/mykso/myks/commit/52bb72478d3f0d755abe2e7e65b00c97b11e980d))
+* **deps:** update module github.com/spf13/viper to v1.20.1 ([#448](https://github.com/mykso/myks/issues/448)) ([08a2061](https://github.com/mykso/myks/commit/08a2061378358ea5a765b11fc4427c3a9421a786))
+* **security:** fix G404, G204, and add error handling to hashString ([9a59e2d](https://github.com/mykso/myks/commit/9a59e2dae931f18b5deafecf9b3c147e70ea8d20))
+* **smart-mode:** detect renames ([#450](https://github.com/mykso/myks/issues/450)) ([25455eb](https://github.com/mykso/myks/commit/25455eb5ce6ff4decdbfe75f471d2164379716c5))
+
 ## [4.6.0](https://github.com/mykso/myks/compare/v4.5.1...v4.6.0) (2025-03-12)
 
 

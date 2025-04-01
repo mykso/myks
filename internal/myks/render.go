@@ -72,7 +72,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 		log.Warn().Err(err).Str("dir", destinationDir).Msg(a.Msg(sliceStepName, "Unable to remove destination directory"))
 		return err
 	}
-	if err = os.MkdirAll(destinationDir, os.ModePerm); err != nil {
+	if err = os.MkdirAll(destinationDir, 0o750); err != nil {
 		log.Warn().Err(err).Str("dir", destinationDir).Msg(a.Msg(sliceStepName, "Unable to create destination directory"))
 		return err
 	}

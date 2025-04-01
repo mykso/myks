@@ -5,8 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
+	"maps"
 	"os"
 	"reflect"
+	"slices"
 	"sync"
 	"testing"
 
@@ -27,8 +30,10 @@ func Test_hash(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.a, func(t *testing.T) {
-			if got := hashString(tt.b); got != tt.want {
+			if got, err := hashString(tt.b); got != tt.want {
 				t.Errorf("hash() = %v, wantArgs %v", got, tt.want)
+			} else if err != nil {
+				t.Errorf("hash() error = %v", err)
 			}
 		})
 	}
@@ -290,7 +295,7 @@ func TestProcess(t *testing.T) {
 		asyncLevel      int
 		collection      any
 		expectedFnCalls int
-		fn              func(any) error
+		fn              func(int) error
 		expectedErr     error
 	}{
 		{
@@ -298,7 +303,7 @@ func TestProcess(t *testing.T) {
 			asyncLevel:      2,
 			collection:      []int{1, 2, 3, 4, 5},
 			expectedFnCalls: 5,
-			fn: func(item any) error {
+			fn: func(item int) error {
 				return nil
 			},
 			expectedErr: nil,
@@ -308,7 +313,7 @@ func TestProcess(t *testing.T) {
 			asyncLevel:      2,
 			collection:      map[string]int{"one": 1, "two": 2, "three": 3},
 			expectedFnCalls: 3,
-			fn: func(item any) error {
+			fn: func(item int) error {
 				return nil
 			},
 			expectedErr: nil,
@@ -318,7 +323,7 @@ func TestProcess(t *testing.T) {
 			asyncLevel:      0,
 			collection:      []int{1, 2, 3, 4, 5},
 			expectedFnCalls: 5,
-			fn: func(item any) error {
+			fn: func(item int) error {
 				return nil
 			},
 			expectedErr: nil,
@@ -328,7 +333,7 @@ func TestProcess(t *testing.T) {
 			asyncLevel:      0,
 			collection:      map[string]int{"one": 1, "two": 2, "three": 3},
 			expectedFnCalls: 3,
-			fn: func(item any) error {
+			fn: func(item int) error {
 				return nil
 			},
 			expectedErr: nil,
@@ -338,7 +343,7 @@ func TestProcess(t *testing.T) {
 			asyncLevel:      222,
 			collection:      []int{1, 2, 3, 4, 5},
 			expectedFnCalls: 5,
-			fn: func(item any) error {
+			fn: func(item int) error {
 				return nil
 			},
 			expectedErr: nil,
@@ -347,8 +352,8 @@ func TestProcess(t *testing.T) {
 			name:       "Error in processing slice",
 			asyncLevel: 2,
 			collection: []int{1, 2, 3, 4, 5},
-			fn: func(item any) error {
-				if item.(int) == 3 {
+			fn: func(item int) error {
+				if item == 3 {
 					return errors.New("error processing item")
 				}
 				return nil
@@ -359,22 +364,13 @@ func TestProcess(t *testing.T) {
 			name:       "Error in processing map",
 			asyncLevel: 2,
 			collection: map[string]int{"one": 1, "two": 2, "three": 3},
-			fn: func(item any) error {
-				if item.(int) == 2 {
+			fn: func(item int) error {
+				if item == 2 {
 					return errors.New("error processing item")
 				}
 				return nil
 			},
 			expectedErr: errors.New("error processing item"),
-		},
-		{
-			name:       "Invalid collection type",
-			asyncLevel: 2,
-			collection: 42,
-			fn: func(item any) error {
-				return nil
-			},
-			expectedErr: fmt.Errorf("collection must be a slice, array or map, got %s", reflect.Int),
 		},
 	}
 
@@ -383,14 +379,26 @@ func TestProcess(t *testing.T) {
 			var counter int
 			var mu sync.Mutex
 
-			fnWrapper := func(item any) error {
+			fnWrapper := func(item int) error {
 				mu.Lock()
 				counter++
 				mu.Unlock()
 				return tc.fn(item)
 			}
 
-			err := process(tc.asyncLevel, tc.collection, fnWrapper)
+			var collection iter.Seq[int]
+			if slice, ok := tc.collection.([]int); ok {
+				collection = slices.Values(slice)
+			} else if m, ok := tc.collection.(map[string]int); ok {
+				collection = maps.Values(m)
+			} else {
+				t.Fatalf("unexpected type: %T", tc.collection)
+			}
+
+			for item := range collection {
+				fmt.Println(item)
+			}
+			err := process(tc.asyncLevel, collection, fnWrapper)
 			if fmt.Sprint(err) != fmt.Sprint(tc.expectedErr) {
 				t.Errorf("expected error: %v, got: %v", tc.expectedErr, err)
 			}

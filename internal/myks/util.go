@@ -7,10 +7,10 @@ import (
 	"hash/fnv"
 	"io"
 	"io/fs"
+	"iter"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"reflect"
 	"regexp"
 	"strings"
 
@@ -53,33 +53,19 @@ func printFileNicely(name, content, syntax string) {
 	}
 }
 
-func process(asyncLevel int, collection any, fn func(any) error) error {
-	var items []any
-
-	value := reflect.ValueOf(collection)
-	switch value.Kind() {
-	case reflect.Slice, reflect.Array:
-		for i := 0; i < value.Len(); i++ {
-			items = append(items, value.Index(i).Interface())
-		}
-	case reflect.Map:
-		for _, key := range value.MapKeys() {
-			items = append(items, value.MapIndex(key).Interface())
-		}
-	default:
-		return fmt.Errorf("collection must be a slice, array or map, got %s", value.Kind())
-	}
-
+func process[Item any](asyncLevel int, collection iter.Seq[Item], fn func(Item) error) error {
 	var eg errgroup.Group
-	if asyncLevel == 0 { // no limit
+	if asyncLevel == 0 {
+		// no limit
 		asyncLevel = -1
 	}
 	eg.SetLimit(asyncLevel)
 
-	for _, item := range items {
-		item := item // Create a new variable to avoid capturing the same item in the closure
+	for item := range collection {
+		// Create a new variable to avoid capturing the same item in the closure
+		innerItem := item
 		eg.Go(func() error {
-			return fn(item)
+			return fn(innerItem)
 		})
 	}
 
@@ -204,10 +190,12 @@ func sortYaml(content []byte) ([]byte, error) {
 	return data.Bytes(), nil
 }
 
-func hashString(s string) string {
+func hashString(s string) (string, error) {
 	h := fnv.New64a()
-	h.Write([]byte(s))
-	return fmt.Sprintf("%x", h.Sum64())
+	if _, err := h.Write([]byte(s)); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%x", h.Sum64()), nil
 }
 
 func createDirectory(dir string) error {
@@ -369,7 +357,7 @@ func collectBySubpath(rootDir string, targetDir string, subpath string) []string
 // If overwrite is false, existing files will not be overwritten, an error will be returned instead.
 // The destination directory will be created if it does not exist.
 func copyDir(src, dst string, overwrite bool) (err error) {
-	if err = os.MkdirAll(dst, os.ModePerm); err != nil {
+	if err = os.MkdirAll(dst, 0o750); err != nil {
 		return
 	}
 
@@ -386,7 +374,7 @@ func copyDir(src, dst string, overwrite bool) (err error) {
 		dstPath := filepath.Join(dst, relPath)
 
 		if d.IsDir() {
-			if err = os.MkdirAll(dstPath, os.ModePerm); err != nil {
+			if err = os.MkdirAll(dstPath, 0o750); err != nil {
 				return err
 			}
 		} else {
@@ -409,17 +397,23 @@ func copyDir(src, dst string, overwrite bool) (err error) {
 
 // copyFile copies a file from src to dst.
 func copyFile(src, dst string) (err error) {
+	closer := func(f *os.File) {
+		if err = f.Close(); err != nil {
+			log.Warn().Err(err).Msg("Failed to close file")
+		}
+	}
+
 	dstFile, err := os.Create(dst)
 	if err != nil {
 		return
 	}
-	defer dstFile.Close()
+	defer closer(dstFile)
 
 	srcFile, err := os.Open(src)
 	if err != nil {
 		return
 	}
-	defer srcFile.Close()
+	defer closer(srcFile)
 
 	_, err = io.Copy(dstFile, srcFile)
 	if err != nil {

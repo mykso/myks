@@ -2,12 +2,11 @@ package myks
 
 import (
 	"errors"
-	"fmt"
+	"maps"
 	"regexp"
 	"strings"
 
 	"github.com/rs/zerolog/log"
-	"golang.org/x/exp/maps"
 )
 
 func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error) {
@@ -18,11 +17,7 @@ func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error)
 	// envAppMap is built later by calling g.runSmartMode
 	_ = g.collectEnvironments(nil)
 
-	err := process(0, g.environments, func(item any) error {
-		env, ok := item.(*Environment)
-		if !ok {
-			return fmt.Errorf("unable to cast item to *Environment")
-		}
+	err := process(0, maps.Values(g.environments), func(env *Environment) error {
 		return env.initEnvData()
 	})
 	if err != nil {
@@ -133,7 +128,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	changedEnvs := []string{}
 	changedPrototypes := []string{}
 
-	for _, path := range maps.Keys(changedFiles) {
+	for path := range maps.Keys(changedFiles) {
 		// Check if the global configuration has changed
 		if extractMatches(exprMap["global"], path) != nil {
 			// If global configuration has changed, we need to render all environments
@@ -210,16 +205,6 @@ func (g *Globe) findPrototypeUsage(prototypes []string) EnvAppMap {
 		}
 	}
 	return envAppMap
-}
-
-func checkFileChanged(changedFiles []string, regExps ...string) bool {
-	for _, expr := range regExps {
-		changes, _ := getChanges(changedFiles, expr)
-		if len(changes) > 0 {
-			return true
-		}
-	}
-	return false
 }
 
 func getChanges(changedFilePaths []string, regExps ...string) ([]string, []string) {

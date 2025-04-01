@@ -2,6 +2,7 @@ package myks
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -28,66 +29,80 @@ func Test_getChangedFiles(t *testing.T) {
 	}
 }
 
-func Test_convertToChangedFiles(t *testing.T) {
-	type args struct {
-		changes string
+func Test_convertDiffToChangedFiles(t *testing.T) {
+	niceIn := [][]string{
+		{"A", "file1"},
+		{"M", "file2"},
+		{"D", "file -> 3"},
+		{"R100", "file\t4"},
+		{"file5"},
+		{"R066", "file6"},
+		{"file7"},
 	}
-	tests := []struct {
-		name string
-		args args
-		want ChangedFiles
-	}{
-		{
-			"git diff",
-			args{
-				"A\tfile1\n" +
-					"M\tfile2\n" +
-					"D\tfile3\n",
-			},
-			ChangedFiles{
-				"file1": "A",
-				"file2": "M",
-				"file3": "D",
-			},
-		},
-		{
-			"git status",
-			args{
-				"A  file1\n" +
-					" M file2\n" +
-					"?? file3\n",
-			},
-			ChangedFiles{
-				"file1": "A",
-				"file2": "M",
-				"file3": "?",
-			},
-		},
-		{
-			"git diff and git status",
-			args{
-				"A\tfile1\n" +
-					"M\tfile2\n" +
-					"D\tfile3\n" +
-					"A  file4\n" +
-					" M file5\n" +
-					"?? file6\n",
-			},
-			ChangedFiles{
-				"file1": "A",
-				"file2": "M",
-				"file3": "D",
-				"file4": "A",
-				"file5": "M",
-				"file6": "?",
-			},
-		},
+	var in string
+	for _, row := range niceIn {
+		in += strings.Join(row, "\x00") + "\x00"
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := convertToChangedFiles(tt.args.changes); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("convertToChangedFiles() = %v, want %v", got, tt.want)
+	out := ChangedFiles{
+		"file1":     "A",
+		"file2":     "M",
+		"file -> 3": "D",
+		"file\t4":   "R",
+		"file5":     "R",
+		"file6":     "R",
+		"file7":     "R",
+	}
+	t.Run("git diff parsing", func(t *testing.T) {
+		if got := convertDiffToChangedFiles(in); !reflect.DeepEqual(got, out) {
+			prettyGot := ""
+			for k, v := range got {
+				prettyGot += k + " " + v + "\n"
 			}
-		})
+			prettyOut := ""
+			for k, v := range out {
+				prettyOut += k + " " + v + "\n"
+			}
+			t.Errorf("got:\n%s\nwant:\n%s", prettyGot, prettyOut)
+		}
+	})
+}
+
+func Test_convertStatusToChangedFiles(t *testing.T) {
+	niceIn := [][]string{
+		{"A ", "file1"},
+		{"M ", "file2"},
+		{"D ", "file3"},
+		{"R ", "file4"},
+		{"file5"},
+		{"AM", "file6"},
+		{"AD", "file7"},
+		{"??", "file8"},
 	}
+	var in string
+	for _, row := range niceIn {
+		in += strings.Join(row, " ") + "\x00"
+	}
+	out := ChangedFiles{
+		"file1": "A",
+		"file2": "M",
+		"file3": "D",
+		"file4": "R",
+		"file5": "R",
+		"file6": "A",
+		"file7": "A",
+		"file8": "?",
+	}
+	t.Run("git status parsing", func(t *testing.T) {
+		if got := convertStatusToChangedFiles(in); !reflect.DeepEqual(got, out) {
+			prettyGot := ""
+			for k, v := range got {
+				prettyGot += k + " " + v + "\n"
+			}
+			prettyOut := ""
+			for k, v := range out {
+				prettyOut += k + " " + v + "\n"
+			}
+			t.Errorf("got:\n%s\nwant:\n%s", prettyGot, prettyOut)
+		}
+	})
 }
