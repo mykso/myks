@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.7.0](https://github.com/mykso/myks/compare/v4.6.1...v4.7.0) (2025-04-01)
+
+
+### Features
+
+* add common vendir configuration directory ([#465](https://github.com/mykso/myks/issues/465)) ([959dec1](https://github.com/mykso/myks/commit/959dec11314eae6afff537319ba4cb584b9bf09b))
+
 ## [4.6.1](https://github.com/mykso/myks/compare/v4.6.0...v4.6.1) (2025-03-28)
 
 
