@@ -1,5 +1,18 @@
 # Changelog
 
+## [4.8.0](https://github.com/mykso/myks/compare/v4.7.0...v4.8.0) (2025-04-04)
+
+
+### Features
+
+* add min-version check and config option ([#473](https://github.com/mykso/myks/issues/473)) ([5a15a9d](https://github.com/mykso/myks/commit/5a15a9da126c019f22304dd83e55a3248e41143e))
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.43.2 ([#470](https://github.com/mykso/myks/issues/470)) ([ad63b7e](https://github.com/mykso/myks/commit/ad63b7ebbff478789449ba0c7e85b49580fdad8b))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.16.0 ([#471](https://github.com/mykso/myks/issues/471)) ([fd70c49](https://github.com/mykso/myks/commit/fd70c49452b1ca91c0fd9350b408b805c0ddb7a1))
+
 ## [4.7.0](https://github.com/mykso/myks/compare/v4.6.1...v4.7.0) (2025-04-01)
 
 
