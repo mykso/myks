@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.8.1](https://github.com/mykso/myks/compare/v4.8.0...v4.8.1) (2025-04-04)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/hashicorp/go-version to v1.7.0 ([#474](https://github.com/mykso/myks/issues/474)) ([3d1d30d](https://github.com/mykso/myks/commit/3d1d30d3f96fb729c8214db7e9801e5a140e5367))
+
 ## [4.8.0](https://github.com/mykso/myks/compare/v4.7.0...v4.8.0) (2025-04-04)
 
 
