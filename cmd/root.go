@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	gv "github.com/hashicorp/go-version"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -62,17 +63,18 @@ Examples:
 
 func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cobra.OnInitialize(initLogger)
+	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(func() { checkMinVersion(version) })
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	cmd := newRootCmd(version, commit, date)
 	cmd.AddCommand(allCmd)
 	cmd.AddCommand(renderCmd)
 	cmd.AddCommand(syncCmd)
 	cmd.AddCommand(newCleanupCmd())
-	cmd.AddCommand(newInitCmd())
+	cmd.AddCommand(newInitCmd(version))
 	cmd.AddCommand(newPrintConfigCmd())
 	cmd.AddCommand(embedded.EmbeddedCmd("vendir", "Vendir is embedded in myks to manage vendir.yaml files."))
 	cmd.AddCommand(embedded.EmbeddedCmd("ytt", "Ytt is embedded in myks to manage yaml files."))
-	initConfig()
 	addPlugins(cmd)
 
 	allCmd.SetUsageTemplate(envAppCommandUsageTemplate)
@@ -185,6 +187,26 @@ func initConfig() {
 		log.Info().Msgf("Using config file: %s", viper.ConfigFileUsed())
 	} else {
 		log.Debug().Err(err).Msg("Unable to read config file")
+	}
+}
+
+func checkMinVersion(current string) {
+	minVersion := viper.GetString("min-version")
+	if minVersion == "" {
+		log.Debug().Msg("No min-version specified in config file, skipping check")
+		return
+	}
+	v1, err := gv.NewVersion(minVersion)
+	if err != nil {
+		log.Error().Err(err).Str("min-version", minVersion).Msg("Invalid min-version specified in config file")
+	}
+	v2, err := gv.NewVersion(current)
+	if err != nil {
+		log.Info().Err(err).Str("current-version", current).Msg("Invalid current version, skipping min-version check")
+		return
+	}
+	if v1.GreaterThan(v2) {
+		log.Error().Str("min-version", minVersion).Str("current-version", current).Msg("Current version is lower than min-version")
 	}
 }
 
