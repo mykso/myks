@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 
@@ -60,6 +61,13 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 
 	var yttFiles []string
 
+	baseDir := filepath.Join(a.e.g.PrototypesDir, "_vendir")
+	if ok, err := isExist(baseDir); err != nil {
+		return err
+	} else if ok {
+		yttFiles = append(yttFiles, baseDir)
+	}
+
 	protoVendirDir := filepath.Join(a.Prototype, "vendir")
 	if ok, err := isExist(protoVendirDir); err != nil {
 		return err
@@ -73,6 +81,9 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 	if len(yttFiles) == 0 {
 		return ErrNoVendirConfig
 	}
+
+	// add environment, prototype, and application data files
+	yttFiles = slices.Insert(yttFiles, 0, a.yttDataFiles...)
 
 	// create vendir config yaml
 	vendirConfig, err := a.yttS(v.getStepName(), "creating vendir config", yttFiles, nil)
@@ -174,13 +185,13 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 
 	vendorDirToCacheMap := map[string]string{}
 
-	for _, dir := range vendirConfig["directories"].([]interface{}) {
-		dirMap := dir.(map[string]interface{})
-		contents := dirMap["contents"].([]interface{})
+	for _, dir := range vendirConfig["directories"].([]any) {
+		dirMap := dir.(map[string]any)
+		contents := dirMap["contents"].([]any)
 
 		for _, content := range contents {
-			vendorDirPath := filepath.Join(dirMap["path"].(string), content.(map[string]interface{})["path"].(string))
-			contentMap := content.(map[string]interface{})
+			vendorDirPath := filepath.Join(dirMap["path"].(string), content.(map[string]any)["path"].(string))
+			contentMap := content.(map[string]any)
 			cacheName, err := genCacheName(contentMap)
 			if err != nil {
 				return err
@@ -200,7 +211,7 @@ func (a *Application) getCacheVendirConfigPath(cacheName string) string {
 	return path.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
 }
 
-func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, vendirConfig map[string]interface{}) error {
+func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, vendirConfig map[string]any) error {
 	data, err := yaml.Marshal(vendirConfig)
 	if err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
@@ -216,23 +227,23 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 	return nil
 }
 
-func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig, vendirContentConfig map[string]interface{}) map[string]interface{} {
+func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig, vendirContentConfig map[string]any) map[string]any {
 	knownKeys := []string{"apiVersion", "kind", "minimumRequiredVersion"}
-	newVendirConfig := map[string]interface{}{}
+	newVendirConfig := map[string]any{}
 	for _, key := range knownKeys {
 		if val, ok := vendirConfig[key]; ok {
 			newVendirConfig[key] = val
 		}
 	}
 
-	newDirConfig := map[string]interface{}{}
+	newDirConfig := map[string]any{}
 	newDirConfig["path"] = filepath.Join(cacheDir, VendirCacheDataDirName)
 	newDirConfig["permissions"] = vendirDirConfig["permissions"]
 
 	vendirContentConfig["path"] = "."
 
-	newDirConfig["contents"] = []interface{}{vendirContentConfig}
-	newVendirConfig["directories"] = []interface{}{newDirConfig}
+	newDirConfig["contents"] = []any{vendirContentConfig}
+	newVendirConfig["directories"] = []any{newDirConfig}
 	return newVendirConfig
 }
 

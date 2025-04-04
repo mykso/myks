@@ -1,5 +1,58 @@
 # Changelog
 
+## [4.7.0](https://github.com/mykso/myks/compare/v4.6.1...v4.7.0) (2025-04-01)
+
+
+### Features
+
+* add common vendir configuration directory ([#465](https://github.com/mykso/myks/issues/465)) ([959dec1](https://github.com/mykso/myks/commit/959dec11314eae6afff537319ba4cb584b9bf09b))
+
+## [4.6.1](https://github.com/mykso/myks/compare/v4.6.0...v4.6.1) (2025-03-28)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.43.1 ([#452](https://github.com/mykso/myks/issues/452)) ([e9417b0](https://github.com/mykso/myks/commit/e9417b08015c7aace2b597bc97a3cf011b98dc8b))
+* **deps:** update module github.com/rs/zerolog to v1.34.0 ([#445](https://github.com/mykso/myks/issues/445)) ([c3b3d0b](https://github.com/mykso/myks/commit/c3b3d0b82d253c14a8833d4622a53cd643a8676a))
+* **deps:** update module github.com/spf13/viper to v1.20.0 ([#426](https://github.com/mykso/myks/issues/426)) ([52bb724](https://github.com/mykso/myks/commit/52bb72478d3f0d755abe2e7e65b00c97b11e980d))
+* **deps:** update module github.com/spf13/viper to v1.20.1 ([#448](https://github.com/mykso/myks/issues/448)) ([08a2061](https://github.com/mykso/myks/commit/08a2061378358ea5a765b11fc4427c3a9421a786))
+* **security:** fix G404, G204, and add error handling to hashString ([9a59e2d](https://github.com/mykso/myks/commit/9a59e2dae931f18b5deafecf9b3c147e70ea8d20))
+* **smart-mode:** detect renames ([#450](https://github.com/mykso/myks/issues/450)) ([25455eb](https://github.com/mykso/myks/commit/25455eb5ce6ff4decdbfe75f471d2164379716c5))
+
+## [4.6.0](https://github.com/mykso/myks/compare/v4.5.1...v4.6.0) (2025-03-12)
+
+
+### Features
+
+* extend vendir step with proto, env and app data values ([#422](https://github.com/mykso/myks/issues/422)) ([3456e0c](https://github.com/mykso/myks/commit/3456e0c72fa47481129a70c08fd03a5ae362bf21))
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/sync to v0.12.0 ([#414](https://github.com/mykso/myks/issues/414)) ([a6c5409](https://github.com/mykso/myks/commit/a6c5409148a595c4c23617b6cb5951f24dc50f03))
+* **deps:** update module golang.org/x/term to v0.30.0 ([#415](https://github.com/mykso/myks/issues/415)) ([946be2c](https://github.com/mykso/myks/commit/946be2c70cef27b1013f1dff73ccbc28e611485c))
+
+## [4.5.1](https://github.com/mykso/myks/compare/v4.5.0...v4.5.1) (2025-03-04)
+
+
+### Bug Fixes
+
+* revert "feat: specify "any" type for .application in schema ([#399](https://github.com/mykso/myks/issues/399))" ([#411](https://github.com/mykso/myks/issues/411)) ([b6bbd59](https://github.com/mykso/myks/commit/b6bbd59ce44fb55aae9694f8b67960fd5c53d397))
+
+## [4.5.0](https://github.com/mykso/myks/compare/v4.4.2...v4.5.0) (2025-02-28)
+
+
+### Features
+
+* specify "any" type for .application in schema ([#399](https://github.com/mykso/myks/issues/399)) ([ddcf2d4](https://github.com/mykso/myks/commit/ddcf2d41f4e3af282cbf23be9123c493d80086e1))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/spf13/cobra to v1.9.1 ([#405](https://github.com/mykso/myks/issues/405)) ([baf77bd](https://github.com/mykso/myks/commit/baf77bd275fef89a1d37ab186b93985741060d52))
+* **deps:** update module golang.org/x/sync to v0.11.0 ([#393](https://github.com/mykso/myks/issues/393)) ([0afc509](https://github.com/mykso/myks/commit/0afc5094e986823160e66392b111988b0d1ba910))
+* **deps:** update module golang.org/x/term to v0.29.0 ([#394](https://github.com/mykso/myks/issues/394)) ([f3664f1](https://github.com/mykso/myks/commit/f3664f1d8a961d06f8fcdde4e447e27abb0d66ac))
+
 ## [4.4.2](https://github.com/mykso/myks/compare/v4.4.1...v4.4.2) (2025-02-02)
 
 

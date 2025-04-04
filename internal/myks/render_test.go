@@ -122,7 +122,7 @@ func TestApplication_Render(t *testing.T) {
 
 func Test_genRenderedResourceFileName(t *testing.T) {
 	type args struct {
-		resource         map[string]interface{}
+		resource         map[string]any
 		includeNamespace bool
 	}
 	tests := []struct {
@@ -131,10 +131,10 @@ func Test_genRenderedResourceFileName(t *testing.T) {
 		want    string
 		wantErr bool
 	}{
-		{"happy path", args{map[string]interface{}{"kind": "Deployment", "metadata": map[string]interface{}{"name": "test", "namespace": "test-ns"}}, true}, "deployment-test_test-ns.yaml", false},
-		{"no namespace", args{map[string]interface{}{"kind": "Deployment", "metadata": map[string]interface{}{"name": "test", "namespace": "test-ns"}}, false}, "deployment-test.yaml", false},
-		{"no kind", args{map[string]interface{}{"metadata": map[string]interface{}{"name": "test", "namespace": "test-ns"}}, false}, "", true},
-		{"no name", args{map[string]interface{}{"metadata": map[string]interface{}{"kind": "Deployment", "namespace": "test-ns"}}, false}, "", true},
+		{"happy path", args{map[string]any{"kind": "Deployment", "metadata": map[string]any{"name": "test", "namespace": "test-ns"}}, true}, "deployment-test_test-ns.yaml", false},
+		{"no namespace", args{map[string]any{"kind": "Deployment", "metadata": map[string]any{"name": "test", "namespace": "test-ns"}}, false}, "deployment-test.yaml", false},
+		{"no kind", args{map[string]any{"metadata": map[string]any{"name": "test", "namespace": "test-ns"}}, false}, "", true},
+		{"no name", args{map[string]any{"metadata": map[string]any{"kind": "Deployment", "namespace": "test-ns"}}, false}, "", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -5,6 +5,9 @@ async: 0
 # One of the zerolog log levels.
 # See: https://github.com/rs/zerolog#leveled-logging
 log-level: info
+# Minimum version of myks required to run this configuration.
+# Myks will print an error message if the version is lower than this.
+min-version: '%s'
 # Load all binaries from the following folders as myks plugins.
 plugin-sources:
-    - ./plugins
+  - ./plugins

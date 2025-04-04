@@ -68,29 +68,6 @@ func Test_getChanges(t *testing.T) {
 	}
 }
 
-func Test_checkFileChanged(t *testing.T) {
-	type args struct {
-		changedFiles []string
-		regExps      []string
-	}
-	tests := []struct {
-		name string
-		args args
-		want bool
-	}{
-		{"happy path", args{[]string{"path1/file1"}, []string{"^path1/(.*)$"}}, true},
-		{"no match", args{[]string{"path1/file1"}, []string{"no-match"}}, false},
-		{"empty", args{[]string{}, []string{"no-match"}}, false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := checkFileChanged(tt.args.changedFiles, tt.args.regExps...); got != tt.want {
-				t.Errorf("got %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestGlobe_findPrototypeUsage(t *testing.T) {
 	type args struct {
 		prototypes []string

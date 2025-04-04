@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -66,11 +67,7 @@ func (e *Environment) Init(applicationNames []string) error {
 }
 
 func (e *Environment) Sync(asyncLevel int, syncTool SyncTool, vendirSecrets string) error {
-	return process(asyncLevel, e.Applications, func(item interface{}) error {
-		app, ok := item.(*Application)
-		if !ok {
-			return fmt.Errorf("unable to cast item to *Application")
-		}
+	return process(asyncLevel, slices.Values(e.Applications), func(app *Application) error {
 		return app.Sync(syncTool, vendirSecrets)
 	})
 }
@@ -79,11 +76,7 @@ func (e *Environment) Render(asyncLevel int) error {
 	if err := e.renderArgoCD(); err != nil {
 		return err
 	}
-	err := process(asyncLevel, e.Applications, func(item interface{}) error {
-		app, ok := item.(*Application)
-		if !ok {
-			return fmt.Errorf("unable to cast item to *Application")
-		}
+	err := process(asyncLevel, slices.Values(e.Applications), func(app *Application) error {
 		yamlTemplatingTools := []YamlTemplatingTool{
 			&Helm{ident: "helm", app: app, additive: true},
 			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
@@ -109,11 +102,7 @@ func (e *Environment) Render(asyncLevel int) error {
 }
 
 func (e *Environment) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
-	return process(asyncLevel, e.Applications, func(item interface{}) error {
-		app, ok := item.(*Application)
-		if !ok {
-			return fmt.Errorf("unable to cast item to *Application")
-		}
+	return process(asyncLevel, slices.Values(e.Applications), func(app *Application) error {
 		return p.Exec(app, args)
 	})
 }

@@ -1,31 +1,32 @@
 {
   pkgs,
   self,
-}: let
+}:
+let
   baseVersion = builtins.readFile "${self}/version.txt";
   commit = self.shortRev or self.dirtyShortRev or "unknown";
   version = "${baseVersion}-${commit}";
 in
-  pkgs.buildGoModule {
-    pname = "myks";
-    src = ./.;
-    vendorHash = "sha256-cTRyQu3lXrIrBHtEYYQIdv0F705KrgyXgDS8meHVRJw=";
-    version = version;
+pkgs.buildGoModule {
+  pname = "myks";
+  src = ./.;
+  vendorHash = "sha256-/LpBb0wbK7OP8HmL2/uMVeilIs4P51Pf+sg23zbPqtI=";
+  version = version;
 
-    env.CGO_ENABLED = 0;
-    doCheck = false;
-    ldflags = [
-      "-s"
-      "-w"
-      "-X=main.version=${baseVersion}"
-      "-X=main.commit=${commit}"
-      "-X=main.date=1970-01-01"
-    ];
+  env.CGO_ENABLED = 0;
+  doCheck = false;
+  ldflags = [
+    "-s"
+    "-w"
+    "-X=main.version=${baseVersion}"
+    "-X=main.commit=${commit}"
+    "-X=main.date=1970-01-01"
+  ];
 
-    meta = {
-      changelog = "https://github.com/mykso/myks/blob/${baseVersion}/CHANGELOG.md";
-      description = "Configuration framework for Kubernetes applications";
-      homepage = "https://github.com/mykso/myks";
-      license = pkgs.lib.licenses.mit;
-    };
-  }
+  meta = {
+    changelog = "https://github.com/mykso/myks/blob/${baseVersion}/CHANGELOG.md";
+    description = "Configuration framework for Kubernetes applications";
+    homepage = "https://github.com/mykso/myks";
+    license = pkgs.lib.licenses.mit;
+  };
+}

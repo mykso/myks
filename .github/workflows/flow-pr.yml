@@ -22,13 +22,13 @@ jobs:
         with:
           # use more powerful token to trigger subsequent workflows
           token: ${{ secrets.MYKSO_BOT_GITHUB_TOKEN }}
-      - uses: cachix/install-nix-action@08dcb3a5e62fa31e2da3d490afc4176ef55ecd72 # v30
+      - uses: cachix/install-nix-action@d1ca217b388ee87b2507a9a93bf01368bde7cec2 # v31.1.0
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update nix flake
         run: nix run github:Mic92/nix-update -- --flake myks --version=skip
       - name: Import GPG key
-        uses: crazy-max/ghaction-import-gpg@cb9bde2e2525e640591a934b1fd28eef1dcaf5e5 # v6
+        uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6.3.0
         with:
           gpg_private_key: ${{ secrets.MYKSO_BOT_GPG_PRIVATE_KEY }}
           git_user_signingkey: true

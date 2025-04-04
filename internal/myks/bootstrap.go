@@ -15,8 +15,8 @@ var dataSchema []byte
 //go:embed assets/gitignore
 var gitignore []byte
 
-//go:embed assets/myks_config.yaml
-var myksConfig []byte
+//go:embed assets/myks_config.tpl.yaml
+var myksConfigTpl []byte
 
 //go:embed all:assets/prototypes
 var prototypesFs embed.FS
@@ -33,25 +33,27 @@ func (e ErrBootstrapTargetExists) Error() string {
 }
 
 // Bootstrap creates the initial directory structure and files
-func (g *Globe) Bootstrap(force, onlyPrint bool, components []string) error {
+func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version string) error {
 	compMap := make(map[string]bool, len(components))
 	for _, comp := range components {
 		compMap[comp] = true
 	}
+
+	myksConfig := fmt.Sprintf(string(myksConfigTpl), version)
 
 	if onlyPrint {
 		if compMap["gitignore"] {
 			printFileNicely(".gitignore", string(gitignore), "Terminfo")
 		}
 		if compMap["config"] {
-			printFileNicely(".myks.yaml", string(myksConfig), "YAML")
+			printFileNicely(".myks.yaml", myksConfig, "YAML")
 		}
 		if compMap["schema"] {
 			printFileNicely("data-schema.ytt.yaml", string(dataSchema), "YAML")
 		}
 	} else {
 		log.Info().Msg("Creating base file structure")
-		if err := g.createBaseFileStructure(force); err != nil {
+		if err := g.createBaseFileStructure(force, myksConfig); err != nil {
 			return err
 		}
 	}
@@ -81,7 +83,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string) error {
 	return nil
 }
 
-func (g *Globe) createBaseFileStructure(force bool) error {
+func (g *Globe) createBaseFileStructure(force bool, myksConfig string) error {
 	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
 	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
 	renderedDir := filepath.Join(g.RootDir, g.RenderedEnvsDir)
@@ -124,7 +126,7 @@ func (g *Globe) createBaseFileStructure(force bool) error {
 		return err
 	}
 
-	if err := os.WriteFile(myksConfigFile, myksConfig, 0o600); err != nil {
+	if err := os.WriteFile(myksConfigFile, []byte(myksConfig), 0o600); err != nil {
 		return err
 	}
 
