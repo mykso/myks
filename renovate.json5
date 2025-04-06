@@ -7,8 +7,14 @@
     "schedule:nonOfficeHours",
   ],
   packageRules: [{
-      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
       automerge: true,
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+    },{
+      automerge: true,
+      groupName: "Golang dependencies (non-major)",
+      matchManagers: ["gomod"],
+      matchUpdateTypes: ["minor", "patch"],
+      minimumReleaseAge: "7 days",
   }],
   customManagers: [{
       customType: "regex",
