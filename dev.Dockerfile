@@ -1,5 +1,5 @@
 # Stage 1 Build myks
-FROM --platform=$BUILDPLATFORM golang:1.24.2@sha256:991aa6a6e4431f2f01e869a812934bd60fbc87fb939e4a1ea54b8494ab9d2fc6 AS builder
+FROM --platform=$BUILDPLATFORM golang:1.24.2@sha256:fb224f950b0dfb889f8f1122bf3dfc21976735ccf983b73a1e6e014215a272f5 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /app
