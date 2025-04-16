@@ -61,13 +61,6 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 
 	var yttFiles []string
 
-	baseDir := filepath.Join(a.e.g.PrototypesDir, "_vendir")
-	if ok, err := isExist(baseDir); err != nil {
-		return err
-	} else if ok {
-		yttFiles = append(yttFiles, baseDir)
-	}
-
 	protoVendirDir := filepath.Join(a.Prototype, "vendir")
 	if ok, err := isExist(protoVendirDir); err != nil {
 		return err
@@ -80,6 +73,13 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 
 	if len(yttFiles) == 0 {
 		return ErrNoVendirConfig
+	}
+
+	baseDir := filepath.Join(a.e.g.PrototypesDir, "_vendir")
+	if ok, err := isExist(baseDir); err != nil {
+		return err
+	} else if ok {
+		yttFiles = slices.Insert(yttFiles, 0, baseDir)
 	}
 
 	// add environment, prototype, and application data files
