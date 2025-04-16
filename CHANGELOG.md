@@ -1,5 +1,15 @@
 # Changelog
 
+## [4.8.1](https://github.com/mykso/myks/compare/v4.8.0...v4.8.1) (2025-04-16)
+
+
+### Bug Fixes
+
+* allow prototypes without vendir configuration ([#490](https://github.com/mykso/myks/issues/490)) ([071b780](https://github.com/mykso/myks/commit/071b780b7d30a624dfd4734038b57884366dab53))
+* **deps:** update module github.com/hashicorp/go-version to v1.7.0 ([#474](https://github.com/mykso/myks/issues/474)) ([3d1d30d](https://github.com/mykso/myks/commit/3d1d30d3f96fb729c8214db7e9801e5a140e5367))
+* **deps:** update module golang.org/x/sync to v0.13.0 ([#485](https://github.com/mykso/myks/issues/485)) ([ef3c5ab](https://github.com/mykso/myks/commit/ef3c5abf1aa7d615330015246ae3183fcd42b0ce))
+* **deps:** update module golang.org/x/term to v0.31.0 ([#487](https://github.com/mykso/myks/issues/487)) ([bb21f15](https://github.com/mykso/myks/commit/bb21f15ad773f2c41a986b1e7c74fe5bebb5c50b))
+
 ## [4.8.0](https://github.com/mykso/myks/compare/v4.7.0...v4.8.0) (2025-04-04)
 
 
