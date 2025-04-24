@@ -20,7 +20,7 @@ Examples:
     # Cleanup only rendered manifests
     myks cleanup --manifests
 
-    # List cache entrise that would be cleaned up
+    # List cache entries that would be cleaned up
     myks cleanup --cache --dry-run
 `
 
