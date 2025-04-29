@@ -9,7 +9,7 @@ let
 in
 pkgs.buildGoModule {
   pname = "myks";
-  src = ./.;
+  src = self;
   vendorHash = "sha256-kUOjbBosj2u25n/fGoC0DpAYkWIgoxIfkXJlNpRALfw=";
   version = version;
 
