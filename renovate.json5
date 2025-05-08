@@ -18,7 +18,7 @@
   }],
   customManagers: [{
       customType: "regex",
-      fileMatch: [
+      managerFilePatterns: [
         "^(Docker|Container)file$"
       ],
       // # renovate: datasource=github-releases depName=carvel-dev/vendir
@@ -28,7 +28,7 @@
       ],
     },{
       customType: "regex",
-      fileMatch: [
+      managerFilePatterns: [
         "(^|/)\\.github/workflows/.+\\.ya?ml$"
       ],
       // # renovate: datasource=github-releases depName=mvdan/gofumpt
