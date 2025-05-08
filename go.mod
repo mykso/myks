@@ -7,7 +7,7 @@ toolchain go1.24.2
 require (
 	carvel.dev/vendir v0.43.2
 	carvel.dev/ytt v0.51.2
-	github.com/alecthomas/chroma/v2 v2.17.0
+	github.com/alecthomas/chroma/v2 v2.17.2
 	github.com/cppforlife/go-cli-ui v0.0.0-20220622150351-995494831c6c
 	github.com/creasty/defaults v1.8.0
 	github.com/hashicorp/go-version v1.7.0
@@ -17,7 +17,7 @@ require (
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
-	golang.org/x/sync v0.13.0
+	golang.org/x/sync v0.14.0
 	golang.org/x/term v0.31.0
 	gopkg.in/yaml.v3 v3.0.1
 )
