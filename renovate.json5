@@ -6,6 +6,9 @@
     "helpers:pinGitHubActionDigestsToSemver",
     "schedule:nonOfficeHours",
   ],
+  nix: {
+    enabled: true
+  },
   packageRules: [{
       automerge: true,
       matchUpdateTypes: ["minor", "patch", "pin", "digest"],
