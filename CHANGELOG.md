@@ -1,5 +1,16 @@
 # Changelog
 
+## [4.8.2](https://github.com/mykso/myks/compare/v4.8.1...v4.8.2) (2025-05-09)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#505](https://github.com/mykso/myks/issues/505)) ([f3320e8](https://github.com/mykso/myks/commit/f3320e87aabace0ca1d8406729922954591be0c0))
+* **deps:** update module carvel.dev/ytt to v0.51.2 ([#502](https://github.com/mykso/myks/issues/502)) ([846482c](https://github.com/mykso/myks/commit/846482c55163190362733fc0a0a191f4551eed5b))
+* **deps:** update module carvel.dev/ytt to v0.52.0 ([#509](https://github.com/mykso/myks/issues/509)) ([721dda4](https://github.com/mykso/myks/commit/721dda4e21e8f7e0549e7078ac747910f9a2fba8))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.17.0 ([#497](https://github.com/mykso/myks/issues/497)) ([a83ab5c](https://github.com/mykso/myks/commit/a83ab5c48afd890b28cba3bcb4b9a5559c093239))
+* typo in cleanup help message ([c70f949](https://github.com/mykso/myks/commit/c70f949c6ec6afe83d18ba443b20662d865677e4))
+
 ## [4.8.1](https://github.com/mykso/myks/compare/v4.8.0...v4.8.1) (2025-04-16)
 
 
