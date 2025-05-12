@@ -10,7 +10,7 @@ in
 pkgs.buildGoModule {
   pname = "myks";
   src = self;
-  vendorHash = "sha256-lxqAd7N5yrW453s6cEGAtCcxLyJMsWK8LtT31kTODoc=";
+  vendorHash = "sha256-yr4c5mhz+DRJGzgf/PImKsOABNX2t6o+zfX/c+0QmPU=";
   version = version;
 
   env.CGO_ENABLED = 0;
