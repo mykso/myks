@@ -3,7 +3,7 @@ module github.com/mykso/myks
 go 1.24.2
 
 require (
-	carvel.dev/vendir v0.43.2
+	carvel.dev/vendir v0.44.0
 	carvel.dev/ytt v0.52.0
 	github.com/alecthomas/chroma/v2 v2.17.2
 	github.com/cppforlife/go-cli-ui v0.0.0-20220622150351-995494831c6c
@@ -21,7 +21,7 @@ require (
 )
 
 require (
-	carvel.dev/imgpkg v0.44.2 // indirect
+	carvel.dev/imgpkg v0.46.1 // indirect
 	cloud.google.com/go/compute/metadata v0.6.0 // indirect
 	github.com/Azure/azure-sdk-for-go v55.0.0+incompatible // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
@@ -95,10 +95,10 @@ require (
 	github.com/vbatts/tar-split v0.11.6 // indirect
 	github.com/vito/go-interact v1.0.1 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/crypto v0.32.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/oauth2 v0.25.0 // indirect
 	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	k8s.io/apimachinery v0.24.3 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
