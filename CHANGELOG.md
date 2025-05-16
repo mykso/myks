@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.8.3](https://github.com/mykso/myks/compare/v4.8.2...v4.8.3) (2025-05-16)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.44.0 ([#515](https://github.com/mykso/myks/issues/515)) ([a9f0471](https://github.com/mykso/myks/commit/a9f04712493a2c88a0985a7b8ce591956f525fd6))
+* **deps:** update module golang.org/x/term to v0.32.0 ([#511](https://github.com/mykso/myks/issues/511)) ([7f321de](https://github.com/mykso/myks/commit/7f321de2bd7d03ef71113ce2de32a796ede78e3c))
+
 ## [4.8.2](https://github.com/mykso/myks/compare/v4.8.1...v4.8.2) (2025-05-09)
 
 
