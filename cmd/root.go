@@ -63,7 +63,6 @@ Examples:
 
 func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cobra.OnInitialize(initLogger)
-	cobra.OnInitialize(initConfig)
 	cobra.OnInitialize(func() { checkMinVersion(version) })
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	cmd := newRootCmd(version, commit, date)
@@ -75,6 +74,7 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cmd.AddCommand(newPrintConfigCmd())
 	cmd.AddCommand(embedded.EmbeddedCmd("vendir", "Vendir is embedded in myks to manage vendir.yaml files."))
 	cmd.AddCommand(embedded.EmbeddedCmd("ytt", "Ytt is embedded in myks to manage yaml files."))
+	initConfig()
 	addPlugins(cmd)
 
 	allCmd.SetUsageTemplate(envAppCommandUsageTemplate)
