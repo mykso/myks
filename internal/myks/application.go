@@ -118,16 +118,38 @@ func (a *Application) collectDataFiles() {
 	environmentDataFiles := a.e.collectBySubpath(a.e.g.EnvironmentDataFileName)
 	a.yttDataFiles = append(a.yttDataFiles, environmentDataFiles...)
 
-	protoDataFile := filepath.Join(a.Prototype, a.e.g.ApplicationDataFileName)
-	if files, err := filepath.Glob(protoDataFile); err == nil {
-		a.yttDataFiles = append(a.yttDataFiles, files...)
+	if appDataFiles, err := a.collectTreeFiles(a.e.g.ApplicationDataFileName); err == nil {
+		a.yttDataFiles = append(a.yttDataFiles, appDataFiles...)
+	}
+}
+
+// Discovers all files or directories in the tree by the given subpath.
+// The subpath may be a glob expression.
+// Example:
+//
+//	a.collectTreeFiles("helm/cert-manager.yaml")
+//	a.collectTreeFiles("static")
+//	a.collectTreeFiles("app-data*.yaml")
+func (a *Application) collectTreeFiles(subpath string) ([]string, error) {
+	filepaths := []string{}
+
+	// 1. Files from the prototype
+	if protoFiles, err := filepath.Glob(filepath.Join(a.Prototype, subpath)); err == nil {
+		filepaths = append(filepaths, protoFiles...)
+	} else {
+		return nil, err
 	}
 
-	protoOverrideDataFiles := a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), a.e.g.ApplicationDataFileName))
-	a.yttDataFiles = append(a.yttDataFiles, protoOverrideDataFiles...)
+	// 2. Files from prototype overrides
+	filepaths = append(filepaths, a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), subpath))...)
 
-	overrideDataFiles := a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.ApplicationDataFileName))
-	a.yttDataFiles = append(a.yttDataFiles, overrideDataFiles...)
+	// 3. Files from the environment tree
+	filepaths = append(filepaths, a.e.collectBySubpath(filepath.Join(a.e.g.EnvsDir, subpath))...)
+
+	// 4. Files from the application tree
+	filepaths = append(filepaths, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, subpath))...)
+
+	return filepaths, nil
 }
 
 func (a *Application) Msg(step string, msg string) string {
