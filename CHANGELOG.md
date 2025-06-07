@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.8.4](https://github.com/mykso/myks/compare/v4.8.3...v4.8.4) (2025-06-07)
+
+
+### Bug Fixes
+
+* consider changes to the rendered directory in the smart mode ([#525](https://github.com/mykso/myks/issues/525)) ([9eda7d0](https://github.com/mykso/myks/commit/9eda7d0001b00dd0677a853dd8e368e6e8f5f1ea))
+* **deps:** update module golang.org/x/sync to v0.15.0 ([#527](https://github.com/mykso/myks/issues/527)) ([56d7fcf](https://github.com/mykso/myks/commit/56d7fcfbad8671c88b39f694292019d6a49b344d))
+
 ## [4.8.3](https://github.com/mykso/myks/compare/v4.8.2...v4.8.3) (2025-05-30)
 
 
