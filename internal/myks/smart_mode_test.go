@@ -286,6 +286,42 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				"envs": nil,
 			},
 		},
+		{
+			"changes in rendered envs",
+			ChangedFiles{
+				"rendered/envs/env1/app1/some-file.yaml": "M",
+				"rendered/envs/env2/app3/some-file.yaml": "?",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app1"},
+				"envs/env2": {"app3"},
+			},
+		},
+		{
+			"changes in rendered envs with missing apps",
+			ChangedFiles{
+				"rendered/envs/env1/app1/some-file.yaml": "M",
+			},
+			EnvAppMap{
+				"env1": {"app1"},
+				"env2": {"app2"},
+			},
+			EnvAppMap{
+				"envs/env1": {"app1", "app2"},
+				"envs/env2": {"app3"},
+			},
+		},
+		{
+			"changes in rendered argocd apps",
+			ChangedFiles{
+				"rendered/argocd/env1/app-app1.yaml": "M",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app1"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

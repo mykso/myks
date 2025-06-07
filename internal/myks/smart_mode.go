@@ -99,6 +99,8 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		"app": {
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + pluginsPattern + "/.*"),
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + globToRegexp(g.ApplicationDataFileName)),
+			e(g.RenderedEnvsDir + "/([^/]+)/([^/]+)/.*"),
+			e(g.RenderedArgoDir + "/([^/]+)/app-([^/]+)\\.yaml"),
 		},
 	}
 
@@ -137,7 +139,8 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 
 		// If env has changed
 		if envMatch := extractMatches(exprMap["env"], path); envMatch != nil {
-			changedEnvs = append(changedEnvs, envMatch[0])
+			envPath := g.AddBaseDirToEnvPath(envMatch[0])
+			changedEnvs = append(changedEnvs, envPath)
 			continue
 		}
 
@@ -149,7 +152,8 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 
 		// If app has changed
 		if appMatch := extractMatches(exprMap["app"], path); appMatch != nil {
-			envAppMap[appMatch[0]] = append(envAppMap[appMatch[0]], appMatch[1])
+			envPath := g.AddBaseDirToEnvPath(appMatch[0])
+			envAppMap[envPath] = append(envAppMap[envPath], appMatch[1])
 			continue
 		}
 	}
