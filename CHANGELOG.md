@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.8.5](https://github.com/mykso/myks/compare/v4.8.4...v4.8.5) (2025-06-20)
+
+
+### Bug Fixes
+
+* **deps:** update github.com/cppforlife/go-cli-ui digest to 47874c9 ([#530](https://github.com/mykso/myks/issues/530)) ([344a30c](https://github.com/mykso/myks/commit/344a30c7f73c9936c82b077514b9cebeba2df6d5))
+
+
+### Reverts
+
+* git-auto-commit-action to v5.2.0 ([#535](https://github.com/mykso/myks/issues/535)) ([b54667d](https://github.com/mykso/myks/commit/b54667de03ad00d1baebc634a97f5a8f5d4e8582))
+
 ## [4.8.4](https://github.com/mykso/myks/compare/v4.8.3...v4.8.4) (2025-06-07)
 
 
