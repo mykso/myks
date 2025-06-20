@@ -171,16 +171,18 @@ func TestGlobe_runSmartMode(t *testing.T) {
 	g := createGlobe(t)
 	g.environments = map[string]*Environment{
 		"envs/env1": {
-			g:  g,
-			ID: "env1",
+			Dir: "envs/env1",
+			g:   g,
+			ID:  "env1-id",
 			foundApplications: map[string]string{
 				"app1": "app1",
 				"app2": "app2",
 			},
 		},
 		"envs/env2": {
-			g:  g,
-			ID: "env2",
+			Dir: "envs/env2",
+			g:   g,
+			ID:  "env2",
 			foundApplications: map[string]string{
 				"app3": "app3",
 				"app2": "app2",
@@ -188,8 +190,8 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		},
 	}
 	renderedEnvApps := EnvAppMap{
-		"env1": {"app1", "app2"},
-		"env2": {"app2", "app3"},
+		"env1-id": {"app1", "app2"},
+		"env2":    {"app2", "app3"},
 	}
 	tests := []struct {
 		name         string
@@ -256,8 +258,8 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			"missing rendered apps",
 			ChangedFiles{},
 			EnvAppMap{
-				"env1": {"app1"},
-				"env2": {"app2"},
+				"env1-id": {"app1"},
+				"env2":    {"app2"},
 			},
 			EnvAppMap{
 				"envs/env1": {"app2"},
@@ -289,8 +291,8 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"changes in rendered envs",
 			ChangedFiles{
-				"rendered/envs/env1/app1/some-file.yaml": "M",
-				"rendered/envs/env2/app3/some-file.yaml": "?",
+				"rendered/envs/env1-id/app1/some-file.yaml": "M",
+				"rendered/envs/env2/app3/some-file.yaml":    "?",
 			},
 			renderedEnvApps,
 			EnvAppMap{
@@ -301,11 +303,11 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"changes in rendered envs with missing apps",
 			ChangedFiles{
-				"rendered/envs/env1/app1/some-file.yaml": "M",
+				"rendered/envs/env1-id/app1/some-file.yaml": "M",
 			},
 			EnvAppMap{
-				"env1": {"app1"},
-				"env2": {"app2"},
+				"env1-id": {"app1"},
+				"env2":    {"app2"},
 			},
 			EnvAppMap{
 				"envs/env1": {"app1", "app2"},
@@ -315,7 +317,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		{
 			"changes in rendered argocd apps",
 			ChangedFiles{
-				"rendered/argocd/env1/app-app1.yaml": "M",
+				"rendered/argocd/env1-id/app-app1.yaml": "M",
 			},
 			renderedEnvApps,
 			EnvAppMap{

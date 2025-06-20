@@ -99,6 +99,9 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		"app": {
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + pluginsPattern + "/.*"),
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + globToRegexp(g.ApplicationDataFileName)),
+		},
+		// Env ID and app name are the submatches
+		"rendered-app": {
 			e(g.RenderedEnvsDir + "/([^/]+)/([^/]+)/.*"),
 			e(g.RenderedArgoDir + "/([^/]+)/app-([^/]+)\\.yaml"),
 		},
@@ -153,6 +156,18 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		// If app has changed
 		if appMatch := extractMatches(exprMap["app"], path); appMatch != nil {
 			envPath := g.AddBaseDirToEnvPath(appMatch[0])
+			envAppMap[envPath] = append(envAppMap[envPath], appMatch[1])
+			continue
+		}
+
+		// If rendered app has changed
+		if appMatch := extractMatches(exprMap["rendered-app"], path); appMatch != nil {
+			env, err := g.getEnvByID(appMatch[0])
+			if err != nil {
+				log.Err(err).Str("envID", appMatch[0]).Msg(g.Msg("Failed to get environment by ID"))
+				continue
+			}
+			envPath := g.AddBaseDirToEnvPath(env.Dir)
 			envAppMap[envPath] = append(envAppMap[envPath], appMatch[1])
 			continue
 		}
