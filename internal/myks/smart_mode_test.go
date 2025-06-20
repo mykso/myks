@@ -171,16 +171,18 @@ func TestGlobe_runSmartMode(t *testing.T) {
 	g := createGlobe(t)
 	g.environments = map[string]*Environment{
 		"envs/env1": {
-			g:  g,
-			ID: "env1-id",
+			Dir: "envs/env1",
+			g:   g,
+			ID:  "env1-id",
 			foundApplications: map[string]string{
 				"app1": "app1",
 				"app2": "app2",
 			},
 		},
 		"envs/env2": {
-			g:  g,
-			ID: "env2",
+			Dir: "envs/env2",
+			g:   g,
+			ID:  "env2",
 			foundApplications: map[string]string{
 				"app3": "app3",
 				"app2": "app2",

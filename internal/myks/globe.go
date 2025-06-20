@@ -484,3 +484,12 @@ func (g *Globe) AddBaseDirToEnvPath(envName string) string {
 	}
 	return filepath.Join(g.EnvironmentBaseDir, envName)
 }
+
+func (g *Globe) getEnvByID(envID string) (*Environment, error) {
+	for _, env := range g.environments {
+		if env.ID == envID {
+			return env, nil
+		}
+	}
+	return nil, fmt.Errorf("environment with ID %s not found", envID)
+}
