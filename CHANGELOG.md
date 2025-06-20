@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.9.0](https://github.com/mykso/myks/compare/v4.8.5...v4.9.0) (2025-06-20)
+
+
+### Features
+
+* cleanup rendered manifests per application ([#538](https://github.com/mykso/myks/issues/538)) ([e33f76d](https://github.com/mykso/myks/commit/e33f76d2635fd1df1591a430ee095a6f4c60cf55))
+
+
+### Bug Fixes
+
+* **smart-mode:** detection of changes in rendered ([#536](https://github.com/mykso/myks/issues/536)) ([2a78684](https://github.com/mykso/myks/commit/2a78684e26617eb663215d42093e7ef42e85005e))
+
 ## [4.8.5](https://github.com/mykso/myks/compare/v4.8.4...v4.8.5) (2025-06-20)
 
 
