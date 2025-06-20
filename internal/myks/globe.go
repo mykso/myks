@@ -264,7 +264,7 @@ func (g *Globe) CleanupRenderedManifests(dryRun bool) error {
 				log.Debug().Str("dir", dir).Msg("Skipping cleanup of non-existing directory")
 				return nil, nil
 			}
-			return nil, fmt.Errorf("unable to read dir: %w", err)
+			return nil, fmt.Errorf("unable to read directory %s: %w", dir, err)
 		}
 		return files, nil
 	}
@@ -308,7 +308,7 @@ func (g *Globe) CleanupRenderedManifests(dryRun bool) error {
 				appName = getAppNameFunc(appName)
 			}
 			if appName == "" {
-				log.Warn().Err(err).Str("app", fullAppPath).Msg("Unable to get application name")
+				log.Warn().Str("app", fullAppPath).Msg("Directory name could not be mapped to a known application")
 				continue
 			}
 			if _, ok := legalApps[appName]; !ok {
