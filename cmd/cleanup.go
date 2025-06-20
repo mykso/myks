@@ -45,7 +45,7 @@ func newCleanupCmd() *cobra.Command {
 			}
 
 			if !modeManifests && !modeCache {
-				log.Fatal().Msg("Nothing to cleanup")
+				log.Fatal().Msg("Both --manifests and --cache flags are set to false, nothing to cleanup")
 			}
 
 			g := myks.New(".")
