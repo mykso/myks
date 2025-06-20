@@ -252,39 +252,99 @@ func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
 // CleanupRenderedManifests discovers rendered environments that are not known to the Globe struct and removes them.
 // This function should be only run when the Globe is not restricted by a list of environments.
 func (g *Globe) CleanupRenderedManifests(dryRun bool) error {
-	legalEnvs := map[string]bool{}
+	legalEnvs := map[string]*Environment{}
 	for _, env := range g.environments {
-		legalEnvs[env.ID] = true
+		legalEnvs[env.ID] = env
 	}
 
-	for _, dir := range [...]string{g.RenderedArgoDir, g.RenderedEnvsDir} {
-		dirPath := filepath.Join(g.RootDir, dir)
-		files, err := os.ReadDir(dirPath)
+	listFiles := func(dir string) ([]fs.DirEntry, error) {
+		files, err := os.ReadDir(dir)
 		if err != nil {
 			if os.IsNotExist(err) {
-				log.Debug().Str("dir", dirPath).Msg("Skipping cleanup of non-existing directory")
-				continue
+				log.Debug().Str("dir", dir).Msg("Skipping cleanup of non-existing directory")
+				return nil, nil
 			}
-			return fmt.Errorf("unable to read dir: %w", err)
+			return nil, fmt.Errorf("unable to read directory %s: %w", dir, err)
+		}
+		return files, nil
+	}
+
+	cleanupEnvironmentDir := func(root string, envDirEntry fs.DirEntry, getAppNameFunc func(string) string) {
+		envID := envDirEntry.Name()
+		fullPath := filepath.Join(root, envID)
+		if !envDirEntry.IsDir() {
+			log.Warn().Str("file", fullPath).Msg("Skipping non-directory entry")
+			return
 		}
 
-		for _, file := range files {
-			if !file.IsDir() {
-				log.Warn().Str("file", dir+"/"+file.Name()).Msg("Skipping non-directory entry")
+		env, ok := legalEnvs[envID]
+		if !ok {
+			if dryRun {
+				log.Info().Str("dir", fullPath).Msg("Would cleanup rendered environment directory")
+				return
+			}
+			log.Debug().Str("dir", fullPath).Msg("Cleanup rendered environment directory")
+			if err := os.RemoveAll(fullPath); err != nil {
+				log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
+			}
+			return
+		}
+
+		legalApps := map[string]bool{}
+		for _, app := range env.Applications {
+			legalApps[app.Name] = true
+		}
+
+		apps, err := listFiles(fullPath)
+		if err != nil {
+			log.Warn().Err(err).Str("dir", fullPath).Msg("Unable to list applications in environment directory")
+			return
+		}
+
+		for _, appDirEntry := range apps {
+			appName := appDirEntry.Name()
+			fullAppPath := filepath.Join(fullPath, appName)
+			if getAppNameFunc != nil {
+				appName = getAppNameFunc(appName)
+			}
+			if appName == "" {
+				log.Warn().Str("app", fullAppPath).Msg("Directory name could not be mapped to a known application")
 				continue
 			}
-			if _, ok := legalEnvs[file.Name()]; !ok {
+			if _, ok := legalApps[appName]; !ok {
 				if dryRun {
-					log.Info().Str("dir", dir+"/"+file.Name()).Msg("Would cleanup rendered environment directory")
+					log.Info().Str("app", fullAppPath).Msg("Would cleanup rendered application directory")
 					continue
 				}
-				log.Debug().Str("dir", dir+"/"+file.Name()).Msg("Cleanup rendered environment directory")
-				fullPath := filepath.Join(dirPath, file.Name())
-				if err := os.RemoveAll(fullPath); err != nil {
-					log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
+				log.Debug().Str("app", fullAppPath).Msg("Cleanup rendered application directory")
+				if err := os.RemoveAll(fullAppPath); err != nil {
+					log.Warn().Str("app", fullAppPath).Msg("Failed to remove application directory")
 				}
 			}
 		}
+	}
+
+	argoDir := filepath.Join(g.RootDir, g.RenderedArgoDir)
+	files, err := listFiles(argoDir)
+	if err != nil {
+		return fmt.Errorf("unable to read ArgoCD rendered manifests directory: %w", err)
+	}
+	for _, envDirEntry := range files {
+		cleanupEnvironmentDir(argoDir, envDirEntry, func(appName string) string {
+			if strings.HasPrefix(appName, "app-") && strings.HasSuffix(appName, ".yaml") {
+				return appName[4 : len(appName)-5]
+			}
+			return ""
+		})
+	}
+
+	envsDir := filepath.Join(g.RootDir, g.RenderedEnvsDir)
+	files, err = listFiles(envsDir)
+	if err != nil {
+		return fmt.Errorf("unable to read rendered environments directory: %w", err)
+	}
+	for _, envDirEntry := range files {
+		cleanupEnvironmentDir(envsDir, envDirEntry, nil)
 	}
 
 	return nil
