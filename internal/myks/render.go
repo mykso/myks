@@ -203,7 +203,8 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 		return "", err
 	}
 
-	// merge previously rendered yaml documents into one, as it'd do helm with all values files
+	// merge previously rendered yaml documents into one,
+	// in the way Helm would do that with all values files
 	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandServicePath(valuesFileName))
 	if err != nil {
 		return "", err
