@@ -17,36 +17,37 @@ builds:
 archives:
   - format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     files:
       - LICENSE
       - docs/*
 checksum:
-  name_template: "checksums.txt"
+  name_template: 'checksums.txt'
 signs:
   - artifacts: checksum
     cmd: gpg2
     args:
-      - "--batch"
-      - "-u"
-      - "{{ .Env.GPG_FINGERPRINT }}"
-      - "--output"
-      - "${signature}"
-      - "--detach-sign"
-      - "${artifact}"
+      - '--batch'
+      - '-u'
+      - '{{ .Env.GPG_FINGERPRINT }}'
+      - '--output'
+      - '${signature}'
+      - '--detach-sign'
+      - '${artifact}'
 aurs:
   - name: myks-bin
     homepage: https://github.com/mykso/myks
     description: Configuration framework for Kubernetes applications
     maintainers:
-      - "German Lashevich <german.lashevich at gmail dot com>"
-    license: "MIT"
-    private_key: "{{ .Env.AUR_SSH_KEY }}"
-    git_url: "ssh://aur@aur.archlinux.org/myks-bin.git"
+      - 'German Lashevich <german.lashevich at gmail dot com>'
+    license: 'MIT'
+    private_key: '{{ .Env.AUR_SSH_KEY }}'
+    git_url: 'ssh://aur@aur.archlinux.org/myks-bin.git'
     optdepends:
-      - "vendir: for downloading from external sources"
-      - "git: for smart detection of changes"
-      - "helm: for rendering helm charts"
+      - 'vendir: for downloading from external sources'
+      - 'git: for smart detection of changes'
+      - 'helm: for rendering helm charts'
     package: |-
       BIN=myks
 
@@ -62,24 +63,30 @@ aurs:
     commit_author:
       name: Mykso Bot
       email: german.lashevich+mykso-bot@gmail.com
-brews:
+homebrew_casks:
   - name: myks
     description: Configuration framework for Kubernetes applications
-    directory: Formula
     homepage: https://github.com/mykso/myks
     license: MIT
     commit_author:
       name: Mykso Bot
       email: german.lashevich+mykso-bot@gmail.com
+    conflicts:
+      - formula: myks
     dependencies:
-      - name: git
-        type: optional
-      - name: helm
-        type: optional
+      - formula: git
+      - formula: helm
     repository:
       owner: mykso
       name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_REPO_TOKEN }}"
+      token: '{{ .Env.HOMEBREW_TAP_REPO_TOKEN }}'
+    hooks:
+      post:
+        # This is a workaround for the quarantine attribute that macOS applies to downloaded files.
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/myks"]
+          end
 dockers:
   - goos: linux
     goarch: amd64
