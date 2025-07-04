@@ -163,6 +163,7 @@ func genRenderedResourceFileName(resource map[string]any, includeNamespace bool)
 // from the `helm` or `ytt` directories of the prototype and the application.
 func (a *Application) prepareValuesFile(dirName string, resourceName string) (string, error) {
 	valuesFileName := filepath.Join(dirName, resourceName+".yaml")
+	yttArgs := []string{"-v", "myks.context.helm.chart=" + resourceName}
 
 	var valuesFiles []string
 
@@ -185,7 +186,8 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 		return "", nil
 	}
 
-	resourceValuesYaml, err := a.ytt(renderStepName, "collect data values file", concatenate(a.yttDataFiles, valuesFiles))
+	// render zero or more yaml documents - values files
+	resourceValuesYaml, err := a.ytt(renderStepName, "collect data values file", concatenate(a.yttDataFiles, valuesFiles), yttArgs...)
 	if err != nil {
 		return "", err
 	}
@@ -201,6 +203,8 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 		return "", err
 	}
 
+	// merge previously rendered yaml documents into one,
+	// in the way Helm would do that with all values files
 	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandServicePath(valuesFileName))
 	if err != nil {
 		return "", err

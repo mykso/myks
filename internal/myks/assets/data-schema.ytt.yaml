@@ -146,3 +146,7 @@ myks:
     prototype: ''
     #! rendering step: init, argocd, global_ytt, helm, ytt-pkg, ytt
     step: ''
+    #! information related to the helm step
+    helm:
+      #! name of the helm chart currently being processed
+      chart: ''
