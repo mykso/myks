@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.10.0](https://github.com/mykso/myks/compare/v4.9.0...v4.10.0) (2025-07-04)
+
+
+### Features
+
+* provide chart name in myks context data ([#545](https://github.com/mykso/myks/issues/545)) ([a447073](https://github.com/mykso/myks/commit/a447073b0a0f0b6fd731a5e781a25daa14451345))
+
 ## [4.9.0](https://github.com/mykso/myks/compare/v4.8.5...v4.9.0) (2025-06-20)
 
 
