@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.11.0](https://github.com/mykso/myks/compare/v4.10.0...v4.11.0) (2025-07-05)
+
+
+### Features
+
+* support global helm values ([#547](https://github.com/mykso/myks/issues/547)) ([67e1863](https://github.com/mykso/myks/commit/67e1863ad9e7160a8d82350c1fa1809c0d152688))
+
 ## [4.10.0](https://github.com/mykso/myks/compare/v4.9.0...v4.10.0) (2025-07-04)
 
 
