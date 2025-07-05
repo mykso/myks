@@ -161,28 +161,25 @@ func genRenderedResourceFileName(resource map[string]any, includeNamespace bool)
 
 // prepareValuesFile generates values.yaml file from ytt data files and ytt templates
 // from the `helm` or `ytt` directories of the prototype and the application.
-func (a *Application) prepareValuesFile(dirName string, resourceName string) (string, error) {
-	valuesFileName := filepath.Join(dirName, resourceName+".yaml")
-	yttArgs := []string{"-v", "myks.context.helm.chart=" + resourceName}
-
+func (a *Application) prepareValuesFile(dirName, chartName string) (string, error) {
 	var valuesFiles []string
 
-	// add values file from base dir
-	prototypeValuesFile := filepath.Join(a.Prototype, valuesFileName)
-	if ok, err := isExist(prototypeValuesFile); err != nil {
+	yttArgs := []string{"-v", "myks.context.helm.chart=" + chartName}
+
+	if files, err := a.collectValuesFiles(dirName, "_global"); err == nil {
+		valuesFiles = files
+	} else {
 		return "", err
-	} else if ok {
-		valuesFiles = append(valuesFiles, prototypeValuesFile)
 	}
 
-	// add prototype overwrites value file from env dir groups
-	valuesFiles = append(valuesFiles, a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), valuesFileName))...)
-
-	// add application values file from env dir and groups
-	valuesFiles = append(valuesFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, valuesFileName))...)
+	if files, err := a.collectValuesFiles(dirName, chartName); err == nil {
+		valuesFiles = append(valuesFiles, files...)
+	} else {
+		return "", err
+	}
 
 	if len(valuesFiles) == 0 {
-		log.Debug().Str("resource", resourceName).Msg(a.Msg(renderStepName, "No values files found"))
+		log.Debug().Str("resource", chartName).Msg(a.Msg(renderStepName, "No values files found"))
 		return "", nil
 	}
 
@@ -197,8 +194,8 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 		return "", nil
 	}
 
-	err = a.writeServiceFile(valuesFileName, resourceValuesYaml.Stdout)
-	if err != nil {
+	valuesFileName := filepath.Join(dirName, chartName+".yaml")
+	if err = a.writeServiceFile(valuesFileName, resourceValuesYaml.Stdout); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to write resource values file"))
 		return "", err
 	}
@@ -217,4 +214,26 @@ func (a *Application) prepareValuesFile(dirName string, resourceName string) (st
 
 	err = a.writeServiceFile(valuesFileName, resourceValues.Stdout)
 	return a.expandServicePath(valuesFileName), err
+}
+
+func (a *Application) collectValuesFiles(dirName, resourceName string) ([]string, error) {
+	var valuesFiles []string
+
+	valuesFileName := filepath.Join(dirName, resourceName+".yaml")
+
+	// add values file from base dir
+	prototypeValuesFile := filepath.Join(a.Prototype, valuesFileName)
+	if ok, err := isExist(prototypeValuesFile); err != nil {
+		return nil, err
+	} else if ok {
+		valuesFiles = append(valuesFiles, prototypeValuesFile)
+	}
+
+	// add prototype overwrites value file from env dir groups
+	valuesFiles = append(valuesFiles, a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), valuesFileName))...)
+
+	// add application values file from env dir and groups
+	valuesFiles = append(valuesFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, valuesFileName))...)
+
+	return valuesFiles, nil
 }
