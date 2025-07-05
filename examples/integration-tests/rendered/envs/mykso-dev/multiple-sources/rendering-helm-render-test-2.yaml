@@ -2,4 +2,8 @@ kind: rendering
 metadata:
   name: helm-render-test-2
 outputYaml:
+  appGlobal: appGlobal
+  appSpecificChart: appGlobal
+  fromAppGlobal: true
   fromChartDefaultValues: true
+  fromPrototypeGlobal: true
