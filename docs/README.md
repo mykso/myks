@@ -10,6 +10,8 @@ share the configuration between applications and clusters.
 Basically, myks downloads sources and renders them into ready-to-use Kubernetes
 manifests.
 
+Join our [Slack channel](https://kubernetes.slack.com/archives/C06BVDBHZC2)!
+
 ## Features
 
 - create and reuse application "prototypes" combining helm charts, ytt templates
