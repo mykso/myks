@@ -133,7 +133,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	changedEnvs := []string{}
 	changedPrototypes := []string{}
 
-	for path := range maps.Keys(changedFiles) {
+	for path := range changedFiles {
 		// Check if the global configuration has changed
 		if extractMatches(exprMap["global"], path) != nil {
 			// If global configuration has changed, we need to render all environments
