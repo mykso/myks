@@ -179,7 +179,7 @@ func Test_isEnvPath(t *testing.T) {
 			expected: false,
 		},
 		{
-			name:     "partial prefix no match",
+			name:     "partial prefix no match (prevents envs/some matching envs/something)",
 			path:     "envs/some",
 			expected: false,
 		},

@@ -500,7 +500,10 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 // or a parent directory of an existing environment path
 func (g *Globe) isEnvPath(path string) bool {
 	countParts := func(path string) int {
-		return len(strings.Split(path, string(filepath.Separator)))
+		if path == "" {
+			return 0
+		}
+		return strings.Count(path, string(filepath.Separator)) + 1
 	}
 
 	path = filepath.Clean(path)
