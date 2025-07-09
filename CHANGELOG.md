@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.11.1](https://github.com/mykso/myks/compare/v4.11.0...v4.11.1) (2025-07-09)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.19.0 ([#549](https://github.com/mykso/myks/issues/549)) ([3c360c9](https://github.com/mykso/myks/commit/3c360c9aa34dcaa02779f128b8181c35b9293449))
+* **smart-mode:** fix env path matching ([#551](https://github.com/mykso/myks/issues/551)) ([49d1423](https://github.com/mykso/myks/commit/49d14233f685b4fe3eb238c8496b540fc634cc1c))
+
 ## [4.11.0](https://github.com/mykso/myks/compare/v4.10.0...v4.11.0) (2025-07-05)
 
 
