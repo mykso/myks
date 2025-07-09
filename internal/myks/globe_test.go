@@ -119,6 +119,82 @@ func Test_collectEnvironments(t *testing.T) {
 	}
 }
 
+func Test_isEnvPath(t *testing.T) {
+	g := NewWithDefaults()
+
+	// Set up test environments
+	g.environments = map[string]*Environment{
+		"envs/dev":         {},
+		"envs/staging":     {},
+		"envs/prod":        {},
+		"envs/team-a/dev":  {},
+		"envs/team-b/prod": {},
+		"envs/something":   {},
+	}
+
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{
+			name:     "exact match",
+			path:     "envs/dev",
+			expected: true,
+		},
+		{
+			name:     "prefix match",
+			path:     "envs",
+			expected: true,
+		},
+		{
+			name:     "prefix match with separator",
+			path:     "envs/",
+			expected: true,
+		},
+		{
+			name:     "nested prefix match",
+			path:     "envs/team-a",
+			expected: true,
+		},
+		{
+			name:     "no match",
+			path:     "other/path",
+			expected: false,
+		},
+		{
+			name:     "similar prefix no match",
+			path:     "envs-other",
+			expected: false,
+		},
+
+		{
+			name:     "partial match but not prefix",
+			path:     "dev",
+			expected: false,
+		},
+		{
+			name:     "case sensitive no match",
+			path:     "ENVS/DEV",
+			expected: false,
+		},
+		{
+			name:     "partial prefix no match",
+			path:     "envs/some",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := g.isEnvPath(tt.path)
+			if result != tt.expected {
+				t.Errorf("isEnvPath(%q) = %v; want %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
 func compareEnvAppMap(left, right EnvAppMap) bool {
 	if len(left) != len(right) {
 		return false
