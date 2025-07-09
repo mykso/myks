@@ -495,9 +495,23 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 	return result
 }
 
+// isEnvPath checks if the path is a valid environment path
+// A valid path is either an exact match of an existing environment path
+// or a parent directory of an existing environment path
 func (g *Globe) isEnvPath(path string) bool {
+	countParts := func(path string) int {
+		if path == "" {
+			return 0
+		}
+		return strings.Count(path, string(filepath.Separator)) + 1
+	}
+
+	path = filepath.Clean(path)
 	for envPath := range g.environments {
-		if strings.HasPrefix(envPath, path) {
+		envPath = filepath.Clean(envPath)
+		// the second part of the condition ensures we don't do a partial match in the middle of a directory name
+		// e.g. envs/some should not match envs/something
+		if strings.HasPrefix(envPath, path) && (len(envPath) == len(path) || countParts(envPath) > countParts(path)) {
 			return true
 		}
 	}
