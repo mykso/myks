@@ -75,7 +75,7 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	}
 	g1 := createGlobe(t)
 	g1.environments = map[string]*Environment{
-		"env1": {
+		"envs/env1": {
 			g:  g1,
 			ID: "env1",
 			foundApplications: map[string]string{
@@ -86,29 +86,30 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	}
 	g2 := createGlobe(t)
 	g2.environments = map[string]*Environment{
-		"env1": {
+		"envs/env1": {
 			g:  g2,
 			ID: "env1",
 			foundApplications: map[string]string{
-				"app1":      "proto1",
-				"root/app2": "proto2",
+				"app1": "proto1",
+				"app2": "proto2/subproto1",
 			},
 		},
 	}
 	g3 := createGlobe(t)
 	g3.environments = map[string]*Environment{
-		"env1": {
+		"envs/env1": {
 			g:  g3,
 			ID: "env1",
 			foundApplications: map[string]string{
 				"app1": "proto1",
+				"app2": "proto1",
 			},
 		},
-		"env2": {
+		"envs/env2": {
 			g:  g3,
 			ID: "env2",
 			foundApplications: map[string]string{
-				"app1": "proto1",
+				"app3": "proto1",
 			},
 		},
 	}
@@ -125,17 +126,17 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 				*g1,
 			},
 			EnvAppMap{
-				"env1": {"app1"},
+				"envs/env1": {"app1"},
 			},
 		},
 		{
 			"prototype ref",
 			args{
-				[]string{"proto1", "proto2"},
+				[]string{"proto1", "proto2/subproto1"},
 				*g2,
 			},
 			EnvAppMap{
-				"env1": {"app1", "root/app2"},
+				"envs/env1": {"app1", "app2"},
 			},
 		},
 		{
@@ -145,14 +146,14 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 				*g3,
 			},
 			EnvAppMap{
-				"env1": {"app1"},
-				"env2": {"app1"},
+				"envs/env1": {"app1", "app2"},
+				"envs/env2": {"app3"},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			envAppsMap := tt.args.globe.findPrototypeUsage(tt.args.prototypes)
+			envAppsMap := tt.args.globe.findPrototypeUsage(tt.args.prototypes, "")
 
 			for _, apps := range envAppsMap {
 				sort.Strings(apps)
@@ -175,8 +176,9 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			g:   g,
 			ID:  "env1-id",
 			foundApplications: map[string]string{
-				"app1": "app1",
-				"app2": "app2",
+				"app1":  "app1",
+				"app2":  "app2",
+				"app22": "app2", // app22 also uses prototype app2
 			},
 		},
 		"envs/env2": {
@@ -190,7 +192,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		},
 	}
 	renderedEnvApps := EnvAppMap{
-		"env1-id": {"app1", "app2"},
+		"env1-id": {"app1", "app2", "app22"},
 		"env2":    {"app2", "app3"},
 	}
 	tests := []struct {
@@ -250,7 +252,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			},
 			renderedEnvApps,
 			EnvAppMap{
-				"envs/env1": {"app2"},
+				"envs/env1": {"app2", "app22"},
 				"envs/env2": {"app2", "app3"},
 			},
 		},
@@ -262,7 +264,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				"env2":    {"app2"},
 			},
 			EnvAppMap{
-				"envs/env1": {"app2"},
+				"envs/env1": {"app2", "app22"},
 				"envs/env2": {"app3"},
 			},
 		},
@@ -310,7 +312,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				"env2":    {"app2"},
 			},
 			EnvAppMap{
-				"envs/env1": {"app1", "app2"},
+				"envs/env1": {"app1", "app2", "app22"},
 				"envs/env2": {"app3"},
 			},
 		},
@@ -322,6 +324,47 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			renderedEnvApps,
 			EnvAppMap{
 				"envs/env1": {"app1"},
+			},
+		},
+		{
+			"changes in environment-specific prototype configuration",
+			ChangedFiles{
+				"envs/env1/_proto/app1/ytt/some-file.yaml": "M",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app1"},
+			},
+		},
+		{
+			"changes in environment-specific prototype app data",
+			ChangedFiles{
+				"envs/env1/_proto/app2/app-data.ytt.yaml": "M",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app2", "app22"},
+			},
+		},
+		{
+			"changes in parent environment-specific prototype affects child environments",
+			ChangedFiles{
+				"envs/_proto/app2/ytt/some-file.yaml": "M",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app2", "app22"},
+				"envs/env2": {"app2"},
+			},
+		},
+		{
+			"changes in environment-specific prototype affects multiple applications using same prototype",
+			ChangedFiles{
+				"envs/env1/_proto/app2/ytt/some-file.yaml": "M",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app2", "app22"},
 			},
 		},
 	}
