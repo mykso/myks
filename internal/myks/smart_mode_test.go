@@ -90,8 +90,8 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 			g:  g2,
 			ID: "env1",
 			foundApplications: map[string]string{
-				"app1":      "proto1",
-				"root/app2": "proto2",
+				"app1": "proto1",
+				"app2": "proto2/subproto1",
 			},
 		},
 	}
@@ -102,13 +102,14 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 			ID: "env1",
 			foundApplications: map[string]string{
 				"app1": "proto1",
+				"app2": "proto1",
 			},
 		},
 		"envs/env2": {
 			g:  g3,
 			ID: "env2",
 			foundApplications: map[string]string{
-				"app1": "proto1",
+				"app3": "proto1",
 			},
 		},
 	}
@@ -131,11 +132,11 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 		{
 			"prototype ref",
 			args{
-				[]string{"proto1", "proto2"},
+				[]string{"proto1", "proto2/subproto1"},
 				*g2,
 			},
 			EnvAppMap{
-				"envs/env1": {"app1", "root/app2"},
+				"envs/env1": {"app1", "app2"},
 			},
 		},
 		{
@@ -145,8 +146,8 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 				*g3,
 			},
 			EnvAppMap{
-				"envs/env1": {"app1"},
-				"envs/env2": {"app1"},
+				"envs/env1": {"app1", "app2"},
+				"envs/env2": {"app3"},
 			},
 		},
 	}
