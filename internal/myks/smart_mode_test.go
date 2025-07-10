@@ -75,7 +75,7 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	}
 	g1 := createGlobe(t)
 	g1.environments = map[string]*Environment{
-		"env1": {
+		"envs/env1": {
 			g:  g1,
 			ID: "env1",
 			foundApplications: map[string]string{
@@ -86,7 +86,7 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	}
 	g2 := createGlobe(t)
 	g2.environments = map[string]*Environment{
-		"env1": {
+		"envs/env1": {
 			g:  g2,
 			ID: "env1",
 			foundApplications: map[string]string{
@@ -97,14 +97,14 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	}
 	g3 := createGlobe(t)
 	g3.environments = map[string]*Environment{
-		"env1": {
+		"envs/env1": {
 			g:  g3,
 			ID: "env1",
 			foundApplications: map[string]string{
 				"app1": "proto1",
 			},
 		},
-		"env2": {
+		"envs/env2": {
 			g:  g3,
 			ID: "env2",
 			foundApplications: map[string]string{
@@ -125,7 +125,7 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 				*g1,
 			},
 			EnvAppMap{
-				"env1": {"app1"},
+				"envs/env1": {"app1"},
 			},
 		},
 		{
@@ -135,7 +135,7 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 				*g2,
 			},
 			EnvAppMap{
-				"env1": {"app1", "root/app2"},
+				"envs/env1": {"app1", "root/app2"},
 			},
 		},
 		{
@@ -145,8 +145,8 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 				*g3,
 			},
 			EnvAppMap{
-				"env1": {"app1"},
-				"env2": {"app1"},
+				"envs/env1": {"app1"},
+				"envs/env2": {"app1"},
 			},
 		},
 	}
