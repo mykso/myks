@@ -500,11 +500,6 @@ func (g *Globe) Msg(msg string) string {
 	return formattedMessage
 }
 
-func (a *Globe) MsgWithSteps(step1 string, step2 string, msg string) string {
-	formattedMessage := fmt.Sprintf(GlobalExtendedLogFormat, step1, step2, msg)
-	return formattedMessage
-}
-
 func (g *Globe) getSyncTools() []SyncTool {
 	syncTools := []SyncTool{
 		&VendirSyncer{ident: "vendir"},
