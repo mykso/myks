@@ -255,18 +255,9 @@ func (g *Globe) getEnvironmentsUnderRoot(root string) []string {
 	var matchedEnvs []string
 	root = filepath.Clean(root)
 
-	countParts := func(path string) int {
-		if path == "" {
-			return 0
-		}
-		return strings.Count(path, string(filepath.Separator)) + 1
-	}
-
 	for envPath := range g.environments {
 		envPath = filepath.Clean(envPath)
-		// the second part of the condition ensures we don't do a partial match in the middle of a directory name
-		// e.g. envs/some should not match envs/something
-		if strings.HasPrefix(envPath, root) && (len(envPath) == len(root) || countParts(envPath) > countParts(root)) {
+		if envPath == root || strings.HasPrefix(envPath, root+string(filepath.Separator)) {
 			matchedEnvs = append(matchedEnvs, envPath)
 		}
 	}
