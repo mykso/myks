@@ -1,5 +1,13 @@
 # Changelog
 
+## [4.11.2](https://github.com/mykso/myks/compare/v4.11.1...v4.11.2) (2025-07-11)
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/sync to v0.16.0 ([#554](https://github.com/mykso/myks/issues/554)) ([e9c06d3](https://github.com/mykso/myks/commit/e9c06d301af15f066f2b8f815b1af45fa6675c48))
+* **smart-mode:** fix environment-specific prototype change detection ([#555](https://github.com/mykso/myks/issues/555)) ([7067392](https://github.com/mykso/myks/commit/70673928ab2b21ce9bd40db4c19c6c63a42bc801))
+
 ## [4.11.1](https://github.com/mykso/myks/compare/v4.11.0...v4.11.1) (2025-07-09)
 
 
