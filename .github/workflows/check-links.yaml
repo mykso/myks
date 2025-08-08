@@ -1,13 +1,13 @@
 ---
 name: Check Links
 
-"on":
+'on':
   repository_dispatch:
   workflow_dispatch:
   schedule:
     # Every day at 10:27 AM UTC
     # The time is random, don't think about it too much
-    - cron: "27 10 * * *"
+    - cron: '27 10 * * *'
 
 jobs:
   linkChecker:

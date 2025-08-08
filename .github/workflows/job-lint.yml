@@ -1,6 +1,6 @@
 name: 'job-lint'
 
-on:
+'on':
   workflow_call:
   workflow_dispatch:
 

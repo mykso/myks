@@ -1,7 +1,7 @@
 ---
 name: Release Please and GoReleaser
 
-on:
+'on':
   push:
     branches:
       - main
