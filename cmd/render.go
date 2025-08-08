@@ -12,7 +12,7 @@ var renderCmd = &cobra.Command{
 	Short: "Render manifests",
 	Long:  "Render manifests for specified environments and applications",
 	Annotations: map[string]string{
-		ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
+		AnnotationSmartMode: AnnotationTrue,
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		g := myks.New(".")

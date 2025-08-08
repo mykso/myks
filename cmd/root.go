@@ -1,3 +1,4 @@
+// Package cmd provides commands for myks, a Kubernetes manifest generator.
 package cmd
 
 import (
@@ -149,7 +150,7 @@ LEARN MORE
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", configHelp)
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		if cmd.Annotations[ANNOTATION_SMART_MODE] != ANNOTATION_TRUE {
+		if cmd.Annotations[AnnotationSmartMode] != AnnotationTrue {
 			return nil
 		}
 		return initTargetEnvsAndApps(cmd, args)

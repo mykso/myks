@@ -99,6 +99,6 @@ func (y *YttPkg) Render(_ string) (string, error) {
 	return strings.Join(outputs, "---\n"), nil
 }
 
-func (h *YttPkg) getStepName() string {
-	return fmt.Sprintf("%s-%s", renderStepName, h.Ident())
+func (y *YttPkg) getStepName() string {
+	return fmt.Sprintf("%s-%s", renderStepName, y.Ident())
 }

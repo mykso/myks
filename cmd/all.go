@@ -13,7 +13,7 @@ var allCmd = &cobra.Command{
 	Long:  "Run sync and render for specified environments and applications",
 	Args:  cobra.RangeArgs(0, 2),
 	Annotations: map[string]string{
-		ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
+		AnnotationSmartMode: AnnotationTrue,
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		RunAllCmd()

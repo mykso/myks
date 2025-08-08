@@ -16,7 +16,7 @@ Authentication against protected repositories is achieved with environment varia
 For example, if you reference a secret named "mycreds" in your vendir.yaml, you need to export the variables "VENDIR_SECRET_MYCREDS_USERNAME" and
 "VENDIR_SECRET_MYCREDS_PASSWORD" in your environment.`,
 	Annotations: map[string]string{
-		ANNOTATION_SMART_MODE: ANNOTATION_TRUE,
+		AnnotationSmartMode: AnnotationTrue,
 	},
 	Run: func(cmd *cobra.Command, args []string) {
 		log.Info().Msg("Syncing vendir configs")

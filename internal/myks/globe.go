@@ -1,3 +1,4 @@
+// Package myks provides all the functionality for myks.
 package myks
 
 import (
@@ -18,8 +19,7 @@ const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
 const GlobalExtendedLogFormat = "\033[1m[global > %s > %s]\033[0m %s"
 
-// Define the main structure
-// Globe configuration
+// Globe contains global configuration and state for the myks application
 type Globe struct {
 	// Global vendir cache dir
 	VendirCache string `default:"vendir-cache"`
@@ -107,7 +107,7 @@ type Globe struct {
 	extraYttPaths []string
 }
 
-// YttGlobe controls runtime data available to ytt templates
+// YttGlobeData controls runtime data available to ytt templates
 type YttGlobeData struct {
 	GitRepoBranch string `yaml:"gitRepoBranch"`
 	GitRepoURL    string `yaml:"gitRepoUrl"`
@@ -520,7 +520,7 @@ func (g *Globe) AddBaseDirToEnvAppMap(envSearchPathToAppMap EnvAppMap) EnvAppMap
 	return envAppMap
 }
 
-// Adds base directory (Globe.EnvironmentBaseDir) to the environment path if it is not already there
+// AddBaseDirToEnvPath adds the base directory (Globe.EnvironmentBaseDir) to the environment path if it is not already present.
 func (g *Globe) AddBaseDirToEnvPath(envName string) string {
 	if envName == g.EnvironmentBaseDir {
 		return envName

@@ -15,11 +15,11 @@ import (
 )
 
 const (
-	ANNOTATION_SMART_MODE = "feat:smart-mode"
-	ANNOTATION_TRUE       = "true"
+	AnnotationSmartMode = "feat:smart-mode"
+	AnnotationTrue      = "true"
 )
 
-func initTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
+func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 	// Check positional arguments for Smart Mode:
 	// 1. Comma-separated list of environment search paths or ALL to search everywhere (default: ALL)
 	// 2. Comma-separated list of application names or none to process all applications (default: none)
@@ -39,7 +39,7 @@ func initTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 	case 1:
 		if args[0] != "ALL" {
 			envAppMap = make(myks.EnvAppMap)
-			for _, env := range strings.Split(args[0], ",") {
+			for env := range strings.SplitSeq(args[0], ",") {
 				envAppMap[env] = nil
 			}
 		}
@@ -51,7 +51,7 @@ func initTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 
 		envAppMap = make(myks.EnvAppMap)
 		if args[0] != "ALL" {
-			for _, env := range strings.Split(args[0], ",") {
+			for env := range strings.SplitSeq(args[0], ",") {
 				envAppMap[env] = appNames
 			}
 		} else {
