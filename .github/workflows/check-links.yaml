@@ -26,7 +26,13 @@ jobs:
       - name: Run lychee
         uses: lycheeverse/lychee-action@5c4ee84814c983aa7164eaee476f014e53ff3963 # v2.5.0
         with:
-          args: "--base . --verbose --no-progress --cache --max-cache-age 3d 'docs/**/*.md'"
+          args: >-
+            --base-url .
+            --verbose
+            --no-progress
+            --cache
+            --max-cache-age 3d
+            'docs/**/*.md'
 
       - name: Save lychee cache
         uses: actions/cache/save@0400d5f644dc74513175e3cd8d07132dd4860809 # v4.2.4
