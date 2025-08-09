@@ -29,47 +29,12 @@ var (
 	asyncLevel int
 )
 
-// Use this template for commands that accept environment and application arguments
-const envAppCommandUsageTemplate = `Usage:
-  {{.CommandPath}} [environments [applications]] [flags]
-
-Arguments:
-  0. When no arguments are provided, myks uses the Smart Mode to determine the environments and applications to process.
-     In Smart Mode, myks relies on git to only processes applications with changes.
-
-  1. environments    (Optional) Comma-separated list of environments or ALL
-                     ALL will process all environments
-                     Examples: ALL
-                               prod,stage,dev
-                               prod/region1,stage/region1
-                               dev
-
-  2. applications    (Optional) Comma-separated list of applications or ALL
-                     ALL will process all applications
-                     Example: app1,app2 or ALL
-
-{{if .HasAvailableFlags}}Flags:
-{{.Flags.FlagUsages | trimTrailingWhitespaces}}{{end}}
-
-Examples:
-  # Process all apps in production and staging
-  {{.CommandPath}} prod,stage ALL
-
-  # Process specific apps in all environments
-  {{.CommandPath}} ALL app1,app2
-
-  # Process specific apps in specific environments
-  {{.CommandPath}} prod,stage app1,app2
-`
-
 func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cobra.OnInitialize(initLogger)
 	cobra.OnInitialize(func() { checkMinVersion(version) })
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	cmd := newRootCmd(version, commit, date)
-	cmd.AddCommand(allCmd)
-	cmd.AddCommand(renderCmd)
-	cmd.AddCommand(syncCmd)
+	cmd.AddCommand(newRenderCmd())
 	cmd.AddCommand(newCleanupCmd())
 	cmd.AddCommand(newInitCmd(version))
 	cmd.AddCommand(newPrintConfigCmd())
@@ -77,10 +42,6 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cmd.AddCommand(embedded.EmbeddedCmd("ytt", "Ytt is embedded in myks to manage yaml files."))
 	initConfig()
 	addPlugins(cmd)
-
-	allCmd.SetUsageTemplate(envAppCommandUsageTemplate)
-	renderCmd.SetUsageTemplate(envAppCommandUsageTemplate)
-	syncCmd.SetUsageTemplate(envAppCommandUsageTemplate)
 
 	return cmd
 }
@@ -108,14 +69,11 @@ CORE FEATURES
 
 BASIC COMMANDS
   init     Create a new Myks project in the current directory
-  sync     Download external dependencies
-  render   Generate Kubernetes manifests
-  all      Perform sync and render in one step
+  render   Download external sources and render manifests for specified environments and applications
 
 GETTING STARTED
-  1. Create a new project:    myks init
-  2. Download dependencies:   myks sync
-  3. Generate manifests:      myks render
+  1. Create a new project: myks init
+  2. Download dependencies and render manifests: myks render [environments [applications]]
 
 LEARN MORE
   • Use 'myks <command> --help' for detailed information about a command

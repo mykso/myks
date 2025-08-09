@@ -10,6 +10,12 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
+func okOrFatal(err error, msg string) {
+	if err != nil {
+		log.Fatal().Err(err).Msg(msg)
+	}
+}
+
 // shellCompletion provides shell completion for envs and apps selection
 func shellCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) > 1 {
