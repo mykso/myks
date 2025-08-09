@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 
 	"github.com/mykso/myks/internal/myks"
@@ -21,14 +20,12 @@ For example, if you reference a secret named "mycreds" in your vendir.yaml, you 
 			AnnotationSmartMode: AnnotationTrue,
 		},
 		Run: func(cmd *cobra.Command, args []string) {
-			sync, err := cmd.Flags().GetBool("sync")
-			if err != nil {
-				log.Fatal().Err(err).Msg("Failed to read flag")
-			}
+			sync, syncSet := readFlagBool(cmd, "sync")
+			render, renderSet := readFlagBool(cmd, "render")
 
-			render, err := cmd.Flags().GetBool("render")
-			if err != nil {
-				log.Fatal().Err(err).Msg("Failed to read flag")
+			if !syncSet && !renderSet {
+				sync = true
+				render = true
 			}
 
 			RenderCmd(sync, render)
@@ -41,8 +38,8 @@ For example, if you reference a secret named "mycreds" in your vendir.yaml, you 
   {{.CommandPath}} [environments [applications]] [flags]
 
 Arguments:
-  0. When no arguments are provided, myks uses the Smart Mode to determine the environments and applications to process.
-     In Smart Mode, myks relies on git to only processes applications with changes.
+  0. When no arguments are provided, myks uses Smart Mode to determine the environments and applications to process.
+     In Smart Mode, myks relies on git to only process applications with changes.
 
   1. environments    (Optional) Comma-separated list of environments or ALL
                      ALL will process all environments
@@ -73,6 +70,7 @@ Examples:
 
 	renderCmd.Flags().BoolP("sync", "s", false, "only sync external sources")
 	renderCmd.Flags().BoolP("render", "r", false, "only render manifests")
+	renderCmd.MarkFlagsMutuallyExclusive("sync", "render")
 
 	return renderCmd
 }
@@ -80,21 +78,18 @@ Examples:
 // RenderCmd processes the render command with the provided flags.
 // The function is exported to allow testing and usage in other packages.
 func RenderCmd(sync, render bool) {
-	if sync && render {
-		log.Fatal().Msg("Cannot use both sync and render flags together")
-	}
-
 	g := myks.New(".")
 
 	okOrFatal(g.ValidateRootDir(), "Root directory is not suitable for myks")
 	okOrFatal(g.Init(asyncLevel, envAppMap), "Unable to initialize myks' globe")
 
-	if sync {
-		okOrFatal(g.Sync(asyncLevel), "Unable to sync external sources")
-	} else if render {
-		okOrFatal(g.Render(asyncLevel), "Unable to render manifests")
-	} else {
+	switch {
+	case sync && render:
 		okOrFatal(g.SyncAndRender(asyncLevel), "Unable to sync and render applications")
+	case sync:
+		okOrFatal(g.Sync(asyncLevel), "Unable to sync external sources")
+	case render:
+		okOrFatal(g.Render(asyncLevel), "Unable to render manifests")
 	}
 
 	// Cleaning up only if all environments and applications were processed
