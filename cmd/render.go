@@ -28,7 +28,7 @@ For example, if you reference a secret named "mycreds" in your vendir.yaml, you 
 				render = true
 			}
 
-			RenderCmd(sync, render)
+			okOrFatal(RenderCmd(sync, render), "Rendering failed")
 		},
 		ValidArgsFunction: shellCompletion,
 	}
@@ -77,23 +77,29 @@ Examples:
 
 // RenderCmd processes the render command with the provided flags.
 // The function is exported to allow testing and usage in other packages.
-func RenderCmd(sync, render bool) {
+func RenderCmd(sync, render bool) error {
 	g := myks.New(".")
 
-	okOrFatal(g.ValidateRootDir(), "Root directory is not suitable for myks")
-	okOrFatal(g.Init(asyncLevel, envAppMap), "Unable to initialize myks' globe")
+	if err := okOrErrLog(g.ValidateRootDir(), "Root directory is not suitable for myks"); err != nil {
+		return err
+	}
+	if err := okOrErrLog(g.Init(asyncLevel, envAppMap), "Unable to initialize myks' globe"); err != nil {
+		return err
+	}
 
 	switch {
 	case sync && render:
-		okOrFatal(g.SyncAndRender(asyncLevel), "Unable to sync and render applications")
+		return okOrErrLog(g.SyncAndRender(asyncLevel), "Unable to sync and render applications")
 	case sync:
-		okOrFatal(g.Sync(asyncLevel), "Unable to sync external sources")
+		return okOrErrLog(g.Sync(asyncLevel), "Unable to sync external sources")
 	case render:
-		okOrFatal(g.Render(asyncLevel), "Unable to render manifests")
+		return okOrErrLog(g.Render(asyncLevel), "Unable to render manifests")
 	}
 
 	// Cleaning up only if all environments and applications were processed
 	if envAppMap == nil {
-		okOrFatal(g.CleanupRenderedManifests(false), "Unable to cleanup rendered manifests")
+		return okOrErrLog(g.CleanupRenderedManifests(false), "Unable to cleanup rendered manifests")
 	}
+
+	return nil
 }

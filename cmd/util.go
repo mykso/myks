@@ -16,6 +16,13 @@ func okOrFatal(err error, msg string) {
 	}
 }
 
+func okOrErrLog(err error, msg string) error {
+	if err != nil {
+		log.Error().Err(err).Msg(msg)
+	}
+	return err
+}
+
 // shellCompletion provides shell completion for envs and apps selection
 func shellCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) > 1 {
