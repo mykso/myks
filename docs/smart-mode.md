@@ -22,7 +22,7 @@ of your configuration:
 - all environments and all applications
 
 The processing scope goes from the smallest (nothing) to the largest
-(everything). A broader scope always includes the narrower ones. Than means, if
+(everything). A broader scope always includes the narrower ones. That means, if
 a particular environment is selected for processing, all applications of that
 environment will be processed, no matter if they have changed or not.
 

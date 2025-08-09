@@ -155,9 +155,10 @@ behavior:
 - Use `--sync` to only sync external sources
 - Use `--render` to only render manifests
 
-The `render` command accepts two optional arguments: environments and
-applications to process. When no arguments are provided, myks will use the
-[Smart Mode](/docs/smart-mode.md) to detect what to process.
+The `render` command accepts two optional arguments (comma-separated lists or
+`ALL`): environments and applications to process. When no arguments are
+provided, myks will use the [Smart Mode](/docs/smart-mode.md) to detect what to
+process.
 
 > [!TIP]  
 > Check the [optimizations](/docs/optimizations.md) page to get most of myks.
