@@ -31,27 +31,7 @@ For example, if you reference a secret named "mycreds" in your vendir.yaml, you 
 				log.Fatal().Err(err).Msg("Failed to read flag")
 			}
 
-			if sync && render {
-				log.Fatal().Msg("Cannot use both sync and render flags together")
-			}
-
-			g := myks.New(".")
-
-			okOrFatal(g.ValidateRootDir(), "Root directory is not suitable for myks")
-			okOrFatal(g.Init(asyncLevel, envAppMap), "Unable to initialize myks' globe")
-
-			if sync {
-				okOrFatal(g.Sync(asyncLevel), "Unable to sync external sources")
-			} else if render {
-				okOrFatal(g.Render(asyncLevel), "Unable to render manifests")
-			} else {
-				okOrFatal(g.SyncAndRender(asyncLevel), "Unable to sync and render applications")
-			}
-
-			// Cleaning up only if all environments and applications were processed
-			if envAppMap == nil {
-				okOrFatal(g.CleanupRenderedManifests(false), "Unable to cleanup rendered manifests")
-			}
+			RenderCmd(sync, render)
 		},
 		ValidArgsFunction: shellCompletion,
 	}
@@ -95,4 +75,30 @@ Examples:
 	renderCmd.Flags().BoolP("render", "r", false, "only render manifests")
 
 	return renderCmd
+}
+
+// RenderCmd processes the render command with the provided flags.
+// The function is exported to allow testing and usage in other packages.
+func RenderCmd(sync, render bool) {
+	if sync && render {
+		log.Fatal().Msg("Cannot use both sync and render flags together")
+	}
+
+	g := myks.New(".")
+
+	okOrFatal(g.ValidateRootDir(), "Root directory is not suitable for myks")
+	okOrFatal(g.Init(asyncLevel, envAppMap), "Unable to initialize myks' globe")
+
+	if sync {
+		okOrFatal(g.Sync(asyncLevel), "Unable to sync external sources")
+	} else if render {
+		okOrFatal(g.Render(asyncLevel), "Unable to render manifests")
+	} else {
+		okOrFatal(g.SyncAndRender(asyncLevel), "Unable to sync and render applications")
+	}
+
+	// Cleaning up only if all environments and applications were processed
+	if envAppMap == nil {
+		okOrFatal(g.CleanupRenderedManifests(false), "Unable to cleanup rendered manifests")
+	}
 }
