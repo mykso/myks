@@ -21,8 +21,7 @@ func main() {
 		return
 	}
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	cmd := cmd.NewMyksCmd(version, commit, date)
-	err := cmd.Execute()
+	err := cmd.NewMyksCmd(version, commit, date).Execute()
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error executing myks")
 	}

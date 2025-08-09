@@ -29,7 +29,7 @@ this case, you can manually specify the applications and environments to
 process. For example:
 
 ```shell
-myks all foo-env,bar-env baz-app
+myks render foo-env,bar-env baz-app
 ```
 
 This command will sync and render the `baz-app` application in the `foo-env` and

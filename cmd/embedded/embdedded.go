@@ -1,3 +1,4 @@
+// Package embedded provides functionality to run embedded commands like ytt and vendir.
 package embedded
 
 import (

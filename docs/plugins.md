@@ -29,7 +29,7 @@ plugin-sources:
 
 ## Plugin execution logic and environment variables
 
-Like the render and sync logic of myks, a plugin is executed for every
+Like the render logic of myks, a plugin is executed for every
 environment and application provided during the invocation of `myks` or for
 whatever environment and application is detected by the Smart Mode.
 
