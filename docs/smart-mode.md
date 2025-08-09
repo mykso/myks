@@ -55,8 +55,8 @@ cases:
 - The prototype of that application has changed, for example:
   - `prototypes/app-1/vendir/...`
 
-> :information_source: In the latter case, when a prototype has changed, all
-> applications that use this prototype are selected for processing.
+> [!NOTE] In the latter case, when a prototype has changed, all applications
+> that use this prototype are selected for processing.
 
 ### Processing all applications of one or multiple environments
 
@@ -71,10 +71,9 @@ All applications of an environment are processed in any of the following cases:
   - `.../env-1/_env/ytt/...`
   - `.../env-1/_env/argocd/...`
 
-> :information_source: Changing the upper-level environment (e.g.
-> `/envs/env-data.ytt.yaml`) will naturally promote the scope of processing to
-> all environments and applications, as all environments depend on the
-> upper-level one.
+> [!NOTE] Changing the upper-level environment (e.g. `/envs/env-data.ytt.yaml`)
+> will naturally promote the scope of processing to all environments and
+> applications, as all environments depend on the upper-level one.
 
 ### Processing all environments and all applications
 

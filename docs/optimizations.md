@@ -2,7 +2,7 @@
 
 This page lists myks' features that help to optimize performance and resource
 usage. Some of those features are enabled by default, while others require
-additional configuration. There are features that impreve rendering speed, but
+additional configuration. There are features that improve rendering speed, but
 the most useful are those that reduce syncing activities.
 
 ## Parallelism

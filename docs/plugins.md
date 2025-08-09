@@ -29,12 +29,12 @@ plugin-sources:
 
 ## Plugin execution logic and environment variables
 
-Like the render logic of myks, a plugin is executed for every
-environment and application provided during the invocation of `myks` or for
-whatever environment and application is detected by the Smart Mode.
+Like the render logic of myks, a plugin is executed for every environment and
+application provided during the invocation of `myks` or for whatever environment
+and application is detected by the Smart Mode.
 
 For every plugin execution, the following environment variables are injected to
-enable your plugin to act on the rendered yamls of the current environment and
+enable your plugin to act on the rendered YAMLs of the current environment and
 application:
 
 | Variable              | Description                                                        |

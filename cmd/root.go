@@ -77,7 +77,7 @@ GETTING STARTED
 
 LEARN MORE
   • Use 'myks <command> --help' for detailed information about a command
-  • Report issues at https://github.com/example/myks/issues
+  • Report issues at https://github.com/mykso/myks/issues
 `,
 	}
 
