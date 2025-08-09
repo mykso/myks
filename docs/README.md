@@ -55,7 +55,7 @@ myks init
 find
 
 # Sync and render everything
-myks all
+myks render
 
 # Check the rendered manifests
 find rendered
@@ -144,14 +144,16 @@ To become useful, myks needs to be run in a project with a particular directory
 structure and some basic configuration in place. A new project can be
 initialized with `myks init` (see [an example](#hands-on)).
 
-Myks has two main stages of operation and the corresponding commands: `sync` and
-`render`. During the `sync` stage, myks downloads and caches external sources.
+Myks has two main stages of operation: sync and render. During the sync stage, myks downloads and caches external sources.
 Final kubernetes manifests are rendered from the retrieved and local sources
-during the `render` stage.
+during the render stage.
 
-The `all` command runs the both stages sequentially for convenience.
+The `render` command handles both stages and accepts optional flags to control behavior:
+- By default, it runs both sync and render stages sequentially
+- Use `--sync` to only sync external sources
+- Use `--render` to only render manifests
 
-These commands (`sync`, `render`, `all`) accept two optional arguments:
+The `render` command accepts two optional arguments:
 environments and applications to process. When no arguments are provided, myks
 will use the [Smart Mode](/docs/smart-mode.md) to detect what to process.
 
@@ -221,7 +223,7 @@ $ myks init
 $ # Optionally, check the generated files
 $ find
 $ # Sync and render everything
-$ myks all envs --log-level debug
+$ myks render envs --log-level debug
 ```
 
 ## Motivation

@@ -29,7 +29,7 @@ environment will be processed, no matter if they have changed or not.
 You can see the scope of processing using the `--smart-mode.only-print` flag:
 
 ```console
-$ myks all --smart-mode.only-print
+$ myks render --smart-mode.only-print
 
 Smart Mode detected:
 → envs/alpha
