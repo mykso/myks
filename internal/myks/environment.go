@@ -41,7 +41,7 @@ func NewEnvironment(g *Globe, dir string, envDataFile string) (*Environment, err
 		EnvironmentDataFile:     envDataFile,
 		Applications:            []*Application{},
 		g:                       g,
-		renderedEnvDataFilePath: filepath.Join(g.ServiceDirName, dir, g.RenderedEnvironmentDataFileName),
+		renderedEnvDataFilePath: filepath.Join(g.RootDir, g.ServiceDirName, dir, g.RenderedEnvironmentDataFileName),
 		foundApplications:       map[string]string{},
 	}
 
@@ -338,9 +338,9 @@ func (e *Environment) initApplications(applicationNames []string) error {
 func (e *Environment) collectBySubpath(subpath string) []string {
 	items := []string{}
 	currentPath := e.g.RootDir
-	levels := []string{""}
-	levels = append(levels, strings.Split(e.Dir, filepath.FromSlash("/"))...)
-	for _, level := range levels {
+	envRelDir := strings.TrimPrefix(e.Dir, e.g.RootDir+string(filepath.Separator))
+	levels := strings.SplitSeq(envRelDir, filepath.FromSlash("/"))
+	for level := range levels {
 		if level == "" {
 			continue
 		}

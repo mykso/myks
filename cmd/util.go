@@ -6,13 +6,14 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/mykso/myks/internal/myks"
 )
 
 func getGlobe() *myks.Globe {
 	if globe == nil {
-		globe = myks.New(".")
+		globe = myks.New(viper.GetString("root-dir"))
 	}
 	return globe
 }
@@ -44,7 +45,7 @@ func shellCompletion(cmd *cobra.Command, args []string, toComplete string) ([]st
 	if len(args) == 0 {
 		return getEnvNames(g), cobra.ShellCompDirectiveNoFileComp
 	}
-	// return args
+	// return apps
 	if len(args) == 1 {
 		return getAppNamesForEnv(g, args[0]), cobra.ShellCompDirectiveNoFileComp
 	}
