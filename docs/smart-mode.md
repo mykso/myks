@@ -26,7 +26,14 @@ The processing scope goes from the smallest (nothing) to the largest
 a particular environment is selected for processing, all applications of that
 environment will be processed, no matter if they have changed or not.
 
-You can see the scope of processing using the `--smart-mode.only-print` flag:
+## Configuration Options
+
+Smart Mode provides several configuration options for fine-tuning its behavior:
+
+### Preview Mode
+
+You can see the scope of processing without actually running the sync and render
+operations using the `--smart-mode.only-print` flag:
 
 ```console
 $ myks render --smart-mode.only-print
@@ -35,6 +42,24 @@ Smart Mode detected:
 → envs/alpha
     traefik
 ```
+
+This is useful for understanding what would be processed before running the
+actual command, especially in CI/CD environments.
+
+### Base Revision Comparison
+
+By default, Smart Mode compares against the current state of your working
+directory. You can specify a different base revision for comparison using the
+`--smart-mode.base-revision` flag:
+
+```console
+$ myks render --smart-mode.base-revision=main
+$ myks render --smart-mode.base-revision=HEAD~1
+$ myks render --smart-mode.base-revision=v1.2.3
+```
+
+This is particularly useful in CI/CD pipelines where you want to compare against
+a specific branch or tag rather than just local changes.
 
 ### Nothing to process
 

@@ -25,7 +25,13 @@ in your `.myks.yaml`:
 # Load all binaries from the following folders as myks plugins.
 plugin-sources:
   - ./plugins
+  - ./custom-tools
+  - /usr/local/share/myks-plugins
 ```
+
+The default plugin directory is `./plugins` relative to your project root. You
+can specify multiple directories, and myks will search them all for executable
+files to load as plugins.
 
 ## Plugin execution logic and environment variables
 

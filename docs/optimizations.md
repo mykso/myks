@@ -20,7 +20,17 @@ that there is no limit.
 Myks can detect what applications and environments to process based on the
 changes in the source files. This allows to reduce the number of applications
 and environments to process, which in turn reduces the time needed for syncing
-and rendering. See the [Smart Mode](/docs/smart-mode.md) page for more details.
+and rendering.
+
+Smart Mode supports advanced options:
+
+- `--smart-mode.base-revision`: Specify a base revision to compare against for
+  change detection. If not provided, only local changes are considered.
+- `--smart-mode.only-print`: Preview mode that only prints the list of
+  environments and applications that would be rendered without actually
+  processing them.
+
+See the [Smart Mode](/docs/smart-mode.md) page for more details.
 
 ### Manual Selection
 

@@ -14,19 +14,29 @@ Join our [Slack channel](https://kubernetes.slack.com/archives/C06BVDBHZC2)!
 
 ## Features
 
-- create and reuse application "prototypes" combining helm charts, ytt templates
-  and overlays, and plain YAML files;
-- download and cache third-party configurations from various sources (anything
-  that is supported by [vendir]: helm charts, git repositories, GitHub releases,
-  etc.);
-- maintain a single source of truth for all clusters' manifests;
-- render manifests, validate and automatically inspect them before applying;
-- [smart detection](/docs/smart-mode.md) of what to render based on what was
-  changed;
-- integrate with ArgoCD;
-- apply changes to all applications in all clusters at once or to a specific
-  subset;
-- [plugins](/docs/plugins.md) support for extending myks with custom tools.
+- **External source management**: Download and cache third-party configurations
+  from various sources (anything that is supported by [vendir]: helm charts, git
+  repositories, GitHub releases, etc.)
+- **Helm chart rendering**: Seamlessly integrate and render Helm charts with
+  custom values
+- **YAML templating and validation**: Use [ytt] for powerful templating and
+  configuration validation
+- **Idempotent output**: Generate consistent, reproducible manifests across
+  environments
+- **Automatic ArgoCD resource generation**: Built-in integration with ArgoCD for
+  GitOps workflows
+- **Environment-based configuration inheritance**: Hierarchical configuration
+  management with environment-specific overrides
+- **Intelligent change detection**: [Smart Mode](/docs/smart-mode.md)
+  automatically detects what needs to be rendered based on changes
+- **Application prototypes**: Create and reuse application "prototypes"
+  combining helm charts, ytt templates, overlays, and plain YAML files
+- **Flexible configuration**: Support for global configuration files with
+  automatic root directory detection
+- **Plugin system**: [Plugins](/docs/plugins.md) support for extending myks with
+  custom tools
+- **Parallel processing**: Process multiple applications and environments
+  concurrently for better performance
 
 ## How does it work?
 
@@ -165,10 +175,15 @@ process.
 
 ## Configuration
 
-Myks uses a `.myks.yaml` configuration file for global settings. The configuration file is automatically searched for in the current directory and parent directories. Key configuration options include:
+Myks uses a `.myks.yaml` configuration file for global settings. The
+configuration file is automatically searched for in the current directory and
+parent directories. Key configuration options include:
 
-- `async`: Number of applications to process in parallel (default: 0 for unlimited)
-- `config-in-root`: When set to `true`, automatically sets the root directory to the location of the configuration file, allowing myks to be run from subdirectories
+- `async`: Number of applications to process in parallel (default: 0 for
+  unlimited)
+- `config-in-root`: When set to `true`, automatically sets the root directory to
+  the location of the configuration file, allowing myks to be run from
+  subdirectories
 - `log-level`: Logging level (debug, info, warn, error)
 - `min-version`: Minimum required myks version for the project
 - `plugin-sources`: Additional directories to search for myks plugins
@@ -176,10 +191,17 @@ Myks uses a `.myks.yaml` configuration file for global settings. The configurati
 ### Configuration File Discovery
 
 Myks will automatically search for `.myks.yaml` in:
+
 1. The current working directory
 2. All parent directories up to the filesystem root
 
-When `config-in-root: true` is set, myks will automatically adjust its root directory to match the location of the configuration file, making it convenient to run myks from any subdirectory of your project.
+When `config-in-root: true` is set, myks will automatically adjust its root
+directory to match the location of the configuration file, making it convenient
+to run myks from any subdirectory of your project.
+
+> [!TIP]  
+> For a complete configuration reference, see the
+> [Configuration Guide](/docs/configuration.md).
 
 ### Examples
 
