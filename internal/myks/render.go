@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -236,4 +237,39 @@ func (a *Application) collectValuesFiles(dirName, resourceName string) ([]string
 	valuesFiles = append(valuesFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, valuesFileName))...)
 
 	return valuesFiles, nil
+}
+
+func (a *Application) collectFilesByGlob(subpathPattern string) ([]string, error) {
+	var files []string
+	currentPath := a.e.g.RootDir
+	levels := strings.SplitSeq(a.e.Dir, filepath.FromSlash("/"))
+	for level := range levels {
+		if level == "" {
+			continue
+		}
+		currentPath = filepath.Join(currentPath, level)
+		searchPath := filepath.Join(currentPath, subpathPattern)
+		if matchedFiles, err := filepath.Glob(searchPath); err == nil {
+			files = append(files, matchedFiles...)
+		} else {
+			return nil, err
+		}
+	}
+	return files, nil
+}
+
+func (a *Application) collectAllFilesByGlob(pattern string) ([]string, error) {
+	files, err := a.collectFilesByGlob(filepath.Join(a.e.g.AppsDir, a.Name, pattern))
+	if err != nil {
+		return nil, err
+	}
+	protoOverrideFiles, err := a.collectFilesByGlob(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), pattern))
+	if err != nil {
+		return nil, err
+	}
+	protoFiles, err := filepath.Glob(filepath.Join(a.Prototype, pattern))
+	if err != nil {
+		return nil, err
+	}
+	return slices.Concat(files, protoOverrideFiles, protoFiles), nil
 }
