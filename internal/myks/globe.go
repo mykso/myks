@@ -369,7 +369,7 @@ func (g *Globe) CleanupObsoleteCacheEntries(dryRun bool) error {
 		}
 	}
 
-	cacheDir := filepath.Join(g.ServiceDirName, g.VendirCache)
+	cacheDir := filepath.Join(g.RootDir, g.ServiceDirName, g.VendirCache)
 	cacheEntries, err := os.ReadDir(cacheDir)
 	if os.IsNotExist(err) {
 		log.Debug().Str("dir", cacheDir).Msg("Skipping cleanup of non-existing directory")
@@ -463,6 +463,7 @@ func (g *Globe) collectEnvironments(envSearchPathToAppMap EnvAppMap) EnvAppMap {
 
 func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 	result := []string{}
+	searchPath = filepath.Join(g.RootDir, searchPath)
 	err := filepath.WalkDir(filepath.Clean(searchPath), func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err

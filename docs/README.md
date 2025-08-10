@@ -163,6 +163,24 @@ process.
 > [!TIP]  
 > Check the [optimizations](/docs/optimizations.md) page to get most of myks.
 
+## Configuration
+
+Myks uses a `.myks.yaml` configuration file for global settings. The configuration file is automatically searched for in the current directory and parent directories. Key configuration options include:
+
+- `async`: Number of applications to process in parallel (default: 0 for unlimited)
+- `config-in-root`: When set to `true`, automatically sets the root directory to the location of the configuration file, allowing myks to be run from subdirectories
+- `log-level`: Logging level (debug, info, warn, error)
+- `min-version`: Minimum required myks version for the project
+- `plugin-sources`: Additional directories to search for myks plugins
+
+### Configuration File Discovery
+
+Myks will automatically search for `.myks.yaml` in:
+1. The current working directory
+2. All parent directories up to the filesystem root
+
+When `config-in-root: true` is set, myks will automatically adjust its root directory to match the location of the configuration file, making it convenient to run myks from any subdirectory of your project.
+
 ### Examples
 
 A few example setups are available in the [examples](/examples) directory.

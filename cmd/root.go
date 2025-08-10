@@ -141,13 +141,18 @@ func initConfig() {
 		}
 	}
 
-	err := viper.ReadInConfig()
-
-	if err == nil {
-		// TODO: Make paths in config file relative to the config file
+	viper.SetDefault("root-dir", ".")
+	if err := viper.ReadInConfig(); err == nil {
 		log.Info().Msgf("Using config file: %s", viper.ConfigFileUsed())
+		if viper.GetBool("config-in-root") {
+			rootDir := filepath.Dir(viper.ConfigFileUsed())
+			viper.Set("root-dir", rootDir)
+			log.Info().Msgf("Setting root-dir to: %s", rootDir)
+		}
+	} else if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		log.Debug().Msg("Config file not found, using defaults")
 	} else {
-		log.Debug().Err(err).Msg("Unable to read config file")
+		log.Error().Err(err).Msg("Error reading config file")
 	}
 }
 
