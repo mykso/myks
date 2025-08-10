@@ -229,6 +229,15 @@ func (e *Environment) renderEnvData(envDataFiles []string) ([]byte, error) {
 	if len(envDataFiles) == 0 {
 		return nil, errors.New("no environment data files found")
 	}
+	log.Debug().Strs("envDataFiles", envDataFiles).Msg(e.Msg("Rendering environment data files"))
+	// also print cwd
+	cwd, err := os.Getwd()
+	if err != nil {
+		log.Error().Err(err).Msg(e.Msg("Unable to get current working directory"))
+		return nil, err
+	}
+	log.Debug().Str("cwd", cwd).Msg(e.Msg("Current working directory"))
+
 	res, err := e.ytt("render environment data values file", envDataFiles, "--data-values-inspect")
 	if err != nil {
 		return nil, err
