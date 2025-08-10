@@ -96,14 +96,35 @@ func (h *Helm) Render(_ string) (string, error) {
 		outputs = append(outputs, res.Stdout)
 	}
 
-	for chart := range helmConfig.Charts {
-		if !slices.Contains(chartNames, chart) {
-			log.Warn().Msg(h.app.Msg(h.getStepName(), fmt.Sprintf("'%s' chart defined in .helm.charts is not found in the charts directory", chart)))
-		}
-	}
+	h.warnOnOrphanConfigs(helmConfig, chartNames)
 
 	log.Info().Msg(h.app.Msg(h.getStepName(), "Helm chart rendered"))
 	return strings.Join(outputs, "---\n"), nil
+}
+
+// warnOnOrphanConfigs checks if there are any Helm configs or values files for non-existing charts
+func (h *Helm) warnOnOrphanConfigs(helmConfig HelmConfig, charts []string) {
+	for chartName := range helmConfig.Charts {
+		if !slices.Contains(charts, chartName) {
+			log.Warn().Msg(h.app.Msg(h.getStepName(), fmt.Sprintf("'%s' chart defined in .helm.charts is not found in the charts directory", chartName)))
+		}
+	}
+
+	allValuesFiles, err := h.app.collectAllFilesByGlob(filepath.Join(h.app.e.g.HelmStepDirName, "*.yaml"))
+	if err != nil {
+		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to collect all values files"))
+		return
+	}
+
+	for _, valuesFile := range allValuesFiles {
+		chartName := strings.TrimSuffix(filepath.Base(valuesFile), ".yaml")
+		if chartName == "_global" {
+			continue
+		}
+		if !slices.Contains(charts, chartName) {
+			log.Warn().Msg(h.app.Msg(h.getStepName(), fmt.Sprintf("'%s' values file doesn't belong to any chart", valuesFile)))
+		}
+	}
 }
 
 func (h *Helm) getHelmConfig() (HelmConfig, error) {
