@@ -133,6 +133,28 @@ func New(rootDir string) *Globe {
 	g.RootDir = rootDir
 	g.environments = make(map[string]*Environment)
 
+	g.initGitData()
+
+	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
+	if ok, err := isExist(yttLibraryDir); err != nil {
+		log.Fatal().Err(err).Str("path", yttLibraryDir).Msg("Unable to stat ytt library directory")
+	} else if ok {
+		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
+	}
+
+	g.extraYttPaths = append(g.extraYttPaths, g.createDataSchemaFile())
+
+	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
+		log.Warn().Err(err).Msg("Unable to dump config as yaml")
+	} else {
+		g.extraYttPaths = append(g.extraYttPaths, configFileName)
+	}
+
+	log.Debug().Interface("globe", g).Msg("Globe config")
+	return g
+}
+
+func (g *Globe) initGitData() {
 	if isGitRepo(g.RootDir) {
 		g.WithGit = true
 
@@ -153,28 +175,9 @@ func New(rootDir string) *Globe {
 		} else {
 			g.GitRepoURL = gitRepoURL
 		}
-
 	} else {
 		log.Warn().Msg("Not in a git repository, Smart Mode and git-related data will not be available")
 	}
-
-	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
-	if ok, err := isExist(yttLibraryDir); err != nil {
-		log.Fatal().Err(err).Str("path", yttLibraryDir).Msg("Unable to stat ytt library directory")
-	} else if ok {
-		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
-	}
-
-	g.extraYttPaths = append(g.extraYttPaths, g.createDataSchemaFile())
-
-	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
-		log.Warn().Err(err).Msg("Unable to dump config as yaml")
-	} else {
-		g.extraYttPaths = append(g.extraYttPaths, configFileName)
-	}
-
-	log.Debug().Interface("globe", g).Msg("Globe config")
-	return g
 }
 
 // ValidateRootDir checks if the specified root directory contains required subdirectories

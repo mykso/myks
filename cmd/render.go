@@ -2,8 +2,6 @@ package cmd
 
 import (
 	"github.com/spf13/cobra"
-
-	"github.com/mykso/myks/internal/myks"
 )
 
 func newRenderCmd() *cobra.Command {
@@ -78,7 +76,7 @@ Examples:
 // RenderCmd processes the render command with the provided flags.
 // The function is exported to allow testing and usage in other packages.
 func RenderCmd(sync, render bool) error {
-	g := myks.New(".")
+	g := getGlobe()
 
 	if err := okOrErrLog(g.ValidateRootDir(), "Root directory is not suitable for myks"); err != nil {
 		return err

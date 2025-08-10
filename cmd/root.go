@@ -27,6 +27,8 @@ var (
 	cfgFile    string
 	envAppMap  myks.EnvAppMap
 	asyncLevel int
+
+	globe *myks.Globe
 )
 
 func NewMyksCmd(version, commit, date string) *cobra.Command {

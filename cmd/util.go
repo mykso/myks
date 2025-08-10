@@ -10,6 +10,13 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
+func getGlobe() *myks.Globe {
+	if globe == nil {
+		globe = myks.New(".")
+	}
+	return globe
+}
+
 func okOrFatal(err error, msg string) {
 	if err != nil {
 		log.Fatal().Err(err).Msg(msg)
@@ -28,18 +35,18 @@ func shellCompletion(cmd *cobra.Command, args []string, toComplete string) ([]st
 	if len(args) > 1 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-	tmp := myks.New(".")
-	err := tmp.Init(asyncLevel, map[string][]string{})
+	g := getGlobe()
+	err := g.Init(asyncLevel, map[string][]string{})
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
 	// return envs
 	if len(args) == 0 {
-		return getEnvNames(tmp), cobra.ShellCompDirectiveNoFileComp
+		return getEnvNames(g), cobra.ShellCompDirectiveNoFileComp
 	}
 	// return args
 	if len(args) == 1 {
-		return getAppNamesForEnv(tmp, args[0]), cobra.ShellCompDirectiveNoFileComp
+		return getAppNamesForEnv(g, args[0]), cobra.ShellCompDirectiveNoFileComp
 	}
 	return nil, cobra.ShellCompDirectiveNoFileComp
 }
