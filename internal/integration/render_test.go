@@ -87,7 +87,7 @@ func TestRender(t *testing.T) {
 	for _, repo := range repos {
 		t.Run(repo.name, func(t *testing.T) {
 			chgDir(t, baseFolder, repo.dir)
-			if err := cmd.RenderCmd(false, false); err != nil {
+			if err := cmd.RenderCmd(true, true); err != nil {
 				t.Fatalf("Render failed: %s", err)
 			}
 			if !checkCleanGit(t) {
@@ -119,7 +119,7 @@ func TestInitialRendering(t *testing.T) {
 				t.Fatalf("Remove rendered directory failed: %s", err)
 			}
 
-			if err := cmd.RenderCmd(false, false); err != nil {
+			if err := cmd.RenderCmd(true, true); err != nil {
 				t.Fatalf("Render failed: %s", err)
 			}
 			if !checkCleanGit(t) {
