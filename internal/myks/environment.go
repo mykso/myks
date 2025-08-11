@@ -229,8 +229,6 @@ func (e *Environment) renderEnvData(envDataFiles []string) ([]byte, error) {
 	if len(envDataFiles) == 0 {
 		return nil, errors.New("no environment data files found")
 	}
-	log.Debug().Strs("envDataFiles", envDataFiles).Msg(e.Msg("Rendering environment data files"))
-
 	res, err := e.ytt("render environment data values file", envDataFiles, "--data-values-inspect")
 	if err != nil {
 		return nil, err
