@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/mykso/myks/internal/myks"
 	"github.com/spf13/cobra"
 )
 
@@ -26,7 +27,7 @@ For example, if you reference a secret named "mycreds" in your vendir.yaml, you 
 				render = true
 			}
 
-			okOrFatal(RenderCmd(sync, render), "Rendering failed")
+			okOrFatal(RenderCmd(getGlobe(), sync, render), "Rendering failed")
 		},
 		ValidArgsFunction: shellCompletion,
 	}
@@ -75,9 +76,7 @@ Examples:
 
 // RenderCmd processes the render command with the provided flags.
 // The function is exported to allow testing and usage in other packages.
-func RenderCmd(sync, render bool) error {
-	g := getGlobe()
-
+func RenderCmd(g *myks.Globe, sync, render bool) error {
 	if err := okOrErrLog(g.ValidateRootDir(), "Root directory is not suitable for myks"); err != nil {
 		return err
 	}
