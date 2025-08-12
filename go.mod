@@ -5,7 +5,7 @@ go 1.24.2
 require (
 	carvel.dev/vendir v0.44.0
 	carvel.dev/ytt v0.52.0
-	github.com/alecthomas/chroma/v2 v2.19.0
+	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.8.0
 	github.com/hashicorp/go-version v1.7.0
