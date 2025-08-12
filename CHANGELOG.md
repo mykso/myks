@@ -1,5 +1,14 @@
 # Changelog
 
+## [4.11.3](https://github.com/mykso/myks/compare/v4.11.2...v4.11.3) (2025-08-12)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.20.0 ([#575](https://github.com/mykso/myks/issues/575)) ([06a55bc](https://github.com/mykso/myks/commit/06a55bc19739d3cbd0fad0323cd2ef78c6ffe3c2))
+* **deps:** update module golang.org/x/term to v0.33.0 ([#558](https://github.com/mykso/myks/issues/558)) ([b07a3ba](https://github.com/mykso/myks/commit/b07a3ba178373f6cf7ea231a61a87de5255754d2))
+* warn on orphan Helm configs and values files ([#572](https://github.com/mykso/myks/issues/572)) ([2bb4f13](https://github.com/mykso/myks/commit/2bb4f13f820ec49027657d0a3a5ad4055087befe))
+
 ## [4.11.2](https://github.com/mykso/myks/compare/v4.11.1...v4.11.2) (2025-07-11)
 
 
