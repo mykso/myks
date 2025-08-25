@@ -14,7 +14,7 @@ RUN CGO_ENABLED=0 \
 
 
 # Stage 2 Download tools
-FROM --platform=$BUILDPLATFORM debian:bookworm@sha256:731dd1380d6a8d170a695dbeb17fe0eade0e1c29f654cf0a3a07f372191c3f4b AS download-tools
+FROM --platform=$BUILDPLATFORM debian:trixie@sha256:6d87375016340817ac2391e670971725a9981cfc24e221c47734681ed0f6c0f5 AS download-tools
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -38,7 +38,7 @@ RUN chmod +x *
 
 
 # Stage 3: Bring it all together
-FROM --platform=$BUILDPLATFORM debian:bookworm@sha256:731dd1380d6a8d170a695dbeb17fe0eade0e1c29f654cf0a3a07f372191c3f4b
+FROM --platform=$BUILDPLATFORM debian:trixie@sha256:6d87375016340817ac2391e670971725a9981cfc24e221c47734681ed0f6c0f5
 
 WORKDIR /app
 
