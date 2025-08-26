@@ -2,6 +2,9 @@
 # Sets the number of applications to be processed in parallel.
 # The default (0) is no limit.
 async: 0
+# Sets the root directory to the configuration file directory.
+# Allows to run myks from subdirectories.
+config-in-root: true
 # One of the zerolog log levels.
 # See: https://github.com/rs/zerolog#leveled-logging
 log-level: info
