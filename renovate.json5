@@ -15,6 +15,23 @@
       matchManagers: ["gomod"],
       matchUpdateTypes: ["minor", "patch"],
       minimumReleaseAge: "7 days",
+    },{
+      description: "Automerge Docker base image updates for non-major versions",
+      matchManagers: ["docker"],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      pinDigests: true,
+
+      // Group all Docker updates into a single PR
+      groupName: "docker dependencies",
+      groupSlug: "docker-deps",
+
+      automerge: true,
+      addLabels: ["docker", "dependencies"],
+    },{
+      description: "Create separate PRs for major Docker updates, without automerge",
+      matchManagers: ["docker"],
+      matchUpdateTypes: ["major"],
+      addLabels: ["docker", "major-update"],
   }],
   customManagers: [{
       customType: "regex",

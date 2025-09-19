@@ -1,5 +1,17 @@
 # Changelog
 
+## [4.11.3](https://github.com/mykso/myks/compare/v4.11.2...v4.11.3) (2025-09-08)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#595](https://github.com/mykso/myks/issues/595)) ([367ec2f](https://github.com/mykso/myks/commit/367ec2fa47d28d72340ddc4c3e0698b824d98726))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.20.0 ([#575](https://github.com/mykso/myks/issues/575)) ([06a55bc](https://github.com/mykso/myks/commit/06a55bc19739d3cbd0fad0323cd2ef78c6ffe3c2))
+* **deps:** update module github.com/stretchr/testify to v1.11.0 ([#591](https://github.com/mykso/myks/issues/591)) ([6b1c572](https://github.com/mykso/myks/commit/6b1c572677c2facfc6472b62bbbd4173a16c7c1d))
+* **deps:** update module golang.org/x/term to v0.33.0 ([#558](https://github.com/mykso/myks/issues/558)) ([b07a3ba](https://github.com/mykso/myks/commit/b07a3ba178373f6cf7ea231a61a87de5255754d2))
+* **deps:** update module golang.org/x/term to v0.34.0 ([#584](https://github.com/mykso/myks/issues/584)) ([b1a3ad8](https://github.com/mykso/myks/commit/b1a3ad8dfed635997c95ab2b32d11d0081a19a90))
+* warn on orphan Helm configs and values files ([#572](https://github.com/mykso/myks/issues/572)) ([2bb4f13](https://github.com/mykso/myks/commit/2bb4f13f820ec49027657d0a3a5ad4055087befe))
+
 ## [4.11.2](https://github.com/mykso/myks/compare/v4.11.1...v4.11.2) (2025-07-11)
 
 
