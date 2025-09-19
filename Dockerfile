@@ -22,6 +22,8 @@ RUN curl -fsSL \
 
 FROM --platform=$BUILDPLATFORM debian:bookworm-slim@sha256:df52e55e3361a81ac1bead266f3373ee55d29aa50cf0975d440c2be3483d8ed3
 
+ARG TARGETPLATFORM
+
 RUN apt-get update \
  && apt-get install --no-install-recommends -y \
       ca-certificates \
@@ -33,7 +35,7 @@ RUN apt-get update \
 
 COPY --link --chmod=700 --from=helm /tools/helm /usr/local/bin/
 # This copies myks binary built by goreleaser
-COPY --link myks /usr/local/bin/
+COPY --link $TARGETPLATFORM/myks /usr/local/bin/
 
 WORKDIR /app
 
