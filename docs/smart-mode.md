@@ -22,19 +22,44 @@ of your configuration:
 - all environments and all applications
 
 The processing scope goes from the smallest (nothing) to the largest
-(everything). A broader scope always includes the narrower ones. Than means, if
+(everything). A broader scope always includes the narrower ones. That means, if
 a particular environment is selected for processing, all applications of that
 environment will be processed, no matter if they have changed or not.
 
-You can see the scope of processing using the `--smart-mode.only-print` flag:
+## Configuration Options
+
+Smart Mode provides several configuration options for fine-tuning its behavior:
+
+### Preview Mode
+
+You can see the scope of processing without actually running the sync and render
+operations using the `--smart-mode.only-print` flag:
 
 ```console
-$ myks all --smart-mode.only-print
+$ myks render --smart-mode.only-print
 
 Smart Mode detected:
 → envs/alpha
     traefik
 ```
+
+This is useful for understanding what would be processed before running the
+actual command, especially in CI/CD environments.
+
+### Base Revision Comparison
+
+By default, Smart Mode compares against the current state of your working
+directory. You can specify a different base revision for comparison using the
+`--smart-mode.base-revision` flag:
+
+```console
+$ myks render --smart-mode.base-revision=main
+$ myks render --smart-mode.base-revision=HEAD~1
+$ myks render --smart-mode.base-revision=v1.2.3
+```
+
+This is particularly useful in CI/CD pipelines where you want to compare against
+a specific branch or tag rather than just local changes.
 
 ### Nothing to process
 
@@ -55,8 +80,8 @@ cases:
 - The prototype of that application has changed, for example:
   - `prototypes/app-1/vendir/...`
 
-> :information_source: In the latter case, when a prototype has changed, all
-> applications that use this prototype are selected for processing.
+> [!NOTE] In the latter case, when a prototype has changed, all applications
+> that use this prototype are selected for processing.
 
 ### Processing all applications of one or multiple environments
 
@@ -71,10 +96,9 @@ All applications of an environment are processed in any of the following cases:
   - `.../env-1/_env/ytt/...`
   - `.../env-1/_env/argocd/...`
 
-> :information_source: Changing the upper-level environment (e.g.
-> `/envs/env-data.ytt.yaml`) will naturally promote the scope of processing to
-> all environments and applications, as all environments depend on the
-> upper-level one.
+> [!NOTE] Changing the upper-level environment (e.g. `/envs/env-data.ytt.yaml`)
+> will naturally promote the scope of processing to all environments and
+> applications, as all environments depend on the upper-level one.
 
 ### Processing all environments and all applications
 
