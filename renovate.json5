@@ -22,7 +22,7 @@
     // Group all Docker updates into a single PR
     {
       description: "Automerge Docker base image updates for non-major versions",
-      matchManagers: ["docker"],
+      matchManagers: ["dockerfile"],
       matchUpdateTypes: ["minor", "patch", "pin", "digest"],
       pinDigests: true,
 
@@ -31,13 +31,6 @@
 
       automerge: true,
       addLabels: ["docker", "dependencies"],
-    },
-    // Separate PRs for major Docker updates
-    {
-      description: "Create separate PRs for major Docker updates, without automerge",
-      matchManagers: ["docker"],
-      matchUpdateTypes: ["major"],
-      addLabels: ["docker", "major-update"],
     },
     // Group PRs for GitHub Action updates into a single PR
     {
