@@ -57,4 +57,4 @@ jobs:
           GPG_FINGERPRINT: ${{ steps.import_gpg.outputs.fingerprint }}
           HOMEBREW_TAP_REPO_TOKEN: ${{ secrets.MYKSO_BOT_GITHUB_TOKEN }}
         with:
-          args: release --clean
+          args: release --clean --verbose
