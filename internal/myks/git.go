@@ -47,7 +47,7 @@ func convertDiffToChangedFiles(diff string) ChangedFiles {
 	mode := ""
 	// If the second file in a rename is being processed
 	second := false
-	for _, str := range strings.Split(diff, "\x00") {
+	for str := range strings.SplitSeq(diff, "\x00") {
 		if str == "" {
 			continue
 		}
@@ -73,7 +73,7 @@ func convertStatusToChangedFiles(status string) ChangedFiles {
 	mode := ""
 	// If the second file in a rename is being processed
 	second := false
-	for _, str := range strings.Split(status, "\x00") {
+	for str := range strings.SplitSeq(status, "\x00") {
 		if str == "" {
 			continue
 		}
