@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.11.4](https://github.com/mykso/myks/compare/v4.11.3...v4.11.4) (2025-09-22)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#605](https://github.com/mykso/myks/issues/605)) ([8c17243](https://github.com/mykso/myks/commit/8c1724339e2160ee4196d33bb72c94c32ebe3f06))
+
 ## [4.11.3](https://github.com/mykso/myks/compare/v4.11.2...v4.11.3) (2025-09-08)
 
 
