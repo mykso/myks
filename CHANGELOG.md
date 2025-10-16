@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.11.5](https://github.com/mykso/myks/compare/v4.11.4...v4.11.5) (2025-10-16)
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/term to v0.36.0 ([#624](https://github.com/mykso/myks/issues/624)) ([f3dff86](https://github.com/mykso/myks/commit/f3dff866e2370811f4779b031e83f7226353e8f5))
+
 ## [4.11.4](https://github.com/mykso/myks/compare/v4.11.3...v4.11.4) (2025-09-22)
 
 
