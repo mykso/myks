@@ -60,7 +60,7 @@ func newPluginCmd(plugin myks.Plugin) *cobra.Command {
 			if err := initTargetEnvsAndApps(cmd, myksArgs); err != nil {
 				return err
 			}
-			g := myks.New(".")
+			g := getGlobe()
 
 			if err := g.ValidateRootDir(); err != nil {
 				log.Fatal().Err(err).Msg("Root directory is not suitable for myks")
