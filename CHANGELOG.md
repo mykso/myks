@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.0.0](https://github.com/mykso/myks/compare/v4.11.4...v5.0.0) (2025-10-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cmd:** replace `all`, `sync`, and `render` commands with a single `render` command ([#570](https://github.com/mykso/myks/issues/570))
+* release version 5 ([#571](https://github.com/mykso/myks/issues/571))
+
+### Features
+
+* add config-in-root option that sets root-dir to the config file location ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
+* add kbld support ([#626](https://github.com/mykso/myks/issues/626)) ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
+* **cmd:** replace `all`, `sync`, and `render` commands with a single `render` command ([#570](https://github.com/mykso/myks/issues/570)) ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
+* release version 5 ([#571](https://github.com/mykso/myks/issues/571)) ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/term to v0.36.0 ([#624](https://github.com/mykso/myks/issues/624)) ([f3dff86](https://github.com/mykso/myks/commit/f3dff866e2370811f4779b031e83f7226353e8f5))
+
 ## [4.11.4](https://github.com/mykso/myks/compare/v4.11.3...v4.11.4) (2025-09-22)
 
 
