@@ -90,11 +90,11 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 	}
 
 	if res.Stdout == "" {
-		log.Warn().Msg(k.app.Msg(k.getStepName(), "Empty ytt output"))
+		log.Warn().Msg(k.app.Msg(k.getStepName(), "Empty kbld output"))
 		return "", nil
 	}
 
-	log.Info().Msg(k.app.Msg(k.getStepName(), "Local ytt rendered"))
+	log.Info().Msg(k.app.Msg(k.getStepName(), "kbld rendered"))
 
 	return res.Stdout, nil
 }
