@@ -26,10 +26,8 @@ func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 
 	switch len(args) {
 	case 0:
-		// smart mode requires instantiation of globe object to get the list of environments
-		// the globe object will not be used later in the process. It is only used to get the list of all environments and their apps.
-		globeAllEnvsAndApps := myks.New(".")
-		envAppMap, err = globeAllEnvsAndApps.DetectChangedEnvsAndApps(viper.GetString("smart-mode.base-revision"))
+		g := getGlobe()
+		envAppMap, err = g.DetectChangedEnvsAndApps(viper.GetString("smart-mode.base-revision"))
 		if err != nil {
 			log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
 		} else if len(envAppMap) == 0 {

@@ -129,10 +129,39 @@ func NewWithDefaults() *Globe {
 }
 
 func New(rootDir string) *Globe {
+	// FIXME: Do not change working directory here, implement relative paths throughout the codebase instead
+	if rootDir != "." {
+		if err := os.Chdir(rootDir); err != nil {
+			log.Fatal().Err(err).Str("rootDir", rootDir).Msg("Unable to change working directory")
+		}
+		rootDir = "."
+	}
 	g := NewWithDefaults()
 	g.RootDir = rootDir
 	g.environments = make(map[string]*Environment)
 
+	g.initGitData()
+
+	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
+	if ok, err := isExist(yttLibraryDir); err != nil {
+		log.Fatal().Err(err).Str("path", yttLibraryDir).Msg("Unable to stat ytt library directory")
+	} else if ok {
+		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
+	}
+
+	g.extraYttPaths = append(g.extraYttPaths, g.createDataSchemaFile())
+
+	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
+		log.Warn().Err(err).Msg("Unable to dump config as yaml")
+	} else {
+		g.extraYttPaths = append(g.extraYttPaths, configFileName)
+	}
+
+	log.Debug().Interface("globe", g).Msg("Globe config")
+	return g
+}
+
+func (g *Globe) initGitData() {
 	if isGitRepo(g.RootDir) {
 		g.WithGit = true
 
@@ -153,28 +182,9 @@ func New(rootDir string) *Globe {
 		} else {
 			g.GitRepoURL = gitRepoURL
 		}
-
 	} else {
 		log.Warn().Msg("Not in a git repository, Smart Mode and git-related data will not be available")
 	}
-
-	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
-	if ok, err := isExist(yttLibraryDir); err != nil {
-		log.Fatal().Err(err).Str("path", yttLibraryDir).Msg("Unable to stat ytt library directory")
-	} else if ok {
-		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
-	}
-
-	g.extraYttPaths = append(g.extraYttPaths, g.createDataSchemaFile())
-
-	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
-		log.Warn().Err(err).Msg("Unable to dump config as yaml")
-	} else {
-		g.extraYttPaths = append(g.extraYttPaths, configFileName)
-	}
-
-	log.Debug().Interface("globe", g).Msg("Globe config")
-	return g
 }
 
 // ValidateRootDir checks if the specified root directory contains required subdirectories
@@ -366,7 +376,7 @@ func (g *Globe) CleanupObsoleteCacheEntries(dryRun bool) error {
 		}
 	}
 
-	cacheDir := filepath.Join(g.ServiceDirName, g.VendirCache)
+	cacheDir := filepath.Join(g.RootDir, g.ServiceDirName, g.VendirCache)
 	cacheEntries, err := os.ReadDir(cacheDir)
 	if os.IsNotExist(err) {
 		log.Debug().Str("dir", cacheDir).Msg("Skipping cleanup of non-existing directory")
@@ -460,6 +470,7 @@ func (g *Globe) collectEnvironments(envSearchPathToAppMap EnvAppMap) EnvAppMap {
 
 func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 	result := []string{}
+	searchPath = filepath.Join(g.RootDir, searchPath)
 	err := filepath.WalkDir(filepath.Clean(searchPath), func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
