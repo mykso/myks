@@ -1,3 +1,4 @@
+// Package myks provides all the functionality for myks.
 package myks
 
 import (
@@ -18,8 +19,7 @@ const GlobalLogFormat = "\033[1m[global]\033[0m %s"
 
 const GlobalExtendedLogFormat = "\033[1m[global > %s > %s]\033[0m %s"
 
-// Define the main structure
-// Globe configuration
+// Globe contains global configuration and state for the myks application
 type Globe struct {
 	// Global vendir cache dir
 	VendirCache string `default:"vendir-cache"`
@@ -107,7 +107,7 @@ type Globe struct {
 	extraYttPaths []string
 }
 
-// YttGlobe controls runtime data available to ytt templates
+// YttGlobeData controls runtime data available to ytt templates
 type YttGlobeData struct {
 	GitRepoBranch string `yaml:"gitRepoBranch"`
 	GitRepoURL    string `yaml:"gitRepoUrl"`
@@ -129,10 +129,39 @@ func NewWithDefaults() *Globe {
 }
 
 func New(rootDir string) *Globe {
+	// FIXME: Do not change working directory here, implement relative paths throughout the codebase instead
+	if rootDir != "." {
+		if err := os.Chdir(rootDir); err != nil {
+			log.Fatal().Err(err).Str("rootDir", rootDir).Msg("Unable to change working directory")
+		}
+		rootDir = "."
+	}
 	g := NewWithDefaults()
 	g.RootDir = rootDir
 	g.environments = make(map[string]*Environment)
 
+	g.initGitData()
+
+	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
+	if ok, err := isExist(yttLibraryDir); err != nil {
+		log.Fatal().Err(err).Str("path", yttLibraryDir).Msg("Unable to stat ytt library directory")
+	} else if ok {
+		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
+	}
+
+	g.extraYttPaths = append(g.extraYttPaths, g.createDataSchemaFile())
+
+	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
+		log.Warn().Err(err).Msg("Unable to dump config as yaml")
+	} else {
+		g.extraYttPaths = append(g.extraYttPaths, configFileName)
+	}
+
+	log.Debug().Interface("globe", g).Msg("Globe config")
+	return g
+}
+
+func (g *Globe) initGitData() {
 	if isGitRepo(g.RootDir) {
 		g.WithGit = true
 
@@ -153,28 +182,9 @@ func New(rootDir string) *Globe {
 		} else {
 			g.GitRepoURL = gitRepoURL
 		}
-
 	} else {
 		log.Warn().Msg("Not in a git repository, Smart Mode and git-related data will not be available")
 	}
-
-	yttLibraryDir := filepath.Join(g.RootDir, g.YttLibraryDirName)
-	if ok, err := isExist(yttLibraryDir); err != nil {
-		log.Fatal().Err(err).Str("path", yttLibraryDir).Msg("Unable to stat ytt library directory")
-	} else if ok {
-		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
-	}
-
-	g.extraYttPaths = append(g.extraYttPaths, g.createDataSchemaFile())
-
-	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
-		log.Warn().Err(err).Msg("Unable to dump config as yaml")
-	} else {
-		g.extraYttPaths = append(g.extraYttPaths, configFileName)
-	}
-
-	log.Debug().Interface("globe", g).Msg("Globe config")
-	return g
 }
 
 // ValidateRootDir checks if the specified root directory contains required subdirectories
@@ -252,39 +262,99 @@ func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
 // CleanupRenderedManifests discovers rendered environments that are not known to the Globe struct and removes them.
 // This function should be only run when the Globe is not restricted by a list of environments.
 func (g *Globe) CleanupRenderedManifests(dryRun bool) error {
-	legalEnvs := map[string]bool{}
+	legalEnvs := map[string]*Environment{}
 	for _, env := range g.environments {
-		legalEnvs[env.ID] = true
+		legalEnvs[env.ID] = env
 	}
 
-	for _, dir := range [...]string{g.RenderedArgoDir, g.RenderedEnvsDir} {
-		dirPath := filepath.Join(g.RootDir, dir)
-		files, err := os.ReadDir(dirPath)
+	listFiles := func(dir string) ([]fs.DirEntry, error) {
+		files, err := os.ReadDir(dir)
 		if err != nil {
 			if os.IsNotExist(err) {
-				log.Debug().Str("dir", dirPath).Msg("Skipping cleanup of non-existing directory")
-				continue
+				log.Debug().Str("dir", dir).Msg("Skipping cleanup of non-existing directory")
+				return nil, nil
 			}
-			return fmt.Errorf("unable to read dir: %w", err)
+			return nil, fmt.Errorf("unable to read directory %s: %w", dir, err)
+		}
+		return files, nil
+	}
+
+	cleanupEnvironmentDir := func(root string, envDirEntry fs.DirEntry, getAppNameFunc func(string) string) {
+		envID := envDirEntry.Name()
+		fullPath := filepath.Join(root, envID)
+		if !envDirEntry.IsDir() {
+			log.Warn().Str("file", fullPath).Msg("Skipping non-directory entry")
+			return
 		}
 
-		for _, file := range files {
-			if !file.IsDir() {
-				log.Warn().Str("file", dir+"/"+file.Name()).Msg("Skipping non-directory entry")
+		env, ok := legalEnvs[envID]
+		if !ok {
+			if dryRun {
+				log.Info().Str("dir", fullPath).Msg("Would cleanup rendered environment directory")
+				return
+			}
+			log.Debug().Str("dir", fullPath).Msg("Cleanup rendered environment directory")
+			if err := os.RemoveAll(fullPath); err != nil {
+				log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
+			}
+			return
+		}
+
+		legalApps := map[string]bool{}
+		for _, app := range env.Applications {
+			legalApps[app.Name] = true
+		}
+
+		apps, err := listFiles(fullPath)
+		if err != nil {
+			log.Warn().Err(err).Str("dir", fullPath).Msg("Unable to list applications in environment directory")
+			return
+		}
+
+		for _, appDirEntry := range apps {
+			appName := appDirEntry.Name()
+			fullAppPath := filepath.Join(fullPath, appName)
+			if getAppNameFunc != nil {
+				appName = getAppNameFunc(appName)
+			}
+			if appName == "" {
+				log.Warn().Str("app", fullAppPath).Msg("Directory name could not be mapped to a known application")
 				continue
 			}
-			if _, ok := legalEnvs[file.Name()]; !ok {
+			if _, ok := legalApps[appName]; !ok {
 				if dryRun {
-					log.Info().Str("dir", dir+"/"+file.Name()).Msg("Would cleanup rendered environment directory")
+					log.Info().Str("app", fullAppPath).Msg("Would cleanup rendered application directory")
 					continue
 				}
-				log.Debug().Str("dir", dir+"/"+file.Name()).Msg("Cleanup rendered environment directory")
-				fullPath := filepath.Join(dirPath, file.Name())
-				if err := os.RemoveAll(fullPath); err != nil {
-					log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
+				log.Debug().Str("app", fullAppPath).Msg("Cleanup rendered application directory")
+				if err := os.RemoveAll(fullAppPath); err != nil {
+					log.Warn().Str("app", fullAppPath).Msg("Failed to remove application directory")
 				}
 			}
 		}
+	}
+
+	argoDir := filepath.Join(g.RootDir, g.RenderedArgoDir)
+	files, err := listFiles(argoDir)
+	if err != nil {
+		return fmt.Errorf("unable to read ArgoCD rendered manifests directory: %w", err)
+	}
+	for _, envDirEntry := range files {
+		cleanupEnvironmentDir(argoDir, envDirEntry, func(appName string) string {
+			if strings.HasPrefix(appName, "app-") && strings.HasSuffix(appName, ".yaml") {
+				return appName[4 : len(appName)-5]
+			}
+			return ""
+		})
+	}
+
+	envsDir := filepath.Join(g.RootDir, g.RenderedEnvsDir)
+	files, err = listFiles(envsDir)
+	if err != nil {
+		return fmt.Errorf("unable to read rendered environments directory: %w", err)
+	}
+	for _, envDirEntry := range files {
+		cleanupEnvironmentDir(envsDir, envDirEntry, nil)
 	}
 
 	return nil
@@ -306,7 +376,7 @@ func (g *Globe) CleanupObsoleteCacheEntries(dryRun bool) error {
 		}
 	}
 
-	cacheDir := filepath.Join(g.ServiceDirName, g.VendirCache)
+	cacheDir := filepath.Join(g.RootDir, g.ServiceDirName, g.VendirCache)
 	cacheEntries, err := os.ReadDir(cacheDir)
 	if os.IsNotExist(err) {
 		log.Debug().Str("dir", cacheDir).Msg("Skipping cleanup of non-existing directory")
@@ -400,6 +470,7 @@ func (g *Globe) collectEnvironments(envSearchPathToAppMap EnvAppMap) EnvAppMap {
 
 func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 	result := []string{}
+	searchPath = filepath.Join(g.RootDir, searchPath)
 	err := filepath.WalkDir(filepath.Clean(searchPath), func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -435,22 +506,8 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 	return result
 }
 
-func (g *Globe) isEnvPath(path string) bool {
-	for envPath := range g.environments {
-		if strings.HasPrefix(envPath, path) {
-			return true
-		}
-	}
-	return false
-}
-
 func (g *Globe) Msg(msg string) string {
 	formattedMessage := fmt.Sprintf(GlobalLogFormat, msg)
-	return formattedMessage
-}
-
-func (a *Globe) MsgWithSteps(step1 string, step2 string, msg string) string {
-	formattedMessage := fmt.Sprintf(GlobalExtendedLogFormat, step1, step2, msg)
 	return formattedMessage
 }
 
@@ -474,7 +531,7 @@ func (g *Globe) AddBaseDirToEnvAppMap(envSearchPathToAppMap EnvAppMap) EnvAppMap
 	return envAppMap
 }
 
-// Adds base directory (Globe.EnvironmentBaseDir) to the environment path if it is not already there
+// AddBaseDirToEnvPath adds the base directory (Globe.EnvironmentBaseDir) to the environment path if it is not already present.
 func (g *Globe) AddBaseDirToEnvPath(envName string) string {
 	if envName == g.EnvironmentBaseDir {
 		return envName
@@ -483,4 +540,13 @@ func (g *Globe) AddBaseDirToEnvPath(envName string) string {
 		return envName
 	}
 	return filepath.Join(g.EnvironmentBaseDir, envName)
+}
+
+func (g *Globe) getEnvByID(envID string) (*Environment, error) {
+	for _, env := range g.environments {
+		if env.ID == envID {
+			return env, nil
+		}
+	}
+	return nil, fmt.Errorf("environment with ID %s not found", envID)
 }

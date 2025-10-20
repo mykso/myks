@@ -2,7 +2,7 @@
 
 This page lists myks' features that help to optimize performance and resource
 usage. Some of those features are enabled by default, while others require
-additional configuration. There are features that impreve rendering speed, but
+additional configuration. There are features that improve rendering speed, but
 the most useful are those that reduce syncing activities.
 
 ## Parallelism
@@ -20,7 +20,17 @@ that there is no limit.
 Myks can detect what applications and environments to process based on the
 changes in the source files. This allows to reduce the number of applications
 and environments to process, which in turn reduces the time needed for syncing
-and rendering. See the [Smart Mode](/docs/smart-mode.md) page for more details.
+and rendering.
+
+Smart Mode supports advanced options:
+
+- `--smart-mode.base-revision`: Specify a base revision to compare against for
+  change detection. If not provided, only local changes are considered.
+- `--smart-mode.only-print`: Preview mode that only prints the list of
+  environments and applications that would be rendered without actually
+  processing them.
+
+See the [Smart Mode](/docs/smart-mode.md) page for more details.
 
 ### Manual Selection
 
@@ -29,7 +39,7 @@ this case, you can manually specify the applications and environments to
 process. For example:
 
 ```shell
-myks all foo-env,bar-env baz-app
+myks render foo-env,bar-env baz-app
 ```
 
 This command will sync and render the `baz-app` application in the `foo-env` and

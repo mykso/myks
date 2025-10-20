@@ -3,6 +3,7 @@ package myks
 import (
 	"errors"
 	"maps"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -95,10 +96,20 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 			e(g.PrototypesDir + "/(.+)/" + pluginsPattern + "/.*"),
 			e(g.PrototypesDir + "/(.+)/" + globToRegexp(g.ApplicationDataFileName)),
 		},
+		// Env path and prototype name are the submatches
+		"env-prototype": {
+			e("(" + g.EnvironmentBaseDir + ".*)/" + g.PrototypeOverrideDir + "/([^/]+)/" + pluginsPattern + "/.*"),
+			e("(" + g.EnvironmentBaseDir + ".*)/" + g.PrototypeOverrideDir + "/([^/]+)/" + globToRegexp(g.ApplicationDataFileName)),
+		},
 		// Env path and app name are the submatches
 		"app": {
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + pluginsPattern + "/.*"),
 			e("(" + g.EnvironmentBaseDir + ".*)/" + g.AppsDir + "/([^/]+)/" + globToRegexp(g.ApplicationDataFileName)),
+		},
+		// Env ID and app name are the submatches
+		"rendered-app": {
+			e(g.RenderedEnvsDir + "/([^/]+)/([^/]+)/.*"),
+			e(g.RenderedArgoDir + "/([^/]+)/app-([^/]+)\\.yaml"),
 		},
 	}
 
@@ -128,7 +139,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	changedEnvs := []string{}
 	changedPrototypes := []string{}
 
-	for path := range maps.Keys(changedFiles) {
+	for path := range changedFiles {
 		// Check if the global configuration has changed
 		if extractMatches(exprMap["global"], path) != nil {
 			// If global configuration has changed, we need to render all environments
@@ -137,7 +148,8 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 
 		// If env has changed
 		if envMatch := extractMatches(exprMap["env"], path); envMatch != nil {
-			changedEnvs = append(changedEnvs, envMatch[0])
+			envPath := g.AddBaseDirToEnvPath(envMatch[0])
+			changedEnvs = append(changedEnvs, envPath)
 			continue
 		}
 
@@ -147,14 +159,37 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 			continue
 		}
 
+		// If environment-specific prototype has changed
+		if envProtoMatch := extractMatches(exprMap["env-prototype"], path); envProtoMatch != nil {
+			envPath := g.AddBaseDirToEnvPath(envProtoMatch[0])
+			prototypeName := envProtoMatch[1]
+			for env, apps := range g.findPrototypeUsage([]string{prototypeName}, envPath) {
+				envAppMap[env] = append(envAppMap[env], apps...)
+			}
+			continue
+		}
+
 		// If app has changed
 		if appMatch := extractMatches(exprMap["app"], path); appMatch != nil {
-			envAppMap[appMatch[0]] = append(envAppMap[appMatch[0]], appMatch[1])
+			envPath := g.AddBaseDirToEnvPath(appMatch[0])
+			envAppMap[envPath] = append(envAppMap[envPath], appMatch[1])
+			continue
+		}
+
+		// If rendered app has changed
+		if appMatch := extractMatches(exprMap["rendered-app"], path); appMatch != nil {
+			env, err := g.getEnvByID(appMatch[0])
+			if err != nil {
+				log.Err(err).Str("envID", appMatch[0]).Msg(g.Msg("Failed to get environment by ID"))
+				continue
+			}
+			envPath := g.AddBaseDirToEnvPath(env.Dir)
+			envAppMap[envPath] = append(envAppMap[envPath], appMatch[1])
 			continue
 		}
 	}
 
-	for env, apps := range g.findPrototypeUsage(changedPrototypes) {
+	for env, apps := range g.findPrototypeUsage(changedPrototypes, "") {
 		envAppMap[env] = append(envAppMap[env], apps...)
 	}
 
@@ -173,7 +208,8 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	// Remove environments and applications that are not found in the filesystem
 	for env, apps := range envAppMap {
 		// env can be an exact path of an environment or one of parent directories
-		if !g.isEnvPath(env) {
+		matchedEnvs := g.getEnvironmentsUnderRoot(env)
+		if len(matchedEnvs) == 0 {
 			delete(envAppMap, env)
 			continue
 		}
@@ -193,10 +229,17 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	return envAppMap
 }
 
-func (g *Globe) findPrototypeUsage(prototypes []string) EnvAppMap {
+func (g *Globe) findPrototypeUsage(prototypes []string, envRoot string) EnvAppMap {
 	envAppMap := EnvAppMap{}
+	if envRoot == "" {
+		envRoot = g.EnvironmentBaseDir
+	}
+
+	matchedEnvs := g.getEnvironmentsUnderRoot(envRoot)
+
 	for _, prototype := range prototypes {
-		for envPath, env := range g.environments {
+		for _, envPath := range matchedEnvs {
+			env := g.environments[envPath]
 			for appName, appProto := range env.foundApplications {
 				if appProto == prototype {
 					envAppMap[envPath] = append(envAppMap[envPath], appName)
@@ -205,6 +248,21 @@ func (g *Globe) findPrototypeUsage(prototypes []string) EnvAppMap {
 		}
 	}
 	return envAppMap
+}
+
+// getEnvironmentsUnderRoot returns all environment paths that are under the given root
+func (g *Globe) getEnvironmentsUnderRoot(root string) []string {
+	var matchedEnvs []string
+	root = filepath.Clean(root)
+
+	for envPath := range g.environments {
+		envPath = filepath.Clean(envPath)
+		if envPath == root || strings.HasPrefix(envPath, root+string(filepath.Separator)) {
+			matchedEnvs = append(matchedEnvs, envPath)
+		}
+	}
+
+	return matchedEnvs
 }
 
 func getChanges(changedFilePaths []string, regExps ...string) ([]string, []string) {

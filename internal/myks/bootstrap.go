@@ -134,21 +134,21 @@ func (g *Globe) createBaseFileStructure(force bool, myksConfig string) error {
 }
 
 func (g *Globe) createDataSchemaFile() string {
-	dataSchemaFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.DataSchemaFileName)
-	if ok, err := isExist(dataSchemaFileName); err != nil {
+	dataSchemaFilePath := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.DataSchemaFileName)
+	log.Debug().Str("dataSchemaFilePath", dataSchemaFilePath).Msg("Ensuring data schema file exists")
+	if ok, err := isExist(dataSchemaFilePath); err != nil {
 		log.Fatal().Err(err).Msg("Unable to stat data schema file")
 	} else if !ok {
-		log.Debug().Msg("Unable to find data schema file, creating one")
-		if err := os.MkdirAll(filepath.Dir(dataSchemaFileName), 0o750); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dataSchemaFilePath), 0o750); err != nil {
 			log.Fatal().Err(err).Msg("Unable to create data schema file directory")
 		}
 	} else {
 		log.Debug().Msg("Overwriting existing data schema file")
 	}
-	if err := os.WriteFile(dataSchemaFileName, dataSchema, 0o600); err != nil {
+	if err := os.WriteFile(dataSchemaFilePath, dataSchema, 0o600); err != nil {
 		log.Fatal().Err(err).Msg("Unable to create data schema file")
 	}
-	return dataSchemaFileName
+	return dataSchemaFilePath
 }
 
 func (g *Globe) createSamplePrototypes() error {

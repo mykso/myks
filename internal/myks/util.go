@@ -527,3 +527,7 @@ func unique[T comparable](slice []T) []T {
 	}
 	return result
 }
+
+func msgWithSteps(step1 string, step2 string, msg string) string {
+	return fmt.Sprintf(GlobalExtendedLogFormat, step1, step2, msg)
+}

@@ -9,8 +9,8 @@ let
 in
 pkgs.buildGoModule {
   pname = "myks";
-  src = ./.;
-  vendorHash = "sha256-/LpBb0wbK7OP8HmL2/uMVeilIs4P51Pf+sg23zbPqtI=";
+  src = self;
+  vendorHash = "sha256-+YMR9Y5iSkpcHEg1IlSN3kB3fZAx5WNcOU71LXHhVV0=";
   version = version;
 
   env.CGO_ENABLED = 0;

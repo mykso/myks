@@ -1,7 +1,7 @@
 ---
 name: 'job-test'
 
-on:
+'on':
   workflow_call:
   workflow_dispatch:
 
@@ -9,23 +9,25 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@0aaccfd150d50ccaeb58ebd88d36e91967a5f35b # v5.4.0
+      - uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
         with:
           go-version-file: go.mod
       - name: Build myks
         run: go install .
       - name: Test
-        run: go test -failfast -race -coverpkg=./... -covermode=atomic -coverprofile=coverage.txt ./...
+        run:
+          go test -failfast -race -coverpkg=./... -covermode=atomic
+          -coverprofile=coverage.txt ./...
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # v5.4.0
+        uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7 # v5.5.1
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
         with:
           files: ./coverage.txt
-      - uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552 # v6.3.0
+      - uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6.4.0
         with:
           version: latest
           args: build --snapshot --clean

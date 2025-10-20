@@ -15,21 +15,19 @@ import (
 )
 
 const (
-	ANNOTATION_SMART_MODE = "feat:smart-mode"
-	ANNOTATION_TRUE       = "true"
+	AnnotationSmartMode = "feat:smart-mode"
+	AnnotationTrue      = "true"
 )
 
-func initTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
+func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 	// Check positional arguments for Smart Mode:
 	// 1. Comma-separated list of environment search paths or ALL to search everywhere (default: ALL)
 	// 2. Comma-separated list of application names or none to process all applications (default: none)
 
 	switch len(args) {
 	case 0:
-		// smart mode requires instantiation of globe object to get the list of environments
-		// the globe object will not be used later in the process. It is only used to get the list of all environments and their apps.
-		globeAllEnvsAndApps := myks.New(".")
-		envAppMap, err = globeAllEnvsAndApps.DetectChangedEnvsAndApps(viper.GetString("smart-mode.base-revision"))
+		g := getGlobe()
+		envAppMap, err = g.DetectChangedEnvsAndApps(viper.GetString("smart-mode.base-revision"))
 		if err != nil {
 			log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
 		} else if len(envAppMap) == 0 {
@@ -39,7 +37,7 @@ func initTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 	case 1:
 		if args[0] != "ALL" {
 			envAppMap = make(myks.EnvAppMap)
-			for _, env := range strings.Split(args[0], ",") {
+			for env := range strings.SplitSeq(args[0], ",") {
 				envAppMap[env] = nil
 			}
 		}
@@ -51,7 +49,7 @@ func initTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 
 		envAppMap = make(myks.EnvAppMap)
 		if args[0] != "ALL" {
-			for _, env := range strings.Split(args[0], ",") {
+			for env := range strings.SplitSeq(args[0], ",") {
 				envAppMap[env] = appNames
 			}
 		} else {

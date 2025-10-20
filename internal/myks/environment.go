@@ -41,7 +41,7 @@ func NewEnvironment(g *Globe, dir string, envDataFile string) (*Environment, err
 		EnvironmentDataFile:     envDataFile,
 		Applications:            []*Application{},
 		g:                       g,
-		renderedEnvDataFilePath: filepath.Join(g.ServiceDirName, dir, g.RenderedEnvironmentDataFileName),
+		renderedEnvDataFilePath: filepath.Join(g.RootDir, g.ServiceDirName, dir, g.RenderedEnvironmentDataFileName),
 		foundApplications:       map[string]string{},
 	}
 
@@ -82,6 +82,7 @@ func (e *Environment) Render(asyncLevel int) error {
 			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
 			&Ytt{ident: "ytt", app: app, additive: false},
 			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
+			&Kbld{ident: "kbld", app: app, additive: false},
 		}
 		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
 			return err
@@ -338,9 +339,9 @@ func (e *Environment) initApplications(applicationNames []string) error {
 func (e *Environment) collectBySubpath(subpath string) []string {
 	items := []string{}
 	currentPath := e.g.RootDir
-	levels := []string{""}
-	levels = append(levels, strings.Split(e.Dir, filepath.FromSlash("/"))...)
-	for _, level := range levels {
+	envRelDir := strings.TrimPrefix(e.Dir, e.g.RootDir+string(filepath.Separator))
+	levels := strings.SplitSeq(envRelDir, filepath.FromSlash("/"))
+	for level := range levels {
 		if level == "" {
 			continue
 		}

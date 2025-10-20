@@ -119,6 +119,92 @@ func Test_collectEnvironments(t *testing.T) {
 	}
 }
 
+func Test_getEnvironmentsUnderRoot(t *testing.T) {
+	g := NewWithDefaults()
+
+	// Set up test environments
+	g.environments = map[string]*Environment{
+		"envs/dev":         {},
+		"envs/staging":     {},
+		"envs/prod":        {},
+		"envs/team-a/dev":  {},
+		"envs/team-b/prod": {},
+		"envs/something":   {},
+	}
+
+	tests := []struct {
+		name     string
+		path     string
+		expected []string
+	}{
+		{
+			name:     "exact match",
+			path:     "envs/dev",
+			expected: []string{"envs/dev"},
+		},
+		{
+			name:     "prefix match",
+			path:     "envs",
+			expected: []string{"envs/dev", "envs/staging", "envs/prod", "envs/team-a/dev", "envs/team-b/prod", "envs/something"},
+		},
+		{
+			name:     "prefix match with separator",
+			path:     "envs/",
+			expected: []string{"envs/dev", "envs/staging", "envs/prod", "envs/team-a/dev", "envs/team-b/prod", "envs/something"},
+		},
+		{
+			name:     "nested prefix match",
+			path:     "envs/team-a",
+			expected: []string{"envs/team-a/dev"},
+		},
+		{
+			name:     "no match",
+			path:     "other/path",
+			expected: []string{},
+		},
+		{
+			name:     "similar prefix no match",
+			path:     "envs-other",
+			expected: []string{},
+		},
+		{
+			name:     "partial match but not prefix",
+			path:     "dev",
+			expected: []string{},
+		},
+		{
+			name:     "case sensitive no match",
+			path:     "ENVS/DEV",
+			expected: []string{},
+		},
+		{
+			name:     "partial prefix no match (prevents envs/some matching envs/something)",
+			path:     "envs/some",
+			expected: []string{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := g.getEnvironmentsUnderRoot(tt.path)
+			// Sort both slices for comparison
+			sort.Strings(result)
+			sort.Strings(tt.expected)
+			// Use len comparison to handle nil vs empty slice
+			if len(result) != len(tt.expected) {
+				t.Errorf("getEnvironmentsUnderRoot(%q) = %v; want %v", tt.path, result, tt.expected)
+				return
+			}
+			for i, v := range result {
+				if v != tt.expected[i] {
+					t.Errorf("getEnvironmentsUnderRoot(%q) = %v; want %v", tt.path, result, tt.expected)
+					return
+				}
+			}
+		})
+	}
+}
+
 func compareEnvAppMap(left, right EnvAppMap) bool {
 	if len(left) != len(right) {
 		return false

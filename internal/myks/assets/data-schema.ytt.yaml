@@ -118,6 +118,17 @@ helm:
       #@schema/validation min_len=1
       name: ''
       namespace: ''
+#! EXPERIMENTAL: this configuration section can be changed in the future
+#! Configuration of the step that runs kbld to manage image references.
+#! This section carries mainly the kbld command-line configuration options.
+#! Further customization of kbld behavior can be done by including a kbld config file in the prototype/application.
+#! See https://carvel.dev/kbld/docs/develop/config/ for more information.
+kbld:
+  enabled: false
+  #! Annotate resources with images annotation.
+  imagesAnnotation: true
+  #! Cache resolved references in the local myks cache.
+  cache: true
 #! Configuration of the step that renders ytt-packages.
 yttPkg:
   #! A ytt-package can be rendered as a whole, or can contain multiple sub-packages that should be rendered separately.
@@ -146,3 +157,7 @@ myks:
     prototype: ''
     #! rendering step: init, argocd, global_ytt, helm, ytt-pkg, ytt
     step: ''
+    #! information related to the helm step
+    helm:
+      #! name of the helm chart currently being processed
+      chart: ''

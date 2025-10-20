@@ -4,15 +4,46 @@
   extends: [
     "config:best-practices",
     "helpers:pinGitHubActionDigestsToSemver",
-    "schedule:nonOfficeHours",
   ],
-  packageRules: [{
-      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+  packageRules: [
+    // Enable automerging for non-major updates to all dependencies
+    {
       automerge: true,
-  }],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+    },
+    // Group all non-major Go module updates into a single PR
+    {
+      automerge: true,
+      groupName: "Golang dependencies (non-major)",
+      matchManagers: ["gomod"],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      minimumReleaseAge: "7 days",
+    },
+    // Group all Docker updates into a single PR
+    {
+      description: "Automerge Docker base image updates for non-major versions",
+      matchManagers: ["dockerfile"],
+      matchUpdateTypes: ["minor", "patch", "pin", "digest"],
+      pinDigests: true,
+
+      groupName: "docker dependencies",
+      groupSlug: "docker-deps",
+
+      automerge: true,
+      addLabels: ["docker", "dependencies"],
+    },
+    // Group PRs for GitHub Action updates into a single PR
+    {
+      description: "Group GitHub Action updates into a single PR",
+      matchManagers: ["github-actions"],
+      groupName: "github actions",
+      groupSlug: "github-actions",
+      addLabels: ["github-actions", "dependencies"],
+    },
+  ],
   customManagers: [{
       customType: "regex",
-      fileMatch: [
+      managerFilePatterns: [
         "^(Docker|Container)file$"
       ],
       // # renovate: datasource=github-releases depName=carvel-dev/vendir
@@ -22,7 +53,7 @@
       ],
     },{
       customType: "regex",
-      fileMatch: [
+      managerFilePatterns: [
         "(^|/)\\.github/workflows/.+\\.ya?ml$"
       ],
       // # renovate: datasource=github-releases depName=mvdan/gofumpt

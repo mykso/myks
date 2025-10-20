@@ -87,7 +87,9 @@ func TestRender(t *testing.T) {
 	for _, repo := range repos {
 		t.Run(repo.name, func(t *testing.T) {
 			chgDir(t, baseFolder, repo.dir)
-			cmd.RunAllCmd()
+			if err := cmd.RenderCmd(myks.New("."), true, true); err != nil {
+				t.Fatalf("Render failed: %s", err)
+			}
 			if !checkCleanGit(t) {
 				t.Log("Commit changes to examples before running this test")
 			}
@@ -117,7 +119,9 @@ func TestInitialRendering(t *testing.T) {
 				t.Fatalf("Remove rendered directory failed: %s", err)
 			}
 
-			cmd.RunAllCmd()
+			if err := cmd.RenderCmd(myks.New("."), true, true); err != nil {
+				t.Fatalf("Render failed: %s", err)
+			}
 			if !checkCleanGit(t) {
 				t.Log("Commit changes to examples before running this test.")
 			}

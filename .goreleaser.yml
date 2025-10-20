@@ -17,36 +17,37 @@ builds:
 archives:
   - format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
     files:
       - LICENSE
       - docs/*
 checksum:
-  name_template: "checksums.txt"
+  name_template: 'checksums.txt'
 signs:
   - artifacts: checksum
     cmd: gpg2
     args:
-      - "--batch"
-      - "-u"
-      - "{{ .Env.GPG_FINGERPRINT }}"
-      - "--output"
-      - "${signature}"
-      - "--detach-sign"
-      - "${artifact}"
+      - '--batch'
+      - '-u'
+      - '{{ .Env.GPG_FINGERPRINT }}'
+      - '--output'
+      - '${signature}'
+      - '--detach-sign'
+      - '${artifact}'
 aurs:
   - name: myks-bin
     homepage: https://github.com/mykso/myks
     description: Configuration framework for Kubernetes applications
     maintainers:
-      - "German Lashevich <german.lashevich at gmail dot com>"
-    license: "MIT"
-    private_key: "{{ .Env.AUR_SSH_KEY }}"
-    git_url: "ssh://aur@aur.archlinux.org/myks-bin.git"
+      - 'German Lashevich <german.lashevich at gmail dot com>'
+    license: 'MIT'
+    private_key: '{{ .Env.AUR_SSH_KEY }}'
+    git_url: 'ssh://aur@aur.archlinux.org/myks-bin.git'
     optdepends:
-      - "vendir: for downloading from external sources"
-      - "git: for smart detection of changes"
-      - "helm: for rendering helm charts"
+      - 'vendir: for downloading from external sources'
+      - 'git: for smart detection of changes'
+      - 'helm: for rendering helm charts'
     package: |-
       BIN=myks
 
@@ -62,62 +63,36 @@ aurs:
     commit_author:
       name: Mykso Bot
       email: german.lashevich+mykso-bot@gmail.com
-brews:
+homebrew_casks:
   - name: myks
     description: Configuration framework for Kubernetes applications
-    directory: Formula
     homepage: https://github.com/mykso/myks
     license: MIT
     commit_author:
       name: Mykso Bot
       email: german.lashevich+mykso-bot@gmail.com
     dependencies:
-      - name: git
-        type: optional
-      - name: helm
-        type: optional
+      - formula: git
+      - formula: helm
     repository:
       owner: mykso
       name: homebrew-tap
-      token: "{{ .Env.HOMEBREW_TAP_REPO_TOKEN }}"
-dockers:
-  - goos: linux
-    goarch: amd64
-    image_templates:
-      - ghcr.io/mykso/myks:{{ .Tag }}-linux-amd64
-      - ghcr.io/mykso/myks:{{ .Major }}-linux-amd64
-      - ghcr.io/mykso/myks:{{ .Major }}.{{ .Minor }}-linux-amd64
-      - ghcr.io/mykso/myks:latest-linux-amd64
-    use: buildx
-    build_flag_templates:
-      - --platform=linux/amd64
-  - goos: linux
-    goarch: arm64
-    image_templates:
-      - ghcr.io/mykso/myks:{{ .Tag }}-linux-arm64
-      - ghcr.io/mykso/myks:{{ .Major }}-linux-arm64
-      - ghcr.io/mykso/myks:{{ .Major }}.{{ .Minor }}-linux-arm64
-      - ghcr.io/mykso/myks:latest-linux-arm64
-    use: buildx
-    build_flag_templates:
-      - --platform=linux/arm64
-docker_manifests:
-  - name_template: ghcr.io/mykso/myks:{{ .Tag }}
-    image_templates:
-      - ghcr.io/mykso/myks:{{ .Tag }}-linux-amd64
-      - ghcr.io/mykso/myks:{{ .Tag }}-linux-arm64
-  - name_template: ghcr.io/mykso/myks:{{ .Major }}
-    image_templates:
-      - ghcr.io/mykso/myks:{{ .Major }}-linux-amd64
-      - ghcr.io/mykso/myks:{{ .Major }}-linux-arm64
-  - name_template: ghcr.io/mykso/myks:{{ .Major }}.{{ .Minor }}
-    image_templates:
-      - ghcr.io/mykso/myks:{{ .Major }}.{{ .Minor }}-linux-amd64
-      - ghcr.io/mykso/myks:{{ .Major }}.{{ .Minor }}-linux-arm64
-  - name_template: ghcr.io/mykso/myks:latest
-    image_templates:
-      - ghcr.io/mykso/myks:latest-linux-amd64
-      - ghcr.io/mykso/myks:latest-linux-arm64
+      token: '{{ .Env.HOMEBREW_TAP_REPO_TOKEN }}'
+    hooks:
+      post:
+        # This is a workaround for the quarantine attribute that macOS applies to downloaded files.
+        install: |
+          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/myks"]
+          end
+dockers_v2:
+  - images:
+      - ghcr.io/mykso/myks
+    tags:
+      - '{{ .Tag }}'
+      - '{{ .Major }}'
+      - '{{ .Major }}.{{ .Minor }}'
+      - latest
 nfpms:
   - vendor: Mykso
     homepage: https://github.com/mykso/myks

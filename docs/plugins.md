@@ -25,16 +25,22 @@ in your `.myks.yaml`:
 # Load all binaries from the following folders as myks plugins.
 plugin-sources:
   - ./plugins
+  - ./custom-tools
+  - /usr/local/share/myks-plugins
 ```
+
+The default plugin directory is `./plugins` relative to your project root. You
+can specify multiple directories, and myks will search them all for executable
+files to load as plugins.
 
 ## Plugin execution logic and environment variables
 
-Like the render and sync logic of myks, a plugin is executed for every
-environment and application provided during the invocation of `myks` or for
-whatever environment and application is detected by the Smart Mode.
+Like myks' render logic, a plugin is executed for every environment and
+application provided during the invocation of `myks` or for whatever environment
+and application is detected by the Smart Mode.
 
 For every plugin execution, the following environment variables are injected to
-enable your plugin to act on the rendered yamls of the current environment and
+enable your plugin to act on the rendered YAMLs of the current environment and
 application:
 
 | Variable              | Description                                                        |

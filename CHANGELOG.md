@@ -1,5 +1,150 @@
 # Changelog
 
+## [5.0.0](https://github.com/mykso/myks/compare/v4.11.4...v5.0.0) (2025-10-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cmd:** replace `all`, `sync`, and `render` commands with a single `render` command ([#570](https://github.com/mykso/myks/issues/570))
+* release version 5 ([#571](https://github.com/mykso/myks/issues/571))
+
+### Features
+
+* add config-in-root option that sets root-dir to the config file location ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
+* add kbld support ([#626](https://github.com/mykso/myks/issues/626)) ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
+* **cmd:** replace `all`, `sync`, and `render` commands with a single `render` command ([#570](https://github.com/mykso/myks/issues/570)) ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
+* release version 5 ([#571](https://github.com/mykso/myks/issues/571)) ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/term to v0.36.0 ([#624](https://github.com/mykso/myks/issues/624)) ([f3dff86](https://github.com/mykso/myks/commit/f3dff866e2370811f4779b031e83f7226353e8f5))
+
+## [4.11.4](https://github.com/mykso/myks/compare/v4.11.3...v4.11.4) (2025-09-22)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#605](https://github.com/mykso/myks/issues/605)) ([8c17243](https://github.com/mykso/myks/commit/8c1724339e2160ee4196d33bb72c94c32ebe3f06))
+
+## [4.11.3](https://github.com/mykso/myks/compare/v4.11.2...v4.11.3) (2025-09-08)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#595](https://github.com/mykso/myks/issues/595)) ([367ec2f](https://github.com/mykso/myks/commit/367ec2fa47d28d72340ddc4c3e0698b824d98726))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.20.0 ([#575](https://github.com/mykso/myks/issues/575)) ([06a55bc](https://github.com/mykso/myks/commit/06a55bc19739d3cbd0fad0323cd2ef78c6ffe3c2))
+* **deps:** update module github.com/stretchr/testify to v1.11.0 ([#591](https://github.com/mykso/myks/issues/591)) ([6b1c572](https://github.com/mykso/myks/commit/6b1c572677c2facfc6472b62bbbd4173a16c7c1d))
+* **deps:** update module golang.org/x/term to v0.33.0 ([#558](https://github.com/mykso/myks/issues/558)) ([b07a3ba](https://github.com/mykso/myks/commit/b07a3ba178373f6cf7ea231a61a87de5255754d2))
+* **deps:** update module golang.org/x/term to v0.34.0 ([#584](https://github.com/mykso/myks/issues/584)) ([b1a3ad8](https://github.com/mykso/myks/commit/b1a3ad8dfed635997c95ab2b32d11d0081a19a90))
+* warn on orphan Helm configs and values files ([#572](https://github.com/mykso/myks/issues/572)) ([2bb4f13](https://github.com/mykso/myks/commit/2bb4f13f820ec49027657d0a3a5ad4055087befe))
+
+## [4.11.2](https://github.com/mykso/myks/compare/v4.11.1...v4.11.2) (2025-07-11)
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/sync to v0.16.0 ([#554](https://github.com/mykso/myks/issues/554)) ([e9c06d3](https://github.com/mykso/myks/commit/e9c06d301af15f066f2b8f815b1af45fa6675c48))
+* **smart-mode:** fix environment-specific prototype change detection ([#555](https://github.com/mykso/myks/issues/555)) ([7067392](https://github.com/mykso/myks/commit/70673928ab2b21ce9bd40db4c19c6c63a42bc801))
+
+## [4.11.1](https://github.com/mykso/myks/compare/v4.11.0...v4.11.1) (2025-07-09)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.19.0 ([#549](https://github.com/mykso/myks/issues/549)) ([3c360c9](https://github.com/mykso/myks/commit/3c360c9aa34dcaa02779f128b8181c35b9293449))
+* **smart-mode:** fix env path matching ([#551](https://github.com/mykso/myks/issues/551)) ([49d1423](https://github.com/mykso/myks/commit/49d14233f685b4fe3eb238c8496b540fc634cc1c))
+
+## [4.11.0](https://github.com/mykso/myks/compare/v4.10.0...v4.11.0) (2025-07-05)
+
+
+### Features
+
+* support global helm values ([#547](https://github.com/mykso/myks/issues/547)) ([67e1863](https://github.com/mykso/myks/commit/67e1863ad9e7160a8d82350c1fa1809c0d152688))
+
+## [4.10.0](https://github.com/mykso/myks/compare/v4.9.0...v4.10.0) (2025-07-04)
+
+
+### Features
+
+* provide chart name in myks context data ([#545](https://github.com/mykso/myks/issues/545)) ([a447073](https://github.com/mykso/myks/commit/a447073b0a0f0b6fd731a5e781a25daa14451345))
+
+## [4.9.0](https://github.com/mykso/myks/compare/v4.8.5...v4.9.0) (2025-06-20)
+
+
+### Features
+
+* cleanup rendered manifests per application ([#538](https://github.com/mykso/myks/issues/538)) ([e33f76d](https://github.com/mykso/myks/commit/e33f76d2635fd1df1591a430ee095a6f4c60cf55))
+
+
+### Bug Fixes
+
+* **smart-mode:** detection of changes in rendered ([#536](https://github.com/mykso/myks/issues/536)) ([2a78684](https://github.com/mykso/myks/commit/2a78684e26617eb663215d42093e7ef42e85005e))
+
+## [4.8.5](https://github.com/mykso/myks/compare/v4.8.4...v4.8.5) (2025-06-20)
+
+
+### Bug Fixes
+
+* **deps:** update github.com/cppforlife/go-cli-ui digest to 47874c9 ([#530](https://github.com/mykso/myks/issues/530)) ([344a30c](https://github.com/mykso/myks/commit/344a30c7f73c9936c82b077514b9cebeba2df6d5))
+
+
+### Reverts
+
+* git-auto-commit-action to v5.2.0 ([#535](https://github.com/mykso/myks/issues/535)) ([b54667d](https://github.com/mykso/myks/commit/b54667de03ad00d1baebc634a97f5a8f5d4e8582))
+
+## [4.8.4](https://github.com/mykso/myks/compare/v4.8.3...v4.8.4) (2025-06-07)
+
+
+### Bug Fixes
+
+* consider changes to the rendered directory in the smart mode ([#525](https://github.com/mykso/myks/issues/525)) ([9eda7d0](https://github.com/mykso/myks/commit/9eda7d0001b00dd0677a853dd8e368e6e8f5f1ea))
+* **deps:** update module golang.org/x/sync to v0.15.0 ([#527](https://github.com/mykso/myks/issues/527)) ([56d7fcf](https://github.com/mykso/myks/commit/56d7fcfbad8671c88b39f694292019d6a49b344d))
+
+## [4.8.3](https://github.com/mykso/myks/compare/v4.8.2...v4.8.3) (2025-05-30)
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.44.0 ([#515](https://github.com/mykso/myks/issues/515)) ([a9f0471](https://github.com/mykso/myks/commit/a9f04712493a2c88a0985a7b8ce591956f525fd6))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.18.0 ([#519](https://github.com/mykso/myks/issues/519)) ([9916ba7](https://github.com/mykso/myks/commit/9916ba7324d438b2c9d3ed80d01a40237e3341db))
+* **deps:** update module golang.org/x/term to v0.32.0 ([#511](https://github.com/mykso/myks/issues/511)) ([7f321de](https://github.com/mykso/myks/commit/7f321de2bd7d03ef71113ce2de32a796ede78e3c))
+* ensure .myks.yaml config is read before plugin initialization ([#522](https://github.com/mykso/myks/issues/522)) ([7d2f706](https://github.com/mykso/myks/commit/7d2f70651b41c294916494c58ca4d3fead9e1be7))
+
+## [4.8.2](https://github.com/mykso/myks/compare/v4.8.1...v4.8.2) (2025-05-09)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#505](https://github.com/mykso/myks/issues/505)) ([f3320e8](https://github.com/mykso/myks/commit/f3320e87aabace0ca1d8406729922954591be0c0))
+* **deps:** update module carvel.dev/ytt to v0.51.2 ([#502](https://github.com/mykso/myks/issues/502)) ([846482c](https://github.com/mykso/myks/commit/846482c55163190362733fc0a0a191f4551eed5b))
+* **deps:** update module carvel.dev/ytt to v0.52.0 ([#509](https://github.com/mykso/myks/issues/509)) ([721dda4](https://github.com/mykso/myks/commit/721dda4e21e8f7e0549e7078ac747910f9a2fba8))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.17.0 ([#497](https://github.com/mykso/myks/issues/497)) ([a83ab5c](https://github.com/mykso/myks/commit/a83ab5c48afd890b28cba3bcb4b9a5559c093239))
+* typo in cleanup help message ([c70f949](https://github.com/mykso/myks/commit/c70f949c6ec6afe83d18ba443b20662d865677e4))
+
+## [4.8.1](https://github.com/mykso/myks/compare/v4.8.0...v4.8.1) (2025-04-16)
+
+
+### Bug Fixes
+
+* allow prototypes without vendir configuration ([#490](https://github.com/mykso/myks/issues/490)) ([071b780](https://github.com/mykso/myks/commit/071b780b7d30a624dfd4734038b57884366dab53))
+* **deps:** update module github.com/hashicorp/go-version to v1.7.0 ([#474](https://github.com/mykso/myks/issues/474)) ([3d1d30d](https://github.com/mykso/myks/commit/3d1d30d3f96fb729c8214db7e9801e5a140e5367))
+* **deps:** update module golang.org/x/sync to v0.13.0 ([#485](https://github.com/mykso/myks/issues/485)) ([ef3c5ab](https://github.com/mykso/myks/commit/ef3c5abf1aa7d615330015246ae3183fcd42b0ce))
+* **deps:** update module golang.org/x/term to v0.31.0 ([#487](https://github.com/mykso/myks/issues/487)) ([bb21f15](https://github.com/mykso/myks/commit/bb21f15ad773f2c41a986b1e7c74fe5bebb5c50b))
+
+## [4.8.0](https://github.com/mykso/myks/compare/v4.7.0...v4.8.0) (2025-04-04)
+
+
+### Features
+
+* add min-version check and config option ([#473](https://github.com/mykso/myks/issues/473)) ([5a15a9d](https://github.com/mykso/myks/commit/5a15a9da126c019f22304dd83e55a3248e41143e))
+
+
+### Bug Fixes
+
+* **deps:** update module carvel.dev/vendir to v0.43.2 ([#470](https://github.com/mykso/myks/issues/470)) ([ad63b7e](https://github.com/mykso/myks/commit/ad63b7ebbff478789449ba0c7e85b49580fdad8b))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.16.0 ([#471](https://github.com/mykso/myks/issues/471)) ([fd70c49](https://github.com/mykso/myks/commit/fd70c49452b1ca91c0fd9350b408b805c0ddb7a1))
+
 ## [4.7.0](https://github.com/mykso/myks/compare/v4.6.1...v4.7.0) (2025-04-01)
 
 

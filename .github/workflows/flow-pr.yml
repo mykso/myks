@@ -1,6 +1,6 @@
 name: flow-pr
 
-on: pull_request
+'on': pull_request
 
 jobs:
   lint:
@@ -18,15 +18,15 @@ jobs:
       statuses: write
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           # use more powerful token to trigger subsequent workflows
           token: ${{ secrets.MYKSO_BOT_GITHUB_TOKEN }}
-      - uses: cachix/install-nix-action@d1ca217b388ee87b2507a9a93bf01368bde7cec2 # v31.1.0
+      - uses: cachix/install-nix-action@fd24c48048070c1be9acd18c9d369a83f0fe94d7 # v31.8.1
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update nix flake
-        run: nix run github:Mic92/nix-update -- --flake myks --version=skip
+        run: nix run '.#nix-update' -- --flake myks --version=skip
       - name: Import GPG key
         uses: crazy-max/ghaction-import-gpg@e89d40939c28e39f97cf32126055eeae86ba74ec # v6.3.0
         with:
@@ -35,7 +35,7 @@ jobs:
           git_commit_gpgsign: true
       - name: Commit changes
         id: commit
-        uses: stefanzweifel/git-auto-commit-action@e348103e9026cc0eee72ae06630dbe30c8bf7a79 # v5.1.0
+        uses: stefanzweifel/git-auto-commit-action@28e16e81777b558cc906c8750092100bbb34c5e3 # v7.0.0
         with:
           commit_message: 'chore: nix-update'
           commit_user_name: Mykso Bot

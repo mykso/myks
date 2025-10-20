@@ -6,27 +6,48 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 
 	"github.com/mykso/myks/internal/myks"
 )
+
+func getGlobe() *myks.Globe {
+	if globe == nil {
+		globe = myks.New(viper.GetString("root-dir"))
+	}
+	return globe
+}
+
+func okOrFatal(err error, msg string) {
+	if err != nil {
+		log.Fatal().Err(err).Msg(msg)
+	}
+}
+
+func okOrErrLog(err error, msg string) error {
+	if err != nil {
+		log.Error().Err(err).Msg(msg)
+	}
+	return err
+}
 
 // shellCompletion provides shell completion for envs and apps selection
 func shellCompletion(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 	if len(args) > 1 {
 		return nil, cobra.ShellCompDirectiveNoFileComp
 	}
-	tmp := myks.New(".")
-	err := tmp.Init(asyncLevel, map[string][]string{})
+	g := getGlobe()
+	err := g.Init(asyncLevel, map[string][]string{})
 	if err != nil {
 		return nil, cobra.ShellCompDirectiveError
 	}
 	// return envs
 	if len(args) == 0 {
-		return getEnvNames(tmp), cobra.ShellCompDirectiveNoFileComp
+		return getEnvNames(g), cobra.ShellCompDirectiveNoFileComp
 	}
-	// return args
+	// return apps
 	if len(args) == 1 {
-		return getAppNamesForEnv(tmp, args[0]), cobra.ShellCompDirectiveNoFileComp
+		return getAppNamesForEnv(g, args[0]), cobra.ShellCompDirectiveNoFileComp
 	}
 	return nil, cobra.ShellCompDirectiveNoFileComp
 }

@@ -1,3 +1,4 @@
+// Package cmd provides commands for myks, a Kubernetes manifest generator.
 package cmd
 
 import (
@@ -26,60 +27,24 @@ var (
 	cfgFile    string
 	envAppMap  myks.EnvAppMap
 	asyncLevel int
+
+	globe *myks.Globe
 )
-
-// Use this template for commands that accept environment and application arguments
-const envAppCommandUsageTemplate = `Usage:
-  {{.CommandPath}} [environments [applications]] [flags]
-
-Arguments:
-  0. When no arguments are provided, myks uses the Smart Mode to determine the environments and applications to process.
-     In Smart Mode, myks relies on git to only processes applications with changes.
-
-  1. environments    (Optional) Comma-separated list of environments or ALL
-                     ALL will process all environments
-                     Examples: ALL
-                               prod,stage,dev
-                               prod/region1,stage/region1
-                               dev
-
-  2. applications    (Optional) Comma-separated list of applications or ALL
-                     ALL will process all applications
-                     Example: app1,app2 or ALL
-
-{{if .HasAvailableFlags}}Flags:
-{{.Flags.FlagUsages | trimTrailingWhitespaces}}{{end}}
-
-Examples:
-  # Process all apps in production and staging
-  {{.CommandPath}} prod,stage ALL
-
-  # Process specific apps in all environments
-  {{.CommandPath}} ALL app1,app2
-
-  # Process specific apps in specific environments
-  {{.CommandPath}} prod,stage app1,app2
-`
 
 func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cobra.OnInitialize(initLogger)
-	cobra.OnInitialize(initConfig)
 	cobra.OnInitialize(func() { checkMinVersion(version) })
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	cmd := newRootCmd(version, commit, date)
-	cmd.AddCommand(allCmd)
-	cmd.AddCommand(renderCmd)
-	cmd.AddCommand(syncCmd)
+	cmd.AddCommand(newRenderCmd())
 	cmd.AddCommand(newCleanupCmd())
 	cmd.AddCommand(newInitCmd(version))
 	cmd.AddCommand(newPrintConfigCmd())
 	cmd.AddCommand(embedded.EmbeddedCmd("vendir", "Vendir is embedded in myks to manage vendir.yaml files."))
 	cmd.AddCommand(embedded.EmbeddedCmd("ytt", "Ytt is embedded in myks to manage yaml files."))
+	cmd.AddCommand(embedded.EmbeddedCmd("kbld", "Kbld is embedded in myks to manage container image references."))
+	initConfig()
 	addPlugins(cmd)
-
-	allCmd.SetUsageTemplate(envAppCommandUsageTemplate)
-	renderCmd.SetUsageTemplate(envAppCommandUsageTemplate)
-	syncCmd.SetUsageTemplate(envAppCommandUsageTemplate)
 
 	return cmd
 }
@@ -107,18 +72,15 @@ CORE FEATURES
 
 BASIC COMMANDS
   init     Create a new Myks project in the current directory
-  sync     Download external dependencies
-  render   Generate Kubernetes manifests
-  all      Perform sync and render in one step
+  render   Download external sources and render manifests for specified environments and applications
 
 GETTING STARTED
-  1. Create a new project:    myks init
-  2. Download dependencies:   myks sync
-  3. Generate manifests:      myks render
+  1. Create a new project: myks init
+  2. Download dependencies and render manifests: myks render [environments [applications]]
 
 LEARN MORE
   • Use 'myks <command> --help' for detailed information about a command
-  • Report issues at https://github.com/example/myks/issues
+  • Report issues at https://github.com/mykso/myks/issues
 `,
 	}
 
@@ -149,7 +111,7 @@ LEARN MORE
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", configHelp)
 
 	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		if cmd.Annotations[ANNOTATION_SMART_MODE] != ANNOTATION_TRUE {
+		if cmd.Annotations[AnnotationSmartMode] != AnnotationTrue {
 			return nil
 		}
 		return initTargetEnvsAndApps(cmd, args)
@@ -180,13 +142,18 @@ func initConfig() {
 		}
 	}
 
-	err := viper.ReadInConfig()
-
-	if err == nil {
-		// TODO: Make paths in config file relative to the config file
+	viper.SetDefault("root-dir", ".")
+	if err := viper.ReadInConfig(); err == nil {
 		log.Info().Msgf("Using config file: %s", viper.ConfigFileUsed())
+		if viper.GetBool("config-in-root") {
+			rootDir := filepath.Dir(viper.ConfigFileUsed())
+			viper.Set("root-dir", rootDir)
+			log.Info().Msgf("Setting root-dir to: %s", rootDir)
+		}
+	} else if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+		log.Debug().Msg("Config file not found, using defaults")
 	} else {
-		log.Debug().Err(err).Msg("Unable to read config file")
+		log.Error().Err(err).Msg("Error reading config file")
 	}
 }
 

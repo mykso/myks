@@ -3,8 +3,6 @@ package cmd
 import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-
-	"github.com/mykso/myks/internal/myks"
 )
 
 const cleanupCmdLongHelp = `Cleanup obsolete manifests and cache entries.
@@ -20,7 +18,7 @@ Examples:
     # Cleanup only rendered manifests
     myks cleanup --manifests
 
-    # List cache entrise that would be cleaned up
+    # List cache entries that would be cleaned up
     myks cleanup --cache --dry-run
 `
 
@@ -45,10 +43,10 @@ func newCleanupCmd() *cobra.Command {
 			}
 
 			if !modeManifests && !modeCache {
-				log.Fatal().Msg("Nothing to cleanup")
+				log.Fatal().Msg("Both --manifests and --cache flags are set to false, nothing to cleanup")
 			}
 
-			g := myks.New(".")
+			g := getGlobe()
 
 			if err := g.ValidateRootDir(); err != nil {
 				log.Fatal().Err(err).Msg("Root directory is not suitable for myks")

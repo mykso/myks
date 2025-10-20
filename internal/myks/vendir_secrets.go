@@ -54,13 +54,13 @@ func (v *VendirSyncer) collectVendirSecrets(g *Globe) map[string]*VendirCredenti
 	for secretName := range vendirCredentials {
 		secretNames = append(secretNames, secretName)
 	}
-	log.Debug().Msg(g.MsgWithSteps("sync", v.Ident(), "Found vendir secrets: "+strings.Join(secretNames, ", ")))
+	log.Debug().Msg(msgWithSteps("sync", v.Ident(), "Found vendir secrets: "+strings.Join(secretNames, ", ")))
 
 	return vendirCredentials
 }
 
 func (v *VendirSyncer) GenerateSecrets(g *Globe) (string, error) {
-	log.Debug().Msg(g.MsgWithSteps("sync", v.Ident(), "Generating Secrets"))
+	log.Debug().Msg(msgWithSteps("sync", v.Ident(), "Generating Secrets"))
 	vendirCredentials := v.collectVendirSecrets(g)
 
 	// sort secret names to produce deterministic output for testing

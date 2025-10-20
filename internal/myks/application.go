@@ -42,7 +42,7 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 		prototypeName = name
 	}
 
-	prototype := filepath.Join(e.g.PrototypesDir, prototypeName)
+	prototype := filepath.Join(e.g.RootDir, e.g.PrototypesDir, prototypeName)
 
 	app := &Application{
 		Name:      name,
@@ -99,11 +99,11 @@ func (a *Application) Init() error {
 }
 
 func (a *Application) expandServicePath(path string) string {
-	return filepath.Join(a.e.g.ServiceDirName, a.e.Dir, a.e.g.AppsDir, a.Name, path)
+	return filepath.Join(a.e.g.RootDir, a.e.g.ServiceDirName, a.e.Dir, a.e.g.AppsDir, a.Name, path)
 }
 
 func (a *Application) expandVendirCache(path string) string {
-	return filepath.Join(a.e.g.ServiceDirName, a.e.g.VendirCache, path)
+	return filepath.Join(a.e.g.RootDir, a.e.g.ServiceDirName, a.e.g.VendirCache, path)
 }
 
 func (a *Application) expandVendorPath(path string) string {
