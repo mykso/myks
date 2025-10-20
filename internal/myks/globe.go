@@ -129,6 +129,13 @@ func NewWithDefaults() *Globe {
 }
 
 func New(rootDir string) *Globe {
+	// FIXME: Do not change working directory here, implement relative paths throughout the codebase instead
+	if rootDir != "." {
+		if err := os.Chdir(rootDir); err != nil {
+			log.Fatal().Err(err).Str("rootDir", rootDir).Msg("Unable to change working directory")
+		}
+		rootDir = "."
+	}
 	g := NewWithDefaults()
 	g.RootDir = rootDir
 	g.environments = make(map[string]*Environment)

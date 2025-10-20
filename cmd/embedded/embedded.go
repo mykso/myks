@@ -17,6 +17,8 @@ func CheckAndRun() bool {
 
 	var embeddedF func()
 	switch os.Args[1] {
+	case "kbld":
+		embeddedF = kbldMain
 	case "ytt":
 		embeddedF = yttMain
 	case "vendir":
