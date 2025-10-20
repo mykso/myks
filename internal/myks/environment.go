@@ -82,6 +82,7 @@ func (e *Environment) Render(asyncLevel int) error {
 			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
 			&Ytt{ident: "ytt", app: app, additive: false},
 			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
+			&Kbld{ident: "kbld", app: app, additive: false},
 		}
 		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
 			return err

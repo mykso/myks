@@ -42,6 +42,7 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cmd.AddCommand(newPrintConfigCmd())
 	cmd.AddCommand(embedded.EmbeddedCmd("vendir", "Vendir is embedded in myks to manage vendir.yaml files."))
 	cmd.AddCommand(embedded.EmbeddedCmd("ytt", "Ytt is embedded in myks to manage yaml files."))
+	cmd.AddCommand(embedded.EmbeddedCmd("kbld", "Kbld is embedded in myks to manage container image references."))
 	initConfig()
 	addPlugins(cmd)
 
