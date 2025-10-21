@@ -5,9 +5,10 @@ digests, improving security and reproducibility of Kubernetes deployments. Myks
 integrates with kbld to automatically resolve image references in your rendered
 manifests.
 
-> [!NOTE] This feature is currently experimental and may change in future
-> releases. The configuration schema and behavior may evolve. It is disabled by
-> default and can be enabled via data-values files.
+> [!NOTE]  
+> This feature is currently experimental and may change in future releases. The
+> configuration schema and behavior may evolve. It is disabled by default and
+> can be enabled via data-values files.
 
 ## Configuration
 
