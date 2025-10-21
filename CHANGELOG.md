@@ -6,14 +6,12 @@
 ### ⚠ BREAKING CHANGES
 
 * **cmd:** replace `all`, `sync`, and `render` commands with a single `render` command ([#570](https://github.com/mykso/myks/issues/570))
-* release version 5 ([#571](https://github.com/mykso/myks/issues/571))
 
 ### Features
 
 * add config-in-root option that sets root-dir to the config file location ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
 * add kbld support ([#626](https://github.com/mykso/myks/issues/626)) ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
 * **cmd:** replace `all`, `sync`, and `render` commands with a single `render` command ([#570](https://github.com/mykso/myks/issues/570)) ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
-* release version 5 ([#571](https://github.com/mykso/myks/issues/571)) ([40ffc88](https://github.com/mykso/myks/commit/40ffc88eeb84d25ade452c75b9db806c368118a5))
 
 
 ### Bug Fixes
