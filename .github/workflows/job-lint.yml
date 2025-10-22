@@ -20,7 +20,7 @@ jobs:
         with:
           repo: mvdan/gofumpt
           # renovate: datasource=github-releases depName=mvdan/gofumpt
-          tag: v0.9.1
+          tag: v0.9.2
           cache: enable
           extension-matching: nah
           rename-to: gofumpt
