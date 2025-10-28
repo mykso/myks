@@ -18,6 +18,10 @@ type KbldConfig struct {
 type ImageRefOverride struct {
 	Match   ImageRefPattern `yaml:"match"`
 	Replace ImageRefPattern `yaml:"replace"`
+
+	registryRe   *regexp.Regexp
+	repositoryRe *regexp.Regexp
+	tagRe        *regexp.Regexp
 }
 
 type ImageRefPattern struct {
@@ -35,7 +39,39 @@ func newKbldConfig(dataValuesYaml string) (KbldConfig, error) {
 		return KbldConfig{}, err
 	}
 
+	if err := kbldConfigWrapper.Kbld.initOverrides(); err != nil {
+		return KbldConfig{}, err
+	}
+
 	return kbldConfigWrapper.Kbld, nil
+}
+
+func (cfg *KbldConfig) initOverrides() error {
+	for i, override := range cfg.Overrides {
+		if override.Match.Registry != "" {
+			if registryRe, err := regexp.Compile("^" + override.Match.Registry + "$"); err == nil {
+				override.registryRe = registryRe
+			} else {
+				return fmt.Errorf("invalid registry match regex %q: %w", override.Match.Registry, err)
+			}
+		}
+		if override.Match.Repository != "" {
+			if repositoryRe, err := regexp.Compile("^" + override.Match.Repository + "$"); err == nil {
+				override.repositoryRe = repositoryRe
+			} else {
+				return fmt.Errorf("invalid repository match regex %q: %w", override.Match.Repository, err)
+			}
+		}
+		if override.Match.Tag != "" {
+			if tagRe, err := regexp.Compile("^" + override.Match.Tag + "$"); err == nil {
+				override.tagRe = tagRe
+			} else {
+				return fmt.Errorf("invalid tag match regex %q: %w", override.Match.Tag, err)
+			}
+		}
+		cfg.Overrides[i] = override
+	}
+	return nil
 }
 
 // applyOverrides applies the configured overrides to the given image reference
@@ -88,13 +124,9 @@ func (cfg *KbldConfig) applyOverrides(imageRef string) (string, error) {
 }
 
 func (o *ImageRefOverride) matches(registry, repository, tag string) bool {
-	reRegistry := o.reRegistry()
-	reRepository := o.reRepository()
-	reTag := o.reTag()
-
-	return (reRegistry == nil || reRegistry.MatchString(registry)) &&
-		(reRepository == nil || reRepository.MatchString(repository)) &&
-		(reTag == nil || reTag.MatchString(tag))
+	return o.registryMatch(registry) &&
+		o.repositoryMatch(repository) &&
+		o.tagMatch(tag)
 }
 
 // apply applies the replacement pattern to the given image components
@@ -103,54 +135,47 @@ func (o *ImageRefOverride) apply(registry, repository, tag string) (string, stri
 	newRepository := repository
 	newTag := tag
 
-	reRegistry := o.reRegistry()
-	reRepository := o.reRepository()
-	reTag := o.reTag()
-
 	if o.Replace.Registry != "" {
-		if reRegistry != nil {
-			newRegistry = reRegistry.ReplaceAllString(registry, o.Replace.Registry)
-		} else {
-			newRegistry = o.Replace.Registry
+		newRegistry = o.Replace.Registry
+		if o.registryRe != nil {
+			newRegistry = o.registryRe.ReplaceAllString(registry, o.Replace.Registry)
 		}
 	}
 
 	if o.Replace.Repository != "" {
-		if reRepository != nil {
-			newRepository = reRepository.ReplaceAllString(repository, o.Replace.Repository)
-		} else {
-			newRepository = o.Replace.Repository
+		newRepository = o.Replace.Repository
+		if o.repositoryRe != nil {
+			newRepository = o.repositoryRe.ReplaceAllString(repository, o.Replace.Repository)
 		}
 	}
 
 	if o.Replace.Tag != "" {
-		if reTag != nil {
-			newTag = reTag.ReplaceAllString(tag, o.Replace.Tag)
-		} else {
-			newTag = o.Replace.Tag
+		newTag = o.Replace.Tag
+		if o.tagRe != nil {
+			newTag = o.tagRe.ReplaceAllString(tag, o.Replace.Tag)
 		}
 	}
 
 	return newRegistry, newRepository, newTag
 }
 
-func (o *ImageRefOverride) reRegistry() *regexp.Regexp {
-	if o.Match.Registry == "" {
-		return nil
+func (o *ImageRefOverride) registryMatch(registry string) bool {
+	if o.registryRe == nil {
+		return true
 	}
-	return regexp.MustCompile("^" + o.Match.Registry + "$")
+	return o.registryRe.MatchString(registry)
 }
 
-func (o *ImageRefOverride) reRepository() *regexp.Regexp {
-	if o.Match.Repository == "" {
-		return nil
+func (o *ImageRefOverride) repositoryMatch(repository string) bool {
+	if o.repositoryRe == nil {
+		return true
 	}
-	return regexp.MustCompile("^" + o.Match.Repository + "$")
+	return o.repositoryRe.MatchString(repository)
 }
 
-func (o *ImageRefOverride) reTag() *regexp.Regexp {
-	if o.Match.Tag == "" {
-		return nil
+func (o *ImageRefOverride) tagMatch(tag string) bool {
+	if o.tagRe == nil {
+		return true
 	}
-	return regexp.MustCompile("^" + o.Match.Tag + "$")
+	return o.tagRe.MatchString(tag)
 }
