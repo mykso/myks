@@ -129,6 +129,45 @@ kbld:
   imagesAnnotation: true
   #! Cache resolved references in the local myks cache.
   cache: true
+  #! Image reference overrides.
+  #! For every image reference detected by kbld, myks will search for the first matching override and apply it.
+  #! Match values are regular expressions applied to the respective parts of the image reference.
+  #! Replace values can contain references to capture groups from the match expressions.
+  #! See https://pkg.go.dev/regexp#Regexp.ReplaceAllString for more information about the syntax of the regular
+  #! expressions and substitutions.
+  #! If a part of the image reference is not specified in the match, it is considered to match anything.
+  #! If a part of the image reference is not specified in the replace, the original value is kept.
+  #! Regular expressions are implicitly anchored to the start and end of the string, so you don't need to add ^ and $.
+  #!
+  #! Example overrides:
+  #! - # Change the registry of all images from Docker Hub to a private registry.
+  #!   match:
+  #!     registry: index\.docker\.io
+  #!   replace:
+  #!     registry: my-private-registry.local
+  #! - # Change the repository of all Bitnami images to use a legacy repository in a private registry.
+  #!   match:
+  #!     repository: bitnami/(.+)
+  #!   replace:
+  #!     registry: my-private-registry.local
+  #!     repository: bitnamilegacy/$1
+  #!
+  #! Notes on Docker Hub references:
+  #! - Images without a registry are normalized to index.docker.io
+  #! - docker.io registry references are normalized to index.docker.io
+  #! - Docker Hub repositories without a prefix are considered to be in the library/ namespace
+  #! Examples:
+  #! - nginx -> registry=index.docker.io, repository=library/nginx, tag=latest
+  #! - docker.io/nginx:latest -> registry=index.docker.io, repository=library/nginx, tag=latest
+  overrides:
+    - match:
+        registry: ''
+        repository: ''
+        tag: ''
+      replace:
+        registry: ''
+        repository: ''
+        tag: ''
 #! Configuration of the step that renders ytt-packages.
 yttPkg:
   #! A ytt-package can be rendered as a whole, or can contain multiple sub-packages that should be rendered separately.
