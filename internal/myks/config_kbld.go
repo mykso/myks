@@ -48,28 +48,35 @@ func newKbldConfig(dataValuesYaml string) (KbldConfig, error) {
 
 func (cfg *KbldConfig) initOverrides() error {
 	for i, override := range cfg.Overrides {
-		if override.Match.Registry != "" {
-			if registryRe, err := regexp.Compile("^" + override.Match.Registry + "$"); err == nil {
-				override.registryRe = registryRe
-			} else {
-				return fmt.Errorf("invalid registry match regex %q: %w", override.Match.Registry, err)
-			}
-		}
-		if override.Match.Repository != "" {
-			if repositoryRe, err := regexp.Compile("^" + override.Match.Repository + "$"); err == nil {
-				override.repositoryRe = repositoryRe
-			} else {
-				return fmt.Errorf("invalid repository match regex %q: %w", override.Match.Repository, err)
-			}
-		}
-		if override.Match.Tag != "" {
-			if tagRe, err := regexp.Compile("^" + override.Match.Tag + "$"); err == nil {
-				override.tagRe = tagRe
-			} else {
-				return fmt.Errorf("invalid tag match regex %q: %w", override.Match.Tag, err)
-			}
+		if err := override.init(); err != nil {
+			return fmt.Errorf("failed to initialize override %d: %w", i, err)
 		}
 		cfg.Overrides[i] = override
+	}
+	return nil
+}
+
+func (o *ImageRefOverride) init() error {
+	if o.Match.Registry != "" {
+		if registryRe, err := regexp.Compile("^" + o.Match.Registry + "$"); err == nil {
+			o.registryRe = registryRe
+		} else {
+			return fmt.Errorf("invalid registry match regex %q: %w", o.Match.Registry, err)
+		}
+	}
+	if o.Match.Repository != "" {
+		if repositoryRe, err := regexp.Compile("^" + o.Match.Repository + "$"); err == nil {
+			o.repositoryRe = repositoryRe
+		} else {
+			return fmt.Errorf("invalid repository match regex %q: %w", o.Match.Repository, err)
+		}
+	}
+	if o.Match.Tag != "" {
+		if tagRe, err := regexp.Compile("^" + o.Match.Tag + "$"); err == nil {
+			o.tagRe = tagRe
+		} else {
+			return fmt.Errorf("invalid tag match regex %q: %w", o.Match.Tag, err)
+		}
 	}
 	return nil
 }

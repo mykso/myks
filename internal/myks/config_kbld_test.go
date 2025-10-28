@@ -216,6 +216,9 @@ func TestKbldConfig_applyOverrides(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.config.initOverrides(); err != nil {
+				t.Fatalf("initOverrides() error = %v", err)
+			}
 			got, err := tt.config.applyOverrides(tt.imageRef)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("applyOverrides() error = %v, wantErr %v", err, tt.wantErr)
@@ -310,6 +313,10 @@ func TestImageRefOverride_apply(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if err := tt.override.init(); err != nil {
+				t.Fatalf("init override error = %v", err)
+			}
+
 			gotRegistry, gotRepository, gotTag := tt.override.apply(tt.registry, tt.repository, tt.tag)
 			if gotRegistry != tt.wantRegistry {
 				t.Errorf("apply() registry = %v, want %v", gotRegistry, tt.wantRegistry)
