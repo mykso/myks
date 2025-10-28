@@ -4,21 +4,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 )
 
+const kbldOverrideFileName = "kbld-overrides.yaml"
+
 type Kbld struct {
 	ident    string
 	app      *Application
 	additive bool
-}
-
-type KbldConfig struct {
-	Enabled          bool `yaml:"enabled"`
-	ImagesAnnotation bool `yaml:"imagesAnnotation"`
-	Cache            bool `yaml:"cache"`
 }
 
 func (k *Kbld) IsAdditive() bool {
@@ -62,6 +59,17 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 		fmt.Sprintf("--images-annotation=%t", config.ImagesAnnotation),
 	}
 
+	if len(config.Overrides) > 0 {
+		overridesFilePath, err := k.generateOverridesConfig(previousStepFile, config)
+		if err != nil {
+			log.Warn().Err(err).Msg(k.app.Msg(k.getStepName(), "Unable to generate kbld overrides config"))
+			return "", err
+		}
+		if overridesFilePath != "" {
+			cmdArgs = append(cmdArgs, "--file="+overridesFilePath)
+		}
+	}
+
 	// if cache is enabled, check existence of the lock file and include it in the args
 	if config.Cache {
 		if ok, err := isExist(lockFilePath); ok {
@@ -100,24 +108,113 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 }
 
 func (k *Kbld) getKbldConfig() (KbldConfig, error) {
-	var kbldConfigWrapper struct {
-		Kbld KbldConfig `yaml:"kbld"`
-	}
-
 	dataValuesYaml, err := k.app.ytt(k.getStepName(), "get kbld config", k.app.yttDataFiles, "--data-values-inspect")
 	if err != nil {
 		return KbldConfig{}, err
 	}
 
-	if err := yaml.Unmarshal([]byte(dataValuesYaml.Stdout), &kbldConfigWrapper); err != nil {
-		return KbldConfig{}, err
+	return newKbldConfig(dataValuesYaml.Stdout)
+}
+
+// generateOverridesConfig detects images using kbld --unresolved-inspect,
+// and generates a kbld config file with image overrides based on the provided KbldConfig.
+func (k *Kbld) generateOverridesConfig(inputFile string, config KbldConfig) (string, error) {
+	cmdArgs := []string{
+		"kbld",
+		"--file=" + inputFile,
+		"--unresolved-inspect",
 	}
 
-	return KbldConfig{
-		Enabled:          kbldConfigWrapper.Kbld.Enabled,
-		ImagesAnnotation: kbldConfigWrapper.Kbld.ImagesAnnotation,
-		Cache:            kbldConfigWrapper.Kbld.Cache,
-	}, nil
+	cmdLogFn := func(name string, err error, stderr string, args []string) {
+		purpose := k.getStepName() + " detect images"
+		cmd := msgRunCmd(purpose, name, args)
+		if err != nil {
+			log.Error().Msg(cmd)
+			log.Error().Msg(stderr)
+		} else {
+			log.Debug().Msg(cmd)
+		}
+	}
+
+	res, err := runCmd(myksFullPath(), nil, cmdArgs, cmdLogFn)
+	if err != nil {
+		return "", fmt.Errorf("failed to detect images: %w", err)
+	}
+
+	if res.Stdout == "" {
+		log.Debug().Msg(k.app.Msg(k.getStepName(), "No images detected by kbld"))
+		return inputFile, nil
+	}
+
+	prefix := "- image: "
+	lines := strings.Split(strings.TrimSpace(res.Stdout), "\n")
+	var imageRefs []string
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if after, ok := strings.CutPrefix(line, prefix); ok {
+			imageRefs = append(imageRefs, after)
+		}
+	}
+
+	if len(imageRefs) == 0 {
+		log.Debug().Msg(k.app.Msg(k.getStepName(), "No valid image references found"))
+		return "", nil
+	}
+
+	overrideMap := make(map[string]string)
+	for _, imageRef := range imageRefs {
+		newImageRef, err := config.applyOverrides(imageRef)
+		if err != nil {
+			log.Warn().Err(err).Str("image", imageRef).Msg(k.app.Msg(k.getStepName(), "Failed to apply overrides"))
+			continue
+		}
+		if newImageRef != "" {
+			overrideMap[imageRef] = newImageRef
+			log.Debug().Str("from", imageRef).Str("to", newImageRef).Msg(k.app.Msg(k.getStepName(), "Image override applied"))
+		}
+	}
+
+	if len(overrideMap) == 0 {
+		log.Debug().Msg(k.app.Msg(k.getStepName(), "No overrides applied"))
+		return "", nil
+	}
+
+	return k.generateKbldOverrideConfig(overrideMap)
+}
+
+// generateKbldOverrideConfig creates a kbld config file with image overrides
+func (k *Kbld) generateKbldOverrideConfig(overrides map[string]string) (string, error) {
+	type kbldOverride struct {
+		Image    string `yaml:"image"`
+		NewImage string `yaml:"newImage"`
+	}
+
+	type kbldConfig struct {
+		APIVersion string         `yaml:"apiVersion"`
+		Kind       string         `yaml:"kind"`
+		Overrides  []kbldOverride `yaml:"overrides"`
+	}
+
+	config := kbldConfig{
+		APIVersion: "kbld.k14s.io/v1alpha1",
+		Kind:       "Config",
+	}
+
+	for oldImage, newImage := range overrides {
+		config.Overrides = append(config.Overrides, kbldOverride{
+			Image:    oldImage,
+			NewImage: newImage,
+		})
+	}
+
+	yamlBytes, err := yaml.Marshal(config)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal kbld config: %w", err)
+	}
+
+	err = k.app.writeServiceFile(kbldOverrideFileName, string(yamlBytes))
+	filename := k.app.expandServicePath(kbldOverrideFileName)
+	return filename, err
 }
 
 func (k *Kbld) getStepName() string {
