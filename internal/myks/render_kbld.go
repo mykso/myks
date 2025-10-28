@@ -143,7 +143,7 @@ func (k *Kbld) generateOverridesConfig(inputFile string, config KbldConfig) (str
 
 	if res.Stdout == "" {
 		log.Debug().Msg(k.app.Msg(k.getStepName(), "No images detected by kbld"))
-		return inputFile, nil
+		return "", nil
 	}
 
 	prefix := "- image: "
