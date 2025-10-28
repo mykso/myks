@@ -153,8 +153,8 @@ kbld:
   #!     repository: bitnamilegacy/$1
   #!
   #! Notes on Docker Hub references:
-  #! - no registry is considered index.docker.io
-  #! - docker.io is considered index.docker.io
+  #! - Images without a registry are normalized to index.docker.io
+  #! - docker.io registry references are normalized to index.docker.io
   #! - Docker Hub repositories without a prefix are considered to be in the library/ namespace
   #! Examples:
   #! - nginx -> registry=index.docker.io, repository=library/nginx, tag=latest
