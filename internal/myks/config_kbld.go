@@ -102,7 +102,7 @@ func (cfg *KbldConfig) applyOverrides(imageRef string) (string, error) {
 	if tagged, ok := ref.(name.Tag); ok {
 		tag = tagged.TagStr()
 	} else if digested, ok := ref.(name.Digest); ok {
-		// DigestStr() returns just the digest part without @
+		// DigestStr() returns just the digest part without the @ prefix
 		tag = "@" + digested.DigestStr()
 	}
 
