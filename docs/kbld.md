@@ -23,6 +23,8 @@ kbld:
   imagesAnnotation: true
   #! Cache resolved references in the local myks cache.
   cache: true
+  #! Image reference overrides (see below for details).
+  overrides: []
 ```
 
 ### How It Works
@@ -62,6 +64,107 @@ searchRules:
 See the
 [kbld configuration documentation](https://carvel.dev/kbld/docs/develop/config/)
 for complete details.
+
+## Image Reference Overrides
+
+The `kbld.overrides` configuration allows you to rewrite image references before
+they are resolved to digests. This is useful for scenarios like:
+
+- Redirecting images from Docker Hub to a private registry
+- Changing repository paths for compliance or security requirements
+- Applying organization-wide image policies
+
+### How Overrides Work
+
+For each image reference detected by kbld, myks searches for the first matching
+override and applies it. Each override consists of:
+
+- **match**: Regular expressions applied to parts of the image reference
+  (registry, repository, tag)
+- **replace**: Replacement values that can reference capture groups from the
+  match expressions
+
+### Configuration Rules
+
+- Match values are regular expressions that are **implicitly anchored** to the
+  start and end of the string (no need to add `^` and `$`)
+- If a part is not specified in the match, it matches anything
+- If a part is not specified in the replace, the original value is kept
+- Replace values can reference capture groups from match expressions using `$1`,
+  `$2`, etc.
+- See [Go's regexp documentation](https://pkg.go.dev/regexp#Regexp.ReplaceAllString)
+  for syntax details
+
+### Docker Hub Reference Handling
+
+Myks normalizes Docker Hub references before matching:
+
+- Images without a registry are normalized to `index.docker.io`
+- `docker.io` registry references are normalized to `index.docker.io`
+- Docker Hub repositories without a prefix are in the `library/` namespace
+
+Examples:
+- `nginx` → `registry=index.docker.io`, `repository=library/nginx`, `tag=latest`
+- `docker.io/nginx:latest` → `registry=index.docker.io`,
+  `repository=library/nginx`, `tag=latest`
+
+### Examples
+
+#### Redirect All Images to a Private Registry
+
+```yaml
+kbld:
+  enabled: true
+  overrides:
+    - match:
+        registry: index\.docker\.io
+      replace:
+        registry: my-private-registry.local
+```
+
+This changes all Docker Hub images to use your private registry while keeping
+the repository path and tag unchanged.
+
+#### Rewrite Bitnami Images to a Legacy Repository
+
+```yaml
+kbld:
+  enabled: true
+  overrides:
+    - match:
+        repository: bitnami/(.+)
+      replace:
+        registry: my-private-registry.local
+        repository: bitnamilegacy/$1
+```
+
+This override:
+- Matches any Bitnami image (e.g., `bitnami/postgresql`)
+- Changes the registry to your private registry
+- Rewrites the repository path from `bitnami/*` to `bitnamilegacy/*`
+- Keeps the original tag
+
+#### Multiple Overrides
+
+```yaml
+kbld:
+  enabled: true
+  overrides:
+    # First, redirect Docker Hub images
+    - match:
+        registry: index\.docker\.io
+      replace:
+        registry: my-registry.local
+    # Then, handle special case for Bitnami images
+    - match:
+        registry: my-registry\.local
+        repository: bitnami/(.+)
+      replace:
+        repository: legacy/$1
+```
+
+Overrides are processed in order, and only the first match is applied. Design
+your overrides carefully when using multiple rules.
 
 ## Caching
 
