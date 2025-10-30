@@ -203,7 +203,12 @@ func hashFile(filePath string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to open file: %w", err)
 	}
-	defer file.Close()
+
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Error().Err(err).Msg("Failed to close file")
+		}
+	}()
 
 	h := fnv.New64a()
 
