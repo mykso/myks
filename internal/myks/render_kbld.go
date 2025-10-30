@@ -11,7 +11,10 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-const kbldOverrideFileName = "kbld-overrides.yaml"
+const (
+	kbldOverrideFileName = "kbld-overrides.yaml"
+	kbldLockFilePrefix   = "kbld-lock-"
+)
 
 type Kbld struct {
 	ident    string
@@ -46,33 +49,37 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 		return string(data), nil
 	}
 
-	lockFileName := "kbld-lock.yaml"
-	lockFilePath := k.app.expandServicePath(lockFileName)
-
 	cmdArgs := []string{
 		"kbld",
 		"--file=" + previousStepFile,
-		// Use --imgpkg-lock-output instead of --lock-output due to a kbld bug.
-		// If kbld is embedded, its version is set after the dependency version, which has the `v` prefix.
-		// The version is always written into the lock file, and on subsequent runs kbld fails to validate the lock
-		// file, because the `v` prefix is not allowed in the minimumRequiredVersion field.
-		"--imgpkg-lock-output=" + lockFilePath,
 		fmt.Sprintf("--images-annotation=%t", config.ImagesAnnotation),
 	}
 
+	// Check if there are any image overrides to apply and generate the overrides config file.
+	// Image overrides should be added to the command after the lock file (if any), but the
+	// overrides config is used to generate the lock file name, so we need to do this first.
+	overridesFilePath := ""
 	if len(config.Overrides) > 0 {
-		overridesFilePath, err := k.generateOverridesConfig(previousStepFile, config)
+		overridesFilePath, err = k.generateOverridesConfig(previousStepFile, config)
 		if err != nil {
 			log.Warn().Err(err).Msg(k.app.Msg(k.getStepName(), "Unable to generate kbld overrides config"))
 			return "", err
-		}
-		if overridesFilePath != "" {
-			cmdArgs = append(cmdArgs, "--file="+overridesFilePath)
 		}
 	}
 
 	// if cache is enabled, check existence of the lock file and include it in the args
 	if config.Cache {
+		// The lock file name is based on the hash of the overrides file (if any).
+		// Since the lock file is also used as a digest resolution cache, this forces
+		// kbld to re-resolve images if the overrides change. Otherwise, the new overrides
+		// might not be applied if the images are already resolved and cached in the lock file.
+		lockFileName := k.getLockFileName(overridesFilePath)
+		lockFilePath := k.app.expandServicePath(lockFileName)
+
+		defer k.cleanupLockFiles(lockFileName)
+
+		cmdArgs = append(cmdArgs, "--lock-output="+lockFilePath)
+
 		if ok, err := isExist(lockFilePath); ok {
 			log.Debug().Str("file", lockFilePath).Msg(k.app.Msg(k.getStepName(), "Using existing kbld lock file for caching"))
 			cmdArgs = append(cmdArgs, "--file="+lockFilePath)
@@ -81,6 +88,10 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 		} else {
 			log.Warn().Err(err).Str("file", lockFilePath).Msg(k.app.Msg(k.getStepName(), "Error checking kbld lock file existence"))
 		}
+	}
+
+	if overridesFilePath != "" {
+		cmdArgs = append(cmdArgs, "--file="+overridesFilePath)
 	}
 
 	cmdLogFn := func(name string, err error, stderr string, args []string) {
@@ -223,6 +234,44 @@ func (k *Kbld) generateKbldOverrideConfig(overrides map[string]string) (string, 
 	err = k.app.writeServiceFile(kbldOverrideFileName, string(yamlBytes))
 	filename := k.app.expandServicePath(kbldOverrideFileName)
 	return filename, err
+}
+
+func (k *Kbld) getLockFileName(overridesFilePath string) string {
+	hash := "cbf29ce484222325" // hash of empty string
+	if overridesFilePath != "" {
+		if data, err := hashFile(overridesFilePath); err == nil {
+			hash = data
+		} else {
+			log.Warn().Err(err).Msg(k.app.Msg(k.getStepName(), "Unable to hash overrides file for lock file naming"))
+		}
+	}
+	return fmt.Sprintf("%s%s.yaml", kbldLockFilePrefix, hash)
+}
+
+func (k *Kbld) cleanupLockFiles(leaveFile string) {
+	servicePath := k.app.expandServicePath("")
+	entries, err := os.ReadDir(servicePath)
+	if err != nil {
+		log.Warn().Err(err).Str("path", servicePath).Msg(k.app.Msg(k.getStepName(), "Failed to read service directory for kbld lock file cleanup"))
+		return
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if strings.HasPrefix(name, kbldLockFilePrefix) {
+			if name != leaveFile {
+				fullPath := filepath.Join(servicePath, name)
+				if err := os.Remove(fullPath); err != nil {
+					log.Warn().Err(err).Str("file", fullPath).Msg(k.app.Msg(k.getStepName(), "Failed to remove kbld lock file during cleanup"))
+				} else {
+					log.Debug().Str("file", fullPath).Msg(k.app.Msg(k.getStepName(), "Removed kbld lock file during cleanup"))
+				}
+			}
+		}
+	}
 }
 
 func (k *Kbld) getStepName() string {

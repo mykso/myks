@@ -3,7 +3,7 @@ module github.com/mykso/myks
 go 1.24.6
 
 require (
-	carvel.dev/kbld v0.46.0
+	carvel.dev/kbld v0.46.1-0.20251025024049-b1dc25772cd5
 	carvel.dev/vendir v0.44.0
 	carvel.dev/ytt v0.52.1
 	github.com/alecthomas/chroma/v2 v2.20.0
