@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -200,10 +201,17 @@ func (k *Kbld) generateKbldOverrideConfig(overrides map[string]string) (string, 
 		Kind:       "Config",
 	}
 
-	for oldImage, newImage := range overrides {
+	// Sort overrides for stable order
+	sortedKeys := make([]string, 0, len(overrides))
+	for oldImage := range overrides {
+		sortedKeys = append(sortedKeys, oldImage)
+	}
+	sort.Strings(sortedKeys)
+
+	for _, oldImage := range sortedKeys {
 		config.Overrides = append(config.Overrides, kbldOverride{
 			Image:    oldImage,
-			NewImage: newImage,
+			NewImage: overrides[oldImage],
 		})
 	}
 
