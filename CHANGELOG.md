@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.1.0](https://github.com/mykso/myks/compare/v5.0.0...v5.1.0) (2025-10-30)
+
+
+### Features
+
+* implement kbld image reference overrides ([#640](https://github.com/mykso/myks/issues/640)) ([f9d3549](https://github.com/mykso/myks/commit/f9d3549fee68b7133aadccd1c10adf828a82e997))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/google/go-containerregistry to v0.20.6 ([#643](https://github.com/mykso/myks/issues/643)) ([2bd4e39](https://github.com/mykso/myks/commit/2bd4e398fc87d1a00cf7a581ab1696cb4dce101d))
+* ensure stable ordering of kbld overrides ([c932e88](https://github.com/mykso/myks/commit/c932e88726eb727fef99b337fdf11f9531a583b5))
+* improves kbld lock file handling for cache and overrides ([#646](https://github.com/mykso/myks/issues/646)) ([31a9bc7](https://github.com/mykso/myks/commit/31a9bc7f7b0fa852816e0d07399e69b59515fdab))
+
 ## [5.0.0](https://github.com/mykso/myks/compare/v4.11.4...v5.0.0) (2025-10-20)
 
 
