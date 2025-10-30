@@ -237,7 +237,9 @@ func (k *Kbld) generateKbldOverrideConfig(overrides map[string]string) (string, 
 }
 
 func (k *Kbld) getLockFileName(overridesFilePath string) string {
-	hash := "cbf29ce484222325" // hash of empty string
+	// This is the FNV-1a 64-bit hash of an empty string ("").
+	// It serves as the default hash value when no overrides file exists.
+	hash := "cbf29ce484222325"
 	if overridesFilePath != "" {
 		if data, err := hashFile(overridesFilePath); err == nil {
 			hash = data
