@@ -5,7 +5,7 @@ go 1.24.6
 require (
 	carvel.dev/kbld v0.46.1-0.20251025024049-b1dc25772cd5
 	carvel.dev/vendir v0.44.0
-	carvel.dev/ytt v0.52.1
+	carvel.dev/ytt v0.0.0-00010101000000-000000000000
 	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.8.0
@@ -77,7 +77,6 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/k14s/starlark-go v0.0.0-20200720175618-3a5c849cc368 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
@@ -102,6 +101,7 @@ require (
 	github.com/vbatts/tar-split v0.12.1 // indirect
 	github.com/vito/go-interact v1.0.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
+	go.starlark.net v0.0.0-20251107151204-503034dafe4e // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/net v0.38.0 // indirect
@@ -116,3 +116,7 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.2 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace carvel.dev/ytt => github.com/mykso/ytt v0.47.2-0.20251108003353-8ee99b80ea85
+
+replace go.starlark.net => github.com/mykso/starlark-go v0.0.0-20251108002638-42ea92477ee9
