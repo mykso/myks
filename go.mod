@@ -5,7 +5,7 @@ go 1.24.6
 require (
 	carvel.dev/kbld v0.46.1-0.20251025024049-b1dc25772cd5
 	carvel.dev/vendir v0.44.0
-	carvel.dev/ytt v0.0.0-00010101000000-000000000000
+	carvel.dev/ytt v0.52.1
 	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.8.0
@@ -17,7 +17,7 @@ require (
 	github.com/spf13/cobra v1.10.1
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/sync v0.17.0
+	golang.org/x/sync v0.18.0
 	golang.org/x/term v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 )
