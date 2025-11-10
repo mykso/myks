@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.2.0](https://github.com/mykso/myks/compare/v5.1.0...v5.2.0) (2025-11-10)
+
+
+### Features
+
+* use the latest starlark-go ([#648](https://github.com/mykso/myks/issues/648)) ([b32aadc](https://github.com/mykso/myks/commit/b32aadcb7ac186c2c2d28c5522a57039982ec107))
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#652](https://github.com/mykso/myks/issues/652)) ([7fdb338](https://github.com/mykso/myks/commit/7fdb3386a866e3f073dfb0eeb9fd4f09d8fea6e3))
+
 ## [5.1.0](https://github.com/mykso/myks/compare/v5.0.0...v5.1.0) (2025-10-30)
 
 
