@@ -3,13 +3,24 @@
   self,
 }:
 let
+  fs = pkgs.lib.fileset;
+  sourceFiles = fs.unions [
+    ../go.mod
+    ../go.sum
+    ../cmd
+    ../internal
+    ../main.go
+  ];
   baseVersion = builtins.readFile "${self}/version.txt";
   commit = self.shortRev or self.dirtyShortRev or "unknown";
   version = "${baseVersion}-${commit}";
 in
 pkgs.buildGoModule {
   pname = "myks";
-  src = self;
+  src = fs.toSource {
+    root = ./..;
+    fileset = sourceFiles;
+  };
   vendorHash = "sha256-GZWXiL8VJTx0EcwWKy4jryr1jzoT44tWO2U7TCjhhfU=";
   version = version;
 
