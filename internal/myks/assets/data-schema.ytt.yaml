@@ -48,6 +48,11 @@ argocd:
       #! spec.source.targetRevision of the ArgoCD application.
       #! If not set, defaults to the current git branch.
       targetRevision: ''
+    syncPolicy:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ""
   env:
     #! If not set, the name of the currently rendered environment is used (environment.id).
     name: ''
