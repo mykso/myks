@@ -31,8 +31,6 @@ spec:
     targetRevision: #@ a.app.source.targetRevision
   syncPolicy:
     automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
+      prune: #@ a.app.syncPolicy.prune
+      selfHeal: #@ a.app.syncPolicy.selfHeal
+    syncOptions: #@ a.app.syncOptions
