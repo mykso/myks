@@ -48,12 +48,12 @@ argocd:
       #! spec.source.targetRevision of the ArgoCD application.
       #! If not set, defaults to the current git branch.
       targetRevision: ''
-    #! spec.source.syncPolicy of the ArgoCD application
+    #! spec.syncPolicy of the ArgoCD application
     #! If not set, default to prune and selfHeal activated
     syncPolicy:
       prune: true
       selfHeal: true
-    #! spec.source.syncOptions of the ArgoCD application
+    #! spec.syncPolicy.syncOptions of the ArgoCD application
     syncOptions:
       - ""
   env:
