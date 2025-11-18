@@ -54,6 +54,7 @@ argocd:
       prune: true
       selfHeal: true
     #! spec.syncPolicy.syncOptions of the ArgoCD application
+    #@schema/default ["CreateNamespace=true", "ServerSideApply=true"]
     syncOptions:
       - ""
   env:
