@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.3.0](https://github.com/mykso/myks/compare/v5.2.0...v5.3.0) (2025-11-19)
+
+
+### Features
+
+* allow changing ArgoCD syncPolicy via data values ([63ee8eb](https://github.com/mykso/myks/commit/63ee8ebf5e29ab4ab1565028ce1a3bd949c88f49))
+
+
+### Bug Fixes
+
+* **deps:** update module golang.org/x/term to v0.37.0 ([#662](https://github.com/mykso/myks/issues/662)) ([ed6b55f](https://github.com/mykso/myks/commit/ed6b55f7165ef3fd2ba5152e09817efd2e9efa29))
+
 ## [5.2.0](https://github.com/mykso/myks/compare/v5.1.0...v5.2.0) (2025-11-10)
 
 
