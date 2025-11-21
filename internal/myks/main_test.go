@@ -4,11 +4,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"github.com/mykso/myks/internal/testutil"
 )
 
 func TestMain(m *testing.M) {
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	testutil.SetupTestLogging()
 	os.Exit(m.Run())
 }
