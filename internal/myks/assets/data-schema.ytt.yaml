@@ -7,6 +7,18 @@
 #! Values of these keys can be modified, but the keys should not be removed.
 #! It is fine, however, to add new keys to these scopes.
 
+#! TODO: move the validate_sync_options function to a separate starlark file.
+#! TODO: add validation of keys according to the ArgoCD spec?
+#!       https://github.com/argoproj/argo-cd/blob/d23501875cb98d1169f6d262c983bb229aea5dac/gitops-engine/pkg/sync/common/types.go#L21-L52
+#@ def validate_sync_options(opts):
+#@   for opt in opts:
+#@     if type(opts[opt]) != "string":
+#@       fail("syncOptions.{} is {} but must be a string".format(opt, type(opts[opt])))
+#@     end
+#@   end
+#@   return True
+#@ end
+
 #@data/values-schema
 ---
 #! Add here any application-specific data.
@@ -53,10 +65,12 @@ argocd:
     syncPolicy:
       prune: true
       selfHeal: true
-    #! spec.syncPolicy.syncOptions of the ArgoCD application
-    #@schema/default ["CreateNamespace=true", "ServerSideApply=true"]
+    #@schema/desc "Sync options for the ArgoCD application (spec.syncOptions) in the form of a string map"
+    #@schema/type any=True
+    #@schema/default {"CreateNamespace": "true", "ServerSideApply": "true"}
+    #@schema/validation ("syncOptions values must be strings", validate_sync_options)
     syncOptions:
-      - ""
+      #! TODO: another option is to specify all known options right in the schema and set the nullable annotation
   env:
     #! If not set, the name of the currently rendered environment is used (environment.id).
     name: ''
