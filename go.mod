@@ -3,14 +3,14 @@ module github.com/mykso/myks
 go 1.24.6
 
 require (
-	carvel.dev/kbld v0.46.1-0.20251025024049-b1dc25772cd5
-	carvel.dev/vendir v0.44.0
+	carvel.dev/kbld v0.47.0
+	carvel.dev/vendir v0.45.0
 	carvel.dev/ytt v0.52.1
 	github.com/alecthomas/chroma/v2 v2.20.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.8.0
-	github.com/google/go-containerregistry v0.20.6
-	github.com/hashicorp/go-version v1.7.0
+	github.com/google/go-containerregistry v0.20.7
+	github.com/hashicorp/go-version v1.8.0
 	github.com/logrusorgru/aurora/v4 v4.0.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
 	github.com/rs/zerolog v1.34.0
