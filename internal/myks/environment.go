@@ -42,7 +42,7 @@ type Environment struct {
 
 	argoCDEnabled bool
 	// Runtime data
-	renderedEnvDataFilePath string
+	renderedDataLibFilePath string
 	// Found applications
 	foundApplications map[string]string
 }
@@ -53,7 +53,7 @@ func NewEnvironment(g *Globe, dir string, envDataFile string) (*Environment, err
 		EnvironmentDataFile:     envDataFile,
 		Applications:            []*Application{},
 		g:                       g,
-		renderedEnvDataFilePath: filepath.Join(g.RootDir, g.ServiceDirName, dir, g.RenderedEnvironmentDataLibFileName),
+		renderedDataLibFilePath: filepath.Join(g.RootDir, g.ServiceDirName, dir, g.RenderedEnvironmentDataLibFileName),
 		foundApplications:       map[string]string{},
 	}
 
@@ -278,14 +278,14 @@ func (e *Environment) renderEnvDataLib(envDataYaml []byte) ([]byte, error) {
 	return renderedLib.Bytes(), nil
 }
 
-func (e *Environment) saveRenderedEnvDataLib(envDataYaml []byte) error {
-	dir := filepath.Dir(e.renderedEnvDataFilePath)
+func (e *Environment) saveRenderedEnvDataLib(envDataLib []byte) error {
+	dir := filepath.Dir(e.renderedDataLibFilePath)
 	err := os.MkdirAll(dir, 0o750)
 	if err != nil {
 		log.Error().Err(err).Str("dir", dir).Msg(e.Msg("Unable to create directory for rendered envData file"))
 		return err
 	}
-	err = os.WriteFile(e.renderedEnvDataFilePath, envDataYaml, 0o600)
+	err = os.WriteFile(e.renderedDataLibFilePath, envDataLib, 0o600)
 	if err != nil {
 		log.Error().Err(err).Msg(e.Msg("Unable to write rendered envData file"))
 		return err
@@ -418,4 +418,8 @@ func (e *Environment) GetApplicationNames() []string {
 		appNames = append(appNames, app.Name)
 	}
 	return appNames
+}
+
+func (e *Environment) getYttLibApiDir() string {
+	return filepath.Join(e.g.RootDir, e.g.ServiceDirName, e.Dir, e.g.YttLibAPIDir)
 }

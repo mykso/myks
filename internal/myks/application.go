@@ -111,12 +111,12 @@ func (a *Application) writeServiceFile(name string, content string) error {
 
 // collectDataFiles collects all relevant ytt data files for the application.
 // Including:
-//   - environment data lib files: `.myks/envs/**/env-data.lib.yaml`
+//   - myks' ytt library for the environment: `.myks/envs/**/_api`
 //   - environment data files: `envs/**/env-data.*.yaml`
 //   - application prototype data file: `prototypes/<prototype>/app-data.*.yaml`
 //   - application data files: `envs/**/_apps/<app>/add-data.*.yaml`
 func (a *Application) collectDataFiles() {
-	a.yttDataFiles = append(a.yttDataFiles, a.e.renderedEnvDataFilePath)
+	a.yttDataFiles = append(a.yttDataFiles, a.e.getYttLibApiDir())
 
 	environmentDataFiles := a.e.collectBySubpath(a.e.g.EnvironmentDataFileName)
 	a.yttDataFiles = append(a.yttDataFiles, environmentDataFiles...)

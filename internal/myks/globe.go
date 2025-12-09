@@ -49,8 +49,10 @@ type Globe struct {
 	ApplicationDataFileName string `default:"app-data*.yaml"`
 	// Environment data file name
 	EnvironmentDataFileName string `default:"env-data*.yaml"`
-	// Rendered environment data file name
-	RenderedEnvironmentDataLibFileName string `default:"@env-data.lib.yaml"`
+	// Rendered environment data file path, keep in sync with YttLibApiDir
+	RenderedEnvironmentDataLibFileName string `default:"_api/_ytt_lib/myks/data.lib.yaml"`
+	// Directory where myks' ytt libraries are stored
+	YttLibAPIDir string `default:"_api"`
 	// Myks runtime data file name
 	MyksDataFileName string `default:"myks-data.ytt.yaml"`
 	// Service directory name

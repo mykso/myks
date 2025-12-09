@@ -48,7 +48,7 @@ func TestEnvironment_saveRenderedEnvDataLib(t *testing.T) {
 	renderedEnvDataFilePath := filepath.Join(tmpDir, "env-data.lib.yaml")
 
 	env := &Environment{
-		renderedEnvDataFilePath: renderedEnvDataFilePath,
+		renderedDataLibFilePath: renderedEnvDataFilePath,
 	}
 	data := []byte("some data")
 
