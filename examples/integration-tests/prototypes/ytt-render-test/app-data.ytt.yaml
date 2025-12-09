@@ -1,5 +1,9 @@
+#! Test the environment data library loading and usage
+#@ load("@myks:data.lib.yaml", "env_data")
+
 #@data/values-schema
 #@overlay/match-child-defaults missing_ok=True
 ---
 application:
   baseValue: true
+  envId: #@ env_data.environment.id
