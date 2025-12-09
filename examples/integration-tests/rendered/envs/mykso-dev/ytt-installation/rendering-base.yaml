@@ -1,3 +1,9 @@
+appData:
+  appValue: true
+  baseValue: true
+  envGroupValue: true
+  envId: mykso-dev
+  protoOverwriteValue: true
 kind: rendering
 metadata:
   name: base
