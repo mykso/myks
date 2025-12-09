@@ -50,7 +50,7 @@ type Globe struct {
 	// Environment data file name
 	EnvironmentDataFileName string `default:"env-data*.yaml"`
 	// Rendered environment data file name
-	RenderedEnvironmentDataFileName string `default:"env-data.yaml"`
+	RenderedEnvironmentDataLibFileName string `default:"env-data.lib.yaml"`
 	// Myks runtime data file name
 	MyksDataFileName string `default:"myks-data.ytt.yaml"`
 	// Service directory name

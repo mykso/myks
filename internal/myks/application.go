@@ -61,11 +61,6 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 }
 
 func (a *Application) Init() error {
-	// 1. Collect all ytt data files:
-	//    - environment data files: `envs/**/env-data.ytt.yaml`
-	//    - application prototype data file: `prototypes/<prototype>/app-data.ytt.yaml`
-	//    - application data files: `envs/**/_apps/<app>/add-data.ytt.yaml`
-
 	a.collectDataFiles()
 
 	dataYaml, err := a.renderDataYaml(concatenate(a.e.g.extraYttPaths, a.yttDataFiles))
@@ -114,7 +109,15 @@ func (a *Application) writeServiceFile(name string, content string) error {
 	return writeFile(a.expandServicePath(name), []byte(content))
 }
 
+// collectDataFiles collects all relevant ytt data files for the application.
+// Including:
+//   - environment data lib files: `.myks/envs/**/env-data.lib.yaml`
+//   - environment data files: `envs/**/env-data.*.yaml`
+//   - application prototype data file: `prototypes/<prototype>/app-data.*.yaml`
+//   - application data files: `envs/**/_apps/<app>/add-data.*.yaml`
 func (a *Application) collectDataFiles() {
+	a.yttDataFiles = append(a.yttDataFiles, a.e.renderedEnvDataFilePath)
+
 	environmentDataFiles := a.e.collectBySubpath(a.e.g.EnvironmentDataFileName)
 	a.yttDataFiles = append(a.yttDataFiles, environmentDataFiles...)
 

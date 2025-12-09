@@ -119,6 +119,7 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 
 	tmpl, err := template.New(name).Parse(argocdDataValuesSchema)
 	if err != nil {
+		log.Fatal().Err(err).Msg(a.Msg(ArgoCDStepName, "failed to parse ArgoCD data values schema template"))
 		return
 	}
 

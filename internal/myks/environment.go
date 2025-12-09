@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -8,12 +9,23 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"text/template"
 
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 )
 
 var EnvLogFormat = "\033[1m[%s > %s]\033[0m %s"
+
+const environmentDataLibTpl = `
+#@ def _env_data():
+{{ .Data }}
+#@ end
+
+#@ load("@ytt:struct", "struct")
+#@ load("@ytt:yaml", "yaml")
+#@ env_data = struct.encode(yaml.decode(yaml.encode(_env_data())))
+`
 
 type Environment struct {
 	// Path to the environment directory
@@ -41,7 +53,7 @@ func NewEnvironment(g *Globe, dir string, envDataFile string) (*Environment, err
 		EnvironmentDataFile:     envDataFile,
 		Applications:            []*Application{},
 		g:                       g,
-		renderedEnvDataFilePath: filepath.Join(g.RootDir, g.ServiceDirName, dir, g.RenderedEnvironmentDataFileName),
+		renderedEnvDataFilePath: filepath.Join(g.RootDir, g.ServiceDirName, dir, g.RenderedEnvironmentDataLibFileName),
 		foundApplications:       map[string]string{},
 	}
 
@@ -212,7 +224,12 @@ func (e *Environment) initEnvData() error {
 		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to render environment data"))
 		return err
 	}
-	err = e.saveRenderedEnvData(envDataYaml)
+	envDataLib, err := e.renderEnvDataLib(envDataYaml)
+	if err != nil {
+		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to render environment data lib"))
+		return err
+	}
+	err = e.saveRenderedEnvDataLib(envDataLib)
 	if err != nil {
 		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to save rendered environment data"))
 		return err
@@ -242,7 +259,26 @@ func (e *Environment) renderEnvData(envDataFiles []string) ([]byte, error) {
 	return envDataYaml, nil
 }
 
-func (e *Environment) saveRenderedEnvData(envDataYaml []byte) error {
+func (e *Environment) renderEnvDataLib(envDataYaml []byte) ([]byte, error) {
+	tmpl, err := template.New("env_data_lib").Parse(environmentDataLibTpl)
+	if err != nil {
+		log.Fatal().Err(err).Msg(e.Msg("Unable to parse environment data lib template"))
+		return nil, err
+	}
+	tplData := struct {
+		Data string
+	}{
+		Data: string(envDataYaml),
+	}
+	renderedLib := &bytes.Buffer{}
+	err = tmpl.Execute(renderedLib, tplData)
+	if err != nil {
+		return nil, err
+	}
+	return renderedLib.Bytes(), nil
+}
+
+func (e *Environment) saveRenderedEnvDataLib(envDataYaml []byte) error {
 	dir := filepath.Dir(e.renderedEnvDataFilePath)
 	err := os.MkdirAll(dir, 0o750)
 	if err != nil {
