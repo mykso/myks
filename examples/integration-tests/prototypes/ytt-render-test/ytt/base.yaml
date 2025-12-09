@@ -6,3 +6,4 @@ metadata:
 outputYaml:
   fromPrototype: true
   fromPrototypeAppData: #@ data.values.application.baseValue
+allData: #@ data.values

@@ -4,3 +4,7 @@ metadata:
 outputYaml:
   fromPrototype: true
   fromPrototypeAppData: true
+allData:
+  application:
+    baseValue: true
+    envId: mykso-dev
