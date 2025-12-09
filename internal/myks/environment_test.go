@@ -36,12 +36,6 @@ baz:
 	assert.Equal(t, expectedLib, string(result))
 }
 
-func TestEnvironment_initEnvData_CreatesLibFile(t *testing.T) {
-	// This is a bit more involved as it requires mocking or a real filesystem
-	// For now, let's test the library generation part which is the core logic change.
-	// The integration test would require setting up a full Globe and Environment with file structure.
-}
-
 func TestEnvironment_saveRenderedEnvDataLib(t *testing.T) {
 	// Setup temporary directory
 	tmpDir := t.TempDir()
