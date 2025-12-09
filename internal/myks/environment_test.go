@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -37,9 +38,50 @@ baz:
 }
 
 func TestEnvironment_initEnvData_CreatesLibFile(t *testing.T) {
-	// This is a bit more involved as it requires mocking or a real filesystem
-	// For now, let's test the library generation part which is the core logic change.
-	// The integration test would require setting up a full Globe and Environment with file structure.
+	// Setup temporary directory
+	tmpDir := t.TempDir()
+
+	// Define paths
+	envName := "my-env"
+	envDir := filepath.Join(tmpDir, "envs", envName)
+	err := os.MkdirAll(envDir, 0o750)
+	require.NoError(t, err)
+
+	envDataFileName := "env-data.ytt.yaml"
+	envDataFile := filepath.Join(envDir, envDataFileName)
+
+	// Create environment data file
+	envDataContent := []byte(`
+#@data/values
+---
+environment:
+  id: ` + envName + `
+`)
+	err = os.WriteFile(envDataFile, envDataContent, 0o600)
+	require.NoError(t, err)
+
+	// Initialize Globe
+	g := NewWithDefaults()
+	g.RootDir = tmpDir
+	g.EnvironmentDataFileName = envDataFileName
+
+	// Initialize Environment
+	env, err := NewEnvironment(g, envDir, envDataFile)
+	require.NoError(t, err)
+
+	// Test initEnvData
+	err = env.initEnvData()
+	require.NoError(t, err)
+
+	// Verify lib file exists
+	assert.FileExists(t, env.renderedDataLibFilePath)
+
+	// Verify content of lib file
+	content, err := os.ReadFile(env.renderedDataLibFilePath)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "environment:")
+	assert.Contains(t, string(content), "id: "+envName)
+	assert.Contains(t, string(content), "#@ def _env_data():")
 }
 
 func TestEnvironment_saveRenderedEnvDataLib(t *testing.T) {
