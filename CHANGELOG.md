@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.4.0](https://github.com/mykso/myks/compare/v5.3.0...v5.4.0) (2025-12-09)
+
+
+### Features
+
+* add Environment Data Library for accessing environment data in application ytt files ([#679](https://github.com/mykso/myks/issues/679)) ([16c8f1d](https://github.com/mykso/myks/commit/16c8f1dce7e3b7a3b9c882413b6eff49df8897dc))
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#672](https://github.com/mykso/myks/issues/672)) ([674aaab](https://github.com/mykso/myks/commit/674aaabc2fd2c2a48194609e21af9fddc9953864))
+
 ## [5.3.0](https://github.com/mykso/myks/compare/v5.2.0...v5.3.0) (2025-11-19)
 
 
