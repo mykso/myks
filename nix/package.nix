@@ -21,7 +21,7 @@ pkgs.buildGoModule {
     root = ./..;
     fileset = sourceFiles;
   };
-  vendorHash = "sha256-wHP/l8Evu6F9Kzm88EQv9JMONI3OlWB3jB+88RgzKmo=";
+  vendorHash = "sha256-XtOdRnqAa3s4kdIRU/1mZx+T3yGam8gIlpFAQ+4s8VA=";
   version = version;
 
   env.CGO_ENABLED = 0;
