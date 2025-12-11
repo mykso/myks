@@ -60,46 +60,46 @@ argocd:
       syncOptions:
         #@schema/nullable
         #@schema/validation one_of=["true","false"]
-        ApplyOutOfSyncOnly: 'true/false'
+        ApplyOutOfSyncOnly: ''
         #@schema/nullable
         #@schema/validation one_of=["true","false"]
-        ClientSideApplyMigration: 'true/false'
+        ClientSideApplyMigration: ''
         #@schema/nullable
         #@schema/validation one_of=["true"]
-        CreateNamespace: 'true'
+        CreateNamespace: ''
         #@schema/nullable
         #@schema/validation one_of=["confirm","false"]
-        Delete: 'confirm/false'
+        Delete: ''
         #@schema/nullable
         #@schema/validation one_of=["true"]
-        FailOnSharedResource: 'true'
+        FailOnSharedResource: ''
         #@schema/nullable
         #@schema/validation one_of=["true"]
-        Force: 'true'
+        Force: ''
         #@schema/nullable
         #@schema/validation one_of=["confirm","false"]
-        Prune: 'confirm/false'
+        Prune: ''
         #@schema/nullable
         #@schema/validation one_of=["true"]
-        PruneLast: 'true'
+        PruneLast: ''
         #@schema/nullable
         #@schema/validation one_of=["foreground","background","orphan"]
-        PrunePropagationPolicy: 'foreground/background/orphan'
+        PrunePropagationPolicy: ''
         #@schema/nullable
         #@schema/validation one_of=["true","false"]
-        Replace: 'true/false'
+        Replace: ''
         #@schema/nullable
         #@schema/validation one_of=["true"]
-        RespectIgnoreDifferences: 'true'
+        RespectIgnoreDifferences: ''
         #@schema/nullable
         #@schema/validation one_of=["true","false"]
-        ServerSideApply: 'true/false'
+        ServerSideApply: ''
         #@schema/nullable
         #@schema/validation one_of=["true"]
-        SkipDryRunOnMissingResource: 'true'
+        SkipDryRunOnMissingResource: ''
         #@schema/nullable
         #@schema/validation one_of=["false"]
-        Validate: 'false'
+        Validate: ''
   env:
     #! If not set, the name of the currently rendered environment is used (environment.id).
     name: ''
