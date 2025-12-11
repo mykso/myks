@@ -7,6 +7,14 @@
 #@ env_name = a.env.prefix + (a.env.name or e.id)
 #@ project_name = a.project.name or a.project.prefix + (a.env.name or e.id)
 
+#@ def build_sync_options(options):
+#@   return [
+#@     "{}={}".format(opt, options[opt])
+#@     for opt in options
+#@     if options[opt] != None
+#@   ]
+#@ end
+
 ---
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -33,4 +41,4 @@ spec:
     automated:
       prune: #@ a.app.syncPolicy.prune
       selfHeal: #@ a.app.syncPolicy.selfHeal
-    syncOptions: #@ a.app.syncOptions
+    syncOptions: #@ build_sync_options(a.app.syncPolicy.syncOptions)
