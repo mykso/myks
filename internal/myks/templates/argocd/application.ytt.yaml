@@ -11,7 +11,7 @@
 #@   return [
 #@     "{}={}".format(opt, options[opt])
 #@     for opt in options
-#@     if options[opt] is not None
+#@     if options[opt] != None
 #@   ]
 #@ end
 

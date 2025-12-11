@@ -53,53 +53,53 @@ argocd:
     syncPolicy:
       prune: true
       selfHeal: true
-    #! Sync options for the ArgoCD application (spec.syncOptions) in the form of a string map.
-    #! See https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/ for possible options.
-    #! Null values are ignored.
-    #@schema/default {"CreateNamespace": "true", "ServerSideApply": "true"}
-    syncOptions:
-      #@schema/nullable
-      #@schema/validation one_of=["true","false"]
-      ApplyOutOfSyncOnly: 'true/false'
-      #@schema/nullable
-      #@schema/validation one_of=["true","false"]
-      ClientSideApplyMigration: 'true/false'
-      #@schema/nullable
-      #@schema/validation one_of=["true"]
-      CreateNamespace: 'true'
-      #@schema/nullable
-      #@schema/validation one_of=["confirm","false"]
-      Delete: 'confirm/false'
-      #@schema/nullable
-      #@schema/validation one_of=["true"]
-      FailOnSharedResource: 'true'
-      #@schema/nullable
-      #@schema/validation one_of=["true"]
-      Force: 'true'
-      #@schema/nullable
-      #@schema/validation one_of=["confirm","false"]
-      Prune: 'confirm/false'
-      #@schema/nullable
-      #@schema/validation one_of=["true"]
-      PruneLast: 'true'
-      #@schema/nullable
-      #@schema/validation one_of=["foreground","background","orphan"]
-      PrunePropagationPolicy: 'foreground/background/orphan'
-      #@schema/nullable
-      #@schema/validation one_of=["true","false"]
-      Replace: 'true/false'
-      #@schema/nullable
-      #@schema/validation one_of=["true"]
-      RespectIgnoreDifferences: 'true'
-      #@schema/nullable
-      #@schema/validation one_of=["true","false"]
-      ServerSideApply: 'true/false'
-      #@schema/nullable
-      #@schema/validation one_of=["true"]
-      SkipDryRunOnMissingResource: 'true'
-      #@schema/nullable
-      #@schema/validation one_of=["false"]
-      Validate: 'false'
+      #! Sync options for the ArgoCD application (spec.syncOptions) in the form of a string map.
+      #! See https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/ for possible options.
+      #! Null values are ignored.
+      #@schema/default {"CreateNamespace": "true", "ServerSideApply": "true"}
+      syncOptions:
+        #@schema/nullable
+        #@schema/validation one_of=["true","false"]
+        ApplyOutOfSyncOnly: 'true/false'
+        #@schema/nullable
+        #@schema/validation one_of=["true","false"]
+        ClientSideApplyMigration: 'true/false'
+        #@schema/nullable
+        #@schema/validation one_of=["true"]
+        CreateNamespace: 'true'
+        #@schema/nullable
+        #@schema/validation one_of=["confirm","false"]
+        Delete: 'confirm/false'
+        #@schema/nullable
+        #@schema/validation one_of=["true"]
+        FailOnSharedResource: 'true'
+        #@schema/nullable
+        #@schema/validation one_of=["true"]
+        Force: 'true'
+        #@schema/nullable
+        #@schema/validation one_of=["confirm","false"]
+        Prune: 'confirm/false'
+        #@schema/nullable
+        #@schema/validation one_of=["true"]
+        PruneLast: 'true'
+        #@schema/nullable
+        #@schema/validation one_of=["foreground","background","orphan"]
+        PrunePropagationPolicy: 'foreground/background/orphan'
+        #@schema/nullable
+        #@schema/validation one_of=["true","false"]
+        Replace: 'true/false'
+        #@schema/nullable
+        #@schema/validation one_of=["true"]
+        RespectIgnoreDifferences: 'true'
+        #@schema/nullable
+        #@schema/validation one_of=["true","false"]
+        ServerSideApply: 'true/false'
+        #@schema/nullable
+        #@schema/validation one_of=["true"]
+        SkipDryRunOnMissingResource: 'true'
+        #@schema/nullable
+        #@schema/validation one_of=["false"]
+        Validate: 'false'
   env:
     #! If not set, the name of the currently rendered environment is used (environment.id).
     name: ''
