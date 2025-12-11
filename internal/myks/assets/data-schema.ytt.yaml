@@ -7,18 +7,6 @@
 #! Values of these keys can be modified, but the keys should not be removed.
 #! It is fine, however, to add new keys to these scopes.
 
-#! TODO: move the validate_sync_options function to a separate starlark file.
-#! TODO: add validation of keys according to the ArgoCD spec?
-#!       https://github.com/argoproj/argo-cd/blob/d23501875cb98d1169f6d262c983bb229aea5dac/gitops-engine/pkg/sync/common/types.go#L21-L52
-#@ def validate_sync_options(opts):
-#@   for opt in opts:
-#@     if type(opts[opt]) != "string":
-#@       fail("syncOptions.{} is {} but must be a string".format(opt, type(opts[opt])))
-#@     end
-#@   end
-#@   return True
-#@ end
-
 #@data/values-schema
 ---
 #! Add here any application-specific data.
@@ -65,12 +53,53 @@ argocd:
     syncPolicy:
       prune: true
       selfHeal: true
-    #@schema/desc "Sync options for the ArgoCD application (spec.syncOptions) in the form of a string map"
-    #@schema/type any=True
+    #! Sync options for the ArgoCD application (spec.syncOptions) in the form of a string map.
+    #! See https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/ for possible options.
+    #! Null values are ignored.
     #@schema/default {"CreateNamespace": "true", "ServerSideApply": "true"}
-    #@schema/validation ("syncOptions values must be strings", validate_sync_options)
     syncOptions:
-      #! TODO: another option is to specify all known options right in the schema and set the nullable annotation
+      #@schema/nullable
+      #@schema/validation one_of=["true","false"]
+      ApplyOutOfSyncOnly: 'true/false'
+      #@schema/nullable
+      #@schema/validation one_of=["true","false"]
+      ClientSideApplyMigration: 'true/false'
+      #@schema/nullable
+      #@schema/validation one_of=["true"]
+      CreateNamespace: 'true'
+      #@schema/nullable
+      #@schema/validation one_of=["confirm","false"]
+      Delete: 'confirm/false'
+      #@schema/nullable
+      #@schema/validation one_of=["true"]
+      FailOnSharedResource: 'true'
+      #@schema/nullable
+      #@schema/validation one_of=["true"]
+      Force: 'true'
+      #@schema/nullable
+      #@schema/validation one_of=["confirm","false"]
+      Prune: 'confirm/false'
+      #@schema/nullable
+      #@schema/validation one_of=["true"]
+      PruneLast: 'true'
+      #@schema/nullable
+      #@schema/validation one_of=["foreground","background","orphan"]
+      PrunePropagationPolicy: 'foreground/background/orphan'
+      #@schema/nullable
+      #@schema/validation one_of=["true","false"]
+      Replace: 'true/false'
+      #@schema/nullable
+      #@schema/validation one_of=["true"]
+      RespectIgnoreDifferences: 'true'
+      #@schema/nullable
+      #@schema/validation one_of=["true","false"]
+      ServerSideApply: 'true/false'
+      #@schema/nullable
+      #@schema/validation one_of=["true"]
+      SkipDryRunOnMissingResource: 'true'
+      #@schema/nullable
+      #@schema/validation one_of=["false"]
+      Validate: 'false'
   env:
     #! If not set, the name of the currently rendered environment is used (environment.id).
     name: ''
