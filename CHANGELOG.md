@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.5.0](https://github.com/mykso/myks/compare/v5.4.0...v5.5.0) (2025-12-12)
+
+
+### Features
+
+* syncOptions as a map ([#673](https://github.com/mykso/myks/issues/673)) ([4b0e081](https://github.com/mykso/myks/commit/4b0e08175502321a63e2da0e99e002593603f8ab))
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#681](https://github.com/mykso/myks/issues/681)) ([646866f](https://github.com/mykso/myks/commit/646866f55919605240732ac84c05e9d906bf4968))
+
 ## [5.4.0](https://github.com/mykso/myks/compare/v5.3.0...v5.4.0) (2025-12-09)
 
 
