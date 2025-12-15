@@ -5,6 +5,11 @@ digests, improving security and reproducibility of Kubernetes deployments. Myks
 integrates with kbld to automatically resolve image references in your rendered
 manifests.
 
+kbld can also build images from source using various build tools. See
+[Building images](#building-images) and the
+[official docs](https://carvel.dev/kbld/docs/develop/building/) for more
+information.
+
 > [!NOTE]  
 > This feature is currently experimental and may change in future releases. The
 > configuration schema and behavior may evolve. It is disabled by default and
@@ -92,7 +97,8 @@ override and applies it. Each override consists of:
 - If a part is not specified in the replace, the original value is kept
 - Replace values can reference capture groups from match expressions using `$1`,
   `$2`, etc.
-- See [Go's regexp documentation](https://pkg.go.dev/regexp#Regexp.ReplaceAllString)
+- See
+  [Go's regexp documentation](https://pkg.go.dev/regexp#Regexp.ReplaceAllString)
   for syntax details
 
 ### Docker Hub Reference Handling
@@ -104,6 +110,7 @@ Myks normalizes Docker Hub references before matching:
 - Docker Hub repositories without a prefix are in the `library/` namespace
 
 Examples:
+
 - `nginx` → `registry=index.docker.io`, `repository=library/nginx`, `tag=latest`
 - `docker.io/nginx:latest` → `registry=index.docker.io`,
   `repository=library/nginx`, `tag=latest`
@@ -139,6 +146,7 @@ kbld:
 ```
 
 This override:
+
 - Matches any Bitnami image (e.g., `bitnami/postgresql`)
 - Changes the registry to your private registry
 - Rewrites the repository path from `bitnami/*` to `bitnamilegacy/*`
@@ -181,3 +189,65 @@ The lock file:
   reproducible builds
 
 If the lock file is missing, kbld will resolve all images and recreate it.
+
+## Building Images
+
+The functionality of building images is currently not integrated into myks in
+any way. However, you still provide a raw kbld config resource in your
+application yaml output to achieve that.
+
+### Example
+
+In this example we add a `Dockerfile` and assets for it to the `docker`
+directory of an application prototype. `ytt/kbld.yaml` holds configuration for
+kbld to build the image. There's no convention or rules on how to name these
+files and directories. It is only required to have a valid kbld config resource
+in the app's yaml output.
+
+```txt
+prototypes/kbld-example
+├── app-data.yaml
+├── docker                 <- new
+│   ├── assets
+│   │   ├── Caddyfile
+│   │   ├── index.html
+│   │   └── manifest.json
+│   └── Dockerfile
+└── ytt
+    ├── kbld.yaml          <- new
+    └── webserver.ytt.yaml
+```
+
+A container image can be defined like this:
+
+```yaml
+containers:
+  - image: caddy-image-ref
+    name: caddy
+```
+
+The kbld configuration in `ytt/kbld.yaml` can look like this:
+
+```yaml
+---
+apiVersion: kbld.k14s.io/v1alpha1
+kind: Config
+sources:
+  - image: caddy-image-ref
+    path: prototypes/kbld-example/docker
+    docker:
+      build:
+        pull: true
+        buildkit: true
+destinations:
+  - image: caddy-image-ref
+    newImage: your.oci.registry.dev/something/something/caddy
+```
+
+> [!IMPORTANT]  
+> Note that `sources.*.path` is relative to the project root.
+
+> [!INFO]  
+> Check the
+> [official documentation](https://carvel.dev/kbld/docs/develop/building/) for
+> more options.
