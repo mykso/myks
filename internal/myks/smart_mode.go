@@ -84,6 +84,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		// No submatches needed
 		"global": {
 			e(g.YttLibraryDirName + "/.*"),
+			e(g.PrototypesDir + "/_vendir/.*"),
 		},
 		// Env search path is the only submatch
 		"env": {
