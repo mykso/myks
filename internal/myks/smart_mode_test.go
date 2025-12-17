@@ -210,6 +210,14 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			},
 		},
 		{
+			"change to prototypes _vendir",
+			ChangedFiles{"prototypes/_vendir/file1": "M"},
+			renderedEnvApps,
+			EnvAppMap{
+				g.EnvironmentBaseDir: nil,
+			},
+		},
+		{
 			"change to prototype",
 			ChangedFiles{"prototypes/app1/app-data.ytt.yaml": "M"},
 			renderedEnvApps,
