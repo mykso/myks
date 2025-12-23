@@ -35,6 +35,7 @@ Join our [Slack channel](https://kubernetes.slack.com/archives/C06BVDBHZC2)!
   automatic root directory detection
 - **Plugin system**: [Plugins](/docs/plugins.md) support for extending myks with
   custom tools
+- **Shared Libraries**: Share [ytt] logic using [libraries](/docs/ytt-libraries.md) in applications and prototypes
 - **Parallel processing**: Process multiple applications and environments
   concurrently for better performance
 - **Resolving images**: Automatically resolve image tags to digests for improved
