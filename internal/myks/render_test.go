@@ -132,6 +132,8 @@ func Test_genRenderedResourceFileName(t *testing.T) {
 		wantErr bool
 	}{
 		{"happy path", args{map[string]any{"kind": "Deployment", "metadata": map[string]any{"name": "test", "namespace": "test-ns"}}, true}, "deployment-test_test-ns.yaml", false},
+		{"generateName", args{map[string]any{"kind": "Deployment", "metadata": map[string]any{"generateName": "test-", "namespace": "test-ns"}}, true}, "deployment-test_test-ns.yaml", false},
+		{"generateName no suffix", args{map[string]any{"kind": "Deployment", "metadata": map[string]any{"generateName": "test", "namespace": "test-ns"}}, true}, "deployment-test_test-ns.yaml", false},
 		{"no namespace", args{map[string]any{"kind": "Deployment", "metadata": map[string]any{"name": "test", "namespace": "test-ns"}}, false}, "deployment-test.yaml", false},
 		{"no kind", args{map[string]any{"metadata": map[string]any{"name": "test", "namespace": "test-ns"}}, false}, "", true},
 		{"no name", args{map[string]any{"metadata": map[string]any{"kind": "Deployment", "namespace": "test-ns"}}, false}, "", true},

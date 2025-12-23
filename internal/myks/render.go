@@ -133,7 +133,8 @@ func (a *Application) getDestinationDir() string {
 	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedEnvsDir, a.e.ID, a.Name)
 }
 
-// Generates a file name for each document using kind and name if available
+// genRenderedResourceFileName generates a name for a rendered K8s resource file
+// based on its kind, name or generateName, and optionally namespace.
 func genRenderedResourceFileName(resource map[string]any, includeNamespace bool) (string, error) {
 	kind := "NO_KIND"
 	if g, ok := resource["kind"]; ok {
@@ -143,6 +144,9 @@ func genRenderedResourceFileName(resource map[string]any, includeNamespace bool)
 	namespace := ""
 	if n, ok := resource["metadata"]; ok {
 		metadata := n.(map[string]any)
+		if n, ok := metadata["generateName"].(string); ok {
+			name = strings.TrimSuffix(n, "-")
+		}
 		if n, ok := metadata["name"].(string); ok {
 			name = n
 		}
