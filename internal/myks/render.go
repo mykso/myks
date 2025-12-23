@@ -144,11 +144,10 @@ func genRenderedResourceFileName(resource map[string]any, includeNamespace bool)
 	namespace := ""
 	if n, ok := resource["metadata"]; ok {
 		metadata := n.(map[string]any)
-		if n, ok := metadata["generateName"].(string); ok {
-			name = strings.TrimSuffix(n, "-")
-		}
-		if n, ok := metadata["name"].(string); ok {
+		if n, ok := metadata["name"].(string); ok && n != "" {
 			name = n
+		} else if n, ok := metadata["generateName"].(string); ok {
+			name = strings.TrimSuffix(n, "-")
 		}
 		if n, ok := metadata["namespace"].(string); ok {
 			namespace = n
