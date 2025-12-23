@@ -16,3 +16,4 @@ environment:
       name: ytt-installation
     - proto: static-test
     - proto: helm-myks-context
+    - proto: lib-test

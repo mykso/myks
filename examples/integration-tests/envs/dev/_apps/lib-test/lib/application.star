@@ -1,0 +1,1 @@
+applicationVar = "defined in application"

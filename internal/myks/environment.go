@@ -172,14 +172,7 @@ func (e *Environment) missingApplications() ([]string, error) {
 	}
 	missingApps := []string{}
 	for app := range e.foundApplications {
-		exists := false
-		for _, renderedApp := range apps {
-			if app == renderedApp {
-				exists = true
-				break
-			}
-		}
-		if !exists {
+		if !slices.Contains(apps, app) {
 			missingApps = append(missingApps, app)
 		}
 	}
@@ -420,6 +413,6 @@ func (e *Environment) GetApplicationNames() []string {
 	return appNames
 }
 
-func (e *Environment) getYttLibApiDir() string {
+func (e *Environment) getYttLibAPIDir() string {
 	return filepath.Join(e.g.RootDir, e.g.ServiceDirName, e.Dir, e.g.YttLibAPIDir)
 }

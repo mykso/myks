@@ -1,0 +1,6 @@
+applicationVar: defined in application
+globalVar: defined in global
+kind: MyksTest
+metadata:
+  name: lib-test
+prototypeVar: defined in prototype
