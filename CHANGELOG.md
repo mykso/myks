@@ -1,5 +1,24 @@
 # Changelog
 
+## [5.5.0](https://github.com/mykso/myks/compare/v5.4.0...v5.5.0) (2025-12-29)
+
+
+### Features
+
+* allow generateName in rendered resource file names ([#692](https://github.com/mykso/myks/issues/692)) ([320de29](https://github.com/mykso/myks/commit/320de29c5f87ae4da81d0c3a20839aa249d0a37f))
+* application-scoped libraries ([#694](https://github.com/mykso/myks/issues/694)) ([3743478](https://github.com/mykso/myks/commit/3743478c3c5dfe935a4d81dbd893769128abcce7))
+* configurable file and directory names ([#696](https://github.com/mykso/myks/issues/696)) ([f47d731](https://github.com/mykso/myks/commit/f47d73141416d603a665cae8b3a5d91856e692d3))
+* support glob patterns for Helm values files ([#697](https://github.com/mykso/myks/issues/697)) ([0ef1505](https://github.com/mykso/myks/commit/0ef15052f09757747b958733a2d96d02cbafbd4b))
+* syncOptions as a map ([#673](https://github.com/mykso/myks/issues/673)) ([4b0e081](https://github.com/mykso/myks/commit/4b0e08175502321a63e2da0e99e002593603f8ab))
+
+
+### Bug Fixes
+
+* add support for prototypes/_vendir in smart mode ([#688](https://github.com/mykso/myks/issues/688)) ([47cc954](https://github.com/mykso/myks/commit/47cc954e2c204c629eddfb584fa5a2bf54f134db))
+* **deps:** update golang dependencies (non-major) ([#681](https://github.com/mykso/myks/issues/681)) ([646866f](https://github.com/mykso/myks/commit/646866f55919605240732ac84c05e9d906bf4968))
+* **deps:** update golang dependencies (non-major) ([#693](https://github.com/mykso/myks/issues/693)) ([1e0071d](https://github.com/mykso/myks/commit/1e0071d65d13f6eed380bdb0a6608697a6ae2eda))
+* **deps:** update module golang.org/x/term to v0.38.0 ([#687](https://github.com/mykso/myks/issues/687)) ([0ef4b29](https://github.com/mykso/myks/commit/0ef4b29e02c96cbe72f4cf202b889d2d609b9e8b))
+
 ## [5.4.0](https://github.com/mykso/myks/compare/v5.3.0...v5.4.0) (2025-12-09)
 
 
