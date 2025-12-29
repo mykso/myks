@@ -14,6 +14,9 @@ import (
 func getGlobe() *myks.Globe {
 	if globe == nil {
 		globe = myks.New(viper.GetString("root-dir"))
+		if err := viper.UnmarshalKey("naming-conventions", globe); err != nil {
+			log.Error().Err(err).Msg("Unable to unmarshal naming-conventions config")
+		}
 	}
 	return globe
 }

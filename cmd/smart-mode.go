@@ -53,7 +53,7 @@ func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 				envAppMap[env] = appNames
 			}
 		} else {
-			g := myks.NewWithDefaults()
+			g := getGlobe()
 			envAppMap[g.EnvironmentBaseDir] = appNames
 		}
 
