@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 )
@@ -165,9 +166,9 @@ func (g *Globe) createSampleEnvironment() error {
 // generateNameConventions extracts mapstructure and default tags from Globe struct
 // and generates a YAML section for naming-conventions
 func (g *Globe) generateNameConventions() string {
-	conventions := ""
+	var conventions strings.Builder
 
-	rt := reflect.TypeOf(*g)
+	rt := reflect.TypeFor[Globe]()
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
 
@@ -181,8 +182,8 @@ func (g *Globe) generateNameConventions() string {
 			continue
 		}
 
-		conventions += fmt.Sprintf("  %s: %s\n", mapstructureTag, defaultTag)
+		fmt.Fprintf(&conventions, "  %s: %s\n", mapstructureTag, defaultTag)
 	}
 
-	return conventions
+	return conventions.String()
 }
