@@ -124,9 +124,7 @@ type EnvAppMap map[string][]string
 
 func NewWithDefaults() *Globe {
 	g := &Globe{}
-	if err := defaults.Set(g); err != nil {
-		log.Fatal().Err(err).Msg("Unable to set defaults")
-	}
+	defaults.MustSet(g)
 	return g
 }
 
