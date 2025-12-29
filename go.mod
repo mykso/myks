@@ -6,7 +6,7 @@ require (
 	carvel.dev/kbld v0.47.0
 	carvel.dev/vendir v0.45.0
 	carvel.dev/ytt v0.52.2
-	github.com/alecthomas/chroma/v2 v2.21.0
+	github.com/alecthomas/chroma/v2 v2.21.1
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.8.0
 	github.com/google/go-containerregistry v0.20.7
