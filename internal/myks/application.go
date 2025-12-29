@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -112,39 +113,26 @@ func (a *Application) writeServiceFile(name string, content string) error {
 // collectDataFiles collects all relevant ytt data files and lib paths for the application.
 // Including:
 //   - myks' ytt library for the environment: `.myks/envs/**/_api`
-//   - application lib: `envs/**/_apps/<app>/lib`
 //   - prototype lib: `prototypes/<prototype>/lib`
+//   - prototype-overrides lib: `envs/**/_proto/<prototype>/lib`
+//   - application lib: `envs/**/_apps/<app>/lib`
 //   - environment data files: `envs/**/env-data.*.yaml`
-//   - application prototype data file: `prototypes/<prototype>/app-data.*.yaml`
+//   - prototype data files: `prototypes/<prototype>/app-data.*.yaml`
+//   - prototype-overrides data files: `envs/**/_proto/<prototype>/app-data.*.yaml`
 //   - application data files: `envs/**/_apps/<app>/add-data.*.yaml`
 //
 // Note: The order of the libs is inverted, so that the most specific ones take precedence.
 func (a *Application) collectDataFiles() {
-	a.yttDataFiles = append(a.yttDataFiles, a.e.getYttLibAPIDir())
-
-	appLibDirs := a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.YttLibraryDirName))
-	for i := len(appLibDirs) - 1; i >= 0; i-- {
-		a.yttDataFiles = append(a.yttDataFiles, appLibDirs[i])
-	}
-
-	protoLibDir := filepath.Join(a.Prototype, a.e.g.YttLibraryDirName)
-	if ok, err := isExist(protoLibDir); err == nil && ok {
-		a.yttDataFiles = append(a.yttDataFiles, protoLibDir)
-	}
-
-	environmentDataFiles := a.e.collectBySubpath(a.e.g.EnvironmentDataFileName)
-	a.yttDataFiles = append(a.yttDataFiles, environmentDataFiles...)
-
-	protoDataFile := filepath.Join(a.Prototype, a.e.g.ApplicationDataFileName)
-	if files, err := filepath.Glob(protoDataFile); err == nil {
-		a.yttDataFiles = append(a.yttDataFiles, files...)
-	}
-
-	protoOverrideDataFiles := a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), a.e.g.ApplicationDataFileName))
-	a.yttDataFiles = append(a.yttDataFiles, protoOverrideDataFiles...)
-
-	overrideDataFiles := a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.ApplicationDataFileName))
-	a.yttDataFiles = append(a.yttDataFiles, overrideDataFiles...)
+	APILibraries := []string{a.e.getYttLibAPIDir()}
+	appLibraries := a.collectAllFilesByGlob(a.e.g.YttLibraryDirName)
+	envDataFiles := a.e.collectBySubpath(a.e.g.EnvironmentDataFileName)
+	appDataFiles := a.collectAllFilesByGlob(a.e.g.ApplicationDataFileName)
+	a.yttDataFiles = slices.Concat(
+		APILibraries,
+		appLibraries,
+		envDataFiles,
+		appDataFiles,
+	)
 }
 
 func (a *Application) Msg(step string, msg string) string {
