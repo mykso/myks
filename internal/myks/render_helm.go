@@ -54,7 +54,7 @@ func (h *Helm) Render(_ string) (string, error) {
 		chartNames = append(chartNames, chartName)
 		chartConfig := helmConfig.getChartConfig(chartName)
 		var helmValuesFile string
-		if helmValuesFile, err = h.app.prepareValuesFile("helm", chartName); err != nil {
+		if helmValuesFile, err = h.app.prepareValuesFile(h.app.e.g.HelmStepDirName, chartName); err != nil {
 			log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to prepare helm values"))
 			return "", err
 		}
@@ -110,14 +110,10 @@ func (h *Helm) warnOnOrphanConfigs(helmConfig HelmConfig, charts []string) {
 		}
 	}
 
-	allValuesFiles, err := h.app.collectAllFilesByGlob(filepath.Join(h.app.e.g.HelmStepDirName, "*.yaml"))
-	if err != nil {
-		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to collect all values files"))
-		return
-	}
+	allValuesFiles := h.app.collectAllFilesByGlob(filepath.Join(h.app.e.g.HelmStepDirName, "*.yaml"))
 
 	for _, valuesFile := range allValuesFiles {
-		chartName := strings.TrimSuffix(filepath.Base(valuesFile), ".yaml")
+		chartName := strings.SplitN(filepath.Base(valuesFile), ".", 2)[0]
 		if chartName == "_global" {
 			continue
 		}

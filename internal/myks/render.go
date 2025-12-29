@@ -166,21 +166,12 @@ func genRenderedResourceFileName(resource map[string]any, includeNamespace bool)
 // prepareValuesFile generates values.yaml file from ytt data files and ytt templates
 // from the `helm` or `ytt` directories of the prototype and the application.
 func (a *Application) prepareValuesFile(dirName, chartName string) (string, error) {
-	var valuesFiles []string
-
 	yttArgs := []string{"-v", "myks.context.helm.chart=" + chartName}
 
-	if files, err := a.collectValuesFiles(dirName, "_global"); err == nil {
-		valuesFiles = files
-	} else {
-		return "", err
-	}
-
-	if files, err := a.collectValuesFiles(dirName, chartName); err == nil {
-		valuesFiles = append(valuesFiles, files...)
-	} else {
-		return "", err
-	}
+	valuesFiles := slices.Concat(
+		a.collectAllFilesByGlob(filepath.Join(dirName, "/_global.yaml")),
+		a.collectAllFilesByGlob(filepath.Join(dirName, chartName+"*.yaml")),
+	)
 
 	if len(valuesFiles) == 0 {
 		log.Debug().Str("resource", chartName).Msg(a.Msg(renderStepName, "No values files found"))
@@ -198,15 +189,15 @@ func (a *Application) prepareValuesFile(dirName, chartName string) (string, erro
 		return "", nil
 	}
 
-	valuesFileName := filepath.Join(dirName, chartName+".yaml")
-	if err = a.writeServiceFile(valuesFileName, resourceValuesYaml.Stdout); err != nil {
+	rawValuesFileName := filepath.Join(dirName, "raw_"+chartName+".yaml")
+	if err = a.writeServiceFile(rawValuesFileName, resourceValuesYaml.Stdout); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to write resource values file"))
 		return "", err
 	}
 
 	// merge previously rendered yaml documents into one,
 	// in the way Helm would do that with all values files
-	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandServicePath(valuesFileName))
+	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandServicePath(rawValuesFileName))
 	if err != nil {
 		return "", err
 	}
@@ -216,30 +207,9 @@ func (a *Application) prepareValuesFile(dirName, chartName string) (string, erro
 		return "", nil
 	}
 
+	valuesFileName := filepath.Join(dirName, chartName+".yaml")
 	err = a.writeServiceFile(valuesFileName, resourceValues.Stdout)
 	return a.expandServicePath(valuesFileName), err
-}
-
-func (a *Application) collectValuesFiles(dirName, resourceName string) ([]string, error) {
-	var valuesFiles []string
-
-	valuesFileName := filepath.Join(dirName, resourceName+".yaml")
-
-	// add values file from base dir
-	prototypeValuesFile := filepath.Join(a.Prototype, valuesFileName)
-	if ok, err := isExist(prototypeValuesFile); err != nil {
-		return nil, err
-	} else if ok {
-		valuesFiles = append(valuesFiles, prototypeValuesFile)
-	}
-
-	// add prototype overwrites value file from env dir groups
-	valuesFiles = append(valuesFiles, a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), valuesFileName))...)
-
-	// add application values file from env dir and groups
-	valuesFiles = append(valuesFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, valuesFileName))...)
-
-	return valuesFiles, nil
 }
 
 func (a *Application) collectFilesByGlob(subpathPattern string) ([]string, error) {
@@ -261,18 +231,29 @@ func (a *Application) collectFilesByGlob(subpathPattern string) ([]string, error
 	return files, nil
 }
 
-func (a *Application) collectAllFilesByGlob(pattern string) ([]string, error) {
-	files, err := a.collectFilesByGlob(filepath.Join(a.e.g.AppsDir, a.Name, pattern))
+// collectAllFilesByGlob collects application files matching the given glob pattern.
+// It searches in the following locations:
+//   - prototype files: `prototypes/<prototype>/<pattern>`
+//   - prototype override files in env dirs: `envs/**/_proto/<prototype>/<pattern>`
+//   - application files in env dirs: `envs/**/_apps/<app>/<pattern>`
+//
+// It returns a combined list of all matching files.
+// It panics on malformed glob patterns.
+func (a *Application) collectAllFilesByGlob(pattern string) []string {
+	protoFiles, err := filepath.Glob(filepath.Join(a.Prototype, pattern))
 	if err != nil {
-		return nil, err
+		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect prototype files"))
+		return nil
 	}
 	protoOverrideFiles, err := a.collectFilesByGlob(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), pattern))
 	if err != nil {
-		return nil, err
+		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect prototype override files"))
+		return nil
 	}
-	protoFiles, err := filepath.Glob(filepath.Join(a.Prototype, pattern))
+	files, err := a.collectFilesByGlob(filepath.Join(a.e.g.AppsDir, a.Name, pattern))
 	if err != nil {
-		return nil, err
+		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect application files"))
+		return nil
 	}
-	return slices.Concat(files, protoOverrideFiles, protoFiles), nil
+	return slices.Concat(protoFiles, protoOverrideFiles, files)
 }
