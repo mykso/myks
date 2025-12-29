@@ -113,7 +113,7 @@ func (h *Helm) warnOnOrphanConfigs(helmConfig HelmConfig, charts []string) {
 	allValuesFiles := h.app.collectAllFilesByGlob(filepath.Join(h.app.e.g.HelmStepDirName, "*.yaml"))
 
 	for _, valuesFile := range allValuesFiles {
-		chartName := strings.SplitN(filepath.Base(valuesFile), ".", 2)[0]
+		chartName, _, _ := strings.Cut(filepath.Base(valuesFile), ".")
 		if chartName == "_global" {
 			continue
 		}

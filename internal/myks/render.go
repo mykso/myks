@@ -169,8 +169,8 @@ func (a *Application) prepareValuesFile(dirName, chartName string) (string, erro
 	yttArgs := []string{"-v", "myks.context.helm.chart=" + chartName}
 
 	valuesFiles := slices.Concat(
-		a.collectAllFilesByGlob(filepath.Join(dirName, "/_global.yaml")),
-		a.collectAllFilesByGlob(filepath.Join(dirName, chartName+"*.yaml")),
+		a.collectAllFilesByGlob(filepath.Join(dirName, "_global.*yaml")),
+		a.collectAllFilesByGlob(filepath.Join(dirName, chartName+".*yaml")),
 	)
 
 	if len(valuesFiles) == 0 {
@@ -189,15 +189,15 @@ func (a *Application) prepareValuesFile(dirName, chartName string) (string, erro
 		return "", nil
 	}
 
-	rawValuesFileName := filepath.Join(dirName, "raw_"+chartName+".yaml")
-	if err = a.writeServiceFile(rawValuesFileName, resourceValuesYaml.Stdout); err != nil {
+	unmergedValuesFileName := filepath.Join(dirName, "unmerged_"+chartName+".yaml")
+	if err = a.writeServiceFile(unmergedValuesFileName, resourceValuesYaml.Stdout); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(renderStepName, "Unable to write resource values file"))
 		return "", err
 	}
 
 	// merge previously rendered yaml documents into one,
 	// in the way Helm would do that with all values files
-	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandServicePath(rawValuesFileName))
+	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandServicePath(unmergedValuesFileName))
 	if err != nil {
 		return "", err
 	}
