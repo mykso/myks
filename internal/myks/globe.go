@@ -26,29 +26,29 @@ type Globe struct {
 	// Project root directory
 	RootDir string `default:"."`
 	// Base directory for environments
-	EnvironmentBaseDir string `default:"envs"`
+	EnvironmentBaseDir string `default:"envs" mapstructure:"environment-base-dir"`
 	// Application prototypes directory
-	PrototypesDir string `default:"prototypes"`
+	PrototypesDir string `default:"prototypes" mapstructure:"prototypes-dir"`
 	// Ytt library directory name
-	YttLibraryDirName string `default:"lib"`
+	YttLibraryDirName string `default:"lib" mapstructure:"ytt-library-dir-name"`
 	// Rendered kubernetes manifests directory
-	RenderedEnvsDir string `default:"rendered/envs"`
+	RenderedEnvsDir string `default:"rendered/envs" mapstructure:"rendered-envs-dir"`
 	// Rendered argocd manifests directory
-	RenderedArgoDir string `default:"rendered/argocd"`
+	RenderedArgoDir string `default:"rendered/argocd" mapstructure:"rendered-argo-dir"`
 
 	// Directory of application-specific configuration
-	AppsDir string `default:"_apps"`
+	AppsDir string `default:"_apps" mapstructure:"apps-dir"`
 	// Directory of environment-specific configuration
-	EnvsDir string `default:"_env"`
+	EnvsDir string `default:"_env" mapstructure:"envs-dir"`
 	// Directory of application-specific prototype overwrites
-	PrototypeOverrideDir string `default:"_proto"`
+	PrototypeOverrideDir string `default:"_proto" mapstructure:"prototype-override-dir"`
 
 	// Data values schema file name
 	DataSchemaFileName string `default:"data-schema.ytt.yaml"`
 	// Application data file name
-	ApplicationDataFileName string `default:"app-data*.yaml"`
+	ApplicationDataFileName string `default:"app-data*.yaml" mapstructure:"application-data-file-name"`
 	// Environment data file name
-	EnvironmentDataFileName string `default:"env-data*.yaml"`
+	EnvironmentDataFileName string `default:"env-data*.yaml" mapstructure:"environment-data-file-name"`
 	// Rendered environment data file path, keep in sync with YttLibApiDir
 	RenderedEnvironmentDataLibFileName string `default:"_api/_ytt_lib/myks/data.lib.yaml"`
 	// Directory where myks' ytt libraries are stored
@@ -76,17 +76,17 @@ type Globe struct {
 
 	// Plugin subdirectories
 	// ArgoCD data directory name
-	ArgoCDDataDirName string `default:"argocd"`
+	ArgoCDDataDirName string `default:"argocd" mapstructure:"plugin-argocd-dir-name"`
 	// Helm step directory name
-	HelmStepDirName string `default:"helm"`
+	HelmStepDirName string `default:"helm" mapstructure:"plugin-helm-dir-name"`
 	// Static files directory name
-	StaticFilesDirName string `default:"static"`
+	StaticFilesDirName string `default:"static" mapstructure:"plugin-static-dir-name"`
 	// Vendir step directory name
-	VendirStepDirName string `default:"vendir"`
-	// Ytt step directory name
+	VendirStepDirName string `default:"vendir" mapstructure:"plugin-vendir-dir-name"`
+	// Ytt step directory name (deprecated, not used)
 	YttPkgStepDirName string `default:"ytt-pkg"`
 	// Ytt step directory name
-	YttStepDirName string `default:"ytt"`
+	YttStepDirName string `default:"ytt" mapstructure:"plugin-ytt-dir-name"`
 
 	/// Runtime data
 

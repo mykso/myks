@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 
 	"github.com/rs/zerolog/log"
 )
@@ -39,7 +40,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 		compMap[comp] = true
 	}
 
-	myksConfig := fmt.Sprintf(string(myksConfigTpl), version)
+	myksConfig := fmt.Sprintf(string(myksConfigTpl), version, g.generateNameConventions())
 
 	if onlyPrint {
 		if compMap["gitignore"] {
@@ -159,4 +160,29 @@ func (g *Globe) createSamplePrototypes() error {
 func (g *Globe) createSampleEnvironment() error {
 	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
 	return copyFileSystemToPath(environmentsFs, "assets/envs", envDir)
+}
+
+// generateNameConventions extracts mapstructure and default tags from Globe struct
+// and generates a YAML section for name-conventions
+func (g *Globe) generateNameConventions() string {
+	conventions := ""
+
+	rt := reflect.TypeOf(*g)
+	for i := 0; i < rt.NumField(); i++ {
+		field := rt.Field(i)
+
+		mapstructureTag := field.Tag.Get("mapstructure")
+		if mapstructureTag == "" {
+			continue
+		}
+
+		defaultTag := field.Tag.Get("default")
+		if defaultTag == "" {
+			continue
+		}
+
+		conventions += fmt.Sprintf("  %s: %s\n", mapstructureTag, defaultTag)
+	}
+
+	return conventions
 }

@@ -14,3 +14,7 @@ min-version: '%s'
 # Load all binaries from the following folders as myks plugins.
 plugin-sources:
   - ./plugins
+# Defines names for files and directories recognized by myks.
+# Tailor these to your team's conventions or remove this section to use the defaults.
+naming-conventions:
+%s

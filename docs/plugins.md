@@ -61,7 +61,7 @@ rendered K8s manifests to a locally accessible cluster.
    your GitOps repository with the following content:
 
    ```bash
-     #! /usr/bin/env bash
+     #!/usr/bin/env bash
      kapp --yes deploy --wait -a "$MYKS_APP" -f "$MYKS_RENDERED_APP_DIR"
    ```
 
