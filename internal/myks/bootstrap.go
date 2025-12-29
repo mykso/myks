@@ -163,7 +163,7 @@ func (g *Globe) createSampleEnvironment() error {
 }
 
 // generateNameConventions extracts mapstructure and default tags from Globe struct
-// and generates a YAML section for name-conventions
+// and generates a YAML section for naming-conventions
 func (g *Globe) generateNameConventions() string {
 	conventions := ""
 
