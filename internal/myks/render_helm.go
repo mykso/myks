@@ -71,7 +71,7 @@ func (h *Helm) Render(_ string) (string, error) {
 		}
 
 		if chartConfig.Namespace == "" {
-			chartConfig.Namespace = h.app.e.g.NamespacePrefix + h.app.Name
+			chartConfig.Namespace = h.app.Name
 		}
 		helmArgs = append(helmArgs, "--namespace", chartConfig.Namespace)
 
