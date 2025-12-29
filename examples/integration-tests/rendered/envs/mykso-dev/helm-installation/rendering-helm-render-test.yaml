@@ -2,6 +2,10 @@ kind: rendering
 metadata:
   name: helm-render-test
 outputYaml:
+  extraValuesAppQuux: true
+  extraValuesProtoBar: true
+  extraValuesProtoFoo: true
+  extraValuesProtoOverrideBaz: true
   fromAppConfig: true
   fromAppConfigAppData: true
   fromChartDefaultValues: true
