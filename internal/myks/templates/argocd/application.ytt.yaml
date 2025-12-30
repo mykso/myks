@@ -8,11 +8,11 @@
 #@ project_name = a.project.name or a.project.prefix + (a.env.name or e.id)
 
 #@ def build_sync_options(options):
-#@   return [
+#@   return sorted([
 #@     "{}={}".format(opt, options[opt])
 #@     for opt in options
 #@     if options[opt] != None
-#@   ]
+#@   ])
 #@ end
 
 ---
