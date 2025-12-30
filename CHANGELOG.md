@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.5.1](https://github.com/mykso/myks/compare/v5.5.0...v5.5.1) (2025-12-30)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.21.1 ([#695](https://github.com/mykso/myks/issues/695)) ([bbbe665](https://github.com/mykso/myks/commit/bbbe665989fe87b87c5b8d945db752d5f4684fdc))
+* sort syncOptions in ArgoCD application template ([5e8fa9b](https://github.com/mykso/myks/commit/5e8fa9b3950117c396d8ba69e62496089d98ed2e))
+
 ## [5.5.0](https://github.com/mykso/myks/compare/v5.4.0...v5.5.0) (2025-12-29)
 
 
