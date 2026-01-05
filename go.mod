@@ -116,6 +116,6 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-replace carvel.dev/ytt => github.com/mykso/ytt v0.47.2-0.20251108003353-8ee99b80ea85
+replace carvel.dev/ytt => github.com/mykso/ytt v0.47.2-0.20260105153600-1969ec470891
 
 replace go.starlark.net => github.com/mykso/starlark-go v0.0.0-20251108002638-42ea92477ee9

@@ -198,6 +198,8 @@ github.com/mykso/starlark-go v0.0.0-20251108002638-42ea92477ee9 h1:GwpFQ9hlIKSsf
 github.com/mykso/starlark-go v0.0.0-20251108002638-42ea92477ee9/go.mod h1:YKMCv9b1WrfWmeqdV5MAuEHWsu5iC+fe6kYl2sQjdI8=
 github.com/mykso/ytt v0.47.2-0.20251108003353-8ee99b80ea85 h1:vYzU6I/vFYsdvMG9DJ4xMeqZwc1if/fpsRjzKI/9jjs=
 github.com/mykso/ytt v0.47.2-0.20251108003353-8ee99b80ea85/go.mod h1:QM5MNC6KGPUQ0ZnqEtiNb/f4RAfgW+KpITLzTk7TUGQ=
+github.com/mykso/ytt v0.47.2-0.20260105153600-1969ec470891 h1:spcyWRj2MxSn5Zbg48LgugwohCByxrHx7NoPuXBSsh0=
+github.com/mykso/ytt v0.47.2-0.20260105153600-1969ec470891/go.mod h1:FgY5VYnqkWAozhLxpC4q7WSOjYZfm8Ns8neGdr5eUbQ=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
