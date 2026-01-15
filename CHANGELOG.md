@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.6.0](https://github.com/mykso/myks/compare/v5.5.1...v5.6.0) (2026-01-15)
+
+
+### Features
+
+* **release:** enable upx compression for linux and windows binaries ([a99609c](https://github.com/mykso/myks/commit/a99609ce00567e4c4a4eb6fb8d5fe2510e7038b5))
+
+
+### Bug Fixes
+
+* **smart-mode:** include scoped 'lib' directory in smart mode detection ([#708](https://github.com/mykso/myks/issues/708)) ([2ec4697](https://github.com/mykso/myks/commit/2ec4697c716568bdd043eb8c75efc95ec8f87436))
+
 ## [5.5.1](https://github.com/mykso/myks/compare/v5.5.0...v5.5.1) (2025-12-30)
 
 
