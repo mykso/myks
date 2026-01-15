@@ -5,6 +5,10 @@
     "config:best-practices",
     "helpers:pinGitHubActionDigestsToSemver",
   ],
+  postUpdateOptions: [
+    "gomodTidy",
+    "goModUpdateImportPaths",
+  ],
   packageRules: [
     // Enable automerging for non-major updates to all dependencies
     {
