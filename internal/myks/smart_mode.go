@@ -77,6 +77,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		g.VendirStepDirName,
 		g.YttPkgStepDirName,
 		g.YttStepDirName,
+		"lib",
 	}
 	pluginsPattern := "(?:" + strings.Join(plugins, "|") + ")"
 
