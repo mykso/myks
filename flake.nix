@@ -26,7 +26,7 @@
         packages.myks = package;
         packages.nix-update = pkgs.nix-update;
 
-        devShells.default = import ./nix/shell.nix { inherit pkgs package; };
+        devShells.default = import ./nix/shell.nix { inherit pkgs; };
       }
     );
 }
