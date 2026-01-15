@@ -375,6 +375,27 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				"envs/env1": {"app2", "app22"},
 			},
 		},
+		{
+			"changes in application-specific lib directory",
+			ChangedFiles{
+				"envs/env1/_apps/app1/lib/some-lib-file.yaml": "M",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app1"},
+			},
+		},
+		{
+			"changes in prototype-specific lib directory",
+			ChangedFiles{
+				"prototypes/app2/lib/some-lib-file.yaml": "M",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app2", "app22"},
+				"envs/env2": {"app2"},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
