@@ -196,8 +196,8 @@ github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9G
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
 github.com/mykso/starlark-go v0.0.0-20251108002638-42ea92477ee9 h1:GwpFQ9hlIKSsfoMp23l9eNRNY7k1VO97M/fOAt8aGR4=
 github.com/mykso/starlark-go v0.0.0-20251108002638-42ea92477ee9/go.mod h1:YKMCv9b1WrfWmeqdV5MAuEHWsu5iC+fe6kYl2sQjdI8=
-github.com/mykso/ytt v0.47.2-0.20260105153600-1969ec470891 h1:spcyWRj2MxSn5Zbg48LgugwohCByxrHx7NoPuXBSsh0=
-github.com/mykso/ytt v0.47.2-0.20260105153600-1969ec470891/go.mod h1:FgY5VYnqkWAozhLxpC4q7WSOjYZfm8Ns8neGdr5eUbQ=
+github.com/mykso/ytt v0.47.2-0.20260114220430-7a160a700b3a h1:97/nfCloPbup3xVqYjOPml0KQ2fH+Iml+QwoxDY3rY0=
+github.com/mykso/ytt v0.47.2-0.20260114220430-7a160a700b3a/go.mod h1:FgY5VYnqkWAozhLxpC4q7WSOjYZfm8Ns8neGdr5eUbQ=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/nxadm/tail v1.4.8 h1:nPr65rt6Y5JFSKQO7qToXr7pePgD6Gwiw05lkbyAQTE=
 github.com/nxadm/tail v1.4.8/go.mod h1:+ncqLTQzXmGhMZNUePPaPqPvBxHAIsmXswZKocGu+AU=
