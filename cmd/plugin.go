@@ -35,8 +35,12 @@ func addPlugins(cmd *cobra.Command) {
 
 	uniquePlugins := make(map[string]myks.Plugin)
 	for _, plugin := range plugins {
-		if _, exists := uniquePlugins[plugin.Name()]; exists {
-			log.Warn().Str("plugin", plugin.Name()).Msg("Duplicate plugin name detected")
+		if existing, exists := uniquePlugins[plugin.Name()]; exists {
+			log.Warn().
+				Str("plugin", plugin.Name()).
+				Interface("kept_plugin", existing).
+				Interface("skipped_plugin", plugin).
+				Msg("Duplicate plugin name detected; skipping plugin with duplicate name")
 			continue
 		}
 		uniquePlugins[plugin.Name()] = plugin
