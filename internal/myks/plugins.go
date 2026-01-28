@@ -17,10 +17,16 @@ type Plugin interface {
 	Name() string
 }
 
+type PluginCmd struct {
+	name string
+	cmd  string
+}
+
+// Ensure PluginCmd implements the Plugin interface
 var _ Plugin = &PluginCmd{}
 
-func NewPluginFromCmd(cmd, binaryPrefix string) Plugin {
-	name := strings.TrimPrefix(filepath.Base(cmd), binaryPrefix)
+func NewPluginFromCmd(cmd, filePrefix string) Plugin {
+	name := strings.TrimPrefix(filepath.Base(cmd), filePrefix)
 	name = strings.TrimSuffix(name, filepath.Ext(name))
 	return &PluginCmd{
 		name: name,
@@ -30,7 +36,7 @@ func NewPluginFromCmd(cmd, binaryPrefix string) Plugin {
 
 // FindPluginsInPaths searches for plugins in the specified paths.
 // It returns a slice of Plugin objects representing the found plugins.
-func FindPluginsInPaths(paths []string, binaryPrefix string) []Plugin {
+func FindPluginsInPaths(paths []string, filePrefix string) []Plugin {
 	var plugins []Plugin
 	if len(paths) == 0 {
 		return plugins
@@ -48,7 +54,7 @@ func FindPluginsInPaths(paths []string, binaryPrefix string) []Plugin {
 			if file.IsDir() {
 				continue
 			}
-			if !strings.HasPrefix(file.Name(), binaryPrefix) {
+			if !strings.HasPrefix(file.Name(), filePrefix) {
 				continue
 			}
 			executable := filepath.Join(path, file.Name())
@@ -58,18 +64,13 @@ func FindPluginsInPaths(paths []string, binaryPrefix string) []Plugin {
 				log.Trace().Msgf("Skipping %s because it is not executable", executable)
 				continue
 			}
-			plugins = append(plugins, NewPluginFromCmd(executable, binaryPrefix))
+			plugins = append(plugins, NewPluginFromCmd(executable, filePrefix))
 		}
 	}
 	return plugins
 }
 
 func isExecutable(fullPath string) (bool, error) {
-	info, err := os.Stat(fullPath)
-	if err != nil {
-		return false, err
-	}
-
 	if runtime.GOOS == "windows" {
 		fileExt := strings.ToLower(filepath.Ext(fullPath))
 
@@ -80,16 +81,13 @@ func isExecutable(fullPath string) (bool, error) {
 		return false, nil
 	}
 
-	if m := info.Mode(); !m.IsDir() && m&0o111 != 0 {
+	if info, err := os.Stat(fullPath); err != nil {
+		return false, err
+	} else if m := info.Mode(); !m.IsDir() && m&0o111 != 0 {
 		return true, nil
 	}
 
 	return false, nil
-}
-
-type PluginCmd struct {
-	name string
-	cmd  string
 }
 
 func (p PluginCmd) Name() string {
@@ -112,31 +110,18 @@ func (p PluginCmd) Exec(a *Application, args []string) error {
 	cmd.Stdout = &stdoutBs
 	cmd.Stderr = &stderrBs
 	cmd.Env = append(os.Environ(), mapToSlice(env)...)
-	// log env
 	log.Debug().Msg(a.Msg(step, msgRunCmd("", p.cmd, args)))
 	err = cmd.Run()
-	allOutput := stderrBs.String() + stdoutBs.String()
+	fmt.Println(stdoutBs.String())
 	if err != nil {
 		log.Error().Msg(msgRunCmd("Failed on step: "+step, p.cmd, args))
-		if allOutput != "" {
-			log.Error().Err(err).
-				// writing std error into message to avoid wrapping
-				Msg(a.Msg(step, fmt.Sprintf("Plugin execution failed:\n\n%s", allOutput)))
-		} else {
-			log.Error().Err(err).
-				// writing std error into message to avoid wrapping
-				Msg(a.Msg(step, "Plugin execution failed"))
-		}
+		log.Error().Err(err).
+			Str("stderr", stderrBs.String()).
+			Msg(a.Msg(step, "Plugin execution failed"))
 	} else {
-		if allOutput != "" {
-			log.Info().
-				// writing std out into message to avoid wrapping
-				Msg(a.Msg(step, fmt.Sprintf("Plugin execution succeeded:\n\n%s", allOutput)))
-		} else {
-			log.Info().
-				// writing std out into message to avoid wrapping
-				Msg(a.Msg(step, "Plugin execution succeeded."))
-		}
+		log.Info().
+			Str("stderr", stderrBs.String()).
+			Msg(a.Msg(step, "Plugin execution succeeded"))
 	}
 	return err
 }
@@ -151,9 +136,8 @@ func (p PluginCmd) generateEnv(a *Application) (map[string]string, error) {
 	}
 
 	result, err := a.ytt(p.Name(), "get data values", a.yttDataFiles, "--data-values-inspect")
-	if err != nil {
-		return env, err
+	if err == nil {
+		env["MYKS_DATA_VALUES"] = result.Stdout
 	}
-	env["MYKS_DATA_VALUES"] = result.Stdout
-	return env, nil
+	return env, err
 }
