@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.7.0](https://github.com/mykso/myks/compare/v5.6.0...v5.7.0) (2026-01-28)
+
+
+### Features
+
+* improve output and error handling for external plugins ([#716](https://github.com/mykso/myks/issues/716)) ([79c1655](https://github.com/mykso/myks/commit/79c16550d823cd8d8ed66ab186d461c6f685b145))
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#710](https://github.com/mykso/myks/issues/710)) ([ac2ffa7](https://github.com/mykso/myks/commit/ac2ffa738262c5b2f36549f8f52984b15f14c1a6))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.23.0 ([#714](https://github.com/mykso/myks/issues/714)) ([1da2aca](https://github.com/mykso/myks/commit/1da2acad7a608bced46c7c81e34248b43fc92edc))
+
 ## [5.6.0](https://github.com/mykso/myks/compare/v5.5.1...v5.6.0) (2026-01-15)
 
 
