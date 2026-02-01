@@ -114,9 +114,9 @@ func (e *Environment) Render(asyncLevel int) error {
 	return e.Cleanup()
 }
 
-func (e *Environment) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
+func (e *Environment) ExecPlugin(asyncLevel int, p Plugin, args []string, bufferOutput bool) error {
 	return process(asyncLevel, slices.Values(e.Applications), func(app *Application) error {
-		return p.Exec(app, args)
+		return p.Exec(app, args, bufferOutput)
 	})
 }
 

@@ -13,7 +13,7 @@ import (
 )
 
 type Plugin interface {
-	Exec(a *Application, args []string) error
+	Exec(a *Application, args []string, bufferOutput bool) error
 	Name() string
 }
 
@@ -94,7 +94,7 @@ func (p PluginCmd) Name() string {
 	return p.name
 }
 
-func (p PluginCmd) Exec(a *Application, args []string) error {
+func (p PluginCmd) Exec(a *Application, args []string, bufferOutput bool) error {
 	step := p.Name()
 	log.Trace().Msg(a.Msg(step, "execution started"))
 
@@ -105,23 +105,37 @@ func (p PluginCmd) Exec(a *Application, args []string) error {
 	}
 
 	cmd := exec.Command(p.cmd, args...) // #nosec G204 -- this is a user-provided command
-
-	var stdoutBs, stderrBs bytes.Buffer
-	cmd.Stdout = &stdoutBs
-	cmd.Stderr = &stderrBs
 	cmd.Env = append(os.Environ(), mapToSlice(env)...)
 	log.Debug().Msg(a.Msg(step, msgRunCmd("", p.cmd, args)))
-	err = cmd.Run()
-	fmt.Println(stdoutBs.String())
-	if err != nil {
-		log.Error().Msg(msgRunCmd("Failed on step: "+step, p.cmd, args))
-		log.Error().Err(err).
-			Str("stderr", stderrBs.String()).
-			Msg(a.Msg(step, "Plugin execution failed"))
+
+	if bufferOutput {
+		// Buffered mode: capture output and print after completion
+		var stdoutBs, stderrBs bytes.Buffer
+		cmd.Stdout = &stdoutBs
+		cmd.Stderr = &stderrBs
+		err = cmd.Run()
+		fmt.Println(stdoutBs.String())
+		if err != nil {
+			log.Error().Err(err).Msg(msgRunCmd("External plugin failed: "+step, p.cmd, args))
+			if stderrBs.Len() > 0 {
+				log.Error().Msg(stderrBs.String())
+			}
+		} else {
+			log.Info().Msg(msgRunCmd("External plugin succeeded: "+step, p.cmd, args))
+			if stderrBs.Len() > 0 {
+				log.Info().Msg(stderrBs.String())
+			}
+		}
 	} else {
-		log.Info().
-			Str("stderr", stderrBs.String()).
-			Msg(a.Msg(step, "Plugin execution succeeded"))
+		// Streaming mode: output in real-time
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		err = cmd.Run()
+		if err != nil {
+			log.Error().Err(err).Msg(msgRunCmd("External plugin failed: "+step, p.cmd, args))
+		} else {
+			log.Info().Msg(msgRunCmd("External plugin succeeded: "+step, p.cmd, args))
+		}
 	}
 	return err
 }

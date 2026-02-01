@@ -100,6 +100,9 @@ LEARN MORE
 	smartModeOnlyPrintHelp := "only print the list of environments and applications that would be rendered in Smart Mode"
 	rootCmd.PersistentFlags().Bool("smart-mode.only-print", false, smartModeOnlyPrintHelp)
 
+	bufferPluginOutputHelp := "buffer plugin output instead of streaming (useful for parallel execution)"
+	rootCmd.PersistentFlags().Bool("buffer-plugin-output", false, bufferPluginOutputHelp)
+
 	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
 	}

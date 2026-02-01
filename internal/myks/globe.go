@@ -250,9 +250,9 @@ func (g *Globe) SyncAndRender(asyncLevel int) error {
 }
 
 // ExecPlugin executes a plugin in the context of the globe
-func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string) error {
+func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string, bufferOutput bool) error {
 	return process(asyncLevel, maps.Values(g.environments), func(env *Environment) error {
-		return env.ExecPlugin(asyncLevel, p, args)
+		return env.ExecPlugin(asyncLevel, p, args, bufferOutput)
 	})
 }
 
