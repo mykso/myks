@@ -87,7 +87,8 @@ func newPluginCmd(plugin myks.Plugin) *cobra.Command {
 				return err
 			}
 
-			if err := g.ExecPlugin(asyncLevel, plugin, pluginArgs); err != nil {
+			bufferOutput := viper.GetBool("buffer-plugin-output")
+			if err := g.ExecPlugin(asyncLevel, plugin, pluginArgs, bufferOutput); err != nil {
 				log.Fatal().Err(err).Msg("Plugin did not run successfully")
 				return err
 			}
