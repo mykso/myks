@@ -1,5 +1,18 @@
 # Changelog
 
+## [5.8.0](https://github.com/mykso/myks/compare/v5.7.0...v5.8.0) (2026-02-02)
+
+
+### Features
+
+* add buffer option for plugin output handling ([#720](https://github.com/mykso/myks/issues/720)) ([3ec3442](https://github.com/mykso/myks/commit/3ec34422cca7d4f51a249ebf793723146599499c))
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.23.1 ([#719](https://github.com/mykso/myks/issues/719)) ([5012c04](https://github.com/mykso/myks/commit/5012c04adf5a0dcd3ea40dbbe7efafc2cbdeb9d1))
+* speed up shell completions for environments and applications ([#722](https://github.com/mykso/myks/issues/722)) ([3107b6d](https://github.com/mykso/myks/commit/3107b6d2de484c4af2fda421aea8eb80ca7af9bb))
+
 ## [5.7.0](https://github.com/mykso/myks/compare/v5.6.0...v5.7.0) (2026-01-28)
 
 
