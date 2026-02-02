@@ -547,3 +547,145 @@ func (g *Globe) getEnvByID(envID string) (*Environment, error) {
 	}
 	return nil, fmt.Errorf("environment with ID %s not found", envID)
 }
+
+// GetApplicationsForEnvPath returns application names for an environment path by running ytt data-values-inspect.
+// This is a lighter-weight operation than full environment initialization, intended for shell completion.
+func (g *Globe) GetApplicationsForEnvPath(envPath string) ([]string, error) {
+	// Collect env-data files from the path hierarchy
+	envDataFiles := collectBySubpath(g.RootDir, envPath, g.EnvironmentDataFileName)
+	if len(envDataFiles) == 0 {
+		return nil, fmt.Errorf("no environment data files found for path: %s", envPath)
+	}
+
+	// Build ytt args
+	args := []string{"--data-values-inspect"}
+
+	// Run ytt with extra paths (data schema, config, lib)
+	paths := concatenate(g.extraYttPaths, envDataFiles)
+	res, err := runYttWithFilesAndStdin(paths, nil, func(name string, err error, stderr string, args []string) {
+		if err != nil {
+			log.Debug().Str("stderr", stderr).Msg("ytt data-values-inspect failed")
+		}
+	}, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run ytt: %w", err)
+	}
+
+	// Parse the YAML output to get applications
+	var envDataStruct struct {
+		Environment struct {
+			Applications []struct {
+				Name  string `yaml:"name"`
+				Proto string `yaml:"proto"`
+			} `yaml:"applications"`
+		} `yaml:"environment"`
+	}
+	if err := yaml.Unmarshal([]byte(res.Stdout), &envDataStruct); err != nil {
+		return nil, fmt.Errorf("failed to parse ytt output: %w", err)
+	}
+
+	var appNames []string
+	for _, app := range envDataStruct.Environment.Applications {
+		name := app.Name
+		if name == "" {
+			name = app.Proto
+		}
+		if name != "" {
+			appNames = append(appNames, name)
+		}
+	}
+
+	return appNames, nil
+}
+
+// IsRenderedEnvID checks if the given identifier is a rendered environment ID (exists in rendered/envs/).
+func (g *Globe) IsRenderedEnvID(envID string) bool {
+	renderedEnvDir := filepath.Join(g.RootDir, g.RenderedEnvsDir, envID)
+	info, err := os.Stat(renderedEnvDir)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
+}
+
+// ResolveEnvIDToPath finds the environment path for a given environment ID by scanning env-data files.
+// Returns the relative path (without the base dir prefix) if found, or empty string if not found.
+func (g *Globe) ResolveEnvIDToPath(envID string) string {
+	baseDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
+
+	var foundPath string
+	_ = filepath.WalkDir(baseDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			log.Debug().
+				Err(err).
+				Str("baseDir", baseDir).
+				Str("path", path).
+				Msg("ignoring error while walking environment directories")
+			return nil // Continue walking on errors
+		}
+		if d == nil || !d.IsDir() {
+			return nil
+		}
+
+		// Skip directories prefixed with underscore
+		if strings.HasPrefix(d.Name(), "_") {
+			return fs.SkipDir
+		}
+
+		// Check for env-data files
+		files, err := filepath.Glob(filepath.Join(path, g.EnvironmentDataFileName))
+		if err != nil || len(files) == 0 {
+			return nil
+		}
+
+		// Try to read the environment ID from any of the env-data files
+		for _, file := range files {
+			id := g.readEnvIDFromFile(file)
+			if id == envID {
+				// Found it! Get the relative path
+				relPath, err := filepath.Rel(baseDir, path)
+				if err == nil {
+					foundPath = relPath
+					return fs.SkipAll // Stop walking
+				}
+			}
+		}
+		return nil
+	})
+
+	return foundPath
+}
+
+// readEnvIDFromFile reads the environment.id field from an env-data file.
+func (g *Globe) readEnvIDFromFile(filePath string) string {
+	yamlBytes, err := os.ReadFile(filePath)
+	if err != nil {
+		return ""
+	}
+
+	var envData struct {
+		Environment struct {
+			ID string `yaml:"id"`
+		} `yaml:"environment"`
+	}
+	if err := yaml.Unmarshal(yamlBytes, &envData); err != nil {
+		return ""
+	}
+
+	return envData.Environment.ID
+}
+
+// ResolveEnvIdentifier resolves an environment identifier (ID or path) to a path.
+// If it's an environment ID, it resolves to the corresponding path.
+// If it's already a path, it returns it as-is.
+func (g *Globe) ResolveEnvIdentifier(identifier string) string {
+	// First check if it's a rendered environment ID
+	if g.IsRenderedEnvID(identifier) {
+		// Try to resolve the ID to a path
+		if path := g.ResolveEnvIDToPath(identifier); path != "" {
+			return path
+		}
+	}
+	// Return as-is (assume it's already a path)
+	return identifier
+}

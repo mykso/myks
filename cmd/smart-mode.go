@@ -21,7 +21,7 @@ const (
 
 func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 	// Check positional arguments for Smart Mode:
-	// 1. Comma-separated list of environment search paths or ALL to search everywhere (default: ALL)
+	// 1. Comma-separated list of environment search paths/IDs or ALL to search everywhere (default: ALL)
 	// 2. Comma-separated list of application names or none to process all applications (default: none)
 
 	switch len(args) {
@@ -36,9 +36,12 @@ func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 		}
 	case 1:
 		if args[0] != "ALL" {
+			g := getGlobe()
 			envAppMap = make(myks.EnvAppMap)
 			for env := range strings.SplitSeq(args[0], ",") {
-				envAppMap[env] = nil
+				// Resolve environment ID to path if needed
+				resolvedEnv := g.ResolveEnvIdentifier(env)
+				envAppMap[resolvedEnv] = nil
 			}
 		}
 	case 2:
@@ -49,8 +52,11 @@ func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 
 		envAppMap = make(myks.EnvAppMap)
 		if args[0] != "ALL" {
+			g := getGlobe()
 			for env := range strings.SplitSeq(args[0], ",") {
-				envAppMap[env] = appNames
+				// Resolve environment ID to path if needed
+				resolvedEnv := g.ResolveEnvIdentifier(env)
+				envAppMap[resolvedEnv] = appNames
 			}
 		} else {
 			g := getGlobe()
