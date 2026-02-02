@@ -105,7 +105,7 @@ func getAppCompletions(g *myks.Globe, envsArg string) []string {
 		var apps []string
 
 		// Check if it's a rendered environment ID first (fast path)
-		if isRenderedEnvID(g, env) {
+		if g.IsRenderedEnvID(env) {
 			apps = listRenderedAppsForEnvID(g, env)
 		} else {
 			// Fall back to ytt data-values for environment paths
@@ -186,7 +186,6 @@ func listEnvDirs(g *myks.Globe) []string {
 		envDirs = append(envDirs, relPath)
 		return nil
 	})
-
 	if err != nil {
 		log.Debug().Err(err).Msg("Unable to list environment directories")
 		return nil
@@ -216,16 +215,6 @@ func listRenderedEnvIDs(g *myks.Globe) []string {
 	}
 
 	return envIDs
-}
-
-// isRenderedEnvID checks if the given string is an environment ID (exists in rendered/envs/).
-func isRenderedEnvID(g *myks.Globe, envID string) bool {
-	renderedEnvDir := filepath.Join(g.RootDir, g.RenderedEnvsDir, envID)
-	info, err := os.Stat(renderedEnvDir)
-	if err != nil {
-		return false
-	}
-	return info.IsDir()
 }
 
 // listRenderedAppsForEnvID lists app directories under rendered/envs/<id>/.
