@@ -616,6 +616,11 @@ func (g *Globe) ResolveEnvIDToPath(envID string) string {
 	var foundPath string
 	_ = filepath.WalkDir(baseDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			log.Debug().
+				Err(err).
+				Str("baseDir", baseDir).
+				Str("path", path).
+				Msg("ignoring error while walking environment directories")
 			return nil // Continue walking on errors
 		}
 		if d == nil || !d.IsDir() {
