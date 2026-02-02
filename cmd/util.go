@@ -124,24 +124,6 @@ func getAppCompletions(g *myks.Globe, envsArg string) []string {
 	return completions
 }
 
-// getEnvNames returns environment names from initialized globe (legacy function for non-completion use)
-func getEnvNames(globe *myks.Globe) []string {
-	var envNames []string
-	for _, env := range globe.GetEnvs() {
-		envNames = append(envNames, strings.TrimPrefix(env.Dir, globe.EnvironmentBaseDir+string(filepath.Separator)))
-	}
-	return envNames
-}
-
-// getAppNamesForEnv returns application names for an environment from initialized globe (legacy function)
-func getAppNamesForEnv(globe *myks.Globe, envPath string) []string {
-	env, ok := globe.GetEnvs()[globe.AddBaseDirToEnvPath(envPath)]
-	if ok {
-		return env.GetApplicationNames()
-	}
-	return []string{}
-}
-
 // readFlagBool reads a boolean flag from a cobra command and returns the value and whether the flag was set
 func readFlagBool(cmd *cobra.Command, name string) (bool, bool) {
 	flag, err := cmd.Flags().GetBool(name)
