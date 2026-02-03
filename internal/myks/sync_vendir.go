@@ -10,8 +10,10 @@ import (
 	"strings"
 	"sync"
 
+	vendirconf "carvel.dev/vendir/pkg/vendir/config"
 	"github.com/rs/zerolog/log"
-	yaml "gopkg.in/yaml.v3"
+	goyaml "gopkg.in/yaml.v3"
+	"sigs.k8s.io/yaml"
 )
 
 const (
@@ -93,6 +95,10 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 
 	if vendirConfig.Stdout == "" {
 		return errors.New("rendered empty vendir config")
+	}
+
+	if err := validateVendirConfig(vendirConfig.Stdout); err != nil {
+		return fmt.Errorf("invalid vendir config: %w", err)
 	}
 
 	vendirConfigFilePath := a.expandServicePath(a.e.g.VendirConfigFileName)
@@ -178,27 +184,33 @@ func (v *VendirSyncer) getStepName() string {
 }
 
 func (v *VendirSyncer) extractCacheItems(a *Application) error {
-	vendirConfig, err := unmarshalYamlToMap(a.expandServicePath(a.e.g.VendirConfigFileName))
+	configPath := a.expandServicePath(a.e.g.VendirConfigFileName)
+	configBytes, err := os.ReadFile(configPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to read vendir config: %w", err)
+	}
+
+	// Unmarshal directly without validation (NewConfigFromBytes validates which
+	// may reject certain valid-for-our-use configs like those with "." paths)
+	var vendirConfig vendirconf.Config
+	if err := yaml.Unmarshal(configBytes, &vendirConfig); err != nil {
+		return fmt.Errorf("failed to parse vendir config: %w", err)
 	}
 
 	vendorDirToCacheMap := map[string]string{}
 
-	for _, dir := range vendirConfig["directories"].([]any) {
-		dirMap := dir.(map[string]any)
-		contents := dirMap["contents"].([]any)
-
-		for _, content := range contents {
-			vendorDirPath := filepath.Join(dirMap["path"].(string), content.(map[string]any)["path"].(string))
-			contentMap := content.(map[string]any)
-			cacheName, err := genCacheName(contentMap)
+	for _, dir := range vendirConfig.Directories {
+		for i := range dir.Contents {
+			content := &dir.Contents[i]
+			vendorDirPath := filepath.Join(dir.Path, content.Path)
+			cacheName, err := genCacheName(*content)
 			if err != nil {
 				return err
 			}
 			vendorDirToCacheMap[vendorDirPath] = cacheName
 			cacheDir := a.expandVendirCache(cacheName)
-			if err = v.saveCacheVendirConfig(a, cacheName, buildCacheVendirConfig(cacheDir, vendirConfig, dirMap, contentMap)); err != nil {
+			cacheConfig := buildCacheVendirConfig(cacheDir, vendirConfig, dir, content)
+			if err = v.saveCacheVendirConfig(a, cacheName, cacheConfig); err != nil {
 				return err
 			}
 		}
@@ -211,8 +223,8 @@ func (a *Application) getCacheVendirConfigPath(cacheName string) string {
 	return path.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
 }
 
-func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, vendirConfig map[string]any) error {
-	data, err := yaml.Marshal(vendirConfig)
+func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, vendirConfig vendirconf.Config) error {
+	data, err := vendirConfig.AsBytes()
 	if err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
 		return err
@@ -227,24 +239,90 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 	return nil
 }
 
-func buildCacheVendirConfig(cacheDir string, vendirConfig, vendirDirConfig, vendirContentConfig map[string]any) map[string]any {
-	knownKeys := []string{"apiVersion", "kind", "minimumRequiredVersion"}
-	newVendirConfig := map[string]any{}
-	for _, key := range knownKeys {
-		if val, ok := vendirConfig[key]; ok {
-			newVendirConfig[key] = val
+func buildCacheVendirConfig(cacheDir string, vendirConfig vendirconf.Config, vendirDir vendirconf.Directory, vendirContent *vendirconf.DirectoryContents) vendirconf.Config {
+	// Create a copy of the content with path set to "."
+	contentCopy := *vendirContent
+	contentCopy.Path = "."
+
+	// Ensure required fields have default values
+	apiVersion := vendirConfig.APIVersion
+	if apiVersion == "" {
+		apiVersion = vendirAPIVersion
+	}
+	kind := vendirConfig.Kind
+	if kind == "" {
+		kind = "Config"
+	}
+
+	newConfig := vendirconf.Config{
+		APIVersion:             apiVersion,
+		Kind:                   kind,
+		MinimumRequiredVersion: vendirConfig.MinimumRequiredVersion,
+		Directories: []vendirconf.Directory{
+			{
+				Path:        filepath.Join(cacheDir, VendirCacheDataDirName),
+				Permissions: vendirDir.Permissions,
+				Contents:    []vendirconf.DirectoryContents{contentCopy},
+			},
+		},
+	}
+	return newConfig
+}
+
+const vendirAPIVersion = "vendir.k14s.io/v1alpha1"
+
+// validateVendirConfig validates the rendered vendir configuration YAML.
+// It checks for:
+// - Single YAML document (no multiple documents separated by ---)
+// - Required apiVersion field with correct value
+// - Required kind field with correct value
+// - At least one directory defined
+// - Each directory has a path and at least one content entry
+func validateVendirConfig(configYaml string) error {
+	// Check for multiple YAML documents
+	// A document separator is "\n---" which indicates the start of a new document after content
+	// We don't allow any document separators (only one document allowed)
+	if strings.Contains(configYaml, "\n---") {
+		return errors.New("vendir config contains multiple YAML documents, expected exactly 1")
+	}
+
+	// Parse and validate structure
+	var config vendirconf.Config
+	if err := yaml.Unmarshal([]byte(configYaml), &config); err != nil {
+		return fmt.Errorf("failed to parse vendir config: %w", err)
+	}
+
+	// Validate apiVersion
+	if config.APIVersion == "" {
+		return errors.New("vendir config missing required field: apiVersion")
+	}
+	if config.APIVersion != vendirAPIVersion {
+		return fmt.Errorf("vendir config has invalid apiVersion: %q, expected %q", config.APIVersion, vendirAPIVersion)
+	}
+
+	// Validate kind
+	if config.Kind == "" {
+		return errors.New("vendir config missing required field: kind")
+	}
+	if config.Kind != "Config" {
+		return fmt.Errorf("vendir config has invalid kind: %q, expected %q", config.Kind, "Config")
+	}
+
+	// Validate directories
+	if len(config.Directories) == 0 {
+		return errors.New("vendir config has no directories defined")
+	}
+
+	for i, dir := range config.Directories {
+		if dir.Path == "" {
+			return fmt.Errorf("vendir config directory[%d] missing required field: path", i)
+		}
+		if len(dir.Contents) == 0 {
+			return fmt.Errorf("vendir config directory[%d] (%s) has no contents defined", i, dir.Path)
 		}
 	}
 
-	newDirConfig := map[string]any{}
-	newDirConfig["path"] = filepath.Join(cacheDir, VendirCacheDataDirName)
-	newDirConfig["permissions"] = vendirDirConfig["permissions"]
-
-	vendirContentConfig["path"] = "."
-
-	newDirConfig["contents"] = []any{vendirContentConfig}
-	newVendirConfig["directories"] = []any{newDirConfig}
-	return newVendirConfig
+	return nil
 }
 
 func (a *Application) getLinksMap() (map[string]string, error) {
@@ -265,7 +343,7 @@ func (a *Application) getLinksMapPath() string {
 
 func (v *VendirSyncer) saveLinksMap(a *Application, linksMap map[string]string) error {
 	linksMapPath := a.getLinksMapPath()
-	data, err := yaml.Marshal(linksMap)
+	data, err := goyaml.Marshal(linksMap)
 	if err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal links map"))
 		return err
