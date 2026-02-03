@@ -403,23 +403,38 @@ func (g *Globe) CleanupObsoleteCacheEntries(dryRun bool) error {
 	return nil
 }
 
-// dumpConfigAsYaml dumps the globe config as yaml to a file and returns the file name
-func (g *Globe) dumpConfigAsYaml() (string, error) {
+// buildYttGlobeData creates the YttGlobeData struct from Globe's git configuration
+func (g *Globe) buildYttGlobeData() *YttGlobeData {
+	return &YttGlobeData{
+		GitRepoBranch: g.GitRepoBranch,
+		GitRepoURL:    g.GitRepoURL,
+	}
+}
+
+// encodeConfigAsYtt encodes the YttGlobeData as a ytt data values schema YAML string
+func encodeConfigAsYtt(data *YttGlobeData) (string, error) {
 	configData := struct {
 		Myks *YttGlobeData `yaml:"myks"`
 	}{
-		Myks: &YttGlobeData{
-			GitRepoBranch: g.GitRepoBranch,
-			GitRepoURL:    g.GitRepoURL,
-		},
+		Myks: data,
 	}
+
 	var yamlData bytes.Buffer
 	enc := yaml.NewEncoder(&yamlData)
 	enc.SetIndent(2)
 	if err := enc.Encode(configData); err != nil {
 		return "", err
 	}
-	yttData := fmt.Sprintf("#@data/values-schema\n---\n%s", yamlData.String())
+
+	return fmt.Sprintf("#@data/values-schema\n---\n%s", yamlData.String()), nil
+}
+
+// dumpConfigAsYaml dumps the globe config as yaml to a file and returns the file name
+func (g *Globe) dumpConfigAsYaml() (string, error) {
+	yttData, err := encodeConfigAsYtt(g.buildYttGlobeData())
+	if err != nil {
+		return "", err
+	}
 
 	configFileName := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.MyksDataFileName)
 	if err := os.MkdirAll(filepath.Dir(configFileName), 0o750); err != nil {
