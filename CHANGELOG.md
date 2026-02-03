@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.8.1](https://github.com/mykso/myks/compare/v5.8.0...v5.8.1) (2026-02-03)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#725](https://github.com/mykso/myks/issues/725)) ([fd93406](https://github.com/mykso/myks/commit/fd9340645fb25a256bab0b0631c18ef5ee8d3f1a))
+* validate rendered vendir config ([#726](https://github.com/mykso/myks/issues/726)) ([f0158c1](https://github.com/mykso/myks/commit/f0158c1c779f517f5a948b49f1a9321437b97105))
+
 ## [5.8.0](https://github.com/mykso/myks/compare/v5.7.0...v5.8.0) (2026-02-02)
 
 
