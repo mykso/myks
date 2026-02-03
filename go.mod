@@ -5,7 +5,7 @@ go 1.24.9
 require (
 	carvel.dev/kbld v0.47.0
 	carvel.dev/vendir v0.45.0
-	carvel.dev/ytt v0.52.2
+	carvel.dev/ytt v0.53.0
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.8.0
@@ -20,7 +20,7 @@ require (
 	golang.org/x/sync v0.19.0
 	golang.org/x/term v0.39.0
 	gopkg.in/yaml.v3 v3.0.1
-	sigs.k8s.io/yaml v1.4.0
+	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
@@ -102,6 +102,7 @@ require (
 	github.com/vito/go-interact v1.0.1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	go.starlark.net v0.0.0-20251107151204-503034dafe4e // indirect
+	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
