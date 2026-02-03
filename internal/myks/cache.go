@@ -5,96 +5,105 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+
+	vendirconf "carvel.dev/vendir/pkg/vendir/config"
+	yaml "gopkg.in/yaml.v3"
 )
 
-func genCacheName(config map[string]any) (string, error) {
-	if val, ok := config["helmChart"]; ok {
-		return helmCacheNamer(val.(map[string]any))
+func genCacheName(content vendirconf.DirectoryContents) (string, error) {
+	if content.HelmChart != nil {
+		return helmCacheNamer(content)
 	}
 
-	if val, ok := config["directory"]; ok {
-		return directoryCacheNamer(val.(map[string]any))
+	if content.Directory != nil {
+		return directoryCacheNamer(content)
 	}
 
-	if val, ok := config["git"]; ok {
-		return gitCacheNamer(val.(map[string]any))
+	if content.Git != nil {
+		return gitCacheNamer(content)
 	}
 
-	return defaultCacheNamer(config)
+	return defaultCacheNamer(content)
 }
 
-func defaultCacheNamer(config map[string]any) (string, error) {
-	yaml, err := mapToStableString(config)
+func contentToStableYAML(content vendirconf.DirectoryContents) (string, error) {
+	data, err := yaml.Marshal(content)
 	if err != nil {
 		return "", err
 	}
-	hash, err := hashString(yaml)
+	return string(data), nil
+}
+
+func defaultCacheNamer(content vendirconf.DirectoryContents) (string, error) {
+	yamlStr, err := contentToStableYAML(content)
+	if err != nil {
+		return "", err
+	}
+	hash, err := hashString(yamlStr)
 	if err != nil {
 		return "", err
 	}
 	return fmt.Sprintf("unknown-%s", hash), nil
 }
 
-func helmCacheNamer(config map[string]any) (string, error) {
-	yaml, err := mapToStableString(config)
+func helmCacheNamer(content vendirconf.DirectoryContents) (string, error) {
+	yamlStr, err := contentToStableYAML(content)
 	if err != nil {
 		return "", err
 	}
-	if config["name"] == nil {
+	chart := content.HelmChart
+	if chart.Name == "" {
 		return "", fmt.Errorf("expected name in vendir config for helm chart, but did not find it")
 	}
-	if config["version"] == nil {
+	if chart.Version == "" {
 		return "", fmt.Errorf("expected version in vendir config for helm chart, but did not find it")
 	}
-	chartName := config["name"].(string)
-	version := config["version"].(string)
-	hash, err := hashString(yaml)
+	hash, err := hashString(yamlStr)
 	if err != nil {
 		return "", err
 	}
-	return fmt.Sprintf("%s-%s-%s-%s", "helm", chartName, version, hash), nil
+	return fmt.Sprintf("%s-%s-%s-%s", "helm", chart.Name, chart.Version, hash), nil
 }
 
-func gitCacheNamer(config map[string]any) (string, error) {
-	yaml, err := mapToStableString(config)
+func gitCacheNamer(content vendirconf.DirectoryContents) (string, error) {
+	yamlStr, err := contentToStableYAML(content)
 	if err != nil {
 		return "", err
 	}
-	if config["url"] == nil {
+	git := content.Git
+	if git.URL == "" {
 		return "", fmt.Errorf("expected url in vendir config for git, but did not find it")
 	}
-	if config["ref"] == nil {
+	if git.Ref == "" {
 		return "", fmt.Errorf("expected ref in vendir config for git, but did not find it")
 	}
-	repoURL := config["url"].(string)
-	ref := config["ref"].(string)
-	dir, err := urlSlug(repoURL)
+	dir, err := urlSlug(git.URL)
 	if err != nil {
 		return "", err
 	}
-	hash, err := hashString(yaml)
+	hash, err := hashString(yamlStr)
 	if err != nil {
 		return "", err
 	}
 
-	return fmt.Sprintf("%s-%s-%s-%s", "git", dir, refSlug(ref), hash), nil
+	return fmt.Sprintf("%s-%s-%s-%s", "git", dir, refSlug(git.Ref), hash), nil
 }
 
-func directoryCacheNamer(config map[string]any) (string, error) {
-	yaml, err := mapToStableString(config)
+func directoryCacheNamer(content vendirconf.DirectoryContents) (string, error) {
+	yamlStr, err := contentToStableYAML(content)
 	if err != nil {
 		return "", err
 	}
-	if config["path"] == nil {
+	dir := content.Directory
+	if dir.Path == "" {
 		return "", fmt.Errorf("expected path in vendir config for local directory, but did not find it")
 	}
-	path := config["path"].(string)
-	hash, err := hashString(yaml)
+	hash, err := hashString(yamlStr)
 	if err != nil {
 		return "", err
 	}
 
-	return fmt.Sprintf("%s-%s", directorySlug(path), hash), nil
+	return fmt.Sprintf("%s-%s", directorySlug(dir.Path), hash), nil
 }
 
 func directorySlug(dirPath string) string {

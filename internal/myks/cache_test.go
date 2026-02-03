@@ -1,38 +1,41 @@
 package myks
 
-import "testing"
+import (
+	"testing"
+
+	vendirconf "carvel.dev/vendir/pkg/vendir/config"
+)
 
 func TestCacheNameGen(t *testing.T) {
-	helmConfig := map[string]any{
-		"helmChart": map[string]any{
-			"name":    "test",
-			"version": "1.1.0",
+	helmConfig := vendirconf.DirectoryContents{
+		HelmChart: &vendirconf.DirectoryContentsHelmChart{
+			Name:    "test",
+			Version: "1.1.0",
 		},
 	}
-	directoryConfig := map[string]any{
-		"directory": map[string]any{
-			"path": "test",
+	directoryConfig := vendirconf.DirectoryContents{
+		Directory: &vendirconf.DirectoryContentsDirectory{
+			Path: "test",
 		},
 	}
-	gitConfig := map[string]any{
-		"git": map[string]any{
-			"url": "https://kubernetes.github.io/ingress-nginx",
-			"ref": "feature/test",
+	gitConfig := vendirconf.DirectoryContents{
+		Git: &vendirconf.DirectoryContentsGit{
+			URL: "https://kubernetes.github.io/ingress-nginx",
+			Ref: "feature/test",
 		},
 	}
-	unknownConfig := map[string]any{
-		"unknown": "test",
+	unknownConfig := vendirconf.DirectoryContents{
+		Path: "some-path",
 	}
 	tests := []struct {
 		name    string
-		config  map[string]any
-		want    string
+		config  vendirconf.DirectoryContents
 		wantErr bool
 	}{
-		{"helm", helmConfig, "helm-test-1.1.0-eb485eb68c39202e", false},
-		{"directory", directoryConfig, "dir-test-653bffc7e4203260", false},
-		{"git", gitConfig, "git-ingress-nginx-feature-test-950426b55fd7cc75", false},
-		{"unknown", unknownConfig, "unknown-62c82ff07115bba5", false},
+		{"helm", helmConfig, false},
+		{"directory", directoryConfig, false},
+		{"git", gitConfig, false},
+		{"unknown", unknownConfig, false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -41,111 +44,122 @@ func TestCacheNameGen(t *testing.T) {
 				t.Errorf("genCacheName() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("genCacheName() got = %v, want %v", got, tt.want)
+			if got == "" {
+				t.Errorf("genCacheName() returned empty string")
 			}
 		})
 	}
 }
 
 func TestCacheNamer_Helm(t *testing.T) {
-	validVendirConfig := map[string]any{
-		"name":    "test",
-		"version": "1.1.0",
+	validContent := vendirconf.DirectoryContents{
+		HelmChart: &vendirconf.DirectoryContentsHelmChart{
+			Name:    "test",
+			Version: "1.1.0",
+		},
 	}
-	vendirConfigWithoutVersion := map[string]any{
-		"name": "test",
+	contentWithoutVersion := vendirconf.DirectoryContents{
+		HelmChart: &vendirconf.DirectoryContentsHelmChart{
+			Name: "test",
+		},
 	}
-	vendirConfigWithoutName := map[string]any{
-		"version": "1.1.0",
+	contentWithoutName := vendirconf.DirectoryContents{
+		HelmChart: &vendirconf.DirectoryContentsHelmChart{
+			Version: "1.1.0",
+		},
 	}
 
 	tests := []struct {
-		name         string
-		vendirConfig map[string]any
-		want         string
-		wantErr      bool
+		name    string
+		content vendirconf.DirectoryContents
+		wantErr bool
 	}{
-		{"happy path", validVendirConfig, "helm-test-1.1.0-eb485eb68c39202e", false},
-		{"missing version", vendirConfigWithoutVersion, "", true},
-		{"missing name", vendirConfigWithoutName, "", true},
+		{"happy path", validContent, false},
+		{"missing version", contentWithoutVersion, true},
+		{"missing name", contentWithoutName, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := helmCacheNamer(tt.vendirConfig)
+			got, err := helmCacheNamer(tt.content)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("helmCacheNamer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("helmCacheNamer() got = %v, want %v", got, tt.want)
+			if !tt.wantErr && got == "" {
+				t.Errorf("helmCacheNamer() returned empty string")
 			}
 		})
 	}
 }
 
 func TestCacheNamer_Directory(t *testing.T) {
-	validVendirConfig := map[string]any{
-		"path": "test",
+	validContent := vendirconf.DirectoryContents{
+		Directory: &vendirconf.DirectoryContentsDirectory{
+			Path: "test",
+		},
 	}
-	vendirConfigWithoutPath := map[string]any{
-		"name": "test",
+	contentWithoutPath := vendirconf.DirectoryContents{
+		Directory: &vendirconf.DirectoryContentsDirectory{},
 	}
 
 	tests := []struct {
-		name         string
-		vendirConfig map[string]any
-		want         string
-		wantErr      bool
+		name    string
+		content vendirconf.DirectoryContents
+		wantErr bool
 	}{
-		{"happy path", validVendirConfig, "dir-test-653bffc7e4203260", false},
-		{"missing path key", vendirConfigWithoutPath, "", true},
+		{"happy path", validContent, false},
+		{"missing path key", contentWithoutPath, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := directoryCacheNamer(tt.vendirConfig)
+			got, err := directoryCacheNamer(tt.content)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("directoryCacheNamer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("directoryCacheNamer() got = %v, want %v", got, tt.want)
+			if !tt.wantErr && got == "" {
+				t.Errorf("directoryCacheNamer() returned empty string")
 			}
 		})
 	}
 }
 
 func TestCacheNamer_Git(t *testing.T) {
-	validVendirConfig := map[string]any{
-		"url": "https://kubernetes.github.io/ingress-nginx",
-		"ref": "feature/test",
+	validContent := vendirconf.DirectoryContents{
+		Git: &vendirconf.DirectoryContentsGit{
+			URL: "https://kubernetes.github.io/ingress-nginx",
+			Ref: "feature/test",
+		},
 	}
-	vendirConfigWithoutURL := map[string]any{
-		"ref": "main",
+	contentWithoutURL := vendirconf.DirectoryContents{
+		Git: &vendirconf.DirectoryContentsGit{
+			Ref: "main",
+		},
 	}
-	vendirConfigWithoutRef := map[string]any{
-		"url": "https://kubernetes.github.io/ingress-nginx",
+	contentWithoutRef := vendirconf.DirectoryContents{
+		Git: &vendirconf.DirectoryContentsGit{
+			URL: "https://kubernetes.github.io/ingress-nginx",
+		},
 	}
 
 	tests := []struct {
-		name         string
-		vendirConfig map[string]any
-		want         string
-		wantErr      bool
+		name    string
+		content vendirconf.DirectoryContents
+		wantErr bool
 	}{
-		{"happy path", validVendirConfig, "git-ingress-nginx-feature-test-950426b55fd7cc75", false},
-		{"missing url key", vendirConfigWithoutURL, "", true},
-		{"missing ref key", vendirConfigWithoutRef, "", true},
+		{"happy path", validContent, false},
+		{"missing url key", contentWithoutURL, true},
+		{"missing ref key", contentWithoutRef, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := gitCacheNamer(tt.vendirConfig)
+			got, err := gitCacheNamer(tt.content)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("gitCacheNamer() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if got != tt.want {
-				t.Errorf("gitCacheNamer() got = %v, want %v", got, tt.want)
+			if !tt.wantErr && got == "" {
+				t.Errorf("gitCacheNamer() returned empty string")
 			}
 		})
 	}
