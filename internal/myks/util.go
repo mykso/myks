@@ -162,18 +162,6 @@ func unmarshalYamlToMap(filePath string) (map[string]any, error) {
 	return config, nil
 }
 
-func mapToStableString(yaml map[string]any) (string, error) {
-	if yaml == nil {
-		return "", nil
-	}
-	var sorted bytes.Buffer
-	_, err := fmt.Fprint(&sorted, yaml)
-	if err != nil {
-		return "", err
-	}
-	return sorted.String(), nil
-}
-
 func sortYaml(content []byte) ([]byte, error) {
 	var obj map[string]any
 	if err := yaml.Unmarshal(content, &obj); err != nil {
