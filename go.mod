@@ -1,10 +1,10 @@
 module github.com/mykso/myks
 
-go 1.24.9
+go 1.25.6
 
 require (
-	carvel.dev/kbld v0.47.0
-	carvel.dev/vendir v0.45.0
+	carvel.dev/kbld v0.47.1
+	carvel.dev/vendir v0.45.1
 	carvel.dev/ytt v0.53.0
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
@@ -24,7 +24,7 @@ require (
 )
 
 require (
-	carvel.dev/imgpkg v0.47.0 // indirect
+	carvel.dev/imgpkg v0.47.1 // indirect
 	cloud.google.com/go/compute/metadata v0.7.0 // indirect
 	github.com/Azure/azure-sdk-for-go v55.0.0+incompatible // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect

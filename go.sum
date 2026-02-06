@@ -1,9 +1,9 @@
-carvel.dev/imgpkg v0.47.0 h1:BKXbQsb7Ko6q+d9cSxscBsL34wD1KSJJBRJVuNjDkBE=
-carvel.dev/imgpkg v0.47.0/go.mod h1:uwIEkfcTTmBEN8blBRNYxL1cl0N1gr/mztCUljAGy+k=
-carvel.dev/kbld v0.47.0 h1:HvsZwSBVUEwg8tuV3BeFOU+ABPCR2l8XMdt3VuxROT0=
-carvel.dev/kbld v0.47.0/go.mod h1:NERhur3k1uUDNCq99ytLzsjQ35C2fPKYlVeQ2c/PNa4=
-carvel.dev/vendir v0.45.0 h1:OWFKkn6Rfi2zPZKS/z68SeIYGrlSgKBXn4DYR178PGk=
-carvel.dev/vendir v0.45.0/go.mod h1:I3xaoQUBf20tQOjW2A0eXC1Hn94tYCL9VTmWHas4VKE=
+carvel.dev/imgpkg v0.47.1 h1:5hJu20JeAr3HGGRCDi2ydlKVEhhF6bq0EebdB9Eql2I=
+carvel.dev/imgpkg v0.47.1/go.mod h1:f/LUtEuUHTdAeFfDcRa2MTwfXbQe6cq+kzzlQF0In6w=
+carvel.dev/kbld v0.47.1 h1:3l0bzuIVys6DuONEZ+xeuYiXij9z5IGyeLYlLFMPYWc=
+carvel.dev/kbld v0.47.1/go.mod h1:vI/JahhzGawW2HHOAsgDGCwDX4I7iV33fCyoN8EH+GI=
+carvel.dev/vendir v0.45.1 h1:vVZjAEZz/j1HVLfm1/avlRF235skXpHFrx77GDqJMgo=
+carvel.dev/vendir v0.45.1/go.mod h1:t7/ulJsKBhyOAFyJUt3m1JyIdyvZsAh8eLGr0n1MiLk=
 cloud.google.com/go/compute/metadata v0.7.0 h1:PBWF+iiAerVNe8UCHxdOt6eHLVc3ydFeOCw78U8ytSU=
 cloud.google.com/go/compute/metadata v0.7.0/go.mod h1:j5MvL9PprKL39t166CoB1uVHfQMs4tFQZZcKwksXUjo=
 github.com/Azure/azure-sdk-for-go v55.0.0+incompatible h1:L4/vUGbg1Xkw5L20LZD+hJI5I+ibWSytqQ68lTCfLwY=
