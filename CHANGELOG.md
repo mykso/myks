@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.9.1](https://github.com/mykso/myks/compare/v5.9.0...v5.9.1) (2026-02-17)
+
+
+### Bug Fixes
+
+* remove ServerSideDiff sync option to ArgoCD schema ([21ad72a](https://github.com/mykso/myks/commit/21ad72ad96341f5017788107407f5822e37abe44))
+
 ## [5.9.0](https://github.com/mykso/myks/compare/v5.8.1...v5.9.0) (2026-02-17)
 
 
