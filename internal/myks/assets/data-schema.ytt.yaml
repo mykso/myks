@@ -95,9 +95,6 @@ argocd:
         #@schema/validation one_of=["true","false"]
         ServerSideApply: ''
         #@schema/nullable
-        #@schema/validation one_of=["true","false"]
-        ServerSideDiff: ''
-        #@schema/nullable
         #@schema/validation one_of=["true"]
         SkipDryRunOnMissingResource: ''
         #@schema/nullable
