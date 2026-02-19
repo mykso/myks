@@ -134,12 +134,14 @@ func (a *Application) getDestinationDir() string {
 }
 
 // sanitizeFilename replaces characters that are not allowed in filenames on Windows
-// and other operating systems. Windows restricts: < > : " / \ | ? *
-// This function replaces these characters with underscores to ensure cross-platform compatibility.
+// and other operating systems. This function keeps only alphanumeric characters,
+// hyphens, underscores, and dots, replacing all other characters with underscores
+// to ensure cross-platform compatibility.
 func sanitizeFilename(filename string) string {
-	// Replace Windows-incompatible characters with underscore
-	invalidChars := regexp.MustCompile(`[<>:"/\\|?*]`)
-	return invalidChars.ReplaceAllString(filename, "_")
+	// Keep only safe characters: A-Z, a-z, 0-9, -, _, .
+	// Replace everything else with underscore
+	unsafeChars := regexp.MustCompile(`[^A-Za-z0-9\-_.]`)
+	return unsafeChars.ReplaceAllString(filename, "_")
 }
 
 // genRenderedResourceFileName generates a name for a rendered K8s resource file
