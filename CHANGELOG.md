@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.9.2](https://github.com/mykso/myks/compare/v5.9.1...v5.9.2) (2026-02-19)
+
+
+### Bug Fixes
+
+* sanitize rendered output filenames for Windows compatibility ([#739](https://github.com/mykso/myks/issues/739)) ([7512dfc](https://github.com/mykso/myks/commit/7512dfc8650534dd82fd95a3509d4e544b48585e))
+
 ## [5.9.1](https://github.com/mykso/myks/compare/v5.9.0...v5.9.1) (2026-02-17)
 
 
