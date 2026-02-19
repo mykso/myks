@@ -19,6 +19,10 @@ type YamlTemplatingTool interface {
 	IsAdditive() bool
 }
 
+// filenameUnsafeCharsRegex is compiled once at package initialization
+// to avoid recompiling on every sanitizeFilename call.
+var filenameUnsafeCharsRegex = regexp.MustCompile(`[^A-Za-z0-9\-_.]`)
+
 func (a *Application) RenderAndSlice(yamlTemplatingTools []YamlTemplatingTool) error {
 	lastStepOutputFile, err := a.Render(yamlTemplatingTools)
 	if err != nil {
@@ -140,8 +144,7 @@ func (a *Application) getDestinationDir() string {
 func sanitizeFilename(filename string) string {
 	// Keep only safe characters: A-Z, a-z, 0-9, -, _, .
 	// Replace everything else with underscore
-	unsafeChars := regexp.MustCompile(`[^A-Za-z0-9\-_.]`)
-	return unsafeChars.ReplaceAllString(filename, "_")
+	return filenameUnsafeCharsRegex.ReplaceAllString(filename, "_")
 }
 
 // genRenderedResourceFileName generates a name for a rendered K8s resource file
