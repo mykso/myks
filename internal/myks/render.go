@@ -19,6 +19,10 @@ type YamlTemplatingTool interface {
 	IsAdditive() bool
 }
 
+// filenameUnsafeCharsRegex is compiled once at package initialization
+// to avoid recompiling on every sanitizeFilename call.
+var filenameUnsafeCharsRegex = regexp.MustCompile(`[^A-Za-z0-9\-_.]`)
+
 func (a *Application) RenderAndSlice(yamlTemplatingTools []YamlTemplatingTool) error {
 	lastStepOutputFile, err := a.Render(yamlTemplatingTools)
 	if err != nil {
@@ -133,6 +137,16 @@ func (a *Application) getDestinationDir() string {
 	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedEnvsDir, a.e.ID, a.Name)
 }
 
+// sanitizeFilename replaces characters that are not allowed in filenames on Windows
+// and other operating systems. This function keeps only alphanumeric characters,
+// hyphens, underscores, and dots, replacing all other characters with underscores
+// to ensure cross-platform compatibility.
+func sanitizeFilename(filename string) string {
+	// Keep only safe characters: A-Z, a-z, 0-9, -, _, .
+	// Replace everything else with underscore
+	return filenameUnsafeCharsRegex.ReplaceAllString(filename, "_")
+}
+
 // genRenderedResourceFileName generates a name for a rendered K8s resource file
 // based on its kind, name or generateName, and optionally namespace.
 func genRenderedResourceFileName(resource map[string]any, includeNamespace bool) (string, error) {
@@ -157,10 +171,15 @@ func genRenderedResourceFileName(resource map[string]any, includeNamespace bool)
 		return "", fmt.Errorf("invalid K8s resource encountered. No name or kind was set")
 	}
 
+	// Sanitize components to ensure cross-platform filename compatibility
+	kind = sanitizeFilename(strings.ToLower(kind))
+	name = sanitizeFilename(strings.ToLower(name))
+	namespace = sanitizeFilename(strings.ToLower(namespace))
+
 	if !includeNamespace || namespace == "" {
-		return fmt.Sprintf("%s-%s.yaml", strings.ToLower(kind), strings.ToLower(name)), nil
+		return fmt.Sprintf("%s-%s.yaml", kind, name), nil
 	}
-	return fmt.Sprintf("%s-%s_%s.yaml", strings.ToLower(kind), strings.ToLower(name), strings.ToLower(namespace)), nil
+	return fmt.Sprintf("%s-%s_%s.yaml", kind, name, namespace), nil
 }
 
 // prepareValuesFile generates values.yaml file from ytt data files and ytt templates

@@ -137,6 +137,17 @@ func Test_genRenderedResourceFileName(t *testing.T) {
 		{"no namespace", args{map[string]any{"kind": "Deployment", "metadata": map[string]any{"name": "test", "namespace": "test-ns"}}, false}, "deployment-test.yaml", false},
 		{"no kind", args{map[string]any{"metadata": map[string]any{"name": "test", "namespace": "test-ns"}}, false}, "", true},
 		{"no name", args{map[string]any{"metadata": map[string]any{"kind": "Deployment", "namespace": "test-ns"}}, false}, "", true},
+		// Test cases for Windows-incompatible characters
+		{"colon in name", args{map[string]any{"kind": "ClusterRole", "metadata": map[string]any{"name": "cert-manager-controller-approve:cert-manager-io"}}, false}, "clusterrole-cert-manager-controller-approve_cert-manager-io.yaml", false},
+		{"multiple colons", args{map[string]any{"kind": "Role", "metadata": map[string]any{"name": "test:one:two", "namespace": "ns:with:colon"}}, true}, "role-test_one_two_ns_with_colon.yaml", false},
+		{"slash in name", args{map[string]any{"kind": "ConfigMap", "metadata": map[string]any{"name": "test/config"}}, false}, "configmap-test_config.yaml", false},
+		{"backslash in name", args{map[string]any{"kind": "Secret", "metadata": map[string]any{"name": "test\\secret"}}, false}, "secret-test_secret.yaml", false},
+		{"pipe in name", args{map[string]any{"kind": "Service", "metadata": map[string]any{"name": "test|service"}}, false}, "service-test_service.yaml", false},
+		{"question mark in name", args{map[string]any{"kind": "Pod", "metadata": map[string]any{"name": "test?pod"}}, false}, "pod-test_pod.yaml", false},
+		{"asterisk in name", args{map[string]any{"kind": "Deployment", "metadata": map[string]any{"name": "test*deploy"}}, false}, "deployment-test_deploy.yaml", false},
+		{"angle brackets in name", args{map[string]any{"kind": "Deployment", "metadata": map[string]any{"name": "test<>deploy"}}, false}, "deployment-test__deploy.yaml", false},
+		{"quotes in name", args{map[string]any{"kind": "Service", "metadata": map[string]any{"name": "test\"service"}}, false}, "service-test_service.yaml", false},
+		{"multiple special chars", args{map[string]any{"kind": "ClusterRole", "metadata": map[string]any{"name": "admin:read|write*all"}}, false}, "clusterrole-admin_read_write_all.yaml", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
