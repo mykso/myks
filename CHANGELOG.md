@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.9.3](https://github.com/mykso/myks/compare/v5.9.2...v5.9.3) (2026-02-27)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#731](https://github.com/mykso/myks/issues/731)) ([aed05ce](https://github.com/mykso/myks/commit/aed05ce4425b112db4a71cd5f660c969afa5a222))
+
 ## [5.9.2](https://github.com/mykso/myks/compare/v5.9.1...v5.9.2) (2026-02-19)
 
 
