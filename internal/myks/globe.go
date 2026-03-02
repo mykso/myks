@@ -8,6 +8,7 @@ import (
 	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/creasty/defaults"
@@ -219,14 +220,14 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 }
 
 func (g *Globe) Sync(asyncLevel int) error {
-	syncTools := g.getSyncTools()
-	for _, syncTool := range syncTools {
+	allApps := g.collectAllApplications()
+	for _, syncTool := range g.getSyncTools() {
 		secrets, err := syncTool.GenerateSecrets(g)
 		if err != nil {
 			return err
 		}
-		err = process(asyncLevel, maps.Values(g.environments), func(env *Environment) error {
-			return env.Sync(asyncLevel, syncTool, secrets)
+		err = process(asyncLevel, slices.Values(allApps), func(app *Application) error {
+			return app.Sync(syncTool, secrets)
 		})
 		if err != nil {
 			return err
@@ -236,9 +237,39 @@ func (g *Globe) Sync(asyncLevel int) error {
 }
 
 func (g *Globe) Render(asyncLevel int) error {
-	return process(asyncLevel, maps.Values(g.environments), func(env *Environment) error {
-		return env.Render(asyncLevel)
+	for _, env := range g.environments {
+		if err := env.renderArgoCD(); err != nil {
+			return err
+		}
+	}
+
+	allApps := g.collectAllApplications()
+	err := process(asyncLevel, slices.Values(allApps), func(app *Application) error {
+		yamlTemplatingTools := []YamlTemplatingTool{
+			&Helm{ident: "helm", app: app, additive: true},
+			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
+			&Ytt{ident: "ytt", app: app, additive: false},
+			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
+			&Kbld{ident: "kbld", app: app, additive: false},
+		}
+		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
+			return err
+		}
+		if err := app.copyStaticFiles(); err != nil {
+			return err
+		}
+		return app.renderArgoCD()
 	})
+	if err != nil {
+		return err
+	}
+
+	for _, env := range g.environments {
+		if err := env.Cleanup(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (g *Globe) SyncAndRender(asyncLevel int) error {
@@ -251,9 +282,18 @@ func (g *Globe) SyncAndRender(asyncLevel int) error {
 
 // ExecPlugin executes a plugin in the context of the globe
 func (g *Globe) ExecPlugin(asyncLevel int, p Plugin, args []string, bufferOutput bool) error {
-	return process(asyncLevel, maps.Values(g.environments), func(env *Environment) error {
-		return env.ExecPlugin(asyncLevel, p, args, bufferOutput)
+	allApps := g.collectAllApplications()
+	return process(asyncLevel, slices.Values(allApps), func(app *Application) error {
+		return p.Exec(app, args, bufferOutput)
 	})
+}
+
+func (g *Globe) collectAllApplications() []*Application {
+	var apps []*Application
+	for _, env := range g.environments {
+		apps = append(apps, env.Applications...)
+	}
+	return apps
 }
 
 // CleanupRenderedManifests discovers rendered environments that are not known to the Globe struct and removes them.
