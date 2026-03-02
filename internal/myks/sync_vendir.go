@@ -221,20 +221,16 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 	return v.saveLinksMap(a, vendorDirToCacheMap)
 }
 
-func (a *Application) getCacheVendirConfigPath(cacheName string) string {
-	return path.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
-}
-
 func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, vendirConfig vendirconf.Config) error {
 	data, err := vendirConfig.AsBytes()
 	if err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
 		return err
 	}
-	vendirConfigPath := a.getCacheVendirConfigPath(cacheName)
-	mu := getCacheMutex(vendirConfigPath)
+	mu := getCacheMutex(cacheName)
 	mu.Lock()
 	defer mu.Unlock()
+	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
 	if err = writeFile(vendirConfigPath, data); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config"))
 		return err
