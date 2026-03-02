@@ -20,13 +20,14 @@ const (
 	VendirCacheDataDirName = "data"
 )
 
-var (
-	// vendirCacheConfigMutex is used to prevent concurrent writes to the vendir cache config files in saveCacheVendirConfig function
-	vendirCacheConfigMutex sync.Mutex
+// vendirCacheMutexes holds per-cache-entry mutexes to allow parallel vendir
+// operations on different cache entries while serializing access to the same one.
+var vendirCacheMutexes sync.Map
 
-	// vendirSyncMutex is used to prevent concurrent vendir sync operations in runVendirSync function
-	vendirSyncMutex sync.Mutex
-)
+func getCacheMutex(key string) *sync.Mutex {
+	val, _ := vendirCacheMutexes.LoadOrStore(key, &sync.Mutex{})
+	return val.(*sync.Mutex)
+}
 
 type VendirSyncer struct {
 	ident string
@@ -165,8 +166,9 @@ func (v *VendirSyncer) linkVendorToCache(a *Application, vendorPath, cacheName s
 }
 
 func (v *VendirSyncer) runVendirSync(a *Application, vendirConfig, vendirLock, vendirSecrets string) error {
-	vendirSyncMutex.Lock()
-	defer vendirSyncMutex.Unlock()
+	mu := getCacheMutex(vendirConfig)
+	mu.Lock()
+	defer mu.Unlock()
 	// TODO sync retry - maybe as vendir MR
 	args := []string{
 		"vendir",
@@ -230,8 +232,9 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 		return err
 	}
 	vendirConfigPath := a.getCacheVendirConfigPath(cacheName)
-	vendirCacheConfigMutex.Lock()
-	defer vendirCacheConfigMutex.Unlock()
+	mu := getCacheMutex(vendirConfigPath)
+	mu.Lock()
+	defer mu.Unlock()
 	if err = writeFile(vendirConfigPath, data); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config"))
 		return err
