@@ -227,10 +227,10 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
 		return err
 	}
-	mu := getCacheMutex(cacheName)
+	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
+	mu := getCacheMutex(vendirConfigPath)
 	mu.Lock()
 	defer mu.Unlock()
-	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
 	if err = writeFile(vendirConfigPath, data); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config"))
 		return err
