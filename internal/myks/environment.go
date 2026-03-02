@@ -78,48 +78,6 @@ func (e *Environment) Init(applicationNames []string) error {
 	return nil
 }
 
-func (e *Environment) Sync(asyncLevel int, syncTool SyncTool, vendirSecrets string) error {
-	return process(asyncLevel, slices.Values(e.Applications), func(app *Application) error {
-		return app.Sync(syncTool, vendirSecrets)
-	})
-}
-
-func (e *Environment) Render(asyncLevel int) error {
-	if err := e.renderArgoCD(); err != nil {
-		return err
-	}
-	err := process(asyncLevel, slices.Values(e.Applications), func(app *Application) error {
-		yamlTemplatingTools := []YamlTemplatingTool{
-			&Helm{ident: "helm", app: app, additive: true},
-			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
-			&Ytt{ident: "ytt", app: app, additive: false},
-			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
-			&Kbld{ident: "kbld", app: app, additive: false},
-		}
-		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
-			return err
-		}
-
-		if err := app.copyStaticFiles(); err != nil {
-			return err
-		}
-
-		return app.renderArgoCD()
-	})
-	if err != nil {
-		log.Error().Err(err).Msg(e.Msg("Unable to render applications"))
-		return err
-	}
-
-	return e.Cleanup()
-}
-
-func (e *Environment) ExecPlugin(asyncLevel int, p Plugin, args []string, bufferOutput bool) error {
-	return process(asyncLevel, slices.Values(e.Applications), func(app *Application) error {
-		return p.Exec(app, args, bufferOutput)
-	})
-}
-
 func (e *Environment) Cleanup() error {
 	apps, err := e.renderedApplications()
 	if err != nil {
