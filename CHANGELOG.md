@@ -1,5 +1,14 @@
 # Changelog
 
+## [5.9.3](https://github.com/mykso/myks/compare/v5.9.2...v5.9.3) (2026-03-02)
+
+
+### Bug Fixes
+
+* avoid degree of parallelism rising above defined async level ([#751](https://github.com/mykso/myks/issues/751)) ([0293e43](https://github.com/mykso/myks/commit/0293e4375866ae6cff7f185a73e2bef804215aef))
+* **deps:** update golang dependencies (non-major) ([#731](https://github.com/mykso/myks/issues/731)) ([aed05ce](https://github.com/mykso/myks/commit/aed05ce4425b112db4a71cd5f660c969afa5a222))
+* use per-cache-entry instead of global locking for vendir cache operations ([#748](https://github.com/mykso/myks/issues/748)) ([6be0029](https://github.com/mykso/myks/commit/6be00299531ecbcab135ecfd9dc1f315e6da520e))
+
 ## [5.9.2](https://github.com/mykso/myks/compare/v5.9.1...v5.9.2) (2026-02-19)
 
 
