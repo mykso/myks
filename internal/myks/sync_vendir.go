@@ -20,13 +20,14 @@ const (
 	VendirCacheDataDirName = "data"
 )
 
-var (
-	// vendirCacheConfigMutex is used to prevent concurrent writes to the vendir cache config files in saveCacheVendirConfig function
-	vendirCacheConfigMutex sync.Mutex
+// vendirCacheMutexes holds per-cache-entry mutexes to allow parallel vendir
+// operations on different cache entries while serializing access to the same one.
+var vendirCacheMutexes sync.Map
 
-	// vendirSyncMutex is used to prevent concurrent vendir sync operations in runVendirSync function
-	vendirSyncMutex sync.Mutex
-)
+func getCacheMutex(key string) *sync.Mutex {
+	val, _ := vendirCacheMutexes.LoadOrStore(key, &sync.Mutex{})
+	return val.(*sync.Mutex)
+}
 
 type VendirSyncer struct {
 	ident string
@@ -131,16 +132,23 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		cacheDir := a.expandVendirCache(cacheName)
 		vendirConfigPath := filepath.Join(cacheDir, a.e.g.VendirConfigFileName)
 		vendirLockPath := filepath.Join(cacheDir, a.e.g.VendirLockFileName)
-		if err := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets); err != nil {
-			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed, cleaning up the cache entry"))
+
+		mu := getCacheMutex(vendirConfigPath)
+		mu.Lock()
+		syncErr := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets)
+		if syncErr != nil {
+			log.Error().Err(syncErr).Msg(a.Msg(v.getStepName(), "Vendir sync failed, cleaning up the cache entry"))
 			if e := os.RemoveAll(cacheDir); e != nil {
 				log.Warn().Err(e).Msg(a.Msg(v.getStepName(), "Unable to remove cache directory"))
 			}
-			return err
+			mu.Unlock()
+			return syncErr
 		}
-		if err := v.linkVendorToCache(a, contentPath, cacheName); err != nil {
-			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Unable to create link to cache"))
-			return err
+		linkErr := v.linkVendorToCache(a, contentPath, cacheName)
+		mu.Unlock()
+		if linkErr != nil {
+			log.Error().Err(linkErr).Msg(a.Msg(v.getStepName(), "Unable to create link to cache"))
+			return linkErr
 		}
 	}
 
@@ -165,8 +173,6 @@ func (v *VendirSyncer) linkVendorToCache(a *Application, vendorPath, cacheName s
 }
 
 func (v *VendirSyncer) runVendirSync(a *Application, vendirConfig, vendirLock, vendirSecrets string) error {
-	vendirSyncMutex.Lock()
-	defer vendirSyncMutex.Unlock()
 	// TODO sync retry - maybe as vendir MR
 	args := []string{
 		"vendir",
@@ -219,19 +225,16 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 	return v.saveLinksMap(a, vendorDirToCacheMap)
 }
 
-func (a *Application) getCacheVendirConfigPath(cacheName string) string {
-	return path.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
-}
-
 func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, vendirConfig vendirconf.Config) error {
 	data, err := vendirConfig.AsBytes()
 	if err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
 		return err
 	}
-	vendirConfigPath := a.getCacheVendirConfigPath(cacheName)
-	vendirCacheConfigMutex.Lock()
-	defer vendirCacheConfigMutex.Unlock()
+	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
+	mu := getCacheMutex(vendirConfigPath)
+	mu.Lock()
+	defer mu.Unlock()
 	if err = writeFile(vendirConfigPath, data); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config"))
 		return err
