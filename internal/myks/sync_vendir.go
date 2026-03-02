@@ -132,16 +132,23 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		cacheDir := a.expandVendirCache(cacheName)
 		vendirConfigPath := filepath.Join(cacheDir, a.e.g.VendirConfigFileName)
 		vendirLockPath := filepath.Join(cacheDir, a.e.g.VendirLockFileName)
-		if err := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets); err != nil {
-			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Vendir sync failed, cleaning up the cache entry"))
+
+		mu := getCacheMutex(vendirConfigPath)
+		mu.Lock()
+		syncErr := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets)
+		if syncErr != nil {
+			log.Error().Err(syncErr).Msg(a.Msg(v.getStepName(), "Vendir sync failed, cleaning up the cache entry"))
 			if e := os.RemoveAll(cacheDir); e != nil {
 				log.Warn().Err(e).Msg(a.Msg(v.getStepName(), "Unable to remove cache directory"))
 			}
-			return err
+			mu.Unlock()
+			return syncErr
 		}
-		if err := v.linkVendorToCache(a, contentPath, cacheName); err != nil {
-			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Unable to create link to cache"))
-			return err
+		linkErr := v.linkVendorToCache(a, contentPath, cacheName)
+		mu.Unlock()
+		if linkErr != nil {
+			log.Error().Err(linkErr).Msg(a.Msg(v.getStepName(), "Unable to create link to cache"))
+			return linkErr
 		}
 	}
 
@@ -166,9 +173,6 @@ func (v *VendirSyncer) linkVendorToCache(a *Application, vendorPath, cacheName s
 }
 
 func (v *VendirSyncer) runVendirSync(a *Application, vendirConfig, vendirLock, vendirSecrets string) error {
-	mu := getCacheMutex(vendirConfig)
-	mu.Lock()
-	defer mu.Unlock()
 	// TODO sync retry - maybe as vendir MR
 	args := []string{
 		"vendir",
