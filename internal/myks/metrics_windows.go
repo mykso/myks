@@ -13,21 +13,21 @@ import (
 // processMemoryCounters matches Windows PROCESS_MEMORY_COUNTERS (psapi.h).
 type processMemoryCounters struct {
 	Cb                         uint32
-	PageFaultCount              uint32
-	PeakWorkingSetSize          uintptr
-	WorkingSetSize              uintptr
-	QuotaPeakPagedPoolUsage     uintptr
-	QuotaPagedPoolUsage         uintptr
-	QuotaPeakNonPagedPoolUsage  uintptr
-	QuotaNonPagedPoolUsage      uintptr
-	PagefileUsage               uintptr
-	PeakPagefileUsage           uintptr
-	PrivateUsage                uintptr
+	PageFaultCount             uint32
+	PeakWorkingSetSize         uintptr
+	WorkingSetSize             uintptr
+	QuotaPeakPagedPoolUsage    uintptr
+	QuotaPagedPoolUsage        uintptr
+	QuotaPeakNonPagedPoolUsage uintptr
+	QuotaNonPagedPoolUsage     uintptr
+	PagefileUsage              uintptr
+	PeakPagefileUsage          uintptr
+	PrivateUsage               uintptr
 }
 
 var (
-	modpsapi                  = windows.NewLazySystemDLL("psapi.dll")
-	procGetProcessMemoryInfo  = modpsapi.NewProc("GetProcessMemoryInfo")
+	modpsapi                 = windows.NewLazySystemDLL("psapi.dll")
+	procGetProcessMemoryInfo = modpsapi.NewProc("GetProcessMemoryInfo")
 )
 
 func getCmdMaxRSS(cmd *exec.Cmd) int64 {
