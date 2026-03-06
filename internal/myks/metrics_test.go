@@ -35,22 +35,22 @@ func TestTrackCmdMetric_GuardConditions(t *testing.T) {
 	tests := []struct {
 		name string
 		step string
-		cmd  func() *exec.Cmd
+		cmd  func(t *testing.T) *exec.Cmd
 	}{
 		{
 			name: "empty step name",
 			step: "",
-			cmd:  func() *exec.Cmd { return runTrueCmd(t) },
+			cmd:  func(t *testing.T) *exec.Cmd { return runTrueCmd(t) },
 		},
 		{
 			name: "nil cmd",
 			step: "helm",
-			cmd:  func() *exec.Cmd { return nil },
+			cmd:  func(t *testing.T) *exec.Cmd { return nil },
 		},
 		{
 			name: "cmd without ProcessState",
 			step: "helm",
-			cmd:  func() *exec.Cmd { return exec.Command(os.Args[0], "-test.run=^$") },
+			cmd:  func(t *testing.T) *exec.Cmd { return exec.Command(os.Args[0], "-test.run=^$") },
 		},
 	}
 
@@ -58,7 +58,7 @@ func TestTrackCmdMetric_GuardConditions(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			resetMetrics()
 			// None of these should panic or add a metric entry.
-			TrackCmdMetric(tt.step, tt.cmd(), 100*time.Millisecond)
+			TrackCmdMetric(tt.step, tt.cmd(t), 100*time.Millisecond)
 
 			metricsMu.Lock()
 			count := len(metrics)
@@ -112,12 +112,14 @@ func TestTrackCmdMetric_MaxRSS(t *testing.T) {
 
 	cmd := runTrueCmd(t)
 
-	// Manually inject MaxRSS to test the max-tracking logic without relying on
-	// platform-specific RSS values from the real command.
 	TrackCmdMetric("helm", cmd, 100*time.Millisecond)
 
+	// Set MaxRSS to a very large sentinel value – larger than any realistic
+	// process RSS – so the second TrackCmdMetric call (whose actual RSS will
+	// be far smaller) must NOT overwrite it.
+	const sentinelRSS = int64(1<<62) - 1
 	metricsMu.Lock()
-	metrics["helm"].MaxRSS = 1024
+	metrics["helm"].MaxRSS = sentinelRSS
 	metricsMu.Unlock()
 
 	TrackCmdMetric("helm", cmd, 100*time.Millisecond)
@@ -126,10 +128,8 @@ func TestTrackCmdMetric_MaxRSS(t *testing.T) {
 	rss := metrics["helm"].MaxRSS
 	metricsMu.Unlock()
 
-	// MaxRSS should remain >= 1024 since we set it explicitly above and the
-	// second call will only overwrite if the new RSS is larger.
-	if rss < 1024 {
-		t.Errorf("MaxRSS should be >= 1024, got %d", rss)
+	if rss != sentinelRSS {
+		t.Errorf("MaxRSS decreased after second call: got %d, want %d", rss, sentinelRSS)
 	}
 }
 
@@ -172,9 +172,9 @@ func TestBuildMetricsSummary_Content(t *testing.T) {
 
 func TestBuildMetricsSummary_SortedSteps(t *testing.T) {
 	m := map[string]*StepMetric{
-		"zzz":  {Count: 1},
-		"aaa":  {Count: 2},
-		"mmm":  {Count: 3},
+		"zzz": &StepMetric{Count: 1},
+		"aaa": &StepMetric{Count: 2},
+		"mmm": &StepMetric{Count: 3},
 	}
 
 	summary := buildMetricsSummary(m)
