@@ -205,7 +205,7 @@ func TestBuildMetricsSummary_SortedSteps(t *testing.T) {
 	if aaaIdx == -1 || mmmIdx == -1 || zzzIdx == -1 {
 		t.Fatal("expected all step names in summary")
 	}
-	if !(aaaIdx < mmmIdx && mmmIdx < zzzIdx) {
+	if aaaIdx >= mmmIdx || mmmIdx >= zzzIdx {
 		t.Errorf("steps not in sorted order: aaa=%d, mmm=%d, zzz=%d", aaaIdx, mmmIdx, zzzIdx)
 	}
 }
