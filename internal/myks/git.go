@@ -11,7 +11,7 @@ type ChangedFiles map[string]string
 
 // GetChangedFilesGit returns list of files changed since the baseRevision, if specified, and since the last commit
 // TODO: exclude files that are outside of the myks root directory
-func GetChangedFilesGit(baseRevision string) (ChangedFiles, error) {
+func GetChangedFilesGit(baseRevision string, metrics *MetricsManager) (ChangedFiles, error) {
 	logFn := func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd("collect changed files for smart-mode", name, args)
 		if err != nil {
@@ -25,14 +25,14 @@ func GetChangedFilesGit(baseRevision string) (ChangedFiles, error) {
 
 	files := ChangedFiles{}
 	if baseRevision != "" {
-		result, err := runCmd("git", "git", nil, []string{"diff", "--name-status", "-z", baseRevision}, logFn)
+		result, err := runCmd("git", "git", nil, []string{"diff", "--name-status", "-z", baseRevision}, metrics, logFn)
 		if err != nil {
 			return nil, err
 		}
 		maps.Copy(files, convertDiffToChangedFiles(result.Stdout))
 	}
 
-	result, err := runCmd("git", "git", nil, []string{"status", "-z", "--untracked-files"}, logFn)
+	result, err := runCmd("git", "git", nil, []string{"status", "-z", "--untracked-files"}, metrics, logFn)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func runGitCmd(args []string, root string, silent bool) (string, error) {
 		gitArgs = append(gitArgs, "-C", root)
 	}
 	gitArgs = append(gitArgs, args...)
-	result, err := runCmd("git", "git", nil, gitArgs, logFn)
+	result, err := runCmd("git", "git", nil, gitArgs, nil, logFn)
 	return strings.Trim(result.Stdout, "\n"), err
 }
 

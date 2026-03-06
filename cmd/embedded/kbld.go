@@ -24,6 +24,7 @@ func kbldMain() {
 	err := command.Execute()
 	if err != nil {
 		confUI.ErrorLinef("kbld: Error: %v", uierrs.NewMultiLineError(err))
+		confUI.Flush()
 		os.Exit(1)
 	}
 }

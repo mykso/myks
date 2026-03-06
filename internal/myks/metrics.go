@@ -19,35 +19,41 @@ type StepMetric struct {
 	Count     int
 }
 
-var (
-	PrintStats bool
+type MetricsManager struct {
+	mu      sync.Mutex
+	metrics map[string]*StepMetric
+}
 
-	metricsMu sync.Mutex
-	metrics   = make(map[string]*StepMetric)
-)
+func NewMetricsManager() *MetricsManager {
+	return &MetricsManager{
+		metrics: make(map[string]*StepMetric),
+	}
+}
 
-func TrackCmdMetric(step string, cmd *exec.Cmd, elapsed time.Duration) {
-	if step == "" || cmd == nil || cmd.ProcessState == nil {
+var PrintStats bool
+
+func (m *MetricsManager) TrackCmdMetric(step string, cmd *exec.Cmd, elapsed time.Duration) {
+	if m == nil || step == "" || cmd == nil || cmd.ProcessState == nil {
 		return
 	}
 
-	metricsMu.Lock()
-	defer metricsMu.Unlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 
-	m, ok := metrics[step]
+	metric, ok := m.metrics[step]
 	if !ok {
-		m = &StepMetric{}
-		metrics[step] = m
+		metric = &StepMetric{}
+		m.metrics[step] = metric
 	}
 
-	m.Count++
-	m.TotalTime += elapsed
-	m.UserTime += cmd.ProcessState.UserTime()
-	m.SysTime += cmd.ProcessState.SystemTime()
+	metric.Count++
+	metric.TotalTime += elapsed
+	metric.UserTime += cmd.ProcessState.UserTime()
+	metric.SysTime += cmd.ProcessState.SystemTime()
 
 	rss := getCmdMaxRSS(cmd)
-	if rss > m.MaxRSS {
-		m.MaxRSS = rss
+	if rss > metric.MaxRSS {
+		metric.MaxRSS = rss
 	}
 }
 
@@ -84,19 +90,23 @@ func buildMetricsSummary(m map[string]*StepMetric) string {
 	return sb.String()
 }
 
-func PrintCmdMetrics() {
-	metricsMu.Lock()
-	if len(metrics) == 0 {
-		metricsMu.Unlock()
+func (m *MetricsManager) PrintCmdMetrics() {
+	if m == nil {
+		return
+	}
+
+	m.mu.Lock()
+	if len(m.metrics) == 0 {
+		m.mu.Unlock()
 		return
 	}
 	// Snapshot metrics under the lock so we can release it before formatting/logging.
-	snapshot := make(map[string]*StepMetric, len(metrics))
-	for k, v := range metrics {
+	snapshot := make(map[string]*StepMetric, len(m.metrics))
+	for k, v := range m.metrics {
 		cp := *v
 		snapshot[k] = &cp
 	}
-	metricsMu.Unlock()
+	m.mu.Unlock()
 
 	summary := buildMetricsSummary(snapshot)
 	if summary == "" {

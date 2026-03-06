@@ -116,7 +116,7 @@ func (p PluginCmd) Exec(a *Application, args []string, bufferOutput bool) error 
 		cmd.Stderr = &stderrBs
 		start := time.Now()
 		err = cmd.Run()
-		TrackCmdMetric(step, cmd, time.Since(start))
+		a.cfg.Metrics.TrackCmdMetric(step, cmd, time.Since(start))
 		fmt.Println(stdoutBs.String())
 		if err != nil {
 			log.Error().Err(err).Msg(msgRunCmd("External plugin failed: "+step, p.cmd, args))
@@ -135,7 +135,7 @@ func (p PluginCmd) Exec(a *Application, args []string, bufferOutput bool) error 
 		cmd.Stderr = os.Stderr
 		start := time.Now()
 		err = cmd.Run()
-		TrackCmdMetric(step, cmd, time.Since(start))
+		a.cfg.Metrics.TrackCmdMetric(step, cmd, time.Since(start))
 		if err != nil {
 			log.Error().Err(err).Msg(msgRunCmd("External plugin failed: "+step, p.cmd, args))
 		} else {

@@ -71,14 +71,14 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 		yttFiles = append(yttFiles, protoVendirDir)
 	}
 
-	appVendirDirs := a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, "vendir"))
+	appVendirDirs := a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, "vendir"))
 	yttFiles = append(yttFiles, appVendirDirs...)
 
 	if len(yttFiles) == 0 {
 		return ErrNoVendirConfig
 	}
 
-	baseDir := filepath.Join(a.e.g.PrototypesDir, "_vendir")
+	baseDir := filepath.Join(a.cfg.PrototypesDir, "_vendir")
 	if ok, err := isExist(baseDir); err != nil {
 		return err
 	} else if ok {
@@ -102,7 +102,7 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 		return fmt.Errorf("invalid vendir config: %w", err)
 	}
 
-	vendirConfigFilePath := a.expandServicePath(a.e.g.VendirConfigFileName)
+	vendirConfigFilePath := a.expandServicePath(a.cfg.VendirConfigFileName)
 	// Create directory if it does not exist
 	if err := createDirectory(filepath.Dir(vendirConfigFilePath)); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to create directory for vendir config file"))
@@ -130,8 +130,8 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 
 	for contentPath, cacheName := range linksMap {
 		cacheDir := a.expandVendirCache(cacheName)
-		vendirConfigPath := filepath.Join(cacheDir, a.e.g.VendirConfigFileName)
-		vendirLockPath := filepath.Join(cacheDir, a.e.g.VendirLockFileName)
+		vendirConfigPath := filepath.Join(cacheDir, a.cfg.VendirConfigFileName)
+		vendirLockPath := filepath.Join(cacheDir, a.cfg.VendirLockFileName)
 
 		mu := getCacheMutex(vendirConfigPath)
 		mu.Lock()
@@ -190,7 +190,7 @@ func (v *VendirSyncer) getStepName() string {
 }
 
 func (v *VendirSyncer) extractCacheItems(a *Application) error {
-	configPath := a.expandServicePath(a.e.g.VendirConfigFileName)
+	configPath := a.expandServicePath(a.cfg.VendirConfigFileName)
 	configBytes, err := os.ReadFile(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read vendir config: %w", err)
@@ -231,7 +231,7 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
 		return err
 	}
-	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
+	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.cfg.VendirConfigFileName)
 	mu := getCacheMutex(vendirConfigPath)
 	mu.Lock()
 	defer mu.Unlock()
@@ -341,7 +341,7 @@ func (a *Application) getLinksMap() (map[string]string, error) {
 }
 
 func (a *Application) getLinksMapPath() string {
-	return a.expandServicePath(a.e.g.VendirLinksMapFileName)
+	return a.expandServicePath(a.cfg.VendirLinksMapFileName)
 }
 
 func (v *VendirSyncer) saveLinksMap(a *Application, linksMap map[string]string) error {

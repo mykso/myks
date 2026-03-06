@@ -1,0 +1,58 @@
+version: "2"
+
+linters:
+  enable:
+    - cyclop
+    - gocognit
+    - funlen
+    - nestif
+    - errorlint
+    - wrapcheck
+    - gocritic
+    - goconst
+    - nakedret
+    - dupl
+    - unparam
+    - misspell
+    - revive
+    - zerologlint
+    - iface
+    - containedctx
+
+  settings:
+    cyclop:
+      max-complexity: 25
+      package-average: 15.0
+      
+    gocognit:
+      min-complexity: 60
+      
+    funlen:
+      lines: 180
+      statements: 100
+      
+    nestif:
+      min-complexity: 10
+      
+    wrapcheck:
+      ignore-sigs:
+        - .Errorf(
+        - errors.New(
+        - errors.Unwrap(
+        - .Wrap(
+        - .Wrapf(
+        - .WithMessage(
+        - .WithMessagef(
+        - .WithStack(
+
+  exclusions:
+    rules:
+      - path: '_test\.go'
+        linters:
+          - funlen
+          - gocognit
+          - cyclop
+          - dupl
+          - wrapcheck
+          - errcheck
+          - unparam

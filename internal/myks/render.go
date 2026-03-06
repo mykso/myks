@@ -91,36 +91,42 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 			continue
 		}
 
-		var obj map[string]any
-		if err = yaml.Unmarshal([]byte(document), &obj); err != nil {
-			log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to unmarshal yaml"))
+		if err = a.processDocument(document, previousStepFile, destinationDir); err != nil {
 			return err
 		}
+	}
+	return nil
+}
 
-		var data bytes.Buffer
-		enc := yaml.NewEncoder(&data)
-		enc.SetIndent(2)
-		err = enc.Encode(obj)
-		if err != nil {
-			log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to marshal yaml"))
-			return err
-		}
+func (a *Application) processDocument(document string, previousStepFile string, destinationDir string) error {
+	var obj map[string]any
+	if err := yaml.Unmarshal([]byte(document), &obj); err != nil {
+		log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to unmarshal yaml"))
+		return err
+	}
 
-		fileName, err := genRenderedResourceFileName(obj, a.includeNamespace)
-		if err != nil {
-			log.Debug().Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "File contains invalid K8s resource"))
-			return err
-		}
-		filePath := filepath.Join(destinationDir, fileName)
-		if ok, errExists := isExist(filePath); errExists != nil {
-			return errExists
-		} else if ok {
-			log.Warn().Str("file", filePath).Msg(a.Msg(sliceStepName, "File already exists. Consider enabling render.includeNamespace"))
-		}
-		if err = writeFile(filePath, data.Bytes()); err != nil {
-			log.Warn().Err(err).Str("file", filePath).Msg(a.Msg(renderStepName, "Unable to write file"))
-			return err
-		}
+	var data bytes.Buffer
+	enc := yaml.NewEncoder(&data)
+	enc.SetIndent(2)
+	if err := enc.Encode(obj); err != nil {
+		log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to marshal yaml"))
+		return err
+	}
+
+	fileName, err := genRenderedResourceFileName(obj, a.includeNamespace)
+	if err != nil {
+		log.Debug().Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "File contains invalid K8s resource"))
+		return err
+	}
+	filePath := filepath.Join(destinationDir, fileName)
+	if ok, errExists := isExist(filePath); errExists != nil {
+		return errExists
+	} else if ok {
+		log.Warn().Str("file", filePath).Msg(a.Msg(sliceStepName, "File already exists. Consider enabling render.includeNamespace"))
+	}
+	if err := writeFile(filePath, data.Bytes()); err != nil {
+		log.Warn().Err(err).Str("file", filePath).Msg(a.Msg(renderStepName, "Unable to write file"))
+		return err
 	}
 	return nil
 }
@@ -134,7 +140,7 @@ func (a *Application) storeStepResult(output string, stepName string, stepNumber
 }
 
 func (a *Application) getDestinationDir() string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedEnvsDir, a.e.ID, a.Name)
+	return filepath.Join(a.cfg.RootDir, a.cfg.RenderedEnvsDir, a.e.ID, a.Name)
 }
 
 // sanitizeFilename replaces characters that are not allowed in filenames on Windows
@@ -233,7 +239,7 @@ func (a *Application) prepareValuesFile(dirName, chartName string) (string, erro
 
 func (a *Application) collectFilesByGlob(subpathPattern string) ([]string, error) {
 	var files []string
-	currentPath := a.e.g.RootDir
+	currentPath := a.cfg.RootDir
 	levels := strings.SplitSeq(a.e.Dir, filepath.FromSlash("/"))
 	for level := range levels {
 		if level == "" {
@@ -264,12 +270,12 @@ func (a *Application) collectAllFilesByGlob(pattern string) []string {
 		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect prototype files"))
 		return nil
 	}
-	protoOverrideFiles, err := a.collectFilesByGlob(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), pattern))
+	protoOverrideFiles, err := a.collectFilesByGlob(filepath.Join(a.cfg.PrototypeOverrideDir, a.prototypeDirName(), pattern))
 	if err != nil {
 		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect prototype override files"))
 		return nil
 	}
-	files, err := a.collectFilesByGlob(filepath.Join(a.e.g.AppsDir, a.Name, pattern))
+	files, err := a.collectFilesByGlob(filepath.Join(a.cfg.AppsDir, a.Name, pattern))
 	if err != nil {
 		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect application files"))
 		return nil

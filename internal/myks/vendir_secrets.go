@@ -88,6 +88,7 @@ func (v *VendirSyncer) generateVendirSecretYaml(g *Globe, secretName string, use
 		v.getStepName(),
 		nil,
 		bytes.NewReader(vendirSecretTemplate),
+		g.Metrics,
 		func(name string, err error, stderr string, args []string) {
 			cmd := msgRunCmd("render vendir secret yaml", name, args)
 			if err != nil {

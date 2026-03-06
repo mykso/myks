@@ -49,7 +49,7 @@ func findRepos(t *testing.T, basefolder string) []testRepo {
 
 func checkCleanGit(t *testing.T) bool {
 	t.Helper()
-	changedFiles, err := myks.GetChangedFilesGit("")
+	changedFiles, err := myks.GetChangedFilesGit("", myks.NewMetricsManager())
 	if err != nil {
 		t.Fatalf("Checking git failed: %s", err)
 	}

@@ -121,6 +121,13 @@ LEARN MORE
 		}
 		return initTargetEnvsAndApps(cmd, args)
 	}
+	rootCmd.PersistentPostRunE = func(cmd *cobra.Command, args []string) error {
+		if globe != nil && globe.Metrics != nil {
+			globe.Metrics.PrintCmdMetrics()
+		}
+		return nil
+	}
+
 	return rootCmd
 }
 

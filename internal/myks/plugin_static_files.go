@@ -15,7 +15,7 @@ func (a *Application) copyStaticFiles() error {
 	staticFilesDirs := []string{}
 
 	// 1. Static files from the prototype
-	prototypeStaticFilesDir := filepath.Join(a.Prototype, a.e.g.StaticFilesDirName)
+	prototypeStaticFilesDir := filepath.Join(a.Prototype, a.cfg.StaticFilesDirName)
 	if ok, err := isExist(prototypeStaticFilesDir); err != nil {
 		return err
 	} else if ok {
@@ -23,17 +23,17 @@ func (a *Application) copyStaticFiles() error {
 	}
 	logStaticFiles(staticFilesDirs)
 	// 2. Static files from prototype overrides
-	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), a.e.g.StaticFilesDirName))...)
+	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.cfg.PrototypeOverrideDir, a.prototypeDirName(), a.cfg.StaticFilesDirName))...)
 	logStaticFiles(staticFilesDirs)
 
 	// 3. Static files from the environment
-	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.e.g.EnvsDir, a.e.g.StaticFilesDirName))...)
+	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.cfg.EnvsDir, a.cfg.StaticFilesDirName))...)
 	logStaticFiles(staticFilesDirs)
 	// 4. Static files from the application
-	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.StaticFilesDirName))...)
+	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.StaticFilesDirName))...)
 	logStaticFiles(staticFilesDirs)
 
-	staticFilesDestination := filepath.Join(a.getDestinationDir(), a.e.g.StaticFilesDirName)
+	staticFilesDestination := filepath.Join(a.getDestinationDir(), a.cfg.StaticFilesDirName)
 
 	for _, staticFilesDir := range staticFilesDirs {
 		if err := copyDir(staticFilesDir, staticFilesDestination, true); err != nil {
