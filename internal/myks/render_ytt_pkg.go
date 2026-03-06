@@ -72,7 +72,7 @@ func (y *YttPkg) Render(_ string) (string, error) {
 			yttArgs = []string{"--data-values-file=" + pkgValuesFile}
 		}
 
-		res, err := runYttWithFilesAndStdin(yttFiles, nil, func(name string, err error, stderr string, args []string) {
+		res, err := runYttWithFilesAndStdin(y.getStepName(), yttFiles, nil, func(name string, err error, stderr string, args []string) {
 			purpose := y.getStepName() + " render step"
 			cmd := msgRunCmd(purpose, name, args)
 			if err != nil {

@@ -104,7 +104,7 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 			log.Debug().Msg(cmd)
 		}
 	}
-	res, err := runCmd(myksFullPath(), nil, cmdArgs, cmdLogFn)
+	res, err := runCmd(k.getStepName(), myksFullPath(), nil, cmdArgs, cmdLogFn)
 	if err != nil {
 		return "", err
 	}
@@ -148,7 +148,7 @@ func (k *Kbld) generateOverridesConfig(inputFile string, config KbldConfig) (str
 		}
 	}
 
-	res, err := runCmd(myksFullPath(), nil, cmdArgs, cmdLogFn)
+	res, err := runCmd(k.getStepName(), myksFullPath(), nil, cmdArgs, cmdLogFn)
 	if err != nil {
 		return "", fmt.Errorf("failed to detect images: %w", err)
 	}

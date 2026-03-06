@@ -103,6 +103,8 @@ LEARN MORE
 	bufferPluginOutputHelp := "buffer plugin output instead of streaming (useful for parallel execution)"
 	rootCmd.PersistentFlags().Bool("buffer-plugin-output", false, bufferPluginOutputHelp)
 
+	rootCmd.PersistentFlags().Bool("print-stats", false, "print tool resource statistics directly to stdout")
+
 	if err := viper.BindPFlags(rootCmd.PersistentFlags()); err != nil {
 		log.Fatal().Err(err).Msg("Unable to bind flags")
 	}
@@ -191,4 +193,6 @@ func initLogger() {
 
 	log.Info().Msgf("Setting log level to: %s", logLevel)
 	zerolog.SetGlobalLevel(logLevel)
+
+	myks.PrintStats = viper.GetBool("print-stats")
 }

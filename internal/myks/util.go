@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/alecthomas/chroma/v2/quick"
 	aurora "github.com/logrusorgru/aurora/v4"
@@ -268,7 +269,7 @@ func findSubPath(path, subPath string) (string, bool) {
 	return path[:index+len(subPath)], true
 }
 
-func runCmd(name string, stdin io.Reader, args []string, logFn func(name string, err error, stderr string, args []string)) (CmdResult, error) {
+func runCmd(step, name string, stdin io.Reader, args []string, logFn func(name string, err error, stderr string, args []string)) (CmdResult, error) {
 	cmd := exec.Command(name, args...)
 
 	if stdin != nil {
@@ -279,7 +280,9 @@ func runCmd(name string, stdin io.Reader, args []string, logFn func(name string,
 	cmd.Stdout = &stdoutBs
 	cmd.Stderr = &stderrBs
 
+	start := time.Now()
 	err := cmd.Run()
+	TrackCmdMetric(step, cmd, time.Since(start))
 
 	if logFn != nil {
 		logFn(name, err, stderrBs.String(), args)
@@ -300,7 +303,7 @@ func msgRunCmd(purpose string, cmd string, args []string) string {
 	}
 }
 
-func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name string, err error, stderr string, args []string), args ...string) (CmdResult, error) {
+func runYttWithFilesAndStdin(step string, paths []string, stdin io.Reader, logFn func(name string, err error, stderr string, args []string), args ...string) (CmdResult, error) {
 	if stdin != nil {
 		paths = append(paths, "-")
 	}
@@ -313,7 +316,7 @@ func runYttWithFilesAndStdin(paths []string, stdin io.Reader, logFn func(name st
 	}
 
 	cmdArgs = append(cmdArgs, args...)
-	return runCmd(myksFullPath(), stdin, cmdArgs, logFn)
+	return runCmd(step, myksFullPath(), stdin, cmdArgs, logFn)
 }
 
 func filterSlice[T any](slice []T, filterFunc func(v T) bool) []T {
