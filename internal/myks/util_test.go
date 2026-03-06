@@ -205,7 +205,7 @@ func Test_runCmd(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := runCmd(tt.args.name, tt.args.stdin, tt.args.args, tt.args.log)
+			got, err := runCmd("test", tt.args.name, tt.args.stdin, tt.args.args, tt.args.log)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("runCmd() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -235,7 +235,7 @@ func Test_runYttWithFilesAndStdin(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := runYttWithFilesAndStdin(tt.args.paths, tt.args.stdin, tt.args.log, tt.args.args...)
+			got, err := runYttWithFilesAndStdin("test", tt.args.paths, tt.args.stdin, tt.args.log, tt.args.args...)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("runYttWithFilesAndStdin() error = %v, wantErr %v", err, tt.wantErr)
 				return

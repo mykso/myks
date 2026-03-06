@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog/log"
 )
@@ -113,7 +114,9 @@ func (p PluginCmd) Exec(a *Application, args []string, bufferOutput bool) error 
 		var stdoutBs, stderrBs bytes.Buffer
 		cmd.Stdout = &stdoutBs
 		cmd.Stderr = &stderrBs
+		start := time.Now()
 		err = cmd.Run()
+		TrackCmdMetric(step, cmd, time.Since(start))
 		fmt.Println(stdoutBs.String())
 		if err != nil {
 			log.Error().Err(err).Msg(msgRunCmd("External plugin failed: "+step, p.cmd, args))
@@ -130,7 +133,9 @@ func (p PluginCmd) Exec(a *Application, args []string, bufferOutput bool) error 
 		// Streaming mode: output in real-time
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
+		start := time.Now()
 		err = cmd.Run()
+		TrackCmdMetric(step, cmd, time.Since(start))
 		if err != nil {
 			log.Error().Err(err).Msg(msgRunCmd("External plugin failed: "+step, p.cmd, args))
 		} else {

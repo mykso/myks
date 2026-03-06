@@ -141,7 +141,7 @@ func (a *Application) Msg(step string, msg string) string {
 }
 
 func (a *Application) runCmd(step, purpose, cmd string, stdin io.Reader, args []string) (CmdResult, error) {
-	return runCmd(cmd, stdin, args, func(cmd string, err error, stderr string, args []string) {
+	return runCmd(step, cmd, stdin, args, func(cmd string, err error, stderr string, args []string) {
 		cmd = msgRunCmd(purpose, cmd, args)
 		a.logCmd(step, cmd, err, stderr)
 	})
@@ -167,7 +167,7 @@ func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
 		return nil, errors.New("no data files found")
 	}
 	step := "init"
-	res, err := runYttWithFilesAndStdin(dataFiles, nil, func(name string, err error, stderr string, args []string) {
+	res, err := runYttWithFilesAndStdin(step, dataFiles, nil, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd("render application data values file", name, args)
 		a.logCmd(step, cmd, err, stderr)
 	}, args...)
@@ -183,7 +183,7 @@ func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
 }
 
 func (a *Application) mergeValuesYaml(step string, valueFilesYaml string) (CmdResult, error) {
-	return runYttWithFilesAndStdin(nil, nil, func(name string, err error, stderr string, args []string) {
+	return runYttWithFilesAndStdin(step, nil, nil, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd("merge data values file", name, args)
 		a.logCmd(step, cmd, err, stderr)
 	}, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
@@ -199,7 +199,7 @@ func (a *Application) yttS(step string, purpose string, paths []string, stdin io
 		"-v", "myks.context.app="+a.Name,
 		"-v", "myks.context.prototype="+a.Prototype)
 	paths = concatenate(a.e.g.extraYttPaths, paths)
-	return runYttWithFilesAndStdin(paths, stdin, func(name string, err error, stderr string, args []string) {
+	return runYttWithFilesAndStdin(step, paths, stdin, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd(purpose, name, args)
 		a.logCmd(step, cmd, err, stderr)
 	}, args...)

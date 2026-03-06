@@ -352,7 +352,7 @@ func (e *Environment) ytt(purpose string, paths []string, args ...string) (CmdRe
 
 func (e *Environment) yttS(purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
 	paths = concatenate(e.g.extraYttPaths, paths)
-	return runYttWithFilesAndStdin(paths, stdin, func(name string, err error, stderr string, args []string) {
+	return runYttWithFilesAndStdin("ytt", paths, stdin, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd(purpose, name, args)
 		if err != nil {
 			log.Error().Msg(e.Msg(cmd))

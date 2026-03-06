@@ -25,14 +25,14 @@ func GetChangedFilesGit(baseRevision string) (ChangedFiles, error) {
 
 	files := ChangedFiles{}
 	if baseRevision != "" {
-		result, err := runCmd("git", nil, []string{"diff", "--name-status", "-z", baseRevision}, logFn)
+		result, err := runCmd("git", "git", nil, []string{"diff", "--name-status", "-z", baseRevision}, logFn)
 		if err != nil {
 			return nil, err
 		}
 		maps.Copy(files, convertDiffToChangedFiles(result.Stdout))
 	}
 
-	result, err := runCmd("git", nil, []string{"status", "-z", "--untracked-files"}, logFn)
+	result, err := runCmd("git", "git", nil, []string{"status", "-z", "--untracked-files"}, logFn)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +115,7 @@ func runGitCmd(args []string, root string, silent bool) (string, error) {
 		gitArgs = append(gitArgs, "-C", root)
 	}
 	gitArgs = append(gitArgs, args...)
-	result, err := runCmd("git", nil, gitArgs, logFn)
+	result, err := runCmd("git", "git", nil, gitArgs, logFn)
 	return strings.Trim(result.Stdout, "\n"), err
 }
 

@@ -617,7 +617,7 @@ func (g *Globe) GetApplicationsForEnvPath(envPath string) ([]string, error) {
 
 	// Run ytt with extra paths (data schema, config, lib)
 	paths := concatenate(g.extraYttPaths, envDataFiles)
-	res, err := runYttWithFilesAndStdin(paths, nil, func(name string, err error, stderr string, args []string) {
+	res, err := runYttWithFilesAndStdin("ytt", paths, nil, func(name string, err error, stderr string, args []string) {
 		if err != nil {
 			log.Debug().Str("stderr", stderr).Msg("ytt data-values-inspect failed")
 		}
