@@ -55,7 +55,6 @@ func buildMetricsSummary(m map[string]*StepMetric) string {
 	if len(m) == 0 {
 		return ""
 	}
-
 	var steps []string
 	for k := range m {
 		steps = append(steps, k)
@@ -87,9 +86,19 @@ func buildMetricsSummary(m map[string]*StepMetric) string {
 
 func PrintCmdMetrics() {
 	metricsMu.Lock()
-	defer metricsMu.Unlock()
+	if len(metrics) == 0 {
+		metricsMu.Unlock()
+		return
+	}
+	// Snapshot metrics under the lock so we can release it before formatting/logging.
+	snapshot := make(map[string]*StepMetric, len(metrics))
+	for k, v := range metrics {
+		cp := *v
+		snapshot[k] = &cp
+	}
+	metricsMu.Unlock()
 
-	summary := buildMetricsSummary(metrics)
+	summary := buildMetricsSummary(snapshot)
 	if summary == "" {
 		return
 	}
