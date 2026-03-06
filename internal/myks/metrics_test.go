@@ -234,6 +234,41 @@ func TestPrintCmdMetrics_PrintStatsFlag(t *testing.T) {
 	}
 }
 
+func TestPrintCmdMetrics_PrintStatsToStdout(t *testing.T) {
+	resetMetrics()
+
+	metricsMu.Lock()
+	metrics["helm"] = &StepMetric{Count: 1, TotalTime: 100 * time.Millisecond}
+	metricsMu.Unlock()
+
+	origPrintStats := PrintStats
+	defer func() { PrintStats = origPrintStats }()
+	PrintStats = true
+
+	// Capture stdout to verify the summary is printed when PrintStats=true.
+	origStdout := os.Stdout
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stdout = w
+	defer func() { os.Stdout = origStdout }()
+
+	PrintCmdMetrics()
+	_ = w.Close()
+
+	var out bytes.Buffer
+	_, _ = out.ReadFrom(r)
+	summary := out.String()
+
+	if !strings.Contains(summary, "--- Tool Resource Metrics Summary ---") {
+		t.Errorf("expected summary header in stdout when PrintStats=true, got: %s", summary)
+	}
+	if !strings.Contains(summary, "helm") {
+		t.Errorf("expected step name in stdout when PrintStats=true, got: %s", summary)
+	}
+}
+
 func TestPrintCmdMetrics_EmptyMetrics(t *testing.T) {
 	resetMetrics()
 	// Should not panic and should produce no output.
