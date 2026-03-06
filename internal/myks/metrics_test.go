@@ -142,8 +142,8 @@ func TestBuildMetricsSummary_Empty(t *testing.T) {
 
 func TestBuildMetricsSummary_Content(t *testing.T) {
 	m := map[string]*StepMetric{
-		"helm": &StepMetric{Count: 3, TotalTime: 300 * time.Millisecond, UserTime: 150 * time.Millisecond, SysTime: 50 * time.Millisecond, MaxRSS: 2 * 1024 * 1024},
-		"ytt":  &StepMetric{Count: 1, TotalTime: 100 * time.Millisecond, UserTime: 80 * time.Millisecond, SysTime: 10 * time.Millisecond, MaxRSS: 1024 * 1024},
+		"helm": {Count: 3, TotalTime: 300 * time.Millisecond, UserTime: 150 * time.Millisecond, SysTime: 50 * time.Millisecond, MaxRSS: 2 * 1024 * 1024},
+		"ytt":  {Count: 1, TotalTime: 100 * time.Millisecond, UserTime: 80 * time.Millisecond, SysTime: 10 * time.Millisecond, MaxRSS: 1024 * 1024},
 	}
 
 	summary := buildMetricsSummary(m)
@@ -191,9 +191,9 @@ func TestBuildMetricsSummary_Content(t *testing.T) {
 
 func TestBuildMetricsSummary_SortedSteps(t *testing.T) {
 	m := map[string]*StepMetric{
-		"zzz": &StepMetric{Count: 1},
-		"aaa": &StepMetric{Count: 2},
-		"mmm": &StepMetric{Count: 3},
+		"zzz": {Count: 1},
+		"aaa": {Count: 2},
+		"mmm": {Count: 3},
 	}
 
 	summary := buildMetricsSummary(m)
