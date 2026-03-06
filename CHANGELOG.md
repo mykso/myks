@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.10.0](https://github.com/mykso/myks/compare/v5.9.3...v5.10.0) (2026-03-06)
+
+
+### Features
+
+* print run stats for each step ([#758](https://github.com/mykso/myks/issues/758)) ([5cecd8e](https://github.com/mykso/myks/commit/5cecd8ef918867f5430af808a28492c32466999e))
+
 ## [5.9.3](https://github.com/mykso/myks/compare/v5.9.2...v5.9.3) (2026-03-02)
 
 
