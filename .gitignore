@@ -5,3 +5,4 @@ dist
 .myks
 .vendor
 coverage.txt
+.claude/*
