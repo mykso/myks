@@ -64,21 +64,21 @@ func buildMetricsSummary(m map[string]*StepMetric) string {
 
 	var sb strings.Builder
 	sb.WriteString("\n--- Tool Resource Metrics Summary ---\n")
-	sb.WriteString(fmt.Sprintf("%-20s | %-6s | %-12s | %-12s | %-12s | %-10s\n",
-		"Step", "Count", "Total Time", "User CPU", "System CPU", "Max Memory"))
+	fmt.Fprintf(&sb, "%-20s | %-6s | %-12s | %-12s | %-12s | %-10s\n",
+		"Step", "Count", "Total Time", "User CPU", "System CPU", "Max Memory")
 	sb.WriteString(strings.Repeat("-", 85) + "\n")
 
 	for _, step := range steps {
 		sm := m[step]
 		maxMemoryMB := float64(sm.MaxRSS) / 1024.0 / 1024.0 // Assuming RSS is in bytes
-		sb.WriteString(fmt.Sprintf("%-20s | %-6d | %-12s | %-12s | %-12s | %.2f MB\n",
+		fmt.Fprintf(&sb, "%-20s | %-6d | %-12s | %-12s | %-12s | %.2f MB\n",
 			step,
 			sm.Count,
 			sm.TotalTime.Round(time.Millisecond).String(),
 			sm.UserTime.Round(time.Millisecond).String(),
 			sm.SysTime.Round(time.Millisecond).String(),
 			maxMemoryMB,
-		))
+		)
 	}
 	sb.WriteString(strings.Repeat("-", 85) + "\n")
 
