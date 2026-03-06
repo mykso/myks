@@ -142,39 +142,58 @@ func TestBuildMetricsSummary_Empty(t *testing.T) {
 
 func TestBuildMetricsSummary_Content(t *testing.T) {
 	m := map[string]*StepMetric{
-		"helm": {Count: 3, TotalTime: 300 * time.Millisecond, UserTime: 150 * time.Millisecond, SysTime: 50 * time.Millisecond, MaxRSS: 2 * 1024 * 1024},
-		"ytt":  {Count: 1, TotalTime: 100 * time.Millisecond, UserTime: 80 * time.Millisecond, SysTime: 10 * time.Millisecond, MaxRSS: 1024 * 1024},
+		"helm": &StepMetric{Count: 3, TotalTime: 300 * time.Millisecond, UserTime: 150 * time.Millisecond, SysTime: 50 * time.Millisecond, MaxRSS: 2 * 1024 * 1024},
+		"ytt":  &StepMetric{Count: 1, TotalTime: 100 * time.Millisecond, UserTime: 80 * time.Millisecond, SysTime: 10 * time.Millisecond, MaxRSS: 1024 * 1024},
 	}
 
 	summary := buildMetricsSummary(m)
 
-	requiredSubstrings := []string{
-		"--- Tool Resource Metrics Summary ---",
-		"Step",
-		"Count",
-		"Total Time",
-		"helm",
-		"3",
-		"300ms",
-		"ytt",
-		"1",
-		"100ms",
-		"2.00 MB",
-		"1.00 MB",
+	// Check that global header labels are present.
+	headerSubstrings := []string{"--- Tool Resource Metrics Summary ---", "Step", "Count", "Total Time"}
+	for _, s := range headerSubstrings {
+		if !strings.Contains(summary, s) {
+			t.Errorf("summary missing header substring %q\nfull summary:\n%s", s, summary)
+		}
 	}
 
-	for _, s := range requiredSubstrings {
-		if !strings.Contains(summary, s) {
-			t.Errorf("summary missing expected substring %q\nfull summary:\n%s", s, summary)
+	// Check per-step rows with specific patterns to avoid false matches from
+	// other numeric values in the summary (e.g. "300ms" or "1.00 MB").
+	// The count column uses %-6d so "3" is rendered as "3      " – the pattern
+	// "| 3 " uniquely identifies the count field in that row.
+	type rowCheck struct {
+		step   string
+		checks []string
+	}
+	for _, rc := range []rowCheck{
+		{"helm", []string{"| 3 ", "300ms", "2.00 MB"}},
+		{"ytt", []string{"| 1 ", "100ms", "1.00 MB"}},
+	} {
+		var row string
+		for _, line := range strings.Split(summary, "\n") {
+			// The step column uses %-20s (left-aligned, right-padded), so
+			// data rows start directly with the step name – no leading whitespace.
+			if strings.HasPrefix(line, rc.step) {
+				row = line
+				break
+			}
+		}
+		if row == "" {
+			t.Errorf("row for step %q not found in summary:\n%s", rc.step, summary)
+			continue
+		}
+		for _, s := range rc.checks {
+			if !strings.Contains(row, s) {
+				t.Errorf("row for step %q missing %q\nrow: %s", rc.step, s, row)
+			}
 		}
 	}
 }
 
 func TestBuildMetricsSummary_SortedSteps(t *testing.T) {
 	m := map[string]*StepMetric{
-		"zzz": {Count: 1},
-		"aaa": {Count: 2},
-		"mmm": {Count: 3},
+		"zzz": &StepMetric{Count: 1},
+		"aaa": &StepMetric{Count: 2},
+		"mmm": &StepMetric{Count: 3},
 	}
 
 	summary := buildMetricsSummary(m)
