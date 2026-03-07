@@ -38,68 +38,82 @@ func (h *Helm) Render(_ string) (string, error) {
 		return "", err
 	}
 
-	var commonHelmArgs []string
-
-	if helmConfig.KubeVersion != "" {
-		commonHelmArgs = append(commonHelmArgs, "--kube-version", helmConfig.KubeVersion)
-	}
-
-	for _, capa := range helmConfig.Capabilities {
-		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
-	}
+	commonHelmArgs := h.buildCommonArgs(helmConfig)
 
 	chartNames := []string{}
 	for _, chartDir := range chartsDirs {
 		chartName := filepath.Base(chartDir)
 		chartNames = append(chartNames, chartName)
-		chartConfig := helmConfig.getChartConfig(chartName)
-		var helmValuesFile string
-		if helmValuesFile, err = h.app.prepareValuesFile(h.app.e.g.HelmStepDirName, chartName); err != nil {
-			log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to prepare helm values"))
-			return "", err
-		}
 
-		if chartConfig.ReleaseName == "" {
-			chartConfig.ReleaseName = chartName
-		}
-
-		helmArgs := []string{
-			"template",
-			"--skip-tests",
-			chartConfig.ReleaseName,
-			chartDir,
-		}
-
-		if chartConfig.Namespace == "" {
-			chartConfig.Namespace = h.app.Name
-		}
-		helmArgs = append(helmArgs, "--namespace", chartConfig.Namespace)
-
-		if chartConfig.IncludeCRDs {
-			helmArgs = append(helmArgs, "--include-crds")
-		}
-
-		if helmValuesFile != "" {
-			helmArgs = append(helmArgs, "--values", helmValuesFile)
-		}
-
-		res, err := h.app.runCmd(h.getStepName(), "helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
+		out, err := h.renderChart(chartName, chartDir, helmConfig, commonHelmArgs)
 		if err != nil {
 			return "", err
 		}
-
-		if res.Stdout == "" {
-			log.Warn().Str("chart", chartName).Msg(h.app.Msg(h.getStepName(), "No helm output"))
-			continue
+		if out != "" {
+			outputs = append(outputs, out)
 		}
-
-		outputs = append(outputs, res.Stdout)
 	}
 
 	h.warnOnOrphanConfigs(helmConfig, chartNames)
 
 	log.Info().Msg(h.app.Msg(h.getStepName(), "Helm chart rendered"))
 	return strings.Join(outputs, "---\n"), nil
+}
+
+func (h *Helm) buildCommonArgs(helmConfig HelmConfig) []string {
+	var commonHelmArgs []string
+	if helmConfig.KubeVersion != "" {
+		commonHelmArgs = append(commonHelmArgs, "--kube-version", helmConfig.KubeVersion)
+	}
+	for _, capa := range helmConfig.Capabilities {
+		commonHelmArgs = append(commonHelmArgs, "--api-versions", capa)
+	}
+	return commonHelmArgs
+}
+
+func (h *Helm) renderChart(chartName, chartDir string, helmConfig HelmConfig, commonHelmArgs []string) (string, error) {
+	chartConfig := helmConfig.getChartConfig(chartName)
+	helmValuesFile, err := h.app.prepareValuesFile(h.app.cfg.HelmStepDirName, chartName)
+	if err != nil {
+		log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to prepare helm values"))
+		return "", err
+	}
+
+	if chartConfig.ReleaseName == "" {
+		chartConfig.ReleaseName = chartName
+	}
+
+	helmArgs := []string{
+		"template",
+		"--skip-tests",
+		chartConfig.ReleaseName,
+		chartDir,
+	}
+
+	if chartConfig.Namespace == "" {
+		chartConfig.Namespace = h.app.Name
+	}
+	helmArgs = append(helmArgs, "--namespace", chartConfig.Namespace)
+
+	if chartConfig.IncludeCRDs {
+		helmArgs = append(helmArgs, "--include-crds")
+	}
+
+	if helmValuesFile != "" {
+		helmArgs = append(helmArgs, "--values", helmValuesFile)
+	}
+
+	res, err := h.app.runCmd(h.getStepName(), "helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
+	if err != nil {
+		return "", err
+	}
+
+	if res.Stdout == "" {
+		log.Warn().Str("chart", chartName).Msg(h.app.Msg(h.getStepName(), "No helm output"))
+		return "", nil
+	}
+
+	return res.Stdout, nil
 }
 
 // warnOnOrphanConfigs checks if there are any Helm configs or values files for non-existing charts
@@ -110,7 +124,7 @@ func (h *Helm) warnOnOrphanConfigs(helmConfig HelmConfig, charts []string) {
 		}
 	}
 
-	allValuesFiles := h.app.collectAllFilesByGlob(filepath.Join(h.app.e.g.HelmStepDirName, "*.yaml"))
+	allValuesFiles := h.app.collectAllFilesByGlob(filepath.Join(h.app.cfg.HelmStepDirName, "*.yaml"))
 
 	for _, valuesFile := range allValuesFiles {
 		chartName, _, _ := strings.Cut(filepath.Base(valuesFile), ".")

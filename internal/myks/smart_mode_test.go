@@ -153,7 +153,8 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			envAppsMap := tt.args.globe.findPrototypeUsage(tt.args.prototypes, "")
+			sm := NewSmartMode(&tt.args.globe)
+			envAppsMap := sm.findPrototypeUsage(tt.args.prototypes, "")
 
 			for _, apps := range envAppsMap {
 				sort.Strings(apps)
@@ -174,6 +175,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		"envs/env1": {
 			Dir: "envs/env1",
 			g:   g,
+			cfg: g.Config,
 			ID:  "env1-id",
 			foundApplications: map[string]string{
 				"app1":  "app1",
@@ -184,6 +186,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		"envs/env2": {
 			Dir: "envs/env2",
 			g:   g,
+			cfg: g.Config,
 			ID:  "env2",
 			foundApplications: map[string]string{
 				"app3": "app3",
@@ -411,6 +414,9 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			}
 
 			g.RootDir = tmpDir
+			for _, e := range g.environments {
+				e.cfg = g.Config
+			}
 
 			defer func() {
 				err := os.RemoveAll(tmpDir)
@@ -419,7 +425,8 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				}
 			}()
 
-			envAppsMap := g.runSmartMode(tt.changedFiles)
+			sm := NewSmartMode(g)
+			envAppsMap := sm.runSmartMode(tt.changedFiles)
 			for _, apps := range envAppsMap {
 				sort.Strings(apps)
 			}

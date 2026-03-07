@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/creasty/defaults"
-	"github.com/rs/zerolog/log"
 )
 
 func TestApplication_copyStaticFiles(t *testing.T) {
@@ -20,12 +19,13 @@ func TestApplication_copyStaticFiles(t *testing.T) {
 
 	globe := &Globe{}
 	if err := defaults.Set(globe); err != nil {
-		log.Fatal().Err(err).Msg("Unable to set defaults")
+		t.Fatalf("Unable to set defaults: %v", err)
 	}
 
 	env := &Environment{
 		ID:  envName,
 		g:   globe,
+		cfg: globe.Config,
 		Dir: filepath.Join(globe.EnvironmentBaseDir, envName),
 	}
 
@@ -33,6 +33,7 @@ func TestApplication_copyStaticFiles(t *testing.T) {
 		Name:      appName,
 		Prototype: fmt.Sprintf("%s/%s", globe.PrototypesDir, protoName),
 		e:         env,
+		cfg:       globe.Config,
 	}
 
 	targetDir := app.getDestinationDir()

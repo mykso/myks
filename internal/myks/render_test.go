@@ -15,11 +15,23 @@ var testApp = &Application{
 	e: &Environment{
 		ID: "test-env",
 		g: &Globe{
+			Config: Config{
+				TempDirName:   "/tmp",
+				PrototypesDir: prototypeDir,
+				AppsDir:       "_apps",
+			},
+		},
+		cfg: Config{
 			TempDirName:   "/tmp",
 			PrototypesDir: prototypeDir,
 			AppsDir:       "_apps",
 		},
 		Dir: "/tmp",
+	},
+	cfg: Config{
+		TempDirName:   "/tmp",
+		PrototypesDir: prototypeDir,
+		AppsDir:       "_apps",
 	},
 	yttDataFiles: nil,
 	yttPkgDirs:   nil,

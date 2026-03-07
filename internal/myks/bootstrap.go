@@ -35,13 +35,13 @@ func (e ErrBootstrapTargetExists) Error() string {
 }
 
 // Bootstrap creates the initial directory structure and files
-func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version string) error {
+func Bootstrap(cfg Config, force, onlyPrint bool, components []string, version string) error {
 	compMap := make(map[string]bool, len(components))
 	for _, comp := range components {
 		compMap[comp] = true
 	}
 
-	myksConfig := fmt.Sprintf(string(myksConfigTpl), version, g.generateNameConventions())
+	myksConfig := fmt.Sprintf(string(myksConfigTpl), version, generateNameConventions(cfg))
 
 	if onlyPrint {
 		if compMap["gitignore"] {
@@ -55,7 +55,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 		}
 	} else {
 		log.Info().Msg("Creating base file structure")
-		if err := g.createBaseFileStructure(force, myksConfig); err != nil {
+		if err := createBaseFileStructure(cfg, force, myksConfig); err != nil {
 			return err
 		}
 	}
@@ -65,7 +65,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 			log.Info().Msg("Skipping printing sample prototypes")
 		} else {
 			log.Info().Msg("Creating sample prototypes")
-			if err := g.createSamplePrototypes(); err != nil {
+			if err := createSamplePrototypes(cfg); err != nil {
 				return err
 			}
 		}
@@ -76,7 +76,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 			log.Debug().Msg("Skipping printing sample environment")
 		} else {
 			log.Info().Msg("Creating sample environment")
-			if err := g.createSampleEnvironment(); err != nil {
+			if err := createSampleEnvironment(cfg); err != nil {
 				return err
 			}
 		}
@@ -85,12 +85,12 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 	return nil
 }
 
-func (g *Globe) createBaseFileStructure(force bool, myksConfig string) error {
-	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
-	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
-	renderedDir := filepath.Join(g.RootDir, g.RenderedEnvsDir)
-	gitignoreFile := filepath.Join(g.RootDir, ".gitignore")
-	myksConfigFile := filepath.Join(g.RootDir, ".myks.yaml")
+func createBaseFileStructure(cfg Config, force bool, myksConfig string) error {
+	envDir := filepath.Join(cfg.RootDir, cfg.EnvironmentBaseDir)
+	protoDir := filepath.Join(cfg.RootDir, cfg.PrototypesDir)
+	renderedDir := filepath.Join(cfg.RootDir, cfg.RenderedEnvsDir)
+	gitignoreFile := filepath.Join(cfg.RootDir, ".gitignore")
+	myksConfigFile := filepath.Join(cfg.RootDir, ".myks.yaml")
 
 	log.Debug().Str("environments directory", envDir).Msg("")
 	log.Debug().Str("prototypes directory", protoDir).Msg("")
@@ -110,7 +110,7 @@ func (g *Globe) createBaseFileStructure(force bool, myksConfig string) error {
 		}
 	}
 
-	g.createDataSchemaFile()
+	createDataSchemaFile(cfg)
 
 	if err := os.MkdirAll(envDir, 0o750); err != nil {
 		return err
@@ -135,8 +135,8 @@ func (g *Globe) createBaseFileStructure(force bool, myksConfig string) error {
 	return nil
 }
 
-func (g *Globe) createDataSchemaFile() string {
-	dataSchemaFilePath := filepath.Join(g.RootDir, g.ServiceDirName, g.TempDirName, g.DataSchemaFileName)
+func createDataSchemaFile(cfg Config) string {
+	dataSchemaFilePath := filepath.Join(cfg.RootDir, cfg.ServiceDirName, cfg.TempDirName, cfg.DataSchemaFileName)
 	log.Debug().Str("dataSchemaFilePath", dataSchemaFilePath).Msg("Ensuring data schema file exists")
 	if ok, err := isExist(dataSchemaFilePath); err != nil {
 		log.Fatal().Err(err).Msg("Unable to stat data schema file")
@@ -153,22 +153,22 @@ func (g *Globe) createDataSchemaFile() string {
 	return dataSchemaFilePath
 }
 
-func (g *Globe) createSamplePrototypes() error {
-	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
+func createSamplePrototypes(cfg Config) error {
+	protoDir := filepath.Join(cfg.RootDir, cfg.PrototypesDir)
 	return copyFileSystemToPath(prototypesFs, "assets/prototypes", protoDir)
 }
 
-func (g *Globe) createSampleEnvironment() error {
-	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
+func createSampleEnvironment(cfg Config) error {
+	envDir := filepath.Join(cfg.RootDir, cfg.EnvironmentBaseDir)
 	return copyFileSystemToPath(environmentsFs, "assets/envs", envDir)
 }
 
-// generateNameConventions extracts mapstructure and default tags from Globe struct
+// generateNameConventions extracts mapstructure and default tags from Config struct
 // and generates a YAML section for naming-conventions
-func (g *Globe) generateNameConventions() string {
+func generateNameConventions(cfg Config) string {
 	var conventions strings.Builder
 
-	rt := reflect.TypeFor[Globe]()
+	rt := reflect.TypeFor[Config]()
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
 

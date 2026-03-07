@@ -39,8 +39,6 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 
 	if !config.Enabled {
 		log.Debug().Msg(k.app.Msg(k.getStepName(), "Kbld is disabled in configuration, skipping"))
-		// just read the previous step file and return its content
-		// TODO: implement skipping for "rendering tools" properly
 		data, err := os.ReadFile(filepath.Clean(previousStepFile))
 		if err != nil {
 			log.Warn().Err(err).Str("file", previousStepFile).Msg(k.app.Msg(k.getStepName(), "Unable to read previous step file"))
@@ -55,40 +53,19 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 		fmt.Sprintf("--images-annotation=%t", config.ImagesAnnotation),
 	}
 
-	// Check if there are any image overrides to apply and generate the overrides config file.
-	// Image overrides should be added to the command after the lock file (if any), but the
-	// overrides config is used to generate the lock file name, so we need to do this first.
-	overridesFilePath := ""
-	if len(config.Overrides) > 0 {
-		overridesFilePath, err = k.generateOverridesConfig(previousStepFile, config)
-		if err != nil {
-			log.Warn().Err(err).Msg(k.app.Msg(k.getStepName(), "Unable to generate kbld overrides config"))
-			return "", err
-		}
+	overridesFilePath, err := k.handleOverrides(previousStepFile, config)
+	if err != nil {
+		return "", err
 	}
 
-	// if cache is enabled, check existence of the lock file and include it in the args
-	if config.Cache {
-		// The lock file name is based on the hash of the overrides file (if any).
-		// Since the lock file is also used as a digest resolution cache, this forces
-		// kbld to re-resolve images if the overrides change. Otherwise, the new overrides
-		// might not be applied if the images are already resolved and cached in the lock file.
-		lockFileName := k.getLockFileName(overridesFilePath)
-		lockFilePath := k.app.expandServicePath(lockFileName)
-
-		defer k.cleanupLockFiles(lockFileName)
-
-		cmdArgs = append(cmdArgs, "--lock-output="+lockFilePath)
-
-		if ok, err := isExist(lockFilePath); ok {
-			log.Debug().Str("file", lockFilePath).Msg(k.app.Msg(k.getStepName(), "Using existing kbld lock file for caching"))
-			cmdArgs = append(cmdArgs, "--file="+lockFilePath)
-		} else if err == nil {
-			log.Debug().Str("file", lockFilePath).Msg(k.app.Msg(k.getStepName(), "Kbld lock file not found, proceeding without cache"))
-		} else {
-			log.Warn().Err(err).Str("file", lockFilePath).Msg(k.app.Msg(k.getStepName(), "Error checking kbld lock file existence"))
-		}
+	cacheArgs, cleanup, err := k.handleCache(config, overridesFilePath)
+	if err != nil {
+		return "", err
 	}
+	if cleanup != nil {
+		defer cleanup()
+	}
+	cmdArgs = append(cmdArgs, cacheArgs...)
 
 	if overridesFilePath != "" {
 		cmdArgs = append(cmdArgs, "--file="+overridesFilePath)
@@ -104,7 +81,7 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 			log.Debug().Msg(cmd)
 		}
 	}
-	res, err := runCmd(k.getStepName(), myksFullPath(), nil, cmdArgs, cmdLogFn)
+	res, err := runCmd(k.getStepName(), myksFullPath(), nil, cmdArgs, k.app.cfg.Metrics, cmdLogFn)
 	if err != nil {
 		return "", err
 	}
@@ -117,6 +94,46 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 	log.Info().Msg(k.app.Msg(k.getStepName(), "kbld rendered"))
 
 	return res.Stdout, nil
+}
+
+func (k *Kbld) handleOverrides(previousStepFile string, config KbldConfig) (string, error) {
+	if len(config.Overrides) == 0 {
+		return "", nil
+	}
+	overridesFilePath, err := k.generateOverridesConfig(previousStepFile, config)
+	if err != nil {
+		log.Warn().Err(err).Msg(k.app.Msg(k.getStepName(), "Unable to generate kbld overrides config"))
+		return "", err
+	}
+	return overridesFilePath, nil
+}
+
+func (k *Kbld) handleCache(config KbldConfig, overridesFilePath string) ([]string, func(), error) {
+	if !config.Cache {
+		return nil, nil, nil
+	}
+
+	lockFileName := k.getLockFileName(overridesFilePath)
+	lockFilePath := k.app.expandServicePath(lockFileName)
+
+	cleanup := func() {
+		k.cleanupLockFiles(lockFileName)
+	}
+
+	var cacheArgs []string
+	cacheArgs = append(cacheArgs, "--lock-output="+lockFilePath)
+
+	ok, err := isExist(lockFilePath)
+	if err != nil {
+		log.Warn().Err(err).Str("file", lockFilePath).Msg(k.app.Msg(k.getStepName(), "Error checking kbld lock file existence"))
+	} else if ok {
+		log.Debug().Str("file", lockFilePath).Msg(k.app.Msg(k.getStepName(), "Using existing kbld lock file for caching"))
+		cacheArgs = append(cacheArgs, "--file="+lockFilePath)
+	} else {
+		log.Debug().Str("file", lockFilePath).Msg(k.app.Msg(k.getStepName(), "Kbld lock file not found, proceeding without cache"))
+	}
+
+	return cacheArgs, cleanup, nil
 }
 
 func (k *Kbld) getKbldConfig() (KbldConfig, error) {
@@ -148,7 +165,7 @@ func (k *Kbld) generateOverridesConfig(inputFile string, config KbldConfig) (str
 		}
 	}
 
-	res, err := runCmd(k.getStepName(), myksFullPath(), nil, cmdArgs, cmdLogFn)
+	res, err := runCmd(k.getStepName(), myksFullPath(), nil, cmdArgs, k.app.cfg.Metrics, cmdLogFn)
 	if err != nil {
 		return "", fmt.Errorf("failed to detect images: %w", err)
 	}

@@ -16,7 +16,9 @@ func TestKbld_generateKbldOverrideConfig(t *testing.T) {
 
 	// Create a mock application
 	globe := &Globe{
-		RootDir: tmpDir,
+		Config: Config{
+			RootDir: tmpDir,
+		},
 	}
 
 	env := &Environment{
@@ -190,7 +192,9 @@ func TestKbld_generateKbldOverrideConfig_Consistency(t *testing.T) {
 
 	// Create a mock application
 	globe := &Globe{
-		RootDir: tmpDir,
+		Config: Config{
+			RootDir: tmpDir,
+		},
 	}
 
 	env := &Environment{

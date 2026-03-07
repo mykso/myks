@@ -23,27 +23,9 @@ func (y *YttPkg) Ident() string {
 }
 
 func (y *YttPkg) Render(_ string) (string, error) {
-	var yttPkgSubDirs []string
-
-	vendorYttPkgDir := y.app.expandVendorPath(y.app.e.g.YttPkgStepDirName)
-	if ok, err := isExist(vendorYttPkgDir); err != nil {
+	yttPkgSubDirs, err := y.getYttPkgSubDirs()
+	if err != nil {
 		return "", err
-	} else if ok {
-		// symlinks to directories are not followed by ytt, so we need to dereference them
-		vendorYttPkgFiles, err := readDirDereferenceLinks(vendorYttPkgDir)
-		if err != nil {
-			return "", err
-		}
-		// select only directories
-		for _, file := range vendorYttPkgFiles {
-			if ok, err := isDir(file); err != nil {
-				return "", err
-			} else if ok {
-				yttPkgSubDirs = append(yttPkgSubDirs, file)
-			} else {
-				log.Warn().Str("file", file).Msg(y.app.Msg(y.getStepName(), "Ignoring non-directory file in ytt package directory"))
-			}
-		}
 	}
 
 	if len(yttPkgSubDirs) == 0 {
@@ -54,49 +36,91 @@ func (y *YttPkg) Render(_ string) (string, error) {
 	var outputs []string
 
 	for _, pkgDir := range yttPkgSubDirs {
-		pkgName := filepath.Base(pkgDir)
-
-		var yttFiles []string
-		for _, yttFile := range y.app.yttPkgDirs {
-			yttFiles = append(yttFiles, filepath.Join(pkgDir, yttFile))
-		}
-		if len(yttFiles) == 0 {
-			yttFiles = []string{pkgDir}
-		}
-
-		var yttArgs []string
-		if pkgValuesFile, err := y.app.prepareValuesFile(y.app.e.g.YttPkgStepDirName, pkgName); err != nil {
-			log.Error().Err(err).Msg(y.app.Msg(y.getStepName(), "Unable to prepare a values file for the ytt package"))
-			return "", err
-		} else if pkgValuesFile != "" {
-			yttArgs = []string{"--data-values-file=" + pkgValuesFile}
-		}
-
-		res, err := runYttWithFilesAndStdin(y.getStepName(), yttFiles, nil, func(name string, err error, stderr string, args []string) {
-			purpose := y.getStepName() + " render step"
-			cmd := msgRunCmd(purpose, name, args)
-			if err != nil {
-				log.Error().Msg(cmd)
-				log.Error().Msg(stderr)
-			} else {
-				log.Debug().Msg(cmd)
-			}
-		}, yttArgs...)
+		out, err := y.renderPkg(pkgDir)
 		if err != nil {
 			return "", err
 		}
-
-		if res.Stdout == "" {
-			log.Warn().Str("pkgName", pkgName).Msg(y.app.Msg(y.getStepName(), "No ytt package output"))
-			continue
+		if out != "" {
+			outputs = append(outputs, out)
 		}
-
-		outputs = append(outputs, res.Stdout)
 	}
 
 	log.Info().Msg(y.app.Msg(y.getStepName(), "Ytt package rendered"))
 
 	return strings.Join(outputs, "---\n"), nil
+}
+
+func (y *YttPkg) getYttPkgSubDirs() ([]string, error) {
+	vendorYttPkgDir := y.app.expandVendorPath(y.app.cfg.YttPkgStepDirName)
+	ok, err := isExist(vendorYttPkgDir)
+	if err != nil {
+		return nil, fmt.Errorf("error: %w", err)
+	}
+	if !ok {
+		return nil, nil
+	}
+
+	vendorYttPkgFiles, err := readDirDereferenceLinks(vendorYttPkgDir)
+	if err != nil {
+		return nil, fmt.Errorf("error: %w", err)
+	}
+
+	var yttPkgSubDirs []string
+	for _, file := range vendorYttPkgFiles {
+		ok, err := isDir(file)
+		if err != nil {
+			return nil, fmt.Errorf("error: %w", err)
+		}
+		if ok {
+			yttPkgSubDirs = append(yttPkgSubDirs, file)
+		} else {
+			log.Warn().Str("file", file).Msg(y.app.Msg(y.getStepName(), "Ignoring non-directory file in ytt package directory"))
+		}
+	}
+	return yttPkgSubDirs, nil
+}
+
+func (y *YttPkg) renderPkg(pkgDir string) (string, error) {
+	pkgName := filepath.Base(pkgDir)
+
+	var yttFiles []string
+	for _, yttFile := range y.app.yttPkgDirs {
+		yttFiles = append(yttFiles, filepath.Join(pkgDir, yttFile))
+	}
+	if len(yttFiles) == 0 {
+		yttFiles = []string{pkgDir}
+	}
+
+	var yttArgs []string
+	pkgValuesFile, err := y.app.prepareValuesFile(y.app.cfg.YttPkgStepDirName, pkgName)
+	if err != nil {
+		log.Error().Err(err).Msg(y.app.Msg(y.getStepName(), "Unable to prepare a values file for the ytt package"))
+		return "", fmt.Errorf("error: %w", err)
+	}
+	if pkgValuesFile != "" {
+		yttArgs = []string{"--data-values-file=" + pkgValuesFile}
+	}
+
+	res, err := runYttWithFilesAndStdin(y.getStepName(), yttFiles, nil, y.app.cfg.Metrics, func(name string, err error, stderr string, args []string) {
+		purpose := y.getStepName() + " render step"
+		cmd := msgRunCmd(purpose, name, args)
+		if err != nil {
+			log.Error().Msg(cmd)
+			log.Error().Msg(stderr)
+		} else {
+			log.Debug().Msg(cmd)
+		}
+	}, yttArgs...)
+	if err != nil {
+		return "", fmt.Errorf("error: %w", err)
+	}
+
+	if res.Stdout == "" {
+		log.Warn().Str("pkgName", pkgName).Msg(y.app.Msg(y.getStepName(), "No ytt package output"))
+		return "", nil
+	}
+
+	return res.Stdout, nil
 }
 
 func (y *YttPkg) getStepName() string {

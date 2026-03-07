@@ -40,6 +40,9 @@ type Environment struct {
 	// Globe instance
 	g *Globe
 
+	// Global configuration
+	cfg Config
+
 	argoCDEnabled bool
 	// Runtime data
 	renderedDataLibFilePath string
@@ -53,7 +56,8 @@ func NewEnvironment(g *Globe, dir string, envDataFile string) (*Environment, err
 		EnvironmentDataFile:     envDataFile,
 		Applications:            []*Application{},
 		g:                       g,
-		renderedDataLibFilePath: filepath.Join(g.RootDir, g.ServiceDirName, dir, g.RenderedEnvironmentDataLibFileName),
+		cfg:                     g.Config,
+		renderedDataLibFilePath: filepath.Join(g.Config.RootDir, g.Config.ServiceDirName, dir, g.Config.RenderedEnvironmentDataLibFileName),
 		foundApplications:       map[string]string{},
 	}
 
@@ -86,11 +90,11 @@ func (e *Environment) Cleanup() error {
 	for _, app := range apps {
 		if _, ok := e.foundApplications[app]; !ok {
 			log.Info().Str("app", app).Msg(e.Msg("Removing app as it is not configured"))
-			err := os.RemoveAll(filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.ID, app))
+			err := os.RemoveAll(filepath.Join(e.cfg.RootDir, e.cfg.RenderedEnvsDir, e.ID, app))
 			if err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("unable to remove dir: %w", err)
 			}
-			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.ID, getArgoCDAppFileName(app)))
+			err = os.Remove(filepath.Join(e.cfg.RootDir, e.cfg.RenderedArgoDir, e.ID, getArgoCDAppFileName(app)))
 			if err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("unable to remove file: %w", err)
 			}
@@ -103,7 +107,7 @@ func (e *Environment) Cleanup() error {
 // renderedApplications returns list of applications in rendered dir
 func (e *Environment) renderedApplications() ([]string, error) {
 	apps := []string{}
-	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.ID)
+	dirEnvRendered := filepath.Join(e.cfg.RootDir, e.cfg.RenderedEnvsDir, e.ID)
 	files, err := os.ReadDir(dirEnvRendered)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -169,7 +173,7 @@ func (e *Environment) setID() error {
 }
 
 func (e *Environment) initEnvData() error {
-	envDataFiles := e.collectBySubpath(e.g.EnvironmentDataFileName)
+	envDataFiles := e.collectBySubpath(e.cfg.EnvironmentDataFileName)
 	envDataYaml, err := e.renderEnvData(envDataFiles)
 	if err != nil {
 		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to render environment data"))
@@ -325,8 +329,8 @@ func (e *Environment) initApplications(applicationNames []string) error {
 
 func (e *Environment) collectBySubpath(subpath string) []string {
 	items := []string{}
-	currentPath := e.g.RootDir
-	envRelDir := strings.TrimPrefix(e.Dir, e.g.RootDir+string(filepath.Separator))
+	currentPath := e.cfg.RootDir
+	envRelDir := strings.TrimPrefix(e.Dir, e.cfg.RootDir+string(filepath.Separator))
 	levels := strings.SplitSeq(envRelDir, filepath.FromSlash("/"))
 	for level := range levels {
 		if level == "" {
@@ -351,8 +355,8 @@ func (e *Environment) ytt(purpose string, paths []string, args ...string) (CmdRe
 }
 
 func (e *Environment) yttS(purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
-	paths = concatenate(e.g.extraYttPaths, paths)
-	return runYttWithFilesAndStdin("ytt", paths, stdin, func(name string, err error, stderr string, args []string) {
+	paths = concatenate(e.cfg.ExtraYttPaths, paths)
+	return runYttWithFilesAndStdin("ytt", paths, stdin, e.cfg.Metrics, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd(purpose, name, args)
 		if err != nil {
 			log.Error().Msg(e.Msg(cmd))
@@ -372,5 +376,5 @@ func (e *Environment) GetApplicationNames() []string {
 }
 
 func (e *Environment) getYttLibAPIDir() string {
-	return filepath.Join(e.g.RootDir, e.g.ServiceDirName, e.Dir, e.g.YttLibAPIDir)
+	return filepath.Join(e.cfg.RootDir, e.cfg.ServiceDirName, e.Dir, e.cfg.YttLibAPIDir)
 }

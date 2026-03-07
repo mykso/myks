@@ -27,6 +27,8 @@ type Application struct {
 
 	e *Environment
 
+	cfg Config
+
 	argoCDEnabled    bool
 	includeNamespace bool
 	yttDataFiles     []string
@@ -43,12 +45,13 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 		prototypeName = name
 	}
 
-	prototype := filepath.Join(e.g.RootDir, e.g.PrototypesDir, prototypeName)
+	prototype := filepath.Join(e.cfg.RootDir, e.cfg.PrototypesDir, prototypeName)
 
 	app := &Application{
 		Name:      name,
 		Prototype: prototype,
 		e:         e,
+		cfg:       e.cfg,
 	}
 
 	if ok, err := isExist(app.Prototype); err != nil {
@@ -64,7 +67,7 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 func (a *Application) Init() error {
 	a.collectDataFiles()
 
-	dataYaml, err := a.renderDataYaml(concatenate(a.e.g.extraYttPaths, a.yttDataFiles))
+	dataYaml, err := a.renderDataYaml(concatenate(a.cfg.ExtraYttPaths, a.yttDataFiles))
 	if err != nil {
 		return err
 	}
@@ -95,15 +98,15 @@ func (a *Application) Init() error {
 }
 
 func (a *Application) expandServicePath(path string) string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.ServiceDirName, a.e.Dir, a.e.g.AppsDir, a.Name, path)
+	return filepath.Join(a.cfg.RootDir, a.cfg.ServiceDirName, a.e.Dir, a.cfg.AppsDir, a.Name, path)
 }
 
 func (a *Application) expandVendirCache(path string) string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.ServiceDirName, a.e.g.VendirCache, path)
+	return filepath.Join(a.cfg.RootDir, a.cfg.ServiceDirName, a.cfg.VendirCache, path)
 }
 
 func (a *Application) expandVendorPath(path string) string {
-	return a.expandServicePath(filepath.Join(a.e.g.VendorDirName, path))
+	return a.expandServicePath(filepath.Join(a.cfg.VendorDirName, path))
 }
 
 func (a *Application) writeServiceFile(name string, content string) error {
@@ -124,9 +127,9 @@ func (a *Application) writeServiceFile(name string, content string) error {
 // Note: The order of the libs is inverted, so that the most specific ones take precedence.
 func (a *Application) collectDataFiles() {
 	APILibraries := []string{a.e.getYttLibAPIDir()}
-	appLibraries := a.collectAllFilesByGlob(a.e.g.YttLibraryDirName)
-	envDataFiles := a.e.collectBySubpath(a.e.g.EnvironmentDataFileName)
-	appDataFiles := a.collectAllFilesByGlob(a.e.g.ApplicationDataFileName)
+	appLibraries := a.collectAllFilesByGlob(a.cfg.YttLibraryDirName)
+	envDataFiles := a.e.collectBySubpath(a.cfg.EnvironmentDataFileName)
+	appDataFiles := a.collectAllFilesByGlob(a.cfg.ApplicationDataFileName)
 	a.yttDataFiles = slices.Concat(
 		APILibraries,
 		appLibraries,
@@ -141,7 +144,7 @@ func (a *Application) Msg(step string, msg string) string {
 }
 
 func (a *Application) runCmd(step, purpose, cmd string, stdin io.Reader, args []string) (CmdResult, error) {
-	return runCmd(step, cmd, stdin, args, func(cmd string, err error, stderr string, args []string) {
+	return runCmd(step, cmd, stdin, args, a.cfg.Metrics, func(cmd string, err error, stderr string, args []string) {
 		cmd = msgRunCmd(purpose, cmd, args)
 		a.logCmd(step, cmd, err, stderr)
 	})
@@ -167,7 +170,7 @@ func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
 		return nil, errors.New("no data files found")
 	}
 	step := "init"
-	res, err := runYttWithFilesAndStdin(step, dataFiles, nil, func(name string, err error, stderr string, args []string) {
+	res, err := runYttWithFilesAndStdin(step, dataFiles, nil, a.cfg.Metrics, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd("render application data values file", name, args)
 		a.logCmd(step, cmd, err, stderr)
 	}, args...)
@@ -183,7 +186,7 @@ func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
 }
 
 func (a *Application) mergeValuesYaml(step string, valueFilesYaml string) (CmdResult, error) {
-	return runYttWithFilesAndStdin(step, nil, nil, func(name string, err error, stderr string, args []string) {
+	return runYttWithFilesAndStdin(step, nil, nil, a.cfg.Metrics, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd("merge data values file", name, args)
 		a.logCmd(step, cmd, err, stderr)
 	}, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
@@ -198,20 +201,20 @@ func (a *Application) yttS(step string, purpose string, paths []string, stdin io
 		"-v", "myks.context.step="+step,
 		"-v", "myks.context.app="+a.Name,
 		"-v", "myks.context.prototype="+a.Prototype)
-	paths = concatenate(a.e.g.extraYttPaths, paths)
-	return runYttWithFilesAndStdin(step, paths, stdin, func(name string, err error, stderr string, args []string) {
+	paths = concatenate(a.cfg.ExtraYttPaths, paths)
+	return runYttWithFilesAndStdin(step, paths, stdin, a.cfg.Metrics, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd(purpose, name, args)
 		a.logCmd(step, cmd, err, stderr)
 	}, args...)
 }
 
 func (a *Application) prototypeDirName() string {
-	return strings.TrimPrefix(a.Prototype, a.e.g.PrototypesDir+string(filepath.Separator))
+	return strings.TrimPrefix(a.Prototype, a.cfg.PrototypesDir+string(filepath.Separator))
 }
 
 func (a *Application) getHelmChartsDirs(stepName string) ([]string, error) {
 	chartsDirs := []string{}
-	baseDir := a.expandVendorPath(a.e.g.HelmChartsDirName)
+	baseDir := a.expandVendorPath(a.cfg.HelmChartsDirName)
 	if ok, err := isExist(baseDir); err != nil {
 		return nil, err
 	} else if !ok {

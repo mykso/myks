@@ -32,14 +32,14 @@ argocd:
 func (e *Environment) renderArgoCD() (err error) {
 	if !e.argoCDEnabled {
 		log.Debug().Msg(e.Msg("ArgoCD is disabled"))
-		return
+		return err
 	}
 
 	// 0. Global data values schema and library files are added later in the a.yttS call
 	// 1. Collection of environment main data values and schemas
-	yttFiles := e.collectBySubpath(e.g.EnvironmentDataFileName)
+	yttFiles := e.collectBySubpath(e.cfg.EnvironmentDataFileName)
 	// 2. Collection of environment argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join(e.g.EnvsDir, e.g.ArgoCDDataDirName))...)
+	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join(e.cfg.EnvsDir, e.cfg.ArgoCDDataDirName))...)
 
 	res, err := e.yttS(
 		"create ArgoCD project yaml",
@@ -59,7 +59,7 @@ func (e *Environment) renderArgoCD() (err error) {
 }
 
 func (e *Environment) getArgoCDDestinationDir() string {
-	return filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.ID)
+	return filepath.Join(e.cfg.RootDir, e.cfg.RenderedArgoDir, e.ID)
 }
 
 func (a *Application) renderArgoCD() error {
@@ -79,16 +79,16 @@ func (a *Application) renderArgoCD() error {
 	// 2. Collection of application main data values and schemas
 	yttFiles = append(yttFiles, a.yttDataFiles...)
 	// 3. Use argocd-specific data values, schemas, and overlays from the prototype
-	prototypeArgoCDDir := filepath.Join(a.Prototype, a.e.g.ArgoCDDataDirName)
+	prototypeArgoCDDir := filepath.Join(a.Prototype, a.cfg.ArgoCDDataDirName)
 	if ok, errExists := isExist(prototypeArgoCDDir); errExists != nil {
 		return errExists
 	} else if ok {
 		yttFiles = append(yttFiles, prototypeArgoCDDir)
 	}
 	// 4. Collection of environment argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.e.g.EnvsDir, a.e.g.ArgoCDDataDirName))...)
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.cfg.EnvsDir, a.cfg.ArgoCDDataDirName))...)
 	// 5. Collection of application argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.ArgoCDDataDirName))...)
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.ArgoCDDataDirName))...)
 
 	res, err := a.yttS(
 		"argocd",
@@ -120,7 +120,7 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 	tmpl, err := template.New(name).Parse(argocdDataValuesSchema)
 	if err != nil {
 		log.Fatal().Err(err).Msg(a.Msg(ArgoCDStepName, "failed to parse ArgoCD data values schema template"))
-		return
+		return "", err
 	}
 
 	type Data struct {
@@ -132,26 +132,26 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 
 	data := Data{
 		AppName:        a.Name,
-		AppPath:        filepath.Join(a.e.g.GitPathPrefix, a.getDestinationDir()),
-		RepoURL:        a.e.g.GitRepoURL,
-		TargetRevision: a.e.g.GitRepoBranch,
+		AppPath:        filepath.Join(a.cfg.GitPathPrefix, a.getDestinationDir()),
+		RepoURL:        a.cfg.GitRepoURL,
+		TargetRevision: a.cfg.GitRepoBranch,
 	}
 
 	buf := &bytes.Buffer{}
 	err = tmpl.Execute(buf, data)
 	if err != nil {
-		return
+		return "", err
 	}
 
 	err = a.writeServiceFile(name, buf.String())
 
 	filename = a.expandServicePath(name)
 
-	return
+	return filename, err
 }
 
 func (a *Application) getArgoCDDestinationDir() string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedArgoDir, a.e.ID)
+	return filepath.Join(a.cfg.RootDir, a.cfg.RenderedArgoDir, a.e.ID)
 }
 
 func getArgoCDEnvFileName(envName string) string {

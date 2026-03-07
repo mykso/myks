@@ -12,13 +12,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// resetMetrics clears the global metrics map for test isolation.
-func resetMetrics() {
-	metricsMu.Lock()
-	defer metricsMu.Unlock()
-	metrics = make(map[string]*StepMetric)
-}
-
 // runTrueCmd runs a no-op command and returns the *exec.Cmd with a valid ProcessState.
 func runTrueCmd(t *testing.T) *exec.Cmd {
 	t.Helper()
@@ -56,13 +49,13 @@ func TestTrackCmdMetric_GuardConditions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resetMetrics()
+			m := NewMetricsManager()
 			// None of these should panic or add a metric entry.
-			TrackCmdMetric(tt.step, tt.cmd(t), 100*time.Millisecond)
+			m.TrackCmdMetric(tt.step, tt.cmd(t), 100*time.Millisecond)
 
-			metricsMu.Lock()
-			count := len(metrics)
-			metricsMu.Unlock()
+			m.mu.Lock()
+			count := len(m.metrics)
+			m.mu.Unlock()
 
 			if count != 0 {
 				t.Errorf("expected no metrics to be recorded, got %d", count)
@@ -72,19 +65,19 @@ func TestTrackCmdMetric_GuardConditions(t *testing.T) {
 }
 
 func TestTrackCmdMetric_Aggregation(t *testing.T) {
-	resetMetrics()
+	m := NewMetricsManager()
 
 	cmd1 := runTrueCmd(t)
 	cmd2 := runTrueCmd(t)
 
-	TrackCmdMetric("helm", cmd1, 100*time.Millisecond)
-	TrackCmdMetric("helm", cmd2, 200*time.Millisecond)
-	TrackCmdMetric("ytt", cmd1, 50*time.Millisecond)
+	m.TrackCmdMetric("helm", cmd1, 100*time.Millisecond)
+	m.TrackCmdMetric("helm", cmd2, 200*time.Millisecond)
+	m.TrackCmdMetric("ytt", cmd1, 50*time.Millisecond)
 
-	metricsMu.Lock()
-	helmMetric, helmOk := metrics["helm"]
-	yttMetric, yttOk := metrics["ytt"]
-	metricsMu.Unlock()
+	m.mu.Lock()
+	helmMetric, helmOk := m.metrics["helm"]
+	yttMetric, yttOk := m.metrics["ytt"]
+	m.mu.Unlock()
 
 	if !helmOk {
 		t.Fatal("expected helm metric to be recorded")
@@ -108,25 +101,25 @@ func TestTrackCmdMetric_Aggregation(t *testing.T) {
 }
 
 func TestTrackCmdMetric_MaxRSS(t *testing.T) {
-	resetMetrics()
+	m := NewMetricsManager()
 
 	cmd := runTrueCmd(t)
 
-	TrackCmdMetric("helm", cmd, 100*time.Millisecond)
+	m.TrackCmdMetric("helm", cmd, 100*time.Millisecond)
 
 	// Set MaxRSS to a very large sentinel value – larger than any realistic
 	// process RSS – so the second TrackCmdMetric call (whose actual RSS will
 	// be far smaller) must NOT overwrite it.
 	const sentinelRSS = int64(1<<62) - 1
-	metricsMu.Lock()
-	metrics["helm"].MaxRSS = sentinelRSS
-	metricsMu.Unlock()
+	m.mu.Lock()
+	m.metrics["helm"].MaxRSS = sentinelRSS
+	m.mu.Unlock()
 
-	TrackCmdMetric("helm", cmd, 100*time.Millisecond)
+	m.TrackCmdMetric("helm", cmd, 100*time.Millisecond)
 
-	metricsMu.Lock()
-	rss := metrics["helm"].MaxRSS
-	metricsMu.Unlock()
+	m.mu.Lock()
+	rss := m.metrics["helm"].MaxRSS
+	m.mu.Unlock()
 
 	if rss != sentinelRSS {
 		t.Errorf("MaxRSS decreased after second call: got %d, want %d", rss, sentinelRSS)
@@ -211,11 +204,11 @@ func TestBuildMetricsSummary_SortedSteps(t *testing.T) {
 }
 
 func TestPrintCmdMetrics_PrintStatsFlag(t *testing.T) {
-	resetMetrics()
+	m := NewMetricsManager()
 
-	metricsMu.Lock()
-	metrics["helm"] = &StepMetric{Count: 1, TotalTime: 100 * time.Millisecond}
-	metricsMu.Unlock()
+	m.mu.Lock()
+	m.metrics["helm"] = &StepMetric{Count: 1, TotalTime: 100 * time.Millisecond}
+	m.mu.Unlock()
 
 	// Capture zerolog output to verify the log path is used when PrintStats=false.
 	var logBuf bytes.Buffer
@@ -227,7 +220,7 @@ func TestPrintCmdMetrics_PrintStatsFlag(t *testing.T) {
 	defer func() { PrintStats = origPrintStats }()
 
 	PrintStats = false
-	PrintCmdMetrics()
+	m.PrintCmdMetrics()
 
 	if !strings.Contains(logBuf.String(), "helm") {
 		t.Errorf("expected helm in log output when PrintStats=false, got: %s", logBuf.String())
@@ -235,11 +228,11 @@ func TestPrintCmdMetrics_PrintStatsFlag(t *testing.T) {
 }
 
 func TestPrintCmdMetrics_PrintStatsToStdout(t *testing.T) {
-	resetMetrics()
+	m := NewMetricsManager()
 
-	metricsMu.Lock()
-	metrics["helm"] = &StepMetric{Count: 1, TotalTime: 100 * time.Millisecond}
-	metricsMu.Unlock()
+	m.mu.Lock()
+	m.metrics["helm"] = &StepMetric{Count: 1, TotalTime: 100 * time.Millisecond}
+	m.mu.Unlock()
 
 	origPrintStats := PrintStats
 	defer func() { PrintStats = origPrintStats }()
@@ -254,7 +247,7 @@ func TestPrintCmdMetrics_PrintStatsToStdout(t *testing.T) {
 	os.Stdout = w
 	defer func() { os.Stdout = origStdout }()
 
-	PrintCmdMetrics()
+	m.PrintCmdMetrics()
 	_ = w.Close()
 
 	var out bytes.Buffer
@@ -270,7 +263,7 @@ func TestPrintCmdMetrics_PrintStatsToStdout(t *testing.T) {
 }
 
 func TestPrintCmdMetrics_EmptyMetrics(t *testing.T) {
-	resetMetrics()
+	m := NewMetricsManager()
 	// Should not panic and should produce no output.
-	PrintCmdMetrics()
+	m.PrintCmdMetrics()
 }

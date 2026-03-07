@@ -8,7 +8,6 @@ import (
 
 	"github.com/mykso/myks/cmd"
 	embedded "github.com/mykso/myks/cmd/embedded"
-	"github.com/mykso/myks/internal/myks"
 )
 
 var (
@@ -21,7 +20,6 @@ func main() {
 	if embedded.CheckAndRun() {
 		return
 	}
-	defer myks.PrintCmdMetrics()
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	err := cmd.NewMyksCmd(version, commit, date).Execute()
 	if err != nil {

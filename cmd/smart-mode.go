@@ -27,7 +27,8 @@ func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 	switch len(args) {
 	case 0:
 		g := getGlobe()
-		envAppMap, err = g.DetectChangedEnvsAndApps(viper.GetString("smart-mode.base-revision"))
+		sm := myks.NewSmartMode(g)
+		envAppMap, err = sm.DetectChangedEnvsAndApps(viper.GetString("smart-mode.base-revision"))
 		if err != nil {
 			log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
 		} else if len(envAppMap) == 0 {

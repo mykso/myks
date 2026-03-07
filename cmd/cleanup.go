@@ -3,6 +3,8 @@ package cmd
 import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+
+	"github.com/mykso/myks/internal/myks"
 )
 
 const cleanupCmdLongHelp = `Cleanup obsolete manifests and cache entries.
@@ -56,14 +58,16 @@ func newCleanupCmd() *cobra.Command {
 				log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 			}
 
+			cleaner := myks.NewCleaner(g)
+
 			if modeManifests {
-				if err := g.CleanupRenderedManifests(dryRun); err != nil {
+				if err := cleaner.CleanupRenderedManifests(dryRun); err != nil {
 					log.Fatal().Err(err).Msg("Unable to cleanup rendered manifests")
 				}
 			}
 
 			if modeCache {
-				if err := g.CleanupObsoleteCacheEntries(dryRun); err != nil {
+				if err := cleaner.CleanupObsoleteCacheEntries(dryRun); err != nil {
 					log.Fatal().Err(err).Msg("Unable to cleanup cache entries")
 				}
 			}

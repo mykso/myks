@@ -22,89 +22,10 @@ const GlobalExtendedLogFormat = "\033[1m[global > %s > %s]\033[0m %s"
 
 // Globe contains global configuration and state for the myks application
 type Globe struct {
-	// Global vendir cache dir
-	VendirCache string `default:"vendir-cache"`
-	// Project root directory
-	RootDir string `default:"."`
-	// Base directory for environments
-	EnvironmentBaseDir string `default:"envs" mapstructure:"environment-base-dir"`
-	// Application prototypes directory
-	PrototypesDir string `default:"prototypes" mapstructure:"prototypes-dir"`
-	// Ytt library directory name
-	YttLibraryDirName string `default:"lib" mapstructure:"ytt-library-dir-name"`
-	// Rendered kubernetes manifests directory
-	RenderedEnvsDir string `default:"rendered/envs" mapstructure:"rendered-envs-dir"`
-	// Rendered argocd manifests directory
-	RenderedArgoDir string `default:"rendered/argocd" mapstructure:"rendered-argo-dir"`
-
-	// Directory of application-specific configuration
-	AppsDir string `default:"_apps" mapstructure:"apps-dir"`
-	// Directory of environment-specific configuration
-	EnvsDir string `default:"_env" mapstructure:"envs-dir"`
-	// Directory of application-specific prototype overwrites
-	PrototypeOverrideDir string `default:"_proto" mapstructure:"prototype-override-dir"`
-
-	// Data values schema file name
-	DataSchemaFileName string `default:"data-schema.ytt.yaml"`
-	// Application data file name
-	ApplicationDataFileName string `default:"app-data*.yaml" mapstructure:"application-data-file-name"`
-	// Environment data file name
-	EnvironmentDataFileName string `default:"env-data*.yaml" mapstructure:"environment-data-file-name"`
-	// Rendered environment data file path, keep in sync with YttLibApiDir
-	RenderedEnvironmentDataLibFileName string `default:"_api/_ytt_lib/myks/data.lib.yaml"`
-	// Directory where myks' ytt libraries are stored
-	YttLibAPIDir string `default:"_api"`
-	// Myks runtime data file name
-	MyksDataFileName string `default:"myks-data.ytt.yaml"`
-	// Service directory name
-	ServiceDirName string `default:".myks"`
-	// Temporary directory name
-	TempDirName string `default:"tmp"`
-
-	// Rendered vendir config file name
-	VendirConfigFileName string `default:"vendir.yaml"`
-	// Rendered vendir lock file name
-	VendirLockFileName string `default:"vendir.lock.yaml"`
-	// Name of the file with directory-to-cache-dir mappings
-	VendirLinksMapFileName string `default:"vendir-links.yaml"`
-	// Prefix for vendir secret environment variables
-	VendirSecretEnvPrefix string `default:"VENDIR_SECRET_"`
-
-	// Downloaded third-party sources
-	VendorDirName string `default:"vendor"`
-	// Helm charts directory name
-	HelmChartsDirName string `default:"charts"`
-
-	// Plugin subdirectories
-	// ArgoCD data directory name
-	ArgoCDDataDirName string `default:"argocd" mapstructure:"plugin-argocd-dir-name"`
-	// Helm step directory name
-	HelmStepDirName string `default:"helm" mapstructure:"plugin-helm-dir-name"`
-	// Static files directory name
-	StaticFilesDirName string `default:"static" mapstructure:"plugin-static-dir-name"`
-	// Vendir step directory name
-	VendirStepDirName string `default:"vendir" mapstructure:"plugin-vendir-dir-name"`
-	// Ytt step directory name (deprecated, not used)
-	YttPkgStepDirName string `default:"ytt-pkg"`
-	// Ytt step directory name
-	YttStepDirName string `default:"ytt" mapstructure:"plugin-ytt-dir-name"`
-
-	/// Runtime data
-
-	// Running in a git repository
-	WithGit bool
-	// Git repository path prefix (non-empty if running in a subdirectory of a git repository)
-	GitPathPrefix string
-	// Git repository branch
-	GitRepoBranch string
-	// Git repository URL
-	GitRepoURL string
+	Config
 
 	// Collected environments for processing
 	environments map[string]*Environment
-
-	// Extra ytt file paths
-	extraYttPaths []string
 }
 
 // YttGlobeData controls runtime data available to ytt templates
@@ -123,17 +44,11 @@ type EnvAppMap map[string][]string
 func NewWithDefaults() *Globe {
 	g := &Globe{}
 	defaults.MustSet(g)
+	g.Metrics = NewMetricsManager()
 	return g
 }
 
 func New(rootDir string) *Globe {
-	// FIXME: Do not change working directory here, implement relative paths throughout the codebase instead
-	if rootDir != "." {
-		if err := os.Chdir(rootDir); err != nil {
-			log.Fatal().Err(err).Str("rootDir", rootDir).Msg("Unable to change working directory")
-		}
-		rootDir = "."
-	}
 	g := NewWithDefaults()
 	g.RootDir = rootDir
 	g.environments = make(map[string]*Environment)
@@ -144,15 +59,15 @@ func New(rootDir string) *Globe {
 	if ok, err := isExist(yttLibraryDir); err != nil {
 		log.Fatal().Err(err).Str("path", yttLibraryDir).Msg("Unable to stat ytt library directory")
 	} else if ok {
-		g.extraYttPaths = append(g.extraYttPaths, yttLibraryDir)
+		g.ExtraYttPaths = append(g.ExtraYttPaths, yttLibraryDir)
 	}
 
-	g.extraYttPaths = append(g.extraYttPaths, g.createDataSchemaFile())
+	g.ExtraYttPaths = append(g.ExtraYttPaths, createDataSchemaFile(g.Config))
 
 	if configFileName, err := g.dumpConfigAsYaml(); err != nil {
 		log.Warn().Err(err).Msg("Unable to dump config as yaml")
 	} else {
-		g.extraYttPaths = append(g.extraYttPaths, configFileName)
+		g.ExtraYttPaths = append(g.ExtraYttPaths, configFileName)
 	}
 
 	log.Debug().Interface("globe", g).Msg("Globe config")
@@ -294,153 +209,6 @@ func (g *Globe) collectAllApplications() []*Application {
 		apps = append(apps, env.Applications...)
 	}
 	return apps
-}
-
-// CleanupRenderedManifests discovers rendered environments that are not known to the Globe struct and removes them.
-// This function should be only run when the Globe is not restricted by a list of environments.
-func (g *Globe) CleanupRenderedManifests(dryRun bool) error {
-	legalEnvs := map[string]*Environment{}
-	for _, env := range g.environments {
-		legalEnvs[env.ID] = env
-	}
-
-	listFiles := func(dir string) ([]fs.DirEntry, error) {
-		files, err := os.ReadDir(dir)
-		if err != nil {
-			if os.IsNotExist(err) {
-				log.Debug().Str("dir", dir).Msg("Skipping cleanup of non-existing directory")
-				return nil, nil
-			}
-			return nil, fmt.Errorf("unable to read directory %s: %w", dir, err)
-		}
-		return files, nil
-	}
-
-	cleanupEnvironmentDir := func(root string, envDirEntry fs.DirEntry, getAppNameFunc func(string) string) {
-		envID := envDirEntry.Name()
-		fullPath := filepath.Join(root, envID)
-		if !envDirEntry.IsDir() {
-			log.Warn().Str("file", fullPath).Msg("Skipping non-directory entry")
-			return
-		}
-
-		env, ok := legalEnvs[envID]
-		if !ok {
-			if dryRun {
-				log.Info().Str("dir", fullPath).Msg("Would cleanup rendered environment directory")
-				return
-			}
-			log.Debug().Str("dir", fullPath).Msg("Cleanup rendered environment directory")
-			if err := os.RemoveAll(fullPath); err != nil {
-				log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
-			}
-			return
-		}
-
-		legalApps := map[string]bool{}
-		for _, app := range env.Applications {
-			legalApps[app.Name] = true
-		}
-
-		apps, err := listFiles(fullPath)
-		if err != nil {
-			log.Warn().Err(err).Str("dir", fullPath).Msg("Unable to list applications in environment directory")
-			return
-		}
-
-		for _, appDirEntry := range apps {
-			appName := appDirEntry.Name()
-			fullAppPath := filepath.Join(fullPath, appName)
-			if getAppNameFunc != nil {
-				appName = getAppNameFunc(appName)
-			}
-			if appName == "" {
-				log.Warn().Str("app", fullAppPath).Msg("Directory name could not be mapped to a known application")
-				continue
-			}
-			if _, ok := legalApps[appName]; !ok {
-				if dryRun {
-					log.Info().Str("app", fullAppPath).Msg("Would cleanup rendered application directory")
-					continue
-				}
-				log.Debug().Str("app", fullAppPath).Msg("Cleanup rendered application directory")
-				if err := os.RemoveAll(fullAppPath); err != nil {
-					log.Warn().Str("app", fullAppPath).Msg("Failed to remove application directory")
-				}
-			}
-		}
-	}
-
-	argoDir := filepath.Join(g.RootDir, g.RenderedArgoDir)
-	files, err := listFiles(argoDir)
-	if err != nil {
-		return fmt.Errorf("unable to read ArgoCD rendered manifests directory: %w", err)
-	}
-	for _, envDirEntry := range files {
-		cleanupEnvironmentDir(argoDir, envDirEntry, func(appName string) string {
-			if strings.HasPrefix(appName, "app-") && strings.HasSuffix(appName, ".yaml") {
-				return appName[4 : len(appName)-5]
-			}
-			return ""
-		})
-	}
-
-	envsDir := filepath.Join(g.RootDir, g.RenderedEnvsDir)
-	files, err = listFiles(envsDir)
-	if err != nil {
-		return fmt.Errorf("unable to read rendered environments directory: %w", err)
-	}
-	for _, envDirEntry := range files {
-		cleanupEnvironmentDir(envsDir, envDirEntry, nil)
-	}
-
-	return nil
-}
-
-// CleanupObsoleteCacheEntries removes cache entries that are not used by any application.
-// This function should be only run when the Globe is not restricted by a list of environments.
-func (g *Globe) CleanupObsoleteCacheEntries(dryRun bool) error {
-	validCacheDirs := map[string]bool{}
-	for _, env := range g.environments {
-		for _, app := range env.Applications {
-			linksMap, err := app.getLinksMap()
-			if err != nil {
-				return err
-			}
-			for _, cacheName := range linksMap {
-				validCacheDirs[cacheName] = true
-			}
-		}
-	}
-
-	cacheDir := filepath.Join(g.RootDir, g.ServiceDirName, g.VendirCache)
-	cacheEntries, err := os.ReadDir(cacheDir)
-	if os.IsNotExist(err) {
-		log.Debug().Str("dir", cacheDir).Msg("Skipping cleanup of non-existing directory")
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("unable to read dir: %w", err)
-	}
-
-	for _, entry := range cacheEntries {
-		if !entry.IsDir() {
-			log.Warn().Str("file", cacheDir+"/"+entry.Name()).Msg("Skipping non-directory entry")
-			continue
-		}
-		if _, ok := validCacheDirs[entry.Name()]; !ok {
-			if dryRun {
-				log.Info().Str("dir", cacheDir+"/"+entry.Name()).Msg("Would cleanup cache entry")
-				continue
-			}
-			log.Debug().Str("dir", cacheDir+"/"+entry.Name()).Msg("Cleanup cache entry")
-			fullPath := filepath.Join(cacheDir, entry.Name())
-			if err = os.RemoveAll(fullPath); err != nil {
-				log.Warn().Str("dir", fullPath).Msg("Failed to remove directory")
-			}
-		}
-	}
-
-	return nil
 }
 
 // buildYttGlobeData creates the YttGlobeData struct from Globe's git configuration
@@ -616,8 +384,8 @@ func (g *Globe) GetApplicationsForEnvPath(envPath string) ([]string, error) {
 	args := []string{"--data-values-inspect"}
 
 	// Run ytt with extra paths (data schema, config, lib)
-	paths := concatenate(g.extraYttPaths, envDataFiles)
-	res, err := runYttWithFilesAndStdin("ytt", paths, nil, func(name string, err error, stderr string, args []string) {
+	paths := concatenate(g.ExtraYttPaths, envDataFiles)
+	res, err := runYttWithFilesAndStdin("ytt", paths, nil, g.Metrics, func(name string, err error, stderr string, args []string) {
 		if err != nil {
 			log.Debug().Str("stderr", stderr).Msg("ytt data-values-inspect failed")
 		}

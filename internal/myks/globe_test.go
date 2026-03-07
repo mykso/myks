@@ -189,7 +189,8 @@ func Test_getEnvironmentsUnderRoot(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := g.getEnvironmentsUnderRoot(tt.path)
+			sm := NewSmartMode(g)
+			result := sm.getEnvironmentsUnderRoot(tt.path)
 			// Sort both slices for comparison
 			sort.Strings(result)
 			sort.Strings(tt.expected)

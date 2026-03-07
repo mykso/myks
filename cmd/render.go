@@ -96,7 +96,8 @@ func RenderCmd(g *myks.Globe, sync, render bool) error {
 
 	// Cleaning up only if all environments and applications were processed
 	if envAppMap == nil {
-		return okOrErrLog(g.CleanupRenderedManifests(false), "Unable to cleanup rendered manifests")
+		cleaner := myks.NewCleaner(g)
+		return okOrErrLog(cleaner.CleanupRenderedManifests(false), "Unable to cleanup rendered manifests")
 	}
 
 	return nil
