@@ -21,11 +21,14 @@ const (
 	initStepName      = "init"
 )
 
+// Application represents a deployable unit within an environment, linked to a prototype.
 type Application struct {
 	Name      string
 	Prototype string
 
 	e *Environment
+	// Naming and path configuration (points to e.cfg / g.Config)
+	cfg *Config
 
 	argoCDEnabled    bool
 	includeNamespace bool
@@ -34,21 +37,25 @@ type Application struct {
 }
 
 var (
-	ErrNoVendirConfig    = errors.New("no vendir config found")
+	// ErrNoVendirConfig is returned when no vendir config is found for an application.
+	ErrNoVendirConfig = errors.New("no vendir config found")
+	// ApplicationLogFormat is the printf format used for application-level log prefixes.
 	ApplicationLogFormat = "\033[1m[%s > %s > %s]\033[0m %s"
 )
 
-func NewApplication(e *Environment, name string, prototypeName string) (*Application, error) {
+// NewApplication creates and initializes a new Application within the given environment.
+func NewApplication(e *Environment, name, prototypeName string) (*Application, error) {
 	if prototypeName == "" {
 		prototypeName = name
 	}
 
-	prototype := filepath.Join(e.g.RootDir, e.g.PrototypesDir, prototypeName)
+	prototype := filepath.Join(e.cfg.RootDir, e.cfg.PrototypesDir, prototypeName)
 
 	app := &Application{
 		Name:      name,
 		Prototype: prototype,
 		e:         e,
+		cfg:       e.cfg,
 	}
 
 	if ok, err := isExist(app.Prototype); err != nil {
@@ -61,10 +68,11 @@ func NewApplication(e *Environment, name string, prototypeName string) (*Applica
 	return app, err
 }
 
+// Init initializes the application by collecting data files and rendering data yaml.
 func (a *Application) Init() error {
 	a.collectDataFiles()
 
-	dataYaml, err := a.renderDataYaml(concatenate(a.e.g.extraYttPaths, a.yttDataFiles))
+	dataYaml, err := a.renderDataYaml(concatenate(a.e.extraYttPaths, a.yttDataFiles))
 	if err != nil {
 		return err
 	}
@@ -95,18 +103,18 @@ func (a *Application) Init() error {
 }
 
 func (a *Application) expandServicePath(path string) string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.ServiceDirName, a.e.Dir, a.e.g.AppsDir, a.Name, path)
+	return filepath.Join(a.cfg.RootDir, a.cfg.ServiceDirName, a.e.Dir, a.cfg.AppsDir, a.Name, path)
 }
 
 func (a *Application) expandVendirCache(path string) string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.ServiceDirName, a.e.g.VendirCache, path)
+	return filepath.Join(a.cfg.RootDir, a.cfg.ServiceDirName, a.cfg.VendirCache, path)
 }
 
 func (a *Application) expandVendorPath(path string) string {
-	return a.expandServicePath(filepath.Join(a.e.g.VendorDirName, path))
+	return a.expandServicePath(filepath.Join(a.cfg.VendorDirName, path))
 }
 
-func (a *Application) writeServiceFile(name string, content string) error {
+func (a *Application) writeServiceFile(name, content string) error {
 	return writeFile(a.expandServicePath(name), []byte(content))
 }
 
@@ -124,9 +132,9 @@ func (a *Application) writeServiceFile(name string, content string) error {
 // Note: The order of the libs is inverted, so that the most specific ones take precedence.
 func (a *Application) collectDataFiles() {
 	APILibraries := []string{a.e.getYttLibAPIDir()}
-	appLibraries := a.collectAllFilesByGlob(a.e.g.YttLibraryDirName)
-	envDataFiles := a.e.collectBySubpath(a.e.g.EnvironmentDataFileName)
-	appDataFiles := a.collectAllFilesByGlob(a.e.g.ApplicationDataFileName)
+	appLibraries := a.collectAllFilesByGlob(a.cfg.YttLibraryDirName)
+	envDataFiles := a.e.collectBySubpath(a.cfg.EnvironmentDataFileName)
+	appDataFiles := a.collectAllFilesByGlob(a.cfg.ApplicationDataFileName)
 	a.yttDataFiles = slices.Concat(
 		APILibraries,
 		appLibraries,
@@ -135,7 +143,8 @@ func (a *Application) collectDataFiles() {
 	)
 }
 
-func (a *Application) Msg(step string, msg string) string {
+// Msg formats a log message with the application's environment and name as context.
+func (a *Application) Msg(step, msg string) string {
 	formattedMessage := fmt.Sprintf(ApplicationLogFormat, a.e.ID, a.Name, step, msg)
 	return formattedMessage
 }
@@ -147,7 +156,7 @@ func (a *Application) runCmd(step, purpose, cmd string, stdin io.Reader, args []
 	})
 }
 
-func (a *Application) logCmd(step string, cmd string, err error, stderr string) {
+func (a *Application) logCmd(step, cmd string, err error, stderr string) {
 	if err != nil {
 		log.Error().Msg(a.Msg(step, cmd))
 		log.Error().Msg(a.Msg(step, stderr))
@@ -182,7 +191,7 @@ func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
 	return dataYaml, nil
 }
 
-func (a *Application) mergeValuesYaml(step string, valueFilesYaml string) (CmdResult, error) {
+func (a *Application) mergeValuesYaml(step, valueFilesYaml string) (CmdResult, error) {
 	return runYttWithFilesAndStdin(step, nil, nil, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd("merge data values file", name, args)
 		a.logCmd(step, cmd, err, stderr)
@@ -193,12 +202,12 @@ func (a *Application) ytt(step, purpose string, paths []string, args ...string) 
 	return a.yttS(step, purpose, paths, nil, args...)
 }
 
-func (a *Application) yttS(step string, purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
+func (a *Application) yttS(step, purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
 	args = append(args,
 		"-v", "myks.context.step="+step,
 		"-v", "myks.context.app="+a.Name,
 		"-v", "myks.context.prototype="+a.Prototype)
-	paths = concatenate(a.e.g.extraYttPaths, paths)
+	paths = concatenate(a.e.extraYttPaths, paths)
 	return runYttWithFilesAndStdin(step, paths, stdin, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd(purpose, name, args)
 		a.logCmd(step, cmd, err, stderr)
@@ -206,12 +215,12 @@ func (a *Application) yttS(step string, purpose string, paths []string, stdin io
 }
 
 func (a *Application) prototypeDirName() string {
-	return strings.TrimPrefix(a.Prototype, a.e.g.PrototypesDir+string(filepath.Separator))
+	return strings.TrimPrefix(a.Prototype, a.cfg.PrototypesDir+string(filepath.Separator))
 }
 
 func (a *Application) getHelmChartsDirs(stepName string) ([]string, error) {
 	chartsDirs := []string{}
-	baseDir := a.expandVendorPath(a.e.g.HelmChartsDirName)
+	baseDir := a.expandVendorPath(a.cfg.HelmChartsDirName)
 	if ok, err := isExist(baseDir); err != nil {
 		return nil, err
 	} else if !ok {

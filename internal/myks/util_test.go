@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -108,7 +109,7 @@ func Test_writeFile(t *testing.T) {
 			if err != nil {
 				t.Errorf("writeFile() error = %v", err)
 			}
-			if string(file) != string(tt.args.content) {
+			if !bytes.Equal(file, tt.args.content) {
 				t.Errorf("writeFile() got = %v, wantArgs %v", string(file), string(tt.args.content))
 			}
 		})
@@ -347,11 +348,12 @@ func TestProcess(t *testing.T) {
 			}
 
 			var collection iter.Seq[int]
-			if slice, ok := tc.collection.([]int); ok {
-				collection = slices.Values(slice)
-			} else if m, ok := tc.collection.(map[string]int); ok {
-				collection = maps.Values(m)
-			} else {
+			switch v := tc.collection.(type) {
+			case []int:
+				collection = slices.Values(v)
+			case map[string]int:
+				collection = maps.Values(v)
+			default:
 				t.Fatalf("unexpected type: %T", tc.collection)
 			}
 

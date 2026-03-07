@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,6 +19,7 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
+// MyksConfigName is the base name for myks configuration files.
 const (
 	MyksConfigName = ".myks"
 	MyksConfigType = "yaml"
@@ -31,6 +33,7 @@ var (
 	globe *myks.Globe
 )
 
+// NewMyksCmd creates the root cobra command for the myks CLI.
 func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cobra.OnInitialize(initLogger)
 	cobra.OnInitialize(func() { checkMinVersion(version) })
@@ -40,9 +43,9 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cmd.AddCommand(newCleanupCmd())
 	cmd.AddCommand(newInitCmd(version))
 	cmd.AddCommand(newPrintConfigCmd())
-	cmd.AddCommand(embedded.EmbeddedCmd("vendir", "Vendir is embedded in myks to manage vendir.yaml files."))
-	cmd.AddCommand(embedded.EmbeddedCmd("ytt", "Ytt is embedded in myks to manage yaml files."))
-	cmd.AddCommand(embedded.EmbeddedCmd("kbld", "Kbld is embedded in myks to manage container image references."))
+	cmd.AddCommand(embedded.Cmd("vendir", "Vendir is embedded in myks to manage vendir.yaml files."))
+	cmd.AddCommand(embedded.Cmd("ytt", "Ytt is embedded in myks to manage yaml files."))
+	cmd.AddCommand(embedded.Cmd("kbld", "Kbld is embedded in myks to manage container image references."))
 	initConfig()
 	addPlugins(cmd)
 
@@ -155,7 +158,7 @@ func initConfig() {
 			viper.Set("root-dir", rootDir)
 			log.Info().Msgf("Setting root-dir to: %s", rootDir)
 		}
-	} else if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+	} else if notFound := (viper.ConfigFileNotFoundError{}); errors.As(err, &notFound) {
 		log.Debug().Msg("Config file not found, using defaults")
 	} else {
 		log.Error().Err(err).Msg("Error reading config file")

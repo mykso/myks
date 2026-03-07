@@ -1,0 +1,101 @@
+version: '2'
+
+linters:
+  default: standard
+  enable:
+    - cyclop
+    - dupl
+    - errorlint
+    - funlen
+    - goconst
+    - gocritic
+    - gocognit
+    - misspell
+    - nakedret
+    - nestif
+    - revive
+    - unparam
+    - wrapcheck
+    - zerologlint
+
+  settings:
+    cyclop:
+      # Start lenient; current worst offender is 22 (runSmartMode). Tighten gradually.
+      max-complexity: 20
+
+    gocognit:
+      # Current worst offender is 47 (CleanupRenderedManifests). Tighten gradually.
+      min-complexity: 40
+
+    funlen:
+      # Current worst production offender is ~96 lines (CleanupRenderedManifests).
+      lines: 100
+      statements: 60
+
+    nestif:
+      # Current worst is complexity 9 (plugins.go). Start lenient.
+      min-complexity: 8
+
+    nakedret:
+      # Flag naked returns in functions longer than 10 lines.
+      max-func-lines: 10
+
+    dupl:
+      # Flag duplicate blocks longer than 150 tokens.
+      threshold: 150
+
+    goconst:
+      min-len: 3
+      min-occurrences: 3
+
+    gocritic:
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+
+    wrapcheck:
+      ignore-sigs:
+        # Allow unwrapped returns from our own package and test helpers.
+        - 'github.com/mykso/myks/'
+        - '.Errorf('
+        - 'errors.New('
+        - 'errors.Unwrap('
+
+    revive:
+      rules:
+        - name: exported
+          severity: warning
+        - name: unexported-return
+          severity: warning
+        - name: error-return
+          severity: warning
+        - name: if-return
+          severity: warning
+        - name: var-naming
+          severity: warning
+
+  exclusions:
+    # Exclude test files from some strict checks.
+    rules:
+      - path: "_test\\.go"
+        linters:
+          - funlen
+          - dupl
+          - wrapcheck
+          - cyclop
+          - gocognit
+      # Exclude embedded tool runners (vendir/kbld/ytt) from exitAfterDefer gocritic check
+      # since those are intentional pass-through CLIs.
+      - path: 'cmd/embedded/'
+        linters:
+          - gocritic
+      # Known issues to address incrementally — nolint these at the source instead.
+      - linters:
+          - wrapcheck
+        text: 'error returned from external package is unwrapped'
+        path: "internal/myks/(bootstrap|application)\\.go"
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

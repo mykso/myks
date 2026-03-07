@@ -8,6 +8,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+// KbldConfig holds kbld image resolution configuration for an application.
 type KbldConfig struct {
 	Enabled          bool               `yaml:"enabled"`
 	ImagesAnnotation bool               `yaml:"imagesAnnotation"`
@@ -15,6 +16,7 @@ type KbldConfig struct {
 	Overrides        []ImageRefOverride `yaml:"overrides"`
 }
 
+// ImageRefOverride defines a match/replace rule for rewriting container image references.
 type ImageRefOverride struct {
 	Match   ImageRefPattern `yaml:"match"`
 	Replace ImageRefPattern `yaml:"replace"`
@@ -24,6 +26,7 @@ type ImageRefOverride struct {
 	tagRe        *regexp.Regexp
 }
 
+// ImageRefPattern holds registry, repository, and tag pattern components for matching or replacing image references.
 type ImageRefPattern struct {
 	Registry   string `yaml:"registry"`
 	Repository string `yaml:"repository"`
@@ -99,11 +102,12 @@ func (cfg *KbldConfig) applyOverrides(imageRef string) (string, error) {
 	repository := ref.Context().RepositoryStr()
 	tag := ""
 
-	if tagged, ok := ref.(name.Tag); ok {
-		tag = tagged.TagStr()
-	} else if digested, ok := ref.(name.Digest); ok {
+	switch typed := ref.(type) {
+	case name.Tag:
+		tag = typed.TagStr()
+	case name.Digest:
 		// DigestStr() returns just the digest part without the @ prefix
-		tag = "@" + digested.DigestStr()
+		tag = "@" + typed.DigestStr()
 	}
 
 	for _, override := range cfg.Overrides {
@@ -118,7 +122,7 @@ func (cfg *KbldConfig) applyOverrides(imageRef string) (string, error) {
 
 		newRef := newRegistry + "/" + newRepository
 
-		if len(newTag) > 0 && newTag[0] == '@' {
+		if newTag != "" && newTag[0] == '@' {
 			newRef += newTag
 		} else {
 			newRef += ":" + newTag
@@ -137,10 +141,10 @@ func (o *ImageRefOverride) matches(registry, repository, tag string) bool {
 }
 
 // apply applies the replacement pattern to the given image components
-func (o *ImageRefOverride) apply(registry, repository, tag string) (string, string, string) {
-	newRegistry := registry
-	newRepository := repository
-	newTag := tag
+func (o *ImageRefOverride) apply(registry, repository, tag string) (newRegistry, newRepository, newTag string) {
+	newRegistry = registry
+	newRepository = repository
+	newTag = tag
 
 	if o.Replace.Registry != "" {
 		newRegistry = o.Replace.Registry

@@ -18,6 +18,7 @@ import (
 
 const (
 	VendirCacheDataDirName = "data"
+	vendirConfigKindConfig = "Config"
 )
 
 // vendirCacheMutexes holds per-cache-entry mutexes to allow parallel vendir
@@ -38,19 +39,19 @@ func (v *VendirSyncer) Ident() string {
 }
 
 func (v *VendirSyncer) Sync(a *Application, vendirSecrets string) error {
-	if err := v.renderVendirConfig(a); err == ErrNoVendirConfig {
+	if err := v.renderVendirConfig(a); errors.Is(err, ErrNoVendirConfig) {
 		log.Info().Msg(a.Msg(v.getStepName(), "No vendir config found"))
 		return nil
 	} else if err != nil {
-		return err
+		return fmt.Errorf("rendering vendir config for %s: %w", a.Name, err)
 	}
 
 	if err := v.extractCacheItems(a); err != nil {
-		return err
+		return fmt.Errorf("extracting cache items for %s: %w", a.Name, err)
 	}
 
 	if err := v.doSync(a, vendirSecrets); err != nil {
-		return err
+		return fmt.Errorf("syncing %s: %w", a.Name, err)
 	}
 	log.Info().Msg(a.Msg(v.getStepName(), "Synced"))
 	return nil
@@ -66,21 +67,21 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 
 	protoVendirDir := filepath.Join(a.Prototype, "vendir")
 	if ok, err := isExist(protoVendirDir); err != nil {
-		return err
+		return fmt.Errorf("checking prototype vendir dir %s: %w", protoVendirDir, err)
 	} else if ok {
 		yttFiles = append(yttFiles, protoVendirDir)
 	}
 
-	appVendirDirs := a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, "vendir"))
+	appVendirDirs := a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, "vendir"))
 	yttFiles = append(yttFiles, appVendirDirs...)
 
 	if len(yttFiles) == 0 {
 		return ErrNoVendirConfig
 	}
 
-	baseDir := filepath.Join(a.e.g.PrototypesDir, "_vendir")
+	baseDir := filepath.Join(a.cfg.PrototypesDir, "_vendir")
 	if ok, err := isExist(baseDir); err != nil {
-		return err
+		return fmt.Errorf("checking vendir base dir %s: %w", baseDir, err)
 	} else if ok {
 		yttFiles = slices.Insert(yttFiles, 0, baseDir)
 	}
@@ -91,7 +92,7 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 	// create vendir config yaml
 	vendirConfig, err := a.yttS(v.getStepName(), "creating vendir config", yttFiles, nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("rendering vendir config via ytt: %w", err)
 	}
 
 	if vendirConfig.Stdout == "" {
@@ -102,7 +103,7 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 		return fmt.Errorf("invalid vendir config: %w", err)
 	}
 
-	vendirConfigFilePath := a.expandServicePath(a.e.g.VendirConfigFileName)
+	vendirConfigFilePath := a.expandServicePath(a.cfg.VendirConfigFileName)
 	// Create directory if it does not exist
 	if err := createDirectory(filepath.Dir(vendirConfigFilePath)); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to create directory for vendir config file"))
@@ -120,7 +121,7 @@ func (v *VendirSyncer) renderVendirConfig(a *Application) error {
 func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 	linksMap, err := a.getLinksMap()
 	if err != nil {
-		return err
+		return fmt.Errorf("reading vendir links map: %w", err)
 	}
 
 	if err := os.RemoveAll(a.expandVendorPath("")); err != nil {
@@ -130,8 +131,8 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 
 	for contentPath, cacheName := range linksMap {
 		cacheDir := a.expandVendirCache(cacheName)
-		vendirConfigPath := filepath.Join(cacheDir, a.e.g.VendirConfigFileName)
-		vendirLockPath := filepath.Join(cacheDir, a.e.g.VendirLockFileName)
+		vendirConfigPath := filepath.Join(cacheDir, a.cfg.VendirConfigFileName)
+		vendirLockPath := filepath.Join(cacheDir, a.cfg.VendirLockFileName)
 
 		mu := getCacheMutex(vendirConfigPath)
 		mu.Lock()
@@ -162,14 +163,17 @@ func (v *VendirSyncer) linkVendorToCache(a *Application, vendorPath, cacheName s
 
 	relCacheDataPath, err := filepath.Rel(linkDir, cacheDataPath)
 	if err != nil {
-		return err
+		return fmt.Errorf("computing relative cache path from %s to %s: %w", linkDir, cacheDataPath, err)
 	}
 
 	if err := createDirectory(linkDir); err != nil {
-		return err
+		return fmt.Errorf("creating link directory %s: %w", linkDir, err)
 	}
 
-	return os.Symlink(relCacheDataPath, linkFullPath)
+	if err := os.Symlink(relCacheDataPath, linkFullPath); err != nil {
+		return fmt.Errorf("creating symlink %s -> %s: %w", linkFullPath, relCacheDataPath, err)
+	}
+	return nil
 }
 
 func (v *VendirSyncer) runVendirSync(a *Application, vendirConfig, vendirLock, vendirSecrets string) error {
@@ -190,7 +194,7 @@ func (v *VendirSyncer) getStepName() string {
 }
 
 func (v *VendirSyncer) extractCacheItems(a *Application) error {
-	configPath := a.expandServicePath(a.e.g.VendirConfigFileName)
+	configPath := a.expandServicePath(a.cfg.VendirConfigFileName)
 	configBytes, err := os.ReadFile(configPath)
 	if err != nil {
 		return fmt.Errorf("failed to read vendir config: %w", err)
@@ -216,7 +220,7 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 			vendorDirToCacheMap[vendorDirPath] = cacheName
 			cacheDir := a.expandVendirCache(cacheName)
 			cacheConfig := buildCacheVendirConfig(cacheDir, vendirConfig, dir, content)
-			if err = v.saveCacheVendirConfig(a, cacheName, cacheConfig); err != nil {
+			if err := v.saveCacheVendirConfig(a, cacheName, cacheConfig); err != nil {
 				return err
 			}
 		}
@@ -231,7 +235,7 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
 		return err
 	}
-	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.e.g.VendirConfigFileName)
+	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.cfg.VendirConfigFileName)
 	mu := getCacheMutex(vendirConfigPath)
 	mu.Lock()
 	defer mu.Unlock()
@@ -254,7 +258,7 @@ func buildCacheVendirConfig(cacheDir string, vendirConfig vendirconf.Config, ven
 	}
 	kind := vendirConfig.Kind
 	if kind == "" {
-		kind = "Config"
+		kind = vendirConfigKindConfig
 	}
 
 	newConfig := vendirconf.Config{
@@ -307,8 +311,8 @@ func validateVendirConfig(configYaml string) error {
 	if config.Kind == "" {
 		return errors.New("vendir config missing required field: kind")
 	}
-	if config.Kind != "Config" {
-		return fmt.Errorf("vendir config has invalid kind: %q, expected %q", config.Kind, "Config")
+	if config.Kind != vendirConfigKindConfig {
+		return fmt.Errorf("vendir config has invalid kind: %q, expected %q", config.Kind, vendirConfigKindConfig)
 	}
 
 	// Validate directories
@@ -341,7 +345,7 @@ func (a *Application) getLinksMap() (map[string]string, error) {
 }
 
 func (a *Application) getLinksMapPath() string {
-	return a.expandServicePath(a.e.g.VendirLinksMapFileName)
+	return a.expandServicePath(a.cfg.VendirLinksMapFileName)
 }
 
 func (v *VendirSyncer) saveLinksMap(a *Application, linksMap map[string]string) error {

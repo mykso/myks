@@ -40,7 +40,7 @@ func TestTrackCmdMetric_GuardConditions(t *testing.T) {
 		{
 			name: "empty step name",
 			step: "",
-			cmd:  func(t *testing.T) *exec.Cmd { return runTrueCmd(t) },
+			cmd:  runTrueCmd,
 		},
 		{
 			name: "nil cmd",

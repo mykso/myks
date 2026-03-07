@@ -25,7 +25,7 @@ func (y *YttPkg) Ident() string {
 func (y *YttPkg) Render(_ string) (string, error) {
 	var yttPkgSubDirs []string
 
-	vendorYttPkgDir := y.app.expandVendorPath(y.app.e.g.YttPkgStepDirName)
+	vendorYttPkgDir := y.app.expandVendorPath(y.app.cfg.YttPkgStepDirName)
 	if ok, err := isExist(vendorYttPkgDir); err != nil {
 		return "", err
 	} else if ok {
@@ -65,7 +65,7 @@ func (y *YttPkg) Render(_ string) (string, error) {
 		}
 
 		var yttArgs []string
-		if pkgValuesFile, err := y.app.prepareValuesFile(y.app.e.g.YttPkgStepDirName, pkgName); err != nil {
+		if pkgValuesFile, err := y.app.prepareValuesFile(y.app.cfg.YttPkgStepDirName, pkgName); err != nil {
 			log.Error().Err(err).Msg(y.app.Msg(y.getStepName(), "Unable to prepare a values file for the ytt package"))
 			return "", err
 		} else if pkgValuesFile != "" {

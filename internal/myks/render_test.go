@@ -9,18 +9,24 @@ var prototypeDir = "prototypes"
 
 var appName = "test-app"
 
+var testGlobe = &Globe{
+	Config: Config{
+		TempDirName:   "/tmp",
+		PrototypesDir: prototypeDir,
+		AppsDir:       "_apps",
+	},
+}
+
 var testApp = &Application{
 	Name:      appName,
 	Prototype: prototypeDir + "/" + appName,
 	e: &Environment{
-		ID: "test-env",
-		g: &Globe{
-			TempDirName:   "/tmp",
-			PrototypesDir: prototypeDir,
-			AppsDir:       "_apps",
-		},
+		ID:  "test-env",
+		g:   testGlobe,
+		cfg: &testGlobe.Config,
 		Dir: "/tmp",
 	},
+	cfg:          &testGlobe.Config,
 	yttDataFiles: nil,
 	yttPkgDirs:   nil,
 }

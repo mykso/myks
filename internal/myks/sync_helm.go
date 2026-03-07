@@ -41,7 +41,7 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 			log.Debug().Msg(a.Msg(hr.getStepName(), fmt.Sprintf(".helm.charts[%s].buildDependencies is disabled, skipping", chartName)))
 			continue
 		}
-		if err = hr.helmBuild(a, chartDir); err != nil {
+		if err := hr.helmBuild(a, chartDir); err != nil {
 			return err
 		}
 	}
