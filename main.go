@@ -21,10 +21,11 @@ func main() {
 	if embedded.CheckAndRun() {
 		return
 	}
-	defer myks.PrintCmdMetrics()
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	err := cmd.NewMyksCmd(version, commit, date).Execute()
+	myks.PrintCmdMetrics()
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error executing myks")
+		log.Error().Err(err).Msg("Error executing myks")
+		os.Exit(1)
 	}
 }

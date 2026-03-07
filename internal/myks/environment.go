@@ -15,6 +15,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+// EnvLogFormat is the printf format used for environment-level log prefixes.
 var EnvLogFormat = "\033[1m[%s > %s]\033[0m %s"
 
 const environmentDataLibTpl = `
@@ -27,6 +28,7 @@ const environmentDataLibTpl = `
 #@ env_data = struct.encode(yaml.decode(yaml.encode(_env_data())))
 `
 
+// Environment represents a Kubernetes cluster configuration context.
 type Environment struct {
 	// Path to the environment directory
 	Dir string
@@ -37,8 +39,12 @@ type Environment struct {
 	// Applications
 	Applications []*Application
 
-	// Globe instance
+	// Globe instance (kept for runtime state: git data, environments map)
 	g *Globe
+	// Naming and path configuration (points to g.Config)
+	cfg *Config
+	// Extra ytt paths copied from Globe at construction time
+	extraYttPaths []string
 
 	argoCDEnabled bool
 	// Runtime data
@@ -47,12 +53,15 @@ type Environment struct {
 	foundApplications map[string]string
 }
 
+// NewEnvironment creates and partially initializes a new Environment from the given directory and data file.
 func NewEnvironment(g *Globe, dir string, envDataFile string) (*Environment, error) {
 	env := &Environment{
 		Dir:                     dir,
 		EnvironmentDataFile:     envDataFile,
 		Applications:            []*Application{},
 		g:                       g,
+		cfg:                     &g.Config,
+		extraYttPaths:           g.extraYttPaths,
 		renderedDataLibFilePath: filepath.Join(g.RootDir, g.ServiceDirName, dir, g.RenderedEnvironmentDataLibFileName),
 		foundApplications:       map[string]string{},
 	}
@@ -63,37 +72,39 @@ func NewEnvironment(g *Globe, dir string, envDataFile string) (*Environment, err
 	return env, err
 }
 
+// Init initializes the environment by loading environment data and creating application instances.
 func (e *Environment) Init(applicationNames []string) error {
 	if err := e.initEnvData(); err != nil {
 		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to initialize environment data"))
-		return err
+		return fmt.Errorf("initializing environment data for %s: %w", e.Dir, err)
 	}
 
-	err := e.initApplications(applicationNames)
-	if err != nil {
+	if err := e.initApplications(applicationNames); err != nil {
 		log.Error().Err(err).Msg(e.Msg("Unable to initialize applications"))
-		return err
+		return fmt.Errorf("initializing applications for %s: %w", e.Dir, err)
 	}
 
 	return nil
 }
 
+// Cleanup removes rendered outputs for apps that are no longer configured.
 func (e *Environment) Cleanup() error {
 	apps, err := e.renderedApplications()
 	if err != nil {
 		return err
 	}
 	for _, app := range apps {
-		if _, ok := e.foundApplications[app]; !ok {
-			log.Info().Str("app", app).Msg(e.Msg("Removing app as it is not configured"))
-			err := os.RemoveAll(filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.ID, app))
-			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("unable to remove dir: %w", err)
-			}
-			err = os.Remove(filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.ID, getArgoCDAppFileName(app)))
-			if err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("unable to remove file: %w", err)
-			}
+		if _, ok := e.foundApplications[app]; ok {
+			continue
+		}
+		log.Info().Str("app", app).Msg(e.Msg("Removing app as it is not configured"))
+		err := os.RemoveAll(filepath.Join(e.cfg.RootDir, e.cfg.RenderedEnvsDir, e.ID, app))
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("unable to remove dir: %w", err)
+		}
+		err = os.Remove(filepath.Join(e.cfg.RootDir, e.cfg.RenderedArgoDir, e.ID, getArgoCDAppFileName(app)))
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("unable to remove file: %w", err)
 		}
 	}
 
@@ -103,7 +114,7 @@ func (e *Environment) Cleanup() error {
 // renderedApplications returns list of applications in rendered dir
 func (e *Environment) renderedApplications() ([]string, error) {
 	apps := []string{}
-	dirEnvRendered := filepath.Join(e.g.RootDir, e.g.RenderedEnvsDir, e.ID)
+	dirEnvRendered := filepath.Join(e.cfg.RootDir, e.cfg.RenderedEnvsDir, e.ID)
 	files, err := os.ReadDir(dirEnvRendered)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -141,7 +152,7 @@ func (e *Environment) setID() error {
 	yamlBytes, err := os.ReadFile(e.EnvironmentDataFile)
 	if err != nil {
 		log.Debug().Err(err).Msg(e.Msg("Unable to read environment data file"))
-		return err
+		return fmt.Errorf("reading environment data file %s: %w", e.EnvironmentDataFile, err)
 	}
 
 	var envData struct {
@@ -152,7 +163,7 @@ func (e *Environment) setID() error {
 	err = yaml.Unmarshal(yamlBytes, &envData)
 	if err != nil {
 		log.Debug().Err(err).Msg(e.Msg("Unable to unmarshal environment data file"))
-		return err
+		return fmt.Errorf("parsing environment data file %s: %w", e.EnvironmentDataFile, err)
 	}
 
 	if envData.Environment.ID == "" {
@@ -169,26 +180,24 @@ func (e *Environment) setID() error {
 }
 
 func (e *Environment) initEnvData() error {
-	envDataFiles := e.collectBySubpath(e.g.EnvironmentDataFileName)
+	envDataFiles := e.collectBySubpath(e.cfg.EnvironmentDataFileName)
 	envDataYaml, err := e.renderEnvData(envDataFiles)
 	if err != nil {
 		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to render environment data"))
-		return err
+		return fmt.Errorf("rendering environment data: %w", err)
 	}
 	envDataLib, err := e.renderEnvDataLib(envDataYaml)
 	if err != nil {
 		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to render environment data lib"))
-		return err
+		return fmt.Errorf("rendering environment data lib: %w", err)
 	}
-	err = e.saveRenderedEnvDataLib(envDataLib)
-	if err != nil {
+	if err = e.saveRenderedEnvDataLib(envDataLib); err != nil {
 		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to save rendered environment data"))
-		return err
+		return fmt.Errorf("saving rendered environment data lib: %w", err)
 	}
-	err = e.setEnvDataFromYaml(envDataYaml)
-	if err != nil {
+	if err = e.setEnvDataFromYaml(envDataYaml); err != nil {
 		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to set environment data"))
-		return err
+		return fmt.Errorf("parsing environment data yaml: %w", err)
 	}
 
 	return nil
@@ -214,7 +223,7 @@ func (e *Environment) renderEnvDataLib(envDataYaml []byte) ([]byte, error) {
 	tmpl, err := template.New("env_data_lib").Parse(environmentDataLibTpl)
 	if err != nil {
 		log.Fatal().Err(err).Msg(e.Msg("Unable to parse environment data lib template"))
-		return nil, err
+		return nil, fmt.Errorf("parsing environment data lib template: %w", err)
 	}
 	tplData := struct {
 		Data string
@@ -222,24 +231,21 @@ func (e *Environment) renderEnvDataLib(envDataYaml []byte) ([]byte, error) {
 		Data: string(envDataYaml),
 	}
 	renderedLib := &bytes.Buffer{}
-	err = tmpl.Execute(renderedLib, tplData)
-	if err != nil {
-		return nil, err
+	if err = tmpl.Execute(renderedLib, tplData); err != nil {
+		return nil, fmt.Errorf("executing environment data lib template: %w", err)
 	}
 	return renderedLib.Bytes(), nil
 }
 
 func (e *Environment) saveRenderedEnvDataLib(envDataLib []byte) error {
 	dir := filepath.Dir(e.renderedDataLibFilePath)
-	err := os.MkdirAll(dir, 0o750)
-	if err != nil {
+	if err := os.MkdirAll(dir, 0o750); err != nil {
 		log.Error().Err(err).Str("dir", dir).Msg(e.Msg("Unable to create directory for rendered envData file"))
-		return err
+		return fmt.Errorf("creating env data lib directory %s: %w", dir, err)
 	}
-	err = os.WriteFile(e.renderedDataLibFilePath, envDataLib, 0o600)
-	if err != nil {
+	if err := os.WriteFile(e.renderedDataLibFilePath, envDataLib, 0o600); err != nil {
 		log.Error().Err(err).Msg(e.Msg("Unable to write rendered envData file"))
-		return err
+		return fmt.Errorf("writing env data lib %s: %w", e.renderedDataLibFilePath, err)
 	}
 	return nil
 }
@@ -256,23 +262,22 @@ func (e *Environment) setEnvDataFromYaml(envDataYaml []byte) error {
 			} `yaml:"applications"`
 		} `yaml:"environment"`
 	}
-	err := yaml.Unmarshal(envDataYaml, &envDataStruct)
-	if err != nil {
+	if err := yaml.Unmarshal(envDataYaml, &envDataStruct); err != nil {
 		log.Error().Err(err).Msg(e.Msg("Unable to unmarshal environment data yaml"))
-		return err
+		return fmt.Errorf("unmarshalling environment data yaml: %w", err)
 	}
 
 	e.argoCDEnabled = envDataStruct.ArgoCD.Enabled
 
 	for _, app := range envDataStruct.Environment.Applications {
 		proto := app.Proto
-		if len(proto) == 0 {
+		if proto == "" {
 			log.Error().Interface("app", app).Msg(e.Msg("Application prototype is not set"))
 			continue
 		}
 
 		name := app.Name
-		if len(name) == 0 {
+		if name == "" {
 			name = proto
 		}
 
@@ -325,8 +330,8 @@ func (e *Environment) initApplications(applicationNames []string) error {
 
 func (e *Environment) collectBySubpath(subpath string) []string {
 	items := []string{}
-	currentPath := e.g.RootDir
-	envRelDir := strings.TrimPrefix(e.Dir, e.g.RootDir+string(filepath.Separator))
+	currentPath := e.cfg.RootDir
+	envRelDir := strings.TrimPrefix(e.Dir, e.cfg.RootDir+string(filepath.Separator))
 	levels := strings.SplitSeq(envRelDir, filepath.FromSlash("/"))
 	for level := range levels {
 		if level == "" {
@@ -341,6 +346,7 @@ func (e *Environment) collectBySubpath(subpath string) []string {
 	return items
 }
 
+// Msg formats a log message with the environment ID as context.
 func (e *Environment) Msg(msg string) string {
 	formattedMessage := fmt.Sprintf(EnvLogFormat, e.ID, initStepName, msg)
 	return formattedMessage
@@ -351,7 +357,7 @@ func (e *Environment) ytt(purpose string, paths []string, args ...string) (CmdRe
 }
 
 func (e *Environment) yttS(purpose string, paths []string, stdin io.Reader, args ...string) (CmdResult, error) {
-	paths = concatenate(e.g.extraYttPaths, paths)
+	paths = concatenate(e.extraYttPaths, paths)
 	return runYttWithFilesAndStdin("ytt", paths, stdin, func(name string, err error, stderr string, args []string) {
 		cmd := msgRunCmd(purpose, name, args)
 		if err != nil {
@@ -363,6 +369,7 @@ func (e *Environment) yttS(purpose string, paths []string, stdin io.Reader, args
 	}, args...)
 }
 
+// GetApplicationNames returns the names of all applications in this environment.
 func (e *Environment) GetApplicationNames() []string {
 	var appNames []string
 	for _, app := range e.Applications {
@@ -372,5 +379,5 @@ func (e *Environment) GetApplicationNames() []string {
 }
 
 func (e *Environment) getYttLibAPIDir() string {
-	return filepath.Join(e.g.RootDir, e.g.ServiceDirName, e.Dir, e.g.YttLibAPIDir)
+	return filepath.Join(e.cfg.RootDir, e.cfg.ServiceDirName, e.Dir, e.cfg.YttLibAPIDir)
 }

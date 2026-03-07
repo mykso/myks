@@ -30,7 +30,7 @@ func (g *GlobalYtt) Render(previousStepFile string) (string, error) {
 
 	// Global or environment-specific ytt files.
 	// By default, located in `envs/<env>/_env/ytt`.
-	globalYttFiles := g.app.e.collectBySubpath(filepath.Join(g.app.e.g.EnvsDir, g.app.e.g.YttStepDirName))
+	globalYttFiles := g.app.e.collectBySubpath(filepath.Join(g.app.cfg.EnvsDir, g.app.cfg.YttStepDirName))
 	yttFiles = append(yttFiles, globalYttFiles...)
 
 	if len(yttFiles) == 0 {

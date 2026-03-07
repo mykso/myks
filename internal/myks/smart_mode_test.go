@@ -76,8 +76,9 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	g1 := createGlobe(t)
 	g1.environments = map[string]*Environment{
 		"envs/env1": {
-			g:  g1,
-			ID: "env1",
+			g:   g1,
+			cfg: &g1.Config,
+			ID:  "env1",
 			foundApplications: map[string]string{
 				"app1": "proto1",
 				"app2": "proto2",
@@ -87,8 +88,9 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	g2 := createGlobe(t)
 	g2.environments = map[string]*Environment{
 		"envs/env1": {
-			g:  g2,
-			ID: "env1",
+			g:   g2,
+			cfg: &g2.Config,
+			ID:  "env1",
 			foundApplications: map[string]string{
 				"app1": "proto1",
 				"app2": "proto2/subproto1",
@@ -98,16 +100,18 @@ func TestGlobe_findPrototypeUsage(t *testing.T) {
 	g3 := createGlobe(t)
 	g3.environments = map[string]*Environment{
 		"envs/env1": {
-			g:  g3,
-			ID: "env1",
+			g:   g3,
+			cfg: &g3.Config,
+			ID:  "env1",
 			foundApplications: map[string]string{
 				"app1": "proto1",
 				"app2": "proto1",
 			},
 		},
 		"envs/env2": {
-			g:  g3,
-			ID: "env2",
+			g:   g3,
+			cfg: &g3.Config,
+			ID:  "env2",
 			foundApplications: map[string]string{
 				"app3": "proto1",
 			},
@@ -174,6 +178,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		"envs/env1": {
 			Dir: "envs/env1",
 			g:   g,
+			cfg: &g.Config,
 			ID:  "env1-id",
 			foundApplications: map[string]string{
 				"app1":  "app1",
@@ -184,6 +189,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 		"envs/env2": {
 			Dir: "envs/env2",
 			g:   g,
+			cfg: &g.Config,
 			ID:  "env2",
 			foundApplications: map[string]string{
 				"app3": "app3",
@@ -433,7 +439,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 
 func createGlobe(t *testing.T) *Globe {
 	g := &Globe{}
-	if err := defaults.Set(g); err != nil {
+	if err := defaults.Set(&g.Config); err != nil {
 		t.Errorf("failed to create Globe object")
 	}
 	return g

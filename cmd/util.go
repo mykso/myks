@@ -13,6 +13,8 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
+const allEnvsToken = "ALL"
+
 func getGlobe() *myks.Globe {
 	if globe == nil {
 		globe = myks.New(viper.GetString("root-dir"))
@@ -98,7 +100,7 @@ func getAppCompletions(g *myks.Globe, envsArg string) []string {
 	// Parse comma-separated environments
 	for env := range strings.SplitSeq(envsArg, ",") {
 		env = strings.TrimSpace(env)
-		if env == "" || env == "ALL" {
+		if env == "" || env == allEnvsToken {
 			continue
 		}
 
@@ -125,7 +127,7 @@ func getAppCompletions(g *myks.Globe, envsArg string) []string {
 }
 
 // readFlagBool reads a boolean flag from a cobra command and returns the value and whether the flag was set
-func readFlagBool(cmd *cobra.Command, name string) (bool, bool) {
+func readFlagBool(cmd *cobra.Command, name string) (value, changed bool) {
 	flag, err := cmd.Flags().GetBool(name)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Failed to read flag")

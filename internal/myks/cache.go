@@ -10,7 +10,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-func genCacheName(content vendirconf.DirectoryContents) (string, error) {
+func genCacheName(content vendirconf.DirectoryContents) (string, error) { //nolint:gocritic // external type, cannot change
 	if content.HelmChart != nil {
 		return helmCacheNamer(content)
 	}
@@ -26,7 +26,7 @@ func genCacheName(content vendirconf.DirectoryContents) (string, error) {
 	return defaultCacheNamer(content)
 }
 
-func contentToStableYAML(content vendirconf.DirectoryContents) (string, error) {
+func contentToStableYAML(content vendirconf.DirectoryContents) (string, error) { //nolint:gocritic // external type
 	data, err := yaml.Marshal(content)
 	if err != nil {
 		return "", err
@@ -34,7 +34,7 @@ func contentToStableYAML(content vendirconf.DirectoryContents) (string, error) {
 	return string(data), nil
 }
 
-func defaultCacheNamer(content vendirconf.DirectoryContents) (string, error) {
+func defaultCacheNamer(content vendirconf.DirectoryContents) (string, error) { //nolint:gocritic // external type
 	yamlStr, err := contentToStableYAML(content)
 	if err != nil {
 		return "", err
@@ -46,7 +46,7 @@ func defaultCacheNamer(content vendirconf.DirectoryContents) (string, error) {
 	return fmt.Sprintf("unknown-%s", hash), nil
 }
 
-func helmCacheNamer(content vendirconf.DirectoryContents) (string, error) {
+func helmCacheNamer(content vendirconf.DirectoryContents) (string, error) { //nolint:gocritic // external type
 	yamlStr, err := contentToStableYAML(content)
 	if err != nil {
 		return "", err
@@ -65,7 +65,7 @@ func helmCacheNamer(content vendirconf.DirectoryContents) (string, error) {
 	return fmt.Sprintf("%s-%s-%s-%s", "helm", chart.Name, chart.Version, hash), nil
 }
 
-func gitCacheNamer(content vendirconf.DirectoryContents) (string, error) {
+func gitCacheNamer(content vendirconf.DirectoryContents) (string, error) { //nolint:gocritic // external type
 	yamlStr, err := contentToStableYAML(content)
 	if err != nil {
 		return "", err
@@ -89,7 +89,7 @@ func gitCacheNamer(content vendirconf.DirectoryContents) (string, error) {
 	return fmt.Sprintf("%s-%s-%s-%s", "git", dir, refSlug(git.Ref), hash), nil
 }
 
-func directoryCacheNamer(content vendirconf.DirectoryContents) (string, error) {
+func directoryCacheNamer(content vendirconf.DirectoryContents) (string, error) { //nolint:gocritic // external type
 	yamlStr, err := contentToStableYAML(content)
 	if err != nil {
 		return "", err
@@ -107,7 +107,7 @@ func directoryCacheNamer(content vendirconf.DirectoryContents) (string, error) {
 }
 
 func directorySlug(dirPath string) string {
-	if len(dirPath) == 0 {
+	if dirPath == "" {
 		return ""
 	}
 	// we aim for readability in the cache dir here, rather than uniqueness, given that the cache dir name will also
@@ -116,7 +116,7 @@ func directorySlug(dirPath string) string {
 }
 
 func urlSlug(repoURL string) (string, error) {
-	if len(repoURL) == 0 {
+	if repoURL == "" {
 		return "", nil
 	}
 	parsedURL, err := url.Parse(repoURL)
@@ -128,7 +128,7 @@ func urlSlug(repoURL string) (string, error) {
 }
 
 func refSlug(ref string) string {
-	if len(ref) == 0 {
+	if ref == "" {
 		return ""
 	}
 	ref = strings.ReplaceAll(ref, "/", "-")

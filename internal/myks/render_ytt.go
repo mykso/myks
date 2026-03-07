@@ -35,7 +35,7 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 
 	// we might have vendored some yamls or json files that we want to transform during this step
 	// therefore, add them as well
-	vendorYttDir := y.app.expandVendorPath(y.app.e.g.YttStepDirName)
+	vendorYttDir := y.app.expandVendorPath(y.app.cfg.YttStepDirName)
 	if ok, err := isExist(vendorYttDir); err != nil {
 		return "", err
 	} else if ok {
@@ -50,7 +50,7 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 	}
 
 	// we obviously want to add the ytt files from the prototype dir
-	prototypeYttDir := filepath.Join(y.app.Prototype, y.app.e.g.YttStepDirName)
+	prototypeYttDir := filepath.Join(y.app.Prototype, y.app.cfg.YttStepDirName)
 	if ok, err := isExist(prototypeYttDir); err != nil {
 		return "", err
 	} else if ok {
@@ -60,10 +60,10 @@ func (y *Ytt) Render(previousStepFile string) (string, error) {
 	// we might have some prototype overwrites in the environment group folders.
 	// let's iterate over the environment directory structure and add them
 	// these should follow the structure and naming using in the prototypes directory
-	yttFiles = append(yttFiles, collectBySubpath(y.app.e.g.RootDir, y.app.e.Dir, filepath.Join(y.app.e.g.PrototypeOverrideDir, y.app.prototypeDirName(), y.app.e.g.YttStepDirName))...)
+	yttFiles = append(yttFiles, collectBySubpath(y.app.cfg.RootDir, y.app.e.Dir, filepath.Join(y.app.cfg.PrototypeOverrideDir, y.app.prototypeDirName(), y.app.cfg.YttStepDirName))...)
 
 	// finally, lets add the ytt directories from the application directory and the environment group folders
-	yttFiles = append(yttFiles, collectBySubpath(y.app.e.g.RootDir, y.app.e.Dir, filepath.Join(y.app.e.g.AppsDir, y.app.Name, y.app.e.g.YttStepDirName))...)
+	yttFiles = append(yttFiles, collectBySubpath(y.app.cfg.RootDir, y.app.e.Dir, filepath.Join(y.app.cfg.AppsDir, y.app.Name, y.app.cfg.YttStepDirName))...)
 
 	if len(yttFiles) == 0 {
 		log.Debug().Msg(y.app.Msg(y.getStepName(), "No local ytt directory found"))

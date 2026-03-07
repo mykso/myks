@@ -53,7 +53,7 @@ func checkCleanGit(t *testing.T) bool {
 	if err != nil {
 		t.Fatalf("Checking git failed: %s", err)
 	}
-	regex, _ := regexp.Compile("examples/.*/rendered/.*")
+	regex := regexp.MustCompile("examples/.*/rendered/.*")
 	for file := range changedFiles {
 		if regex.MatchString(file) {
 			t.Logf("Found changed files in rendered output: %v", file)

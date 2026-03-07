@@ -7,6 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ChangedFiles maps file paths to their git change status.
 type ChangedFiles map[string]string
 
 // GetChangedFilesGit returns list of files changed since the baseRevision, if specified, and since the last commit

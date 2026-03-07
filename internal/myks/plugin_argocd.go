@@ -3,12 +3,14 @@ package myks
 import (
 	"bytes"
 	_ "embed"
+	"fmt"
 	"path/filepath"
 	"text/template"
 
 	"github.com/rs/zerolog/log"
 )
 
+// ArgoCDStepName is the step name identifier for the ArgoCD rendering plugin.
 const ArgoCDStepName = "argocd"
 
 //go:embed templates/argocd/environment.ytt.yaml
@@ -29,17 +31,17 @@ argocd:
       targetRevision: "{{ .TargetRevision }}"
 `
 
-func (e *Environment) renderArgoCD() (err error) {
+func (e *Environment) renderArgoCD() error {
 	if !e.argoCDEnabled {
 		log.Debug().Msg(e.Msg("ArgoCD is disabled"))
-		return
+		return nil
 	}
 
 	// 0. Global data values schema and library files are added later in the a.yttS call
 	// 1. Collection of environment main data values and schemas
-	yttFiles := e.collectBySubpath(e.g.EnvironmentDataFileName)
+	yttFiles := e.collectBySubpath(e.cfg.EnvironmentDataFileName)
 	// 2. Collection of environment argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join(e.g.EnvsDir, e.g.ArgoCDDataDirName))...)
+	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join(e.cfg.EnvsDir, e.cfg.ArgoCDDataDirName))...)
 
 	res, err := e.yttS(
 		"create ArgoCD project yaml",
@@ -59,7 +61,7 @@ func (e *Environment) renderArgoCD() (err error) {
 }
 
 func (e *Environment) getArgoCDDestinationDir() string {
-	return filepath.Join(e.g.RootDir, e.g.RenderedArgoDir, e.ID)
+	return filepath.Join(e.cfg.RootDir, e.cfg.RenderedArgoDir, e.ID)
 }
 
 func (a *Application) renderArgoCD() error {
@@ -79,16 +81,16 @@ func (a *Application) renderArgoCD() error {
 	// 2. Collection of application main data values and schemas
 	yttFiles = append(yttFiles, a.yttDataFiles...)
 	// 3. Use argocd-specific data values, schemas, and overlays from the prototype
-	prototypeArgoCDDir := filepath.Join(a.Prototype, a.e.g.ArgoCDDataDirName)
+	prototypeArgoCDDir := filepath.Join(a.Prototype, a.cfg.ArgoCDDataDirName)
 	if ok, errExists := isExist(prototypeArgoCDDir); errExists != nil {
 		return errExists
 	} else if ok {
 		yttFiles = append(yttFiles, prototypeArgoCDDir)
 	}
 	// 4. Collection of environment argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.e.g.EnvsDir, a.e.g.ArgoCDDataDirName))...)
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.cfg.EnvsDir, a.cfg.ArgoCDDataDirName))...)
 	// 5. Collection of application argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.e.g.AppsDir, a.Name, a.e.g.ArgoCDDataDirName))...)
+	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.ArgoCDDataDirName))...)
 
 	res, err := a.yttS(
 		"argocd",
@@ -114,13 +116,13 @@ func (a *Application) renderArgoCD() error {
 	return writeFile(argoDestinationPath, sortedBytes)
 }
 
-func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
+func (a *Application) argoCDPrepareDefaults() (string, error) {
 	const name = "argocd_defaults.ytt.yaml"
 
 	tmpl, err := template.New(name).Parse(argocdDataValuesSchema)
 	if err != nil {
 		log.Fatal().Err(err).Msg(a.Msg(ArgoCDStepName, "failed to parse ArgoCD data values schema template"))
-		return
+		return "", fmt.Errorf("parsing ArgoCD data values schema template: %w", err)
 	}
 
 	type Data struct {
@@ -138,20 +140,19 @@ func (a *Application) argoCDPrepareDefaults() (filename string, err error) {
 	}
 
 	buf := &bytes.Buffer{}
-	err = tmpl.Execute(buf, data)
-	if err != nil {
-		return
+	if err = tmpl.Execute(buf, data); err != nil {
+		return "", fmt.Errorf("executing ArgoCD data values schema template: %w", err)
 	}
 
-	err = a.writeServiceFile(name, buf.String())
+	if err = a.writeServiceFile(name, buf.String()); err != nil {
+		return "", fmt.Errorf("writing ArgoCD defaults file: %w", err)
+	}
 
-	filename = a.expandServicePath(name)
-
-	return
+	return a.expandServicePath(name), nil
 }
 
 func (a *Application) getArgoCDDestinationDir() string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedArgoDir, a.e.ID)
+	return filepath.Join(a.cfg.RootDir, a.cfg.RenderedArgoDir, a.e.ID)
 }
 
 func getArgoCDEnvFileName(envName string) string {
