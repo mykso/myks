@@ -26,7 +26,7 @@ type Application struct {
 	Name      string
 	Prototype string
 
-	e   *Environment
+	e *Environment
 	// Naming and path configuration (points to e.cfg / g.Config)
 	cfg *Config
 

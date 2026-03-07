@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	VendirCacheDataDirName  = "data"
-	vendirConfigKindConfig  = "Config"
+	VendirCacheDataDirName = "data"
+	vendirConfigKindConfig = "Config"
 )
 
 // vendirCacheMutexes holds per-cache-entry mutexes to allow parallel vendir
