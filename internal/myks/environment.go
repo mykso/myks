@@ -54,7 +54,7 @@ type Environment struct {
 }
 
 // NewEnvironment creates and partially initializes a new Environment from the given directory and data file.
-func NewEnvironment(g *Globe, dir string, envDataFile string) (*Environment, error) {
+func NewEnvironment(g *Globe, dir, envDataFile string) (*Environment, error) {
 	env := &Environment{
 		Dir:                     dir,
 		EnvironmentDataFile:     envDataFile,
