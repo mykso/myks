@@ -252,7 +252,7 @@ func (sm *SmartMode) findPrototypeUsage(prototypes []string, envRoot string) Env
 		envRoot = sm.g.Config.EnvironmentBaseDir
 	}
 
-		matchedEnvs := sm.getEnvironmentsUnderRoot(envRoot)
+	matchedEnvs := sm.getEnvironmentsUnderRoot(envRoot)
 
 	for _, prototype := range prototypes {
 		for _, envPath := range matchedEnvs {

@@ -44,7 +44,7 @@ func (h *Helm) Render(_ string) (string, error) {
 	for _, chartDir := range chartsDirs {
 		chartName := filepath.Base(chartDir)
 		chartNames = append(chartNames, chartName)
-		
+
 		out, err := h.renderChart(chartName, chartDir, helmConfig, commonHelmArgs)
 		if err != nil {
 			return "", err

@@ -112,10 +112,10 @@ func (k *Kbld) handleCache(config KbldConfig, overridesFilePath string) ([]strin
 	if !config.Cache {
 		return nil, nil, nil
 	}
-	
+
 	lockFileName := k.getLockFileName(overridesFilePath)
 	lockFilePath := k.app.expandServicePath(lockFileName)
-	
+
 	cleanup := func() {
 		k.cleanupLockFiles(lockFileName)
 	}
