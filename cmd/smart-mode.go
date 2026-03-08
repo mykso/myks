@@ -14,6 +14,7 @@ import (
 	"github.com/mykso/myks/internal/myks"
 )
 
+// AnnotationSmartMode is the commit annotation checked for enabling Smart Mode.
 const (
 	AnnotationSmartMode = "feat:smart-mode"
 	AnnotationTrue      = "true"
@@ -35,7 +36,7 @@ func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 			os.Exit(0)
 		}
 	case 1:
-		if args[0] != "ALL" {
+		if args[0] != allEnvsToken {
 			g := getGlobe()
 			envAppMap = make(myks.EnvAppMap)
 			for env := range strings.SplitSeq(args[0], ",") {
@@ -46,12 +47,12 @@ func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 		}
 	case 2:
 		var appNames []string
-		if args[1] != "ALL" {
+		if args[1] != allEnvsToken {
 			appNames = strings.Split(args[1], ",")
 		}
 
 		envAppMap = make(myks.EnvAppMap)
-		if args[0] != "ALL" {
+		if args[0] != allEnvsToken {
 			g := getGlobe()
 			for env := range strings.SplitSeq(args[0], ",") {
 				// Resolve environment ID to path if needed

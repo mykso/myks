@@ -54,7 +54,7 @@ func (h *Helm) Render(_ string) (string, error) {
 		chartNames = append(chartNames, chartName)
 		chartConfig := helmConfig.getChartConfig(chartName)
 		var helmValuesFile string
-		if helmValuesFile, err = h.app.prepareValuesFile(h.app.e.g.HelmStepDirName, chartName); err != nil {
+		if helmValuesFile, err = h.app.prepareValuesFile(h.app.cfg.HelmStepDirName, chartName); err != nil {
 			log.Warn().Err(err).Msg(h.app.Msg(h.getStepName(), "Unable to prepare helm values"))
 			return "", err
 		}
@@ -96,21 +96,21 @@ func (h *Helm) Render(_ string) (string, error) {
 		outputs = append(outputs, res.Stdout)
 	}
 
-	h.warnOnOrphanConfigs(helmConfig, chartNames)
+	h.warnOnOrphanConfigs(&helmConfig, chartNames)
 
 	log.Info().Msg(h.app.Msg(h.getStepName(), "Helm chart rendered"))
 	return strings.Join(outputs, "---\n"), nil
 }
 
 // warnOnOrphanConfigs checks if there are any Helm configs or values files for non-existing charts
-func (h *Helm) warnOnOrphanConfigs(helmConfig HelmConfig, charts []string) {
+func (h *Helm) warnOnOrphanConfigs(helmConfig *HelmConfig, charts []string) {
 	for chartName := range helmConfig.Charts {
 		if !slices.Contains(charts, chartName) {
 			log.Warn().Msg(h.app.Msg(h.getStepName(), fmt.Sprintf("'%s' chart defined in .helm.charts is not found in the charts directory", chartName)))
 		}
 	}
 
-	allValuesFiles := h.app.collectAllFilesByGlob(filepath.Join(h.app.e.g.HelmStepDirName, "*.yaml"))
+	allValuesFiles := h.app.collectAllFilesByGlob(filepath.Join(h.app.cfg.HelmStepDirName, "*.yaml"))
 
 	for _, valuesFile := range allValuesFiles {
 		chartName, _, _ := strings.Cut(filepath.Base(valuesFile), ".")

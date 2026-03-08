@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// Plugin is the interface implemented by external plugin commands.
 type Plugin interface {
 	Exec(a *Application, args []string, bufferOutput bool) error
 	Name() string
@@ -43,7 +44,7 @@ func FindPluginsInPaths(paths []string, filePrefix string) []Plugin {
 		return plugins
 	}
 	for _, path := range paths {
-		if len(strings.TrimSpace(path)) == 0 {
+		if strings.TrimSpace(path) == "" {
 			continue
 		}
 		files, err := os.ReadDir(path)
@@ -110,37 +111,43 @@ func (p PluginCmd) Exec(a *Application, args []string, bufferOutput bool) error 
 	log.Debug().Msg(a.Msg(step, msgRunCmd("", p.cmd, args)))
 
 	if bufferOutput {
-		// Buffered mode: capture output and print after completion
-		var stdoutBs, stderrBs bytes.Buffer
-		cmd.Stdout = &stdoutBs
-		cmd.Stderr = &stderrBs
-		start := time.Now()
-		err = cmd.Run()
-		TrackCmdMetric(step, cmd, time.Since(start))
-		fmt.Println(stdoutBs.String())
-		if err != nil {
-			log.Error().Err(err).Msg(msgRunCmd("External plugin failed: "+step, p.cmd, args))
-			if stderrBs.Len() > 0 {
-				log.Error().Msg(stderrBs.String())
-			}
-		} else {
-			log.Info().Msg(msgRunCmd("External plugin succeeded: "+step, p.cmd, args))
-			if stderrBs.Len() > 0 {
-				log.Info().Msg(stderrBs.String())
-			}
+		return p.runBuffered(step, cmd, args)
+	}
+	return p.runStreaming(step, cmd, args)
+}
+
+func (p PluginCmd) runBuffered(step string, cmd *exec.Cmd, args []string) error {
+	var stdoutBs, stderrBs bytes.Buffer
+	cmd.Stdout = &stdoutBs
+	cmd.Stderr = &stderrBs
+	start := time.Now()
+	err := cmd.Run()
+	TrackCmdMetric(step, cmd, time.Since(start))
+	fmt.Println(stdoutBs.String())
+	if err != nil {
+		log.Error().Err(err).Msg(msgRunCmd("External plugin failed: "+step, p.cmd, args))
+		if stderrBs.Len() > 0 {
+			log.Error().Msg(stderrBs.String())
 		}
 	} else {
-		// Streaming mode: output in real-time
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		start := time.Now()
-		err = cmd.Run()
-		TrackCmdMetric(step, cmd, time.Since(start))
-		if err != nil {
-			log.Error().Err(err).Msg(msgRunCmd("External plugin failed: "+step, p.cmd, args))
-		} else {
-			log.Info().Msg(msgRunCmd("External plugin succeeded: "+step, p.cmd, args))
+		log.Info().Msg(msgRunCmd("External plugin succeeded: "+step, p.cmd, args))
+		if stderrBs.Len() > 0 {
+			log.Info().Msg(stderrBs.String())
 		}
+	}
+	return err
+}
+
+func (p PluginCmd) runStreaming(step string, cmd *exec.Cmd, args []string) error {
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	start := time.Now()
+	err := cmd.Run()
+	TrackCmdMetric(step, cmd, time.Since(start))
+	if err != nil {
+		log.Error().Err(err).Msg(msgRunCmd("External plugin failed: "+step, p.cmd, args))
+	} else {
+		log.Info().Msg(msgRunCmd("External plugin succeeded: "+step, p.cmd, args))
 	}
 	return err
 }

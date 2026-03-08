@@ -27,12 +27,11 @@ func (a *Application) RenderAndSlice(yamlTemplatingTools []YamlTemplatingTool) e
 	lastStepOutputFile, err := a.Render(yamlTemplatingTools)
 	if err != nil {
 		log.Error().Str("env", a.e.ID).Err(err).Msg("Failed to render")
-		return err
+		return fmt.Errorf("rendering templates: %w", err)
 	}
-	err = a.runSliceFormatStore(lastStepOutputFile)
-	if err != nil {
+	if err = a.runSliceFormatStore(lastStepOutputFile); err != nil {
 		log.Error().Err(err).Msg("Failed to slice the output yaml")
-		return err
+		return fmt.Errorf("slicing rendered output: %w", err)
 	}
 	log.Info().Msg(a.Msg(renderStepName, "Completed"))
 	return nil
@@ -46,7 +45,7 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 		stepOutputYaml, err := yamlTool.Render(lastStepOutputFile)
 		if err != nil {
 			log.Error().Err(err).Msg(a.Msg(yamlTool.Ident(), "Failed during render step: "+yamlTool.Ident()))
-			return "", err
+			return "", fmt.Errorf("render step %s failed: %w", yamlTool.Ident(), err)
 		}
 		if yamlTool.IsAdditive() {
 			outputYaml = outputYaml + "\n---\n" + stepOutputYaml
@@ -56,7 +55,7 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 		lastStepOutputFile, err = a.storeStepResult(outputYaml, yamlTool.Ident(), nr)
 		if err != nil {
 			log.Error().Err(err).Msg(a.Msg(yamlTool.Ident(), "Failed to store step result for: "+yamlTool.Ident()))
-			return "", err
+			return "", fmt.Errorf("storing step result for %s: %w", yamlTool.Ident(), err)
 		}
 	}
 	return lastStepOutputFile, nil
@@ -67,7 +66,7 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 	data, err := os.ReadFile(filepath.Clean(previousStepFile))
 	if err != nil {
 		log.Warn().Err(err).Str("file", previousStepFile).Msg(a.Msg(sliceStepName, "Unable to read previous step file"))
-		return err
+		return fmt.Errorf("reading rendered output %s: %w", previousStepFile, err)
 	}
 
 	destinationDir := a.getDestinationDir()
@@ -127,14 +126,14 @@ func (a *Application) runSliceFormatStore(previousStepFile string) error {
 
 // storeStepResult saves output of a step to a file in the application's temp directory.
 // Returns path to the file or an error.
-func (a *Application) storeStepResult(output string, stepName string, stepNumber int) (string, error) {
+func (a *Application) storeStepResult(output, stepName string, stepNumber int) (string, error) {
 	fileName := filepath.Join("steps", fmt.Sprintf("%02d-%s.yaml", stepNumber, stepName))
 	file := a.expandServicePath(fileName)
 	return file, a.writeServiceFile(fileName, output)
 }
 
 func (a *Application) getDestinationDir() string {
-	return filepath.Join(a.e.g.RootDir, a.e.g.RenderedEnvsDir, a.e.ID, a.Name)
+	return filepath.Join(a.cfg.RootDir, a.cfg.RenderedEnvsDir, a.e.ID, a.Name)
 }
 
 // sanitizeFilename replaces characters that are not allowed in filenames on Windows
@@ -233,7 +232,7 @@ func (a *Application) prepareValuesFile(dirName, chartName string) (string, erro
 
 func (a *Application) collectFilesByGlob(subpathPattern string) ([]string, error) {
 	var files []string
-	currentPath := a.e.g.RootDir
+	currentPath := a.cfg.RootDir
 	levels := strings.SplitSeq(a.e.Dir, filepath.FromSlash("/"))
 	for level := range levels {
 		if level == "" {
@@ -264,12 +263,12 @@ func (a *Application) collectAllFilesByGlob(pattern string) []string {
 		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect prototype files"))
 		return nil
 	}
-	protoOverrideFiles, err := a.collectFilesByGlob(filepath.Join(a.e.g.PrototypeOverrideDir, a.prototypeDirName(), pattern))
+	protoOverrideFiles, err := a.collectFilesByGlob(filepath.Join(a.cfg.PrototypeOverrideDir, a.prototypeDirName(), pattern))
 	if err != nil {
 		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect prototype override files"))
 		return nil
 	}
-	files, err := a.collectFilesByGlob(filepath.Join(a.e.g.AppsDir, a.Name, pattern))
+	files, err := a.collectFilesByGlob(filepath.Join(a.cfg.AppsDir, a.Name, pattern))
 	if err != nil {
 		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect application files"))
 		return nil

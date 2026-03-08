@@ -6,6 +6,7 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
+// HelmConfig holds Helm rendering configuration for an application.
 type HelmConfig struct {
 	BuildDependencies bool     `yaml:"buildDependencies"`
 	Capabilities      []string `yaml:"capabilities"`
@@ -17,6 +18,7 @@ type HelmConfig struct {
 	Charts map[string]HelmChartOverride `yaml:"charts"`
 }
 
+// HelmChartOverride holds per-chart overrides for Helm rendering configuration.
 type HelmChartOverride struct {
 	BuildDependencies *bool  `yaml:"buildDependencies"`
 	IncludeCRDs       *bool  `yaml:"includeCRDs"`

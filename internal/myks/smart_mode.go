@@ -58,18 +58,47 @@ func (g *Globe) missingApplications() (EnvAppMap, error) {
 }
 
 func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
+	regexps := g.buildSmartModeRegexps()
+
+	envAppMap, err := g.missingApplications()
+	if err != nil {
+		log.Err(err).Msg(g.Msg("Failed to get missing applications"))
+	}
+
+	changedEnvs, changedPrototypes, globalChange := g.classifyChangedPaths(changedFiles, regexps, envAppMap)
+	if globalChange {
+		return EnvAppMap{g.EnvironmentBaseDir: nil}
+	}
+
+	for env, apps := range g.findPrototypeUsage(changedPrototypes, "") {
+		envAppMap[env] = append(envAppMap[env], apps...)
+	}
+
+	// If env has changed, all apps in that env are affected
+	for _, env := range changedEnvs {
+		envAppMap[env] = nil
+	}
+
+	for env, apps := range envAppMap {
+		if apps != nil {
+			envAppMap[env] = unique(apps)
+		}
+	}
+
+	g.filterStaleEnvApps(envAppMap)
+	return envAppMap
+}
+
+// buildSmartModeRegexps constructs the set of path-matching regexps used by runSmartMode.
+func (g *Globe) buildSmartModeRegexps() map[string][]*regexp.Regexp {
 	e := func(sample string) *regexp.Regexp {
 		return regexp.MustCompile("^" + g.GitPathPrefix + sample + "$")
 	}
-
 	globToRegexp := func(glob string) string {
-		r := glob
-		r = strings.ReplaceAll(r, ".", "\\.")
-		r = strings.ReplaceAll(r, "*", ".*")
-		return r
+		r := strings.ReplaceAll(glob, ".", "\\.")
+		return strings.ReplaceAll(r, "*", ".*")
 	}
 
-	// Subdirectories of apps and prototypes are named after plugins
 	plugins := []string{
 		g.ArgoCDDataDirName,
 		g.HelmStepDirName,
@@ -81,7 +110,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	}
 	pluginsPattern := "(?:" + strings.Join(plugins, "|") + ")"
 
-	exprMap := map[string][]*regexp.Regexp{
+	return map[string][]*regexp.Regexp{
 		// No submatches needed
 		"global": {
 			e(g.YttLibraryDirName + "/.*"),
@@ -114,7 +143,16 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 			e(g.RenderedArgoDir + "/([^/]+)/app-([^/]+)\\.yaml"),
 		},
 	}
+}
 
+// classifyChangedPaths categorises each changed file path, mutates envAppMap with
+// env-prototype and app changes, and returns changed env paths, changed prototype names,
+// and whether a global change was detected.
+func (g *Globe) classifyChangedPaths(
+	changedFiles ChangedFiles,
+	regexps map[string][]*regexp.Regexp,
+	envAppMap EnvAppMap,
+) (changedEnvs, changedPrototypes []string, globalChange bool) {
 	extractMatches := func(exprs []*regexp.Regexp, path string) []string {
 		for _, expr := range exprs {
 			submatches := expr.FindStringSubmatch(path)
@@ -123,7 +161,6 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 				Str("path", path).
 				Bool("matched", submatches != nil).
 				Msg(g.Msg("Extracting submatches"))
-
 			if submatches != nil {
 				return submatches[1:]
 			}
@@ -131,55 +168,36 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		return nil
 	}
 
-	// Here we start collecting changed environments and applications,
-	// starting with those that are missed from the rendered directory.
-	envAppMap, err := g.missingApplications()
-	if err != nil {
-		log.Err(err).Msg(g.Msg("Failed to get missing applications"))
-	}
-
-	changedEnvs := []string{}
-	changedPrototypes := []string{}
-
 	for path := range changedFiles {
-		// Check if the global configuration has changed
-		if extractMatches(exprMap["global"], path) != nil {
-			// If global configuration has changed, we need to render all environments
-			return EnvAppMap{g.EnvironmentBaseDir: nil}
+		if extractMatches(regexps["global"], path) != nil {
+			return nil, nil, true
 		}
 
-		// If env has changed
-		if envMatch := extractMatches(exprMap["env"], path); envMatch != nil {
-			envPath := g.AddBaseDirToEnvPath(envMatch[0])
-			changedEnvs = append(changedEnvs, envPath)
+		if envMatch := extractMatches(regexps["env"], path); envMatch != nil {
+			changedEnvs = append(changedEnvs, g.AddBaseDirToEnvPath(envMatch[0]))
 			continue
 		}
 
-		// If prototype has changed
-		if protoMatch := extractMatches(exprMap["prototype"], path); protoMatch != nil {
+		if protoMatch := extractMatches(regexps["prototype"], path); protoMatch != nil {
 			changedPrototypes = append(changedPrototypes, protoMatch[0])
 			continue
 		}
 
-		// If environment-specific prototype has changed
-		if envProtoMatch := extractMatches(exprMap["env-prototype"], path); envProtoMatch != nil {
+		if envProtoMatch := extractMatches(regexps["env-prototype"], path); envProtoMatch != nil {
 			envPath := g.AddBaseDirToEnvPath(envProtoMatch[0])
-			prototypeName := envProtoMatch[1]
-			for env, apps := range g.findPrototypeUsage([]string{prototypeName}, envPath) {
+			for env, apps := range g.findPrototypeUsage([]string{envProtoMatch[1]}, envPath) {
 				envAppMap[env] = append(envAppMap[env], apps...)
 			}
 			continue
 		}
 
-		// If app has changed
-		if appMatch := extractMatches(exprMap["app"], path); appMatch != nil {
+		if appMatch := extractMatches(regexps["app"], path); appMatch != nil {
 			envPath := g.AddBaseDirToEnvPath(appMatch[0])
 			envAppMap[envPath] = append(envAppMap[envPath], appMatch[1])
 			continue
 		}
 
-		// If rendered app has changed
-		if appMatch := extractMatches(exprMap["rendered-app"], path); appMatch != nil {
+		if appMatch := extractMatches(regexps["rendered-app"], path); appMatch != nil {
 			env, err := g.getEnvByID(appMatch[0])
 			if err != nil {
 				log.Err(err).Str("envID", appMatch[0]).Msg(g.Msg("Failed to get environment by ID"))
@@ -191,44 +209,30 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 		}
 	}
 
-	for env, apps := range g.findPrototypeUsage(changedPrototypes, "") {
-		envAppMap[env] = append(envAppMap[env], apps...)
-	}
+	return changedEnvs, changedPrototypes, false
+}
 
-	// If env has changed, all apps in that env are affected
-	for _, env := range changedEnvs {
-		envAppMap[env] = nil
-	}
-
+// filterStaleEnvApps removes environments not found in the filesystem and
+// removes individual applications not present in their environment's found apps.
+func (g *Globe) filterStaleEnvApps(envAppMap EnvAppMap) {
 	for env, apps := range envAppMap {
-		if apps != nil {
-			// Remove duplicates
-			envAppMap[env] = unique(apps)
-		}
-	}
-
-	// Remove environments and applications that are not found in the filesystem
-	for env, apps := range envAppMap {
-		// env can be an exact path of an environment or one of parent directories
 		matchedEnvs := g.getEnvironmentsUnderRoot(env)
 		if len(matchedEnvs) == 0 {
 			delete(envAppMap, env)
 			continue
 		}
-		for _, app := range apps {
-			// env can be absent in g.environments if it is a parent directory of an environment
-			// in this case we can't easily check if app is present in env
+		knownEnv, knownEnvExists := g.environments[env]
+		if !knownEnvExists {
+			// env can be a parent directory of an environment;
 			// TODO: implement smarter lookup logic instead
-			if _, ok := g.environments[env]; !ok {
-				continue
-			}
-			if _, ok := g.environments[env].foundApplications[app]; !ok {
+			continue
+		}
+		for _, app := range apps {
+			if _, ok := knownEnv.foundApplications[app]; !ok {
 				envAppMap[env] = filterSlice(envAppMap[env], func(s string) bool { return s != app })
 			}
 		}
 	}
-
-	return envAppMap
 }
 
 func (g *Globe) findPrototypeUsage(prototypes []string, envRoot string) EnvAppMap {
@@ -265,26 +269,4 @@ func (g *Globe) getEnvironmentsUnderRoot(root string) []string {
 	}
 
 	return matchedEnvs
-}
-
-func getChanges(changedFilePaths []string, regExps ...string) ([]string, []string) {
-	var matches1 []string
-	var matches2 []string
-	for _, expr := range regExps {
-		for _, line := range changedFilePaths {
-			expr := regexp.MustCompile(expr)
-			matches := expr.FindStringSubmatch(line)
-			if matches != nil {
-				if len(matches) == 1 {
-					matches1 = append(matches1, matches[0])
-				} else if len(matches) == 2 {
-					matches1 = append(matches1, matches[1])
-				} else {
-					matches1 = append(matches1, matches[1])
-					matches2 = append(matches2, matches[2])
-				}
-			}
-		}
-	}
-	return matches1, matches2
 }

@@ -32,7 +32,8 @@ func CheckAndRun() bool {
 	return true
 }
 
-func EmbeddedCmd(name string, description string) *cobra.Command {
+// Cmd returns a cobra command that runs an embedded tool.
+func Cmd(name, description string) *cobra.Command {
 	return &cobra.Command{
 		Use:   name,
 		Short: fmt.Sprintf("Run embedded %s", name),

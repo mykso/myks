@@ -26,6 +26,7 @@ var prototypesFs embed.FS
 //go:embed all:assets/envs
 var environmentsFs embed.FS
 
+// ErrBootstrapTargetExists is returned when a bootstrap target path already exists.
 type ErrBootstrapTargetExists struct {
 	target string
 }
@@ -56,7 +57,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 	} else {
 		log.Info().Msg("Creating base file structure")
 		if err := g.createBaseFileStructure(force, myksConfig); err != nil {
-			return err
+			return fmt.Errorf("creating base file structure: %w", err)
 		}
 	}
 
@@ -66,7 +67,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 		} else {
 			log.Info().Msg("Creating sample prototypes")
 			if err := g.createSamplePrototypes(); err != nil {
-				return err
+				return fmt.Errorf("creating sample prototypes: %w", err)
 			}
 		}
 	}
@@ -77,7 +78,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 		} else {
 			log.Info().Msg("Creating sample environment")
 			if err := g.createSampleEnvironment(); err != nil {
-				return err
+				return fmt.Errorf("creating sample environment: %w", err)
 			}
 		}
 	}
@@ -113,23 +114,23 @@ func (g *Globe) createBaseFileStructure(force bool, myksConfig string) error {
 	g.createDataSchemaFile()
 
 	if err := os.MkdirAll(envDir, 0o750); err != nil {
-		return err
+		return fmt.Errorf("creating environments directory: %w", err)
 	}
 
 	if err := os.MkdirAll(protoDir, 0o750); err != nil {
-		return err
+		return fmt.Errorf("creating prototypes directory: %w", err)
 	}
 
 	if err := os.MkdirAll(renderedDir, 0o750); err != nil {
-		return err
+		return fmt.Errorf("creating rendered directory: %w", err)
 	}
 
 	if err := os.WriteFile(gitignoreFile, gitignore, 0o600); err != nil {
-		return err
+		return fmt.Errorf("writing .gitignore: %w", err)
 	}
 
 	if err := os.WriteFile(myksConfigFile, []byte(myksConfig), 0o600); err != nil {
-		return err
+		return fmt.Errorf("writing .myks.yaml config: %w", err)
 	}
 
 	return nil
@@ -163,12 +164,12 @@ func (g *Globe) createSampleEnvironment() error {
 	return copyFileSystemToPath(environmentsFs, "assets/envs", envDir)
 }
 
-// generateNameConventions extracts mapstructure and default tags from Globe struct
+// generateNameConventions extracts mapstructure and default tags from Config struct
 // and generates a YAML section for naming-conventions
 func (g *Globe) generateNameConventions() string {
 	var conventions strings.Builder
 
-	rt := reflect.TypeFor[Globe]()
+	rt := reflect.TypeFor[Config]()
 	for i := 0; i < rt.NumField(); i++ {
 		field := rt.Field(i)
 

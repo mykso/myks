@@ -83,7 +83,7 @@ func (v *VendirSyncer) GenerateSecrets(g *Globe) (string, error) {
 	return secretYamls, nil
 }
 
-func (v *VendirSyncer) generateVendirSecretYaml(g *Globe, secretName string, username string, password string) (string, error) {
+func (v *VendirSyncer) generateVendirSecretYaml(g *Globe, secretName, username, password string) (string, error) {
 	res, err := runYttWithFilesAndStdin(
 		v.getStepName(),
 		nil,

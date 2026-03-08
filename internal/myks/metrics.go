@@ -11,6 +11,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// StepMetric holds aggregated timing and resource usage metrics for a rendering step.
 type StepMetric struct {
 	TotalTime time.Duration
 	UserTime  time.Duration
@@ -20,12 +21,14 @@ type StepMetric struct {
 }
 
 var (
+	// PrintStats controls where command metrics are printed: to stdout when true, or via log.Info when false.
 	PrintStats bool
 
 	metricsMu sync.Mutex
 	metrics   = make(map[string]*StepMetric)
 )
 
+// TrackCmdMetric records timing and resource usage for a completed command step.
 func TrackCmdMetric(step string, cmd *exec.Cmd, elapsed time.Duration) {
 	if step == "" || cmd == nil || cmd.ProcessState == nil {
 		return
@@ -84,6 +87,7 @@ func buildMetricsSummary(m map[string]*StepMetric) string {
 	return sb.String()
 }
 
+// PrintCmdMetrics prints a summary of all tracked command metrics. Output goes to stdout when PrintStats is true, or to the log otherwise.
 func PrintCmdMetrics() {
 	metricsMu.Lock()
 	if len(metrics) == 0 {

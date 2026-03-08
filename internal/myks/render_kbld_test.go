@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"testing"
@@ -16,12 +17,13 @@ func TestKbld_generateKbldOverrideConfig(t *testing.T) {
 
 	// Create a mock application
 	globe := &Globe{
-		RootDir: tmpDir,
+		Config: Config{RootDir: tmpDir},
 	}
 
 	env := &Environment{
 		ID:  "test-env",
 		g:   globe,
+		cfg: &globe.Config,
 		Dir: tmpDir,
 	}
 
@@ -29,6 +31,7 @@ func TestKbld_generateKbldOverrideConfig(t *testing.T) {
 		Name:      "test-app",
 		Prototype: "test-proto",
 		e:         env,
+		cfg:       &globe.Config,
 	}
 
 	// Create the kbld instance
@@ -175,7 +178,7 @@ func TestKbld_generateKbldOverrideConfig(t *testing.T) {
 				t.Fatalf("Failed to read second generated file: %v", err)
 			}
 
-			if string(data) != string(data2) {
+			if !bytes.Equal(data, data2) {
 				t.Errorf("generateKbldOverrideConfig() is not idempotent, produced different output on second call")
 			}
 		})
@@ -190,12 +193,13 @@ func TestKbld_generateKbldOverrideConfig_Consistency(t *testing.T) {
 
 	// Create a mock application
 	globe := &Globe{
-		RootDir: tmpDir,
+		Config: Config{RootDir: tmpDir},
 	}
 
 	env := &Environment{
 		ID:  "test-env",
 		g:   globe,
+		cfg: &globe.Config,
 		Dir: tmpDir,
 	}
 
@@ -203,6 +207,7 @@ func TestKbld_generateKbldOverrideConfig_Consistency(t *testing.T) {
 		Name:      "test-app",
 		Prototype: "test-proto",
 		e:         env,
+		cfg:       &globe.Config,
 	}
 
 	// Create the kbld instance
