@@ -308,7 +308,7 @@ func (g *Globe) cleanupRenderedEnvDir(root string, envDirEntry fs.DirEntry, lega
 
 	env, ok := legalEnvs[envID]
 	if !ok {
-		g.removeOrLog(fullPath, dryRun, "rendered environment directory")
+		g.removeOrLog(fullPath, dryRun, "rendered environment entry")
 		return
 	}
 
@@ -331,11 +331,11 @@ func (g *Globe) cleanupRenderedEnvDir(root string, envDirEntry fs.DirEntry, lega
 			appName = getAppNameFunc(rawName)
 		}
 		if appName == "" {
-			log.Warn().Str("app", fullAppPath).Msg("Directory name could not be mapped to a known application")
+			log.Warn().Str("app", fullAppPath).Msg("Entry name could not be mapped to a known application")
 			continue
 		}
 		if !legalApps[appName] {
-			g.removeOrLog(fullAppPath, dryRun, "rendered application directory")
+			g.removeOrLog(fullAppPath, dryRun, "rendered application entry")
 		}
 	}
 }
@@ -343,12 +343,12 @@ func (g *Globe) cleanupRenderedEnvDir(root string, envDirEntry fs.DirEntry, lega
 // removeOrLog either removes path (when not a dry run) or logs that it would be removed.
 func (g *Globe) removeOrLog(path string, dryRun bool, label string) {
 	if dryRun {
-		log.Info().Str("dir", path).Msgf("Would cleanup %s", label)
+		log.Info().Str("path", path).Msgf("Would cleanup %s", label)
 		return
 	}
-	log.Debug().Str("dir", path).Msgf("Cleanup %s", label)
+	log.Debug().Str("path", path).Msgf("Cleanup %s", label)
 	if err := os.RemoveAll(path); err != nil {
-		log.Warn().Str("dir", path).Msgf("Failed to remove %s", label)
+		log.Warn().Str("path", path).Msgf("Failed to remove %s", label)
 	}
 }
 

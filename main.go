@@ -22,8 +22,8 @@ func main() {
 		return
 	}
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	defer myks.PrintCmdMetrics()
 	err := cmd.NewMyksCmd(version, commit, date).Execute()
-	myks.PrintCmdMetrics()
 	if err != nil {
 		log.Error().Err(err).Msg("Error executing myks")
 		os.Exit(1)

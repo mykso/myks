@@ -13,9 +13,9 @@ import (
 
 func getChanges(changedFilePaths []string, regExps ...string) (matches1, matches2 []string) {
 	for _, expr := range regExps {
+		re := regexp.MustCompile(expr)
 		for _, line := range changedFilePaths {
-			expr := regexp.MustCompile(expr)
-			matches := expr.FindStringSubmatch(line)
+			matches := re.FindStringSubmatch(line)
 			if matches != nil {
 				switch len(matches) {
 				case 1:
