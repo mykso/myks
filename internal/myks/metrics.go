@@ -21,7 +21,7 @@ type StepMetric struct {
 }
 
 var (
-	// PrintStats controls whether command metrics are printed after rendering.
+	// PrintStats controls where command metrics are printed: to stdout when true, or via log.Info when false.
 	PrintStats bool
 
 	metricsMu sync.Mutex
@@ -87,7 +87,7 @@ func buildMetricsSummary(m map[string]*StepMetric) string {
 	return sb.String()
 }
 
-// PrintCmdMetrics prints a summary of all tracked command metrics if PrintStats is enabled.
+// PrintCmdMetrics prints a summary of all tracked command metrics. Output goes to stdout when PrintStats is true, or to the log otherwise.
 func PrintCmdMetrics() {
 	metricsMu.Lock()
 	if len(metrics) == 0 {

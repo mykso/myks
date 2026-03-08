@@ -80,8 +80,8 @@ func copyFileSystemToPath(source fs.FS, sourcePath, destinationPath string) (err
 }
 
 // copyDir copies a directory recursively, overwriting existing files if overwrite is true.
-// If overwrite is false, existing files will not be overwritten, an error will be returned instead.
-// The destination directory will be created if it does not exist.
+// If overwrite is false, existing files will not be overwritten; existing files are left unchanged
+// and no error is returned. The destination directory will be created if it does not exist.
 func copyDir(src, dst string, overwrite bool) error {
 	if err := os.MkdirAll(dst, 0o750); err != nil {
 		return fmt.Errorf("creating destination directory %s: %w", dst, err)

@@ -18,19 +18,22 @@ type CmdResult struct {
 	Stderr string
 }
 
-func reductSecrets(args []string) []string {
-	sensitiveFields := []string{"password", "secret", "token"}
+var (
+	sensitiveFields      = []string{"password", "secret", "token"}
+	redactSecretsPattern = "(" + strings.Join(sensitiveFields, "|") + ")=(\\S+)"
+	redactSecretsRegex   = regexp.MustCompile(redactSecretsPattern)
+)
+
+func redactSecrets(args []string) []string {
 	var logArgs []string
 	for _, arg := range args {
-		pattern := "(" + strings.Join(sensitiveFields, "|") + ")=(\\S+)"
-		regex := regexp.MustCompile(pattern)
-		logArgs = append(logArgs, regex.ReplaceAllString(arg, "$1=[REDACTED]"))
+		logArgs = append(logArgs, redactSecretsRegex.ReplaceAllString(arg, "$1=[REDACTED]"))
 	}
 	return logArgs
 }
 
 func msgRunCmd(purpose, cmd string, args []string) string {
-	msg := cmd + " " + strings.Join(reductSecrets(args), " ")
+	msg := cmd + " " + strings.Join(redactSecrets(args), " ")
 	if purpose == "" {
 		return "Ran \u001B[34m" + cmd + "\u001B[0m\n\u001B[37m" + msg + "\u001B[0m"
 	}

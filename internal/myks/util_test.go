@@ -143,7 +143,7 @@ func Test_appendIfNotExists(t *testing.T) {
 	}
 }
 
-func Test_reductSecrets(t *testing.T) {
+func Test_redactSecrets(t *testing.T) {
 	type args struct {
 		args []string
 	}
@@ -156,8 +156,8 @@ func Test_reductSecrets(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := reductSecrets(tt.args.args); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("reductSecrets() = %v, want %v", got, tt.want)
+			if got := redactSecrets(tt.args.args); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("redactSecrets() = %v, want %v", got, tt.want)
 			}
 		})
 	}

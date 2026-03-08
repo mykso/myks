@@ -38,8 +38,10 @@ func sortYaml(content []byte) ([]byte, error) {
 	var data bytes.Buffer
 	enc := yaml.NewEncoder(&data)
 	enc.SetIndent(2)
-	err := enc.Encode(obj)
-	if err != nil {
+	if err := enc.Encode(obj); err != nil {
+		return nil, err
+	}
+	if err := enc.Close(); err != nil {
 		return nil, err
 	}
 	return data.Bytes(), nil

@@ -271,23 +271,4 @@ func (g *Globe) getEnvironmentsUnderRoot(root string) []string {
 	return matchedEnvs
 }
 
-func getChanges(changedFilePaths []string, regExps ...string) (matches1, matches2 []string) {
-	for _, expr := range regExps {
-		for _, line := range changedFilePaths {
-			expr := regexp.MustCompile(expr)
-			matches := expr.FindStringSubmatch(line)
-			if matches != nil {
-				switch len(matches) {
-				case 1:
-					matches1 = append(matches1, matches[0])
-				case 2:
-					matches1 = append(matches1, matches[1])
-				default:
-					matches1 = append(matches1, matches[1])
-					matches2 = append(matches2, matches[2])
-				}
-			}
-		}
-	}
-	return matches1, matches2
-}
+
