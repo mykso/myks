@@ -223,11 +223,66 @@ func (g *Globe) Render(asyncLevel int) error {
 
 // SyncAndRender runs Sync followed by Render for all applications.
 func (g *Globe) SyncAndRender(asyncLevel int) error {
-	err := g.Sync(asyncLevel)
+	for _, env := range g.environments {
+		if err := env.renderArgoCD(); err != nil {
+			return err
+		}
+	}
+
+	type syncToolWithSecrets struct {
+		tool    SyncTool
+		secrets string
+	}
+
+	syncTools := make([]syncToolWithSecrets, 0, len(g.getSyncTools()))
+	for _, syncTool := range g.getSyncTools() {
+		secrets, err := syncTool.GenerateSecrets(g)
+		if err != nil {
+			return err
+		}
+		syncTools = append(syncTools, syncToolWithSecrets{
+			tool:    syncTool,
+			secrets: secrets,
+		})
+	}
+
+	allApps := g.collectAllApplications()
+	err := process(asyncLevel, slices.Values(allApps), func(app *Application) error {
+		for _, syncTool := range syncTools {
+			if err := app.Sync(syncTool.tool, syncTool.secrets); err != nil {
+				return err
+			}
+		}
+
+		yamlTemplatingTools := []YamlTemplatingTool{
+			&Helm{ident: "helm", app: app, additive: true},
+			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
+			&Ytt{ident: "ytt", app: app, additive: false},
+			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
+			&Kbld{ident: "kbld", app: app, additive: false},
+		}
+		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
+			return fmt.Errorf("rendering app %s/%s: %w", app.e.ID, app.Name, err)
+		}
+		if err := app.copyStaticFiles(); err != nil {
+			return fmt.Errorf("copying static files for %s/%s: %w", app.e.ID, app.Name, err)
+		}
+		if err := app.renderArgoCD(); err != nil {
+			return fmt.Errorf("rendering ArgoCD for %s/%s: %w", app.e.ID, app.Name, err)
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	return g.Render(asyncLevel)
+
+	for _, env := range g.environments {
+		if err := env.Cleanup(); err != nil {
+			return fmt.Errorf("cleaning up env %s: %w", env.ID, err)
+		}
+	}
+
+	return nil
 }
 
 // ExecPlugin executes a plugin in the context of the globe
