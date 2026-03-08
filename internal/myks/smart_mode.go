@@ -270,5 +270,3 @@ func (g *Globe) getEnvironmentsUnderRoot(root string) []string {
 
 	return matchedEnvs
 }
-
-
