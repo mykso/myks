@@ -221,7 +221,8 @@ func (g *Globe) Render(asyncLevel int) error {
 	return nil
 }
 
-// SyncAndRender runs Sync followed by Render for all applications.
+// SyncAndRender synchronizes applications and pipelines the remaining
+// per-application work once vendir-backed inputs are safe to read.
 func (g *Globe) SyncAndRender(asyncLevel int) error {
 	for _, env := range g.environments {
 		if err := env.renderArgoCD(); err != nil {
@@ -234,6 +235,7 @@ func (g *Globe) SyncAndRender(asyncLevel int) error {
 		secrets string
 	}
 
+	vendirSyncIndex := -1
 	syncTools := make([]syncToolWithSecrets, 0, len(g.getSyncTools()))
 	for _, syncTool := range g.getSyncTools() {
 		secrets, err := syncTool.GenerateSecrets(g)
@@ -244,33 +246,54 @@ func (g *Globe) SyncAndRender(asyncLevel int) error {
 			tool:    syncTool,
 			secrets: secrets,
 		})
+		if _, ok := syncTool.(*VendirSyncer); ok {
+			vendirSyncIndex = len(syncTools) - 1
+		}
 	}
 
 	allApps := g.collectAllApplications()
 	err := process(asyncLevel, slices.Values(allApps), func(app *Application) error {
-		for _, syncTool := range syncTools {
+		postVendirPipeline := func() error {
+			startIdx := 0
+			if vendirSyncIndex >= 0 {
+				startIdx = vendirSyncIndex + 1
+			}
+			for _, syncTool := range syncTools[startIdx:] {
+				if err := app.Sync(syncTool.tool, syncTool.secrets); err != nil {
+					return err
+				}
+			}
+
+			yamlTemplatingTools := []YamlTemplatingTool{
+				&Helm{ident: "helm", app: app, additive: true},
+				&YttPkg{ident: "ytt-pkg", app: app, additive: true},
+				&Ytt{ident: "ytt", app: app, additive: false},
+				&GlobalYtt{ident: "global-ytt", app: app, additive: false},
+				&Kbld{ident: "kbld", app: app, additive: false},
+			}
+			if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
+				return fmt.Errorf("rendering app %s/%s: %w", app.e.ID, app.Name, err)
+			}
+			if err := app.copyStaticFiles(); err != nil {
+				return fmt.Errorf("copying static files for %s/%s: %w", app.e.ID, app.Name, err)
+			}
+			if err := app.renderArgoCD(); err != nil {
+				return fmt.Errorf("rendering ArgoCD for %s/%s: %w", app.e.ID, app.Name, err)
+			}
+			return nil
+		}
+
+		if vendirSyncIndex < 0 {
+			return postVendirPipeline()
+		}
+
+		for _, syncTool := range syncTools[:vendirSyncIndex+1] {
 			if err := app.Sync(syncTool.tool, syncTool.secrets); err != nil {
 				return err
 			}
 		}
 
-		yamlTemplatingTools := []YamlTemplatingTool{
-			&Helm{ident: "helm", app: app, additive: true},
-			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
-			&Ytt{ident: "ytt", app: app, additive: false},
-			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
-			&Kbld{ident: "kbld", app: app, additive: false},
-		}
-		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
-			return fmt.Errorf("rendering app %s/%s: %w", app.e.ID, app.Name, err)
-		}
-		if err := app.copyStaticFiles(); err != nil {
-			return fmt.Errorf("copying static files for %s/%s: %w", app.e.ID, app.Name, err)
-		}
-		if err := app.renderArgoCD(); err != nil {
-			return fmt.Errorf("rendering ArgoCD for %s/%s: %w", app.e.ID, app.Name, err)
-		}
-		return nil
+		return app.withVendirReadLocks(postVendirPipeline)
 	})
 	if err != nil {
 		return err

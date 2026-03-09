@@ -21,13 +21,17 @@ const (
 	vendirConfigKindConfig = "Config"
 )
 
-// vendirCacheMutexes holds per-cache-entry mutexes to allow parallel vendir
-// operations on different cache entries while serializing access to the same one.
+// vendirCacheMutexes holds per-cache-entry RW mutexes to allow concurrent reads
+// while serializing writes to the same shared vendir cache entry.
 var vendirCacheMutexes sync.Map
 
-func getCacheMutex(key string) *sync.Mutex {
-	val, _ := vendirCacheMutexes.LoadOrStore(key, &sync.Mutex{})
-	return val.(*sync.Mutex)
+func getCacheRWMutex(key string) *sync.RWMutex {
+	val, _ := vendirCacheMutexes.LoadOrStore(key, &sync.RWMutex{})
+	return val.(*sync.RWMutex)
+}
+
+func vendirCacheLockKey(cacheDir, vendirConfigFileName string) string {
+	return filepath.Join(cacheDir, vendirConfigFileName)
 }
 
 type VendirSyncer struct {
@@ -131,10 +135,10 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 
 	for contentPath, cacheName := range linksMap {
 		cacheDir := a.expandVendirCache(cacheName)
-		vendirConfigPath := filepath.Join(cacheDir, a.cfg.VendirConfigFileName)
+		vendirConfigPath := vendirCacheLockKey(cacheDir, a.cfg.VendirConfigFileName)
 		vendirLockPath := filepath.Join(cacheDir, a.cfg.VendirLockFileName)
 
-		mu := getCacheMutex(vendirConfigPath)
+		mu := getCacheRWMutex(vendirConfigPath)
 		mu.Lock()
 		syncErr := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets)
 		if syncErr != nil {
@@ -236,7 +240,7 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 		return err
 	}
 	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.cfg.VendirConfigFileName)
-	mu := getCacheMutex(vendirConfigPath)
+	mu := getCacheRWMutex(vendirConfigPath)
 	mu.Lock()
 	defer mu.Unlock()
 	if err = writeFile(vendirConfigPath, data); err != nil {

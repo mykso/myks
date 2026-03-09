@@ -118,6 +118,39 @@ func (a *Application) writeServiceFile(name, content string) error {
 	return writeFile(a.expandServicePath(name), []byte(content))
 }
 
+func (a *Application) withVendirReadLocks(fn func() error) error {
+	linksMap, err := a.getLinksMap()
+	if err != nil {
+		return fmt.Errorf("reading vendir links map: %w", err)
+	}
+	if len(linksMap) == 0 {
+		return fn()
+	}
+
+	lockKeySet := make(map[string]struct{}, len(linksMap))
+	for _, cacheName := range linksMap {
+		cacheDir := a.expandVendirCache(cacheName)
+		lockKeySet[vendirCacheLockKey(cacheDir, a.cfg.VendirConfigFileName)] = struct{}{}
+	}
+
+	lockKeys := make([]string, 0, len(lockKeySet))
+	for lockKey := range lockKeySet {
+		lockKeys = append(lockKeys, lockKey)
+	}
+	slices.Sort(lockKeys)
+
+	for _, lockKey := range lockKeys {
+		getCacheRWMutex(lockKey).RLock()
+	}
+	defer func() {
+		for i := len(lockKeys) - 1; i >= 0; i-- {
+			getCacheRWMutex(lockKeys[i]).RUnlock()
+		}
+	}()
+
+	return fn()
+}
+
 // collectDataFiles collects all relevant ytt data files and lib paths for the application.
 // Including:
 //   - myks' ytt library for the environment: `.myks/envs/**/_api`
