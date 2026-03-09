@@ -181,6 +181,27 @@ func (g *Globe) Sync(asyncLevel int) error {
 	return nil
 }
 
+// renderApplication runs the per-app rendering pipeline: ytt/helm/kbld, static files, ArgoCD.
+func (g *Globe) renderApplication(app *Application) error {
+	yamlTemplatingTools := []YamlTemplatingTool{
+		&Helm{ident: "helm", app: app, additive: true},
+		&YttPkg{ident: "ytt-pkg", app: app, additive: true},
+		&Ytt{ident: "ytt", app: app, additive: false},
+		&GlobalYtt{ident: "global-ytt", app: app, additive: false},
+		&Kbld{ident: "kbld", app: app, additive: false},
+	}
+	if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
+		return fmt.Errorf("rendering app %s/%s: %w", app.e.ID, app.Name, err)
+	}
+	if err := app.copyStaticFiles(); err != nil {
+		return fmt.Errorf("copying static files for %s/%s: %w", app.e.ID, app.Name, err)
+	}
+	if err := app.renderArgoCD(); err != nil {
+		return fmt.Errorf("rendering ArgoCD for %s/%s: %w", app.e.ID, app.Name, err)
+	}
+	return nil
+}
+
 // Render runs the full rendering pipeline for all environments and applications.
 func (g *Globe) Render(asyncLevel int) error {
 	for _, env := range g.environments {
@@ -191,23 +212,7 @@ func (g *Globe) Render(asyncLevel int) error {
 
 	allApps := g.collectAllApplications()
 	err := process(asyncLevel, slices.Values(allApps), func(app *Application) error {
-		yamlTemplatingTools := []YamlTemplatingTool{
-			&Helm{ident: "helm", app: app, additive: true},
-			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
-			&Ytt{ident: "ytt", app: app, additive: false},
-			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
-			&Kbld{ident: "kbld", app: app, additive: false},
-		}
-		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
-			return fmt.Errorf("rendering app %s/%s: %w", app.e.ID, app.Name, err)
-		}
-		if err := app.copyStaticFiles(); err != nil {
-			return fmt.Errorf("copying static files for %s/%s: %w", app.e.ID, app.Name, err)
-		}
-		if err := app.renderArgoCD(); err != nil {
-			return fmt.Errorf("rendering ArgoCD for %s/%s: %w", app.e.ID, app.Name, err)
-		}
-		return nil
+		return g.renderApplication(app)
 	})
 	if err != nil {
 		return err
@@ -263,24 +268,7 @@ func (g *Globe) SyncAndRender(asyncLevel int) error {
 					return err
 				}
 			}
-
-			yamlTemplatingTools := []YamlTemplatingTool{
-				&Helm{ident: "helm", app: app, additive: true},
-				&YttPkg{ident: "ytt-pkg", app: app, additive: true},
-				&Ytt{ident: "ytt", app: app, additive: false},
-				&GlobalYtt{ident: "global-ytt", app: app, additive: false},
-				&Kbld{ident: "kbld", app: app, additive: false},
-			}
-			if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
-				return fmt.Errorf("rendering app %s/%s: %w", app.e.ID, app.Name, err)
-			}
-			if err := app.copyStaticFiles(); err != nil {
-				return fmt.Errorf("copying static files for %s/%s: %w", app.e.ID, app.Name, err)
-			}
-			if err := app.renderArgoCD(); err != nil {
-				return fmt.Errorf("rendering ArgoCD for %s/%s: %w", app.e.ID, app.Name, err)
-			}
-			return nil
+			return g.renderApplication(app)
 		}
 
 		if vendirSyncIndex < 0 {

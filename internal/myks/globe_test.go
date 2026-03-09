@@ -527,3 +527,30 @@ func Test_dumpConfigAsYaml_overwritesExisting(t *testing.T) {
 		t.Error("dumpConfigAsYaml() should contain updated branch value")
 	}
 }
+
+// TestGlobe_SyncAndRender_succeeds runs SyncAndRender on the simple example to validate
+// the pipelined flow (vendir sync then read-locked per-app render) and locking semantics.
+// Run with -race to detect data races. Skips if the example fixture is missing or if
+// vendir sync fails (e.g. network unavailable in sandbox).
+func TestGlobe_SyncAndRender_succeeds(t *testing.T) {
+	const exampleDir = "../../examples/simple"
+	if _, err := os.Stat(exampleDir); os.IsNotExist(err) {
+		t.Skipf("example fixture not found: %s", exampleDir)
+	}
+	defer chdir(t, exampleDir)()
+
+	g := New(".")
+	if err := g.ValidateRootDir(); err != nil {
+		t.Fatalf("ValidateRootDir: %v", err)
+	}
+	if err := g.Init(1, nil); err != nil {
+		t.Fatalf("Init: %v", err)
+	}
+	if err := g.SyncAndRender(2); err != nil {
+		errStr := err.Error()
+		if strings.Contains(errStr, "vendir") && (strings.Contains(errStr, "Forbidden") || strings.Contains(errStr, "cannot be reached") || strings.Contains(errStr, "exit status")) {
+			t.Skipf("SyncAndRender requires network (vendir sync); skipping: %v", err)
+		}
+		t.Fatalf("SyncAndRender: %v", err)
+	}
+}
