@@ -548,7 +548,9 @@ func TestGlobe_SyncAndRender_succeeds(t *testing.T) {
 	}
 	if err := g.SyncAndRender(2); err != nil {
 		errStr := err.Error()
-		if strings.Contains(errStr, "vendir") && (strings.Contains(errStr, "Forbidden") || strings.Contains(errStr, "cannot be reached") || strings.Contains(errStr, "exit status")) {
+		if os.Getenv("MYKS_INTEGRATION_TESTS") == "" &&
+			strings.Contains(errStr, "vendir") &&
+			(strings.Contains(errStr, "Forbidden") || strings.Contains(errStr, "cannot be reached")) {
 			t.Skipf("SyncAndRender requires network (vendir sync); skipping: %v", err)
 		}
 		t.Fatalf("SyncAndRender: %v", err)
