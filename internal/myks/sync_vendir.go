@@ -21,13 +21,15 @@ const (
 	vendirConfigKindConfig = "Config"
 )
 
-// vendirCacheMutexes holds per-cache-entry mutexes to allow parallel vendir
+// cacheMutexes holds per-cache-entry RWMutexes to allow parallel vendir
 // operations on different cache entries while serializing access to the same one.
-var vendirCacheMutexes sync.Map
+// Sync steps acquire write locks; render steps acquire read locks, allowing
+// concurrent reads from the same cache while writes are serialized.
+var cacheMutexes sync.Map
 
-func getCacheMutex(key string) *sync.Mutex {
-	val, _ := vendirCacheMutexes.LoadOrStore(key, &sync.Mutex{})
-	return val.(*sync.Mutex)
+func getCacheMutex(key string) *sync.RWMutex {
+	val, _ := cacheMutexes.LoadOrStore(key, &sync.RWMutex{})
+	return val.(*sync.RWMutex)
 }
 
 type VendirSyncer struct {

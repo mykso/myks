@@ -37,6 +37,28 @@ func (a *Application) RenderAndSlice(yamlTemplatingTools []YamlTemplatingTool) e
 	return nil
 }
 
+// renderAll runs the full per-application rendering pipeline wrapped in
+// read locks on all vendir cache entries this app depends on. This prevents
+// concurrent sync writes from racing with the render reads.
+func (a *Application) renderAll() error {
+	return a.withCacheReadLocks(func() error {
+		yamlTemplatingTools := []YamlTemplatingTool{
+			&Helm{ident: "helm", app: a, additive: true},
+			&YttPkg{ident: "ytt-pkg", app: a, additive: true},
+			&Ytt{ident: "ytt", app: a, additive: false},
+			&GlobalYtt{ident: "global-ytt", app: a, additive: false},
+			&Kbld{ident: "kbld", app: a, additive: false},
+		}
+		if err := a.RenderAndSlice(yamlTemplatingTools); err != nil {
+			return fmt.Errorf("rendering app %s/%s: %w", a.e.ID, a.Name, err)
+		}
+		if err := a.copyStaticFiles(); err != nil {
+			return fmt.Errorf("copying static files for %s/%s: %w", a.e.ID, a.Name, err)
+		}
+		return a.renderArgoCD()
+	})
+}
+
 func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, error) {
 	log.Debug().Msg(a.Msg(renderStepName, "Starting"))
 	outputYaml := ""

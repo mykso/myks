@@ -85,19 +85,16 @@ func RenderCmd(g *myks.Globe, sync, render bool) error {
 		return err
 	}
 
-	switch {
-	case sync && render:
-		return okOrErrLog(g.SyncAndRender(asyncLevel), "Unable to sync and render applications")
-	case sync:
-		return okOrErrLog(g.Sync(asyncLevel), "Unable to sync external sources")
-	case render:
-		return okOrErrLog(g.Render(asyncLevel), "Unable to render manifests")
+	if sync || render {
+		return okOrErrLog(
+			g.Process(asyncLevel, myks.ProcessOpts{Sync: sync, Render: render}),
+			"Unable to process applications",
+		)
 	}
 
 	// Cleaning up only if all environments and applications were processed
 	if envAppMap == nil {
 		return okOrErrLog(g.CleanupRenderedManifests(false), "Unable to cleanup rendered manifests")
 	}
-
 	return nil
 }

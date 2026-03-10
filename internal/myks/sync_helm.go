@@ -70,6 +70,16 @@ func (hr *HelmSyncer) helmBuild(a *Application, chartDir string) error {
 		return nil
 	}
 
+	// Lock on the real chart directory (resolved through symlinks) to prevent
+	// concurrent helm dependency builds on the same shared vendir cache entry.
+	realChartDir, err := filepath.EvalSymlinks(chartDir)
+	if err != nil {
+		realChartDir = chartDir
+	}
+	mu := getCacheMutex(realChartDir)
+	mu.Lock()
+	defer mu.Unlock()
+
 	helmCache := a.expandServicePath("helm-cache")
 	cacheArgs := []string{
 		"--repository-cache", filepath.Join(helmCache, "repository"),

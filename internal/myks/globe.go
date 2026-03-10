@@ -163,49 +163,55 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 	})
 }
 
-// Sync synchronizes external sources for all applications using vendir.
-func (g *Globe) Sync(asyncLevel int) error {
-	allApps := g.collectAllApplications()
-	for _, syncTool := range g.getSyncTools() {
-		secrets, err := syncTool.GenerateSecrets(g)
-		if err != nil {
-			return err
-		}
-		err = process(asyncLevel, slices.Values(allApps), func(app *Application) error {
-			return app.Sync(syncTool, secrets)
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+// ProcessOpts controls which phases of the sync+render pipeline are executed.
+type ProcessOpts struct {
+	// Sync controls whether external sources are synced via vendir/helm.
+	Sync bool
+	// Render controls whether application manifests are rendered.
+	Render bool
 }
 
-// Render runs the full rendering pipeline for all environments and applications.
-func (g *Globe) Render(asyncLevel int) error {
-	for _, env := range g.environments {
-		if err := env.renderArgoCD(); err != nil {
-			return err
+// Process runs sync and/or render for all applications according to opts.
+// When both Sync and Render are enabled, each application starts rendering
+// immediately after its own sync completes, without waiting for other apps.
+// Secrets for sync tools are generated once before the per-app loop.
+func (g *Globe) Process(asyncLevel int, opts ProcessOpts) error {
+	// Pre-render: env-level ArgoCD rendering must complete before per-app render.
+	if opts.Render {
+		for _, env := range g.environments {
+			if err := env.renderArgoCD(); err != nil {
+				return err
+			}
+		}
+	}
+
+	// Generate secrets once outside the per-app loop to avoid redundant work.
+	var syncTools []SyncTool
+	secrets := map[string]string{}
+	if opts.Sync {
+		syncTools = g.getSyncTools()
+		for _, tool := range syncTools {
+			s, err := tool.GenerateSecrets(g)
+			if err != nil {
+				return err
+			}
+			secrets[tool.Ident()] = s
 		}
 	}
 
 	allApps := g.collectAllApplications()
 	err := process(asyncLevel, slices.Values(allApps), func(app *Application) error {
-		yamlTemplatingTools := []YamlTemplatingTool{
-			&Helm{ident: "helm", app: app, additive: true},
-			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
-			&Ytt{ident: "ytt", app: app, additive: false},
-			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
-			&Kbld{ident: "kbld", app: app, additive: false},
+		if opts.Sync {
+			for _, tool := range syncTools {
+				if err := app.Sync(tool, secrets[tool.Ident()]); err != nil {
+					return err
+				}
+			}
 		}
-		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
-			return fmt.Errorf("rendering app %s/%s: %w", app.e.ID, app.Name, err)
-		}
-		if err := app.copyStaticFiles(); err != nil {
-			return fmt.Errorf("copying static files for %s/%s: %w", app.e.ID, app.Name, err)
-		}
-		if err := app.renderArgoCD(); err != nil {
-			return fmt.Errorf("rendering ArgoCD for %s/%s: %w", app.e.ID, app.Name, err)
+		if opts.Render {
+			if err := app.renderAll(); err != nil {
+				return err
+			}
 		}
 		return nil
 	})
@@ -213,21 +219,15 @@ func (g *Globe) Render(asyncLevel int) error {
 		return err
 	}
 
-	for _, env := range g.environments {
-		if err := env.Cleanup(); err != nil {
-			return fmt.Errorf("cleaning up env %s: %w", env.ID, err)
+	// Post-render: env-level cleanup.
+	if opts.Render {
+		for _, env := range g.environments {
+			if err := env.Cleanup(); err != nil {
+				return fmt.Errorf("cleaning up env %s: %w", env.ID, err)
+			}
 		}
 	}
 	return nil
-}
-
-// SyncAndRender runs Sync followed by Render for all applications.
-func (g *Globe) SyncAndRender(asyncLevel int) error {
-	err := g.Sync(asyncLevel)
-	if err != nil {
-		return err
-	}
-	return g.Render(asyncLevel)
 }
 
 // ExecPlugin executes a plugin in the context of the globe

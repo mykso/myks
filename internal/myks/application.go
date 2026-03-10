@@ -246,3 +246,31 @@ func (a *Application) getHelmChartsDirs(stepName string) ([]string, error) {
 
 	return chartsDirs, nil
 }
+
+// withCacheReadLocks acquires read locks on all vendir cache entries used by
+// this application, then calls fn. This allows concurrent rendering from the
+// same cache entry while serializing against sync write operations.
+// If no links map exists (app has no vendir config), fn is called directly.
+func (a *Application) withCacheReadLocks(fn func() error) error {
+	linksMap, err := a.getLinksMap()
+	if err != nil {
+		// No links map means no vendir dependencies; proceed without locking.
+		return fn()
+	}
+	// Build a chain of RUnlock calls as a closure to avoid defer-in-loop.
+	unlockAll := func() {}
+	for _, cacheName := range linksMap {
+		cacheDir := a.expandVendirCache(cacheName)
+		vendirConfigPath := filepath.Join(cacheDir, a.cfg.VendirConfigFileName)
+		mu := getCacheMutex(vendirConfigPath)
+		mu.RLock()
+		prev := unlockAll
+		current := mu
+		unlockAll = func() {
+			current.RUnlock()
+			prev()
+		}
+	}
+	defer unlockAll()
+	return fn()
+}
