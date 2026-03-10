@@ -183,6 +183,101 @@ func TestWithCacheReadLocks_WithLinksMap(t *testing.T) {
 
 // TestProcessOpts_SyncOnlyAndRenderOnly tests that ProcessOpts correctly conveys
 // intent (sync-only vs render-only vs both).
+// TestWithCacheReadLocks_ConsistentLockOrdering verifies that withCacheReadLocks
+// acquires locks in a deterministic order, preventing ABBA deadlocks when
+// multiple goroutines lock overlapping sets of cache entries concurrently.
+func TestWithCacheReadLocks_ConsistentLockOrdering(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create two apps that share the same two cache entries but whose linksMap
+	// iteration order may differ (Go map iteration is random).
+	cacheNames := []string{"cache-alpha", "cache-beta"}
+	apps := make([]*Application, 2)
+	for i := range apps {
+		app := newTestApp(t, tmpDir)
+		app.Name = fmt.Sprintf("app-%d", i)
+		for _, cn := range cacheNames {
+			cacheDir := app.expandVendirCache(cn)
+			if err := os.MkdirAll(cacheDir, 0o750); err != nil {
+				t.Fatalf("creating cache dir: %v", err)
+			}
+		}
+		// Each app maps two vendor paths to the two cache entries.
+		// Use reversed key names so that naive map iteration is more likely
+		// to produce different orders across the two apps.
+		linksMap := map[string]string{
+			fmt.Sprintf("vendor/path-%d-a", i): cacheNames[0],
+			fmt.Sprintf("vendor/path-%d-b", i): cacheNames[1],
+		}
+		if err := (&VendirSyncer{ident: "vendir"}).saveLinksMap(app, linksMap); err != nil {
+			t.Fatalf("saving links map: %v", err)
+		}
+		apps[i] = app
+	}
+
+	// Simulate a writer that periodically locks each cache entry, creating
+	// the writer-priority conditions that trigger the deadlock.
+	alphaPath := filepath.Join(apps[0].expandVendirCache(cacheNames[0]), apps[0].cfg.VendirConfigFileName)
+	betaPath := filepath.Join(apps[0].expandVendirCache(cacheNames[1]), apps[0].cfg.VendirConfigFileName)
+	alphaMu := getCacheMutex(alphaPath)
+	betaMu := getCacheMutex(betaPath)
+
+	done := make(chan struct{})
+	defer close(done)
+
+	// Writer goroutine: alternates write-locking each mutex.
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+			}
+			alphaMu.Lock()
+			alphaMu.Unlock()
+			betaMu.Lock()
+			betaMu.Unlock()
+		}
+	}()
+
+	// Run both apps' withCacheReadLocks concurrently many times.
+	// Without consistent ordering, this deadlocks under the race detector.
+	const iterations = 50
+	var wg sync.WaitGroup
+	errCh := make(chan error, 2*iterations)
+	for _, app := range apps {
+		for range iterations {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				errCh <- app.withCacheReadLocks(func() error {
+					return nil
+				})
+			}()
+		}
+	}
+
+	// Use a timeout to detect deadlock.
+	allDone := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(allDone)
+	}()
+
+	select {
+	case <-allDone:
+	case <-time.After(5 * time.Second):
+		t.Fatal("deadlock detected: withCacheReadLocks did not complete within timeout")
+	}
+
+	close(errCh)
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("withCacheReadLocks returned unexpected error: %v", err)
+		}
+	}
+}
+
 func TestProcessOpts_Fields(t *testing.T) {
 	tests := []struct {
 		name   string

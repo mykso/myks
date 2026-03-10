@@ -257,20 +257,31 @@ func (a *Application) withCacheReadLocks(fn func() error) error {
 		// No links map means no vendir dependencies; proceed without locking.
 		return fn()
 	}
-	// Build a chain of RUnlock calls as a closure to avoid defer-in-loop.
-	unlockAll := func() {}
+
+	// Collect unique vendirConfigPaths to avoid re-entrant RLock on duplicates.
+	seen := make(map[string]struct{}, len(linksMap))
+	paths := make([]string, 0, len(linksMap))
 	for _, cacheName := range linksMap {
 		cacheDir := a.expandVendirCache(cacheName)
 		vendirConfigPath := filepath.Join(cacheDir, a.cfg.VendirConfigFileName)
-		mu := getCacheMutex(vendirConfigPath)
-		mu.RLock()
-		prev := unlockAll
-		current := mu
-		unlockAll = func() {
-			current.RUnlock()
-			prev()
+		if _, ok := seen[vendirConfigPath]; !ok {
+			seen[vendirConfigPath] = struct{}{}
+			paths = append(paths, vendirConfigPath)
 		}
 	}
-	defer unlockAll()
+
+	// Sort to guarantee consistent lock ordering across goroutines, preventing
+	// ABBA deadlocks when a pending writer blocks subsequent RLock calls.
+	slices.Sort(paths)
+
+	// Acquire all read locks in sorted order.
+	for _, p := range paths {
+		getCacheMutex(p).RLock()
+	}
+	defer func() {
+		for _, p := range paths {
+			getCacheMutex(p).RUnlock()
+		}
+	}()
 	return fn()
 }
