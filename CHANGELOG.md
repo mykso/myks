@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.10.1](https://github.com/mykso/myks/compare/v5.10.0...v5.10.1) (2026-03-14)
+
+
+### Bug Fixes
+
+* update ytt and starlark-go dependencies ([b567d7f](https://github.com/mykso/myks/commit/b567d7f457e5b10589cc75288cf93dfd18f9a3f1))
+
 ## [5.10.0](https://github.com/mykso/myks/compare/v5.9.3...v5.10.0) (2026-03-06)
 
 
