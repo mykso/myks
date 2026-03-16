@@ -3,13 +3,29 @@ package myks
 import (
 	"path/filepath"
 
+	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 )
 
 type GlobalYtt struct {
-	ident    string
-	app      *Application
 	additive bool
+	app      *Application
+	ident    string
+	locker   *locker.Locker
+}
+
+func NewGlobalYttRenderer(app *Application, lock *locker.Locker) *GlobalYtt {
+	return &GlobalYtt{
+		additive: false,
+		app:      app,
+		ident:    globalYttStepName,
+		locker:   lock,
+	}
+}
+
+func (g *GlobalYtt) AcquireLock() (func(), error) {
+	// No lock needed for global ytt since it doesn't read any sources.
+	return func() {}, nil
 }
 
 func (g *GlobalYtt) Ident() string {

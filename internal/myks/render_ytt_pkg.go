@@ -5,13 +5,30 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 )
 
 type YttPkg struct {
-	ident    string
-	app      *Application
 	additive bool
+	app      *Application
+	ident    string
+	locker   *locker.Locker
+}
+
+func NewYttPkgRenderer(app *Application, lock *locker.Locker) *YttPkg {
+	return &YttPkg{
+		additive: true,
+		app:      app,
+		ident:    "ytt-pkg",
+		locker:   lock,
+	}
+}
+
+func (y *YttPkg) AcquireLock() (func(), error) {
+	return y.app.AcquireRenderLock(y.locker, func(path string) bool {
+		return strings.HasPrefix(path, y.app.cfg.YttPkgStepDirName+"/")
+	})
 }
 
 func (y *YttPkg) IsAdditive() bool {
