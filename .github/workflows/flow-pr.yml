@@ -22,7 +22,7 @@ jobs:
         with:
           # use more powerful token to trigger subsequent workflows
           token: ${{ secrets.MYKSO_BOT_GITHUB_TOKEN }}
-      - uses: cachix/install-nix-action@19effe9fe722874e6d46dd7182e4b8b7a43c4a99 # v31.10.0
+      - uses: cachix/install-nix-action@1ca7d21a94afc7c957383a2d217460d980de4934 # v31.10.1
         with:
           github_access_token: ${{ secrets.GITHUB_TOKEN }}
       - name: Update nix flake
