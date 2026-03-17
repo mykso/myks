@@ -192,12 +192,12 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 	lock := locker.NewLocker()
 
 	// FIXME: It's a workaround due to the fact that only the vendir sync tool currently generates secrets
-	vendirSyncer := NewVendirSyncer("vendir", lock)
+	vendirSyncer := NewVendirSyncer(lock)
 	secrets, err := vendirSyncer.GenerateSecrets(g)
 	if err != nil {
 		return fmt.Errorf("failed to generate secrets for sync tool %s: %w", vendirSyncer.Ident(), err)
 	}
-	helmSyncer := &HelmSyncer{ident: "helm"}
+	helmSyncer := NewHelmSyncer(lock)
 
 	sem := make(chan struct{}, asyncLevel)
 	wg := sync.WaitGroup{}

@@ -22,15 +22,17 @@ const (
 	vendirConfigKindConfig = "Config"
 )
 
+// VendirSyncer is responsible for syncing application dependencies defined in vendir configuration.
 type VendirSyncer struct {
 	ident  string
 	locker *locker.Locker
 }
 
-func NewVendirSyncer(ident string, locker *locker.Locker) *VendirSyncer {
+// NewVendirSyncer creates a new instance of VendirSyncer with the provided identifier and locker.
+func NewVendirSyncer(lock *locker.Locker) *VendirSyncer {
 	return &VendirSyncer{
-		ident:  ident,
-		locker: locker,
+		ident:  "vendir",
+		locker: lock,
 	}
 }
 
@@ -124,14 +126,14 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		return fmt.Errorf("reading vendir links map: %w", err)
 	}
 
+	// Acquire all locks first to avoid deadlocks
+	unlock := v.locker.LockNames(maps.Values(linksMap), true)
+	defer unlock()
+
 	if err := os.RemoveAll(a.expandVendorPath("")); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to remove vendor directory"))
 		return err
 	}
-
-	// Acquire all locks first to avoid deadlocks
-	unlock := v.locker.LockNames(maps.Values(linksMap), true)
-	defer unlock()
 
 	for contentPath, cacheName := range linksMap {
 		cacheDir := a.expandVendirCache(cacheName)

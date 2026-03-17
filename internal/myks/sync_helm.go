@@ -6,11 +6,22 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 )
 
+// HelmSyncer is responsible for building Helm charts' dependencies.
 type HelmSyncer struct {
-	ident string
+	ident  string
+	locker *locker.Locker
+}
+
+// NewHelmSyncer creates a new HelmSyncer with the given locker.
+func NewHelmSyncer(lock *locker.Locker) *HelmSyncer {
+	return &HelmSyncer{
+		ident:  "helm",
+		locker: lock,
+	}
 }
 
 func (hr *HelmSyncer) Ident() string {
@@ -27,6 +38,14 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 		log.Warn().Err(err).Msg(a.Msg(hr.getStepName(), "Unable to get helm config"))
 		return err
 	}
+
+	unlock, err := a.AcquireRenderLock(hr.locker, func(path string) bool {
+		return strings.HasPrefix(path, a.cfg.HelmChartsDirName+"/")
+	})
+	if err != nil {
+		return err
+	}
+	defer unlock()
 
 	chartsDirs, err := a.getHelmChartsDirs(hr.getStepName())
 	if err != nil {
