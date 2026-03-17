@@ -294,7 +294,8 @@ func (a *Application) AcquireRenderLock(lock *locker.Locker, vendorFilter func(s
 	}
 	names := []string{}
 	for path, link := range linksMap {
-		if vendorFilter(path) {
+		normalizedPath := filepath.ToSlash(path)
+		if vendorFilter(normalizedPath) {
 			names = append(names, link)
 		}
 	}
