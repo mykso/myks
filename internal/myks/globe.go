@@ -3,6 +3,7 @@ package myks
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/fs"
 	"maps"
@@ -10,8 +11,12 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/creasty/defaults"
+	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 )
@@ -55,7 +60,7 @@ type YttGlobeData struct {
 // VendirCredentials holds registry authentication credentials for vendir sync.
 type VendirCredentials struct {
 	Username string
-	Password string
+	Password string // #nosec G117 -- credentials struct used for vendir auth, not logged
 }
 
 // EnvAppMap maps environment directory paths to lists of application names to process.
@@ -163,71 +168,117 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 	})
 }
 
-// Sync synchronizes external sources for all applications using vendir.
-func (g *Globe) Sync(asyncLevel int) error {
-	allApps := g.collectAllApplications()
-	for _, syncTool := range g.getSyncTools() {
-		secrets, err := syncTool.GenerateSecrets(g)
-		if err != nil {
-			return err
-		}
-		err = process(asyncLevel, slices.Values(allApps), func(app *Application) error {
-			return app.Sync(syncTool, secrets)
-		})
-		if err != nil {
-			return err
-		}
+// Run executes the sync and render operations based on the provided flags.
+func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
+	if !doRender && !doSync {
+		return fmt.Errorf("invalid run configuration: both render and sync cannot be false")
 	}
-	return nil
-}
 
-// Render runs the full rendering pipeline for all environments and applications.
-func (g *Globe) Render(asyncLevel int) error {
-	for _, env := range g.environments {
-		if err := env.renderArgoCD(); err != nil {
-			return err
+	if doRender {
+		for _, env := range g.environments {
+			if err := env.renderArgoCD(); err != nil {
+				return err
+			}
 		}
 	}
 
 	allApps := g.collectAllApplications()
-	err := process(asyncLevel, slices.Values(allApps), func(app *Application) error {
-		yamlTemplatingTools := []YamlTemplatingTool{
-			&Helm{ident: "helm", app: app, additive: true},
-			&YttPkg{ident: "ytt-pkg", app: app, additive: true},
-			&Ytt{ident: "ytt", app: app, additive: false},
-			&GlobalYtt{ident: "global-ytt", app: app, additive: false},
-			&Kbld{ident: "kbld", app: app, additive: false},
-		}
-		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
-			return fmt.Errorf("rendering app %s/%s: %w", app.e.ID, app.Name, err)
-		}
-		if err := app.copyStaticFiles(); err != nil {
-			return fmt.Errorf("copying static files for %s/%s: %w", app.e.ID, app.Name, err)
-		}
-		if err := app.renderArgoCD(); err != nil {
-			return fmt.Errorf("rendering ArgoCD for %s/%s: %w", app.e.ID, app.Name, err)
-		}
+	if len(allApps) == 0 {
+		log.Warn().Msg("No applications found to process")
 		return nil
-	})
-	if err != nil {
-		return err
 	}
+
+	if asyncLevel <= 0 {
+		asyncLevel = -1
+	}
+
+	lock := locker.NewLocker()
+
+	var vendirSyncer *VendirSyncer
+	var helmSyncer *HelmSyncer
+	var secrets string
+	if doSync {
+		// FIXME: It's a workaround due to the fact that only the vendir sync tool currently generates secrets
+		vendirSyncer = NewVendirSyncer(lock)
+		var err error
+		secrets, err = vendirSyncer.GenerateSecrets(g)
+		if err != nil {
+			return fmt.Errorf("failed to generate secrets for sync tool %s: %w", vendirSyncer.Ident(), err)
+		}
+		helmSyncer = NewHelmSyncer(lock)
+	}
+
+	var mu sync.Mutex
+	var errs []error
+	// Intentionally collect all errors rather than fail-fast: all apps are processed even when some fail,
+	// so the user sees the full picture in a single run.
+	collectErr := func(err error) {
+		mu.Lock()
+		errs = append(errs, err)
+		mu.Unlock()
+	}
+
+	eg := errgroup.Group{}
+	eg.SetLimit(asyncLevel)
+	for _, app := range allApps {
+		eg.Go(func() error {
+			if err := g.processApp(app, doSync, doRender, vendirSyncer, helmSyncer, secrets, lock); err != nil {
+				collectErr(err)
+			}
+			return nil
+		})
+	}
+	_ = eg.Wait() // eg.Go always returns nil; errors are collected via collectErr
 
 	for _, env := range g.environments {
 		if err := env.Cleanup(); err != nil {
-			return fmt.Errorf("cleaning up env %s: %w", env.ID, err)
+			errs = append(errs, fmt.Errorf("cleaning up env %s: %w", env.ID, err))
 		}
 	}
-	return nil
+
+	return errors.Join(errs...) //nolint:wrapcheck // each error is already wrapped with its own context
 }
 
-// SyncAndRender runs Sync followed by Render for all applications.
-func (g *Globe) SyncAndRender(asyncLevel int) error {
-	err := g.Sync(asyncLevel)
-	if err != nil {
-		return err
+// processApp runs the sync and/or render steps for a single application.
+func (g *Globe) processApp(app *Application, doSync, doRender bool, vendirSyncer *VendirSyncer, helmSyncer *HelmSyncer, secrets string, lock *locker.Locker) error {
+	appID := fmt.Sprintf("%s/%s", app.e.ID, app.Name)
+
+	if doSync {
+		// TODO: move to Application.Sync or similar, and pass the sync tools there instead of going through
+		// them here
+		if err := vendirSyncer.Sync(app, secrets); err != nil {
+			log.Error().Err(err).Str("app", appID).Msgf("Sync failed for tool %s", vendirSyncer.Ident())
+			return err
+		}
+		if err := helmSyncer.Sync(app, ""); err != nil {
+			log.Error().Err(err).Str("app", appID).Msgf("Sync failed for tool %s", helmSyncer.Ident())
+			return err
+		}
 	}
-	return g.Render(asyncLevel)
+
+	if doRender {
+		yamlTemplatingTools := []YamlTemplatingTool{
+			NewHelmRenderer(app, lock),
+			NewYttPkgRenderer(app, lock),
+			NewYttRenderer(app, lock),
+			NewGlobalYttRenderer(app, lock),
+			NewKbldRenderer(app, lock),
+		}
+		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
+			log.Error().Err(err).Str("app", appID).Msg("Rendering failed")
+			return err
+		}
+		if err := app.copyStaticFiles(); err != nil {
+			log.Error().Err(err).Str("app", appID).Msg("Copying static files failed")
+			return err
+		}
+		if err := app.renderArgoCD(); err != nil {
+			log.Error().Err(err).Str("app", appID).Msg("Rendering ArgoCD failed")
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ExecPlugin executes a plugin in the context of the globe
@@ -296,7 +347,7 @@ func argoAppNameFromFileName(fileName string) string {
 	return ""
 }
 
-// cleanupRenderedEnvDir removes stale environment or application directories within a rendered root.
+// cleanupRenderedEnvDir removes stale environment and application directories within a rendered root.
 // getAppNameFunc, when non-nil, translates a directory/file name to an application name.
 func (g *Globe) cleanupRenderedEnvDir(root string, envDirEntry fs.DirEntry, legalEnvs map[string]*Environment, dryRun bool, getAppNameFunc func(string) string) {
 	envID := envDirEntry.Name()
@@ -331,7 +382,7 @@ func (g *Globe) cleanupRenderedEnvDir(root string, envDirEntry fs.DirEntry, lega
 			appName = getAppNameFunc(rawName)
 		}
 		if appName == "" {
-			log.Warn().Str("app", fullAppPath).Msg("Entry name could not be mapped to a known application")
+			log.Debug().Str("app", fullAppPath).Msg("Entry name could not be mapped to a known application")
 			continue
 		}
 		if !legalApps[appName] {
@@ -517,14 +568,6 @@ func (g *Globe) collectEnvironmentsInPath(searchPath string) []string {
 func (g *Globe) Msg(msg string) string {
 	formattedMessage := fmt.Sprintf(GlobalLogFormat, msg)
 	return formattedMessage
-}
-
-func (g *Globe) getSyncTools() []SyncTool {
-	syncTools := []SyncTool{
-		&VendirSyncer{ident: "vendir"},
-		&HelmSyncer{ident: "helm"},
-	}
-	return syncTools
 }
 
 // GetEnvs returns all collected environments.

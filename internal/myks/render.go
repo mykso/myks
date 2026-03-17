@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 )
@@ -17,6 +18,7 @@ type YamlTemplatingTool interface {
 	Render(previousStepOutputFile string) (string, error)
 	Ident() string
 	IsAdditive() bool
+	AcquireLock() (func(), error)
 }
 
 // filenameUnsafeCharsRegex is compiled once at package initialization
@@ -42,7 +44,14 @@ func (a *Application) Render(yamlTemplatingTools []YamlTemplatingTool) (string, 
 	outputYaml := ""
 	lastStepOutputFile := ""
 	for nr, yamlTool := range yamlTemplatingTools {
-		stepOutputYaml, err := yamlTool.Render(lastStepOutputFile)
+		stepOutputYaml, err := func() (string, error) {
+			unlock, err := yamlTool.AcquireLock()
+			if err != nil {
+				return "", fmt.Errorf("acquiring lock for %s: %w", yamlTool.Ident(), err)
+			}
+			defer unlock()
+			return yamlTool.Render(lastStepOutputFile)
+		}()
 		if err != nil {
 			log.Error().Err(err).Msg(a.Msg(yamlTool.Ident(), "Failed during render step: "+yamlTool.Ident()))
 			return "", fmt.Errorf("render step %s failed: %w", yamlTool.Ident(), err)
@@ -274,4 +283,21 @@ func (a *Application) collectAllFilesByGlob(pattern string) []string {
 		return nil
 	}
 	return slices.Concat(protoFiles, protoOverrideFiles, files)
+}
+
+// AcquireRenderLock acquires a read or write lock on the vendor paths relevant to this application,
+// filtered by vendorFilter. Returns a release function and any error.
+func (a *Application) AcquireRenderLock(lock *locker.Locker, vendorFilter func(string) bool, forWrite bool) (func(), error) {
+	linksMap, err := a.getLinksMap()
+	if err != nil {
+		return nil, err
+	}
+	names := []string{}
+	for path, link := range linksMap {
+		normalizedPath := filepath.ToSlash(path)
+		if vendorFilter(normalizedPath) {
+			names = append(names, link)
+		}
+	}
+	return lock.LockNames(slices.Values(names), forWrite), nil
 }

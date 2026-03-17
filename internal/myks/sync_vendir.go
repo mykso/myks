@@ -3,14 +3,15 @@ package myks
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path"
 	"path/filepath"
 	"slices"
 	"strings"
-	"sync"
 
 	vendirconf "carvel.dev/vendir/pkg/vendir/config"
+	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 	goyaml "gopkg.in/yaml.v3"
 	"sigs.k8s.io/yaml"
@@ -21,17 +22,18 @@ const (
 	vendirConfigKindConfig = "Config"
 )
 
-// vendirCacheMutexes holds per-cache-entry mutexes to allow parallel vendir
-// operations on different cache entries while serializing access to the same one.
-var vendirCacheMutexes sync.Map
-
-func getCacheMutex(key string) *sync.Mutex {
-	val, _ := vendirCacheMutexes.LoadOrStore(key, &sync.Mutex{})
-	return val.(*sync.Mutex)
+// VendirSyncer is responsible for syncing application dependencies defined in vendir configuration.
+type VendirSyncer struct {
+	ident  string
+	locker *locker.Locker
 }
 
-type VendirSyncer struct {
-	ident string
+// NewVendirSyncer creates a new VendirSyncer with the default identifier and the provided locker.
+func NewVendirSyncer(lock *locker.Locker) *VendirSyncer {
+	return &VendirSyncer{
+		ident:  "vendir",
+		locker: lock,
+	}
 }
 
 func (v *VendirSyncer) Ident() string {
@@ -124,6 +126,10 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		return fmt.Errorf("reading vendir links map: %w", err)
 	}
 
+	// Acquire all locks first to avoid deadlocks
+	unlock := v.locker.LockNames(maps.Values(linksMap), true)
+	defer unlock()
+
 	if err := os.RemoveAll(a.expandVendorPath("")); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to remove vendor directory"))
 		return err
@@ -134,19 +140,15 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		vendirConfigPath := filepath.Join(cacheDir, a.cfg.VendirConfigFileName)
 		vendirLockPath := filepath.Join(cacheDir, a.cfg.VendirLockFileName)
 
-		mu := getCacheMutex(vendirConfigPath)
-		mu.Lock()
 		syncErr := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets)
 		if syncErr != nil {
 			log.Error().Err(syncErr).Msg(a.Msg(v.getStepName(), "Vendir sync failed, cleaning up the cache entry"))
 			if e := os.RemoveAll(cacheDir); e != nil {
 				log.Warn().Err(e).Msg(a.Msg(v.getStepName(), "Unable to remove cache directory"))
 			}
-			mu.Unlock()
 			return syncErr
 		}
 		linkErr := v.linkVendorToCache(a, contentPath, cacheName)
-		mu.Unlock()
 		if linkErr != nil {
 			log.Error().Err(linkErr).Msg(a.Msg(v.getStepName(), "Unable to create link to cache"))
 			return linkErr
@@ -208,6 +210,7 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 	}
 
 	vendorDirToCacheMap := map[string]string{}
+	cacheVendirConfigs := map[string]vendirconf.Config{}
 
 	for _, dir := range vendirConfig.Directories {
 		for i := range dir.Contents {
@@ -219,10 +222,17 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 			}
 			vendorDirToCacheMap[vendorDirPath] = cacheName
 			cacheDir := a.expandVendirCache(cacheName)
-			cacheConfig := buildCacheVendirConfig(cacheDir, vendirConfig, dir, content)
-			if err := v.saveCacheVendirConfig(a, cacheName, cacheConfig); err != nil {
-				return err
-			}
+			cacheVendirConfigs[cacheName] = buildCacheVendirConfig(cacheDir, vendirConfig, dir, content)
+		}
+	}
+
+	cacheNames := maps.Values(vendorDirToCacheMap)
+	unlock := v.locker.LockNames(cacheNames, true)
+	defer unlock()
+
+	for cacheName, cacheVendirConfig := range cacheVendirConfigs {
+		if err := v.saveCacheVendirConfig(a, cacheName, cacheVendirConfig); err != nil {
+			return err
 		}
 	}
 
@@ -236,9 +246,6 @@ func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, v
 		return err
 	}
 	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.cfg.VendirConfigFileName)
-	mu := getCacheMutex(vendirConfigPath)
-	mu.Lock()
-	defer mu.Unlock()
 	if err = writeFile(vendirConfigPath, data); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config"))
 		return err
@@ -333,15 +340,17 @@ func validateVendirConfig(configYaml string) error {
 }
 
 func (a *Application) getLinksMap() (map[string]string, error) {
-	linksMap := map[string]string{}
-	linksMapRaw, err := unmarshalYamlToMap(a.getLinksMapPath())
-	if err != nil {
-		return nil, err
+	if a.linksMap == nil {
+		linksMapRaw, err := unmarshalYamlToMap(a.getLinksMapPath())
+		if err != nil {
+			return nil, err
+		}
+		a.linksMap = make(map[string]string, len(linksMapRaw))
+		for k, v := range linksMapRaw {
+			a.linksMap[k] = v.(string)
+		}
 	}
-	for k, v := range linksMapRaw {
-		linksMap[k] = v.(string)
-	}
-	return linksMap, nil
+	return a.linksMap, nil
 }
 
 func (a *Application) getLinksMapPath() string {
@@ -359,5 +368,6 @@ func (v *VendirSyncer) saveLinksMap(a *Application, linksMap map[string]string) 
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write links map"))
 		return err
 	}
+	a.linksMap = linksMap
 	return nil
 }

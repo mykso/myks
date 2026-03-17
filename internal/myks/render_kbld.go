@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 )
@@ -17,9 +18,26 @@ const (
 )
 
 type Kbld struct {
-	ident    string
-	app      *Application
 	additive bool
+	app      *Application
+	ident    string
+	locker   *locker.Locker
+}
+
+// NewKbldRenderer creates a Kbld renderer that resolves image references for the given application.
+func NewKbldRenderer(app *Application, lock *locker.Locker) *Kbld {
+	return &Kbld{
+		additive: false,
+		app:      app,
+		ident:    "kbld",
+		locker:   lock,
+	}
+}
+
+// AcquireLock is a no-op for Kbld since it does not read from vendored sources.
+func (k *Kbld) AcquireLock() (func(), error) {
+	// No lock needed for kbld since it doesn't read any sources.
+	return func() {}, nil
 }
 
 func (k *Kbld) IsAdditive() bool {

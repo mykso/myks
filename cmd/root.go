@@ -26,8 +26,9 @@ const (
 )
 
 var (
-	cfgFile    string
-	envAppMap  myks.EnvAppMap
+	cfgFile   string
+	envAppMap myks.EnvAppMap
+	// TODO: change to uint
 	asyncLevel int
 
 	globe *myks.Globe

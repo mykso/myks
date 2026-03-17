@@ -34,6 +34,8 @@ type Application struct {
 	includeNamespace bool
 	yttDataFiles     []string
 	yttPkgDirs       []string
+
+	linksMap map[string]string
 }
 
 var (

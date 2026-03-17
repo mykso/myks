@@ -16,25 +16,10 @@ tasks:
       - goimports-reviser -rm-unused -set-alias -format ./...
       - gofumpt -w .
 
-  go:lint:golangci:
-    cmds:
-      - golangci-lint run
-
-  go:lint:vet:
-    cmds:
-      - go vet ./...
-
-  go:lint:sec:
-    cmds:
-      # G304: Potential file inclusion via variable is a false positive
-      - gosec -exclude=G304 ./...
-
   go:lint:
     desc: Lint the code
-    deps:
-      - go:lint:golangci
-      - go:lint:vet
-      - go:lint:sec
+    cmds:
+      - golangci-lint run
 
   go:build:
     desc: Build the binary

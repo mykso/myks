@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/spf13/cobra"
 
 	"github.com/mykso/myks/internal/myks"
@@ -78,25 +80,21 @@ Examples:
 // RenderCmd processes the render command with the provided flags.
 // The function is exported to allow testing and usage in other packages.
 func RenderCmd(g *myks.Globe, sync, render bool) error {
-	if err := okOrErrLog(g.ValidateRootDir(), "Root directory is not suitable for myks"); err != nil {
-		return err
+	if err := g.ValidateRootDir(); err != nil {
+		return fmt.Errorf("root directory is not suitable for myks: %w", err)
 	}
-	if err := okOrErrLog(g.Init(asyncLevel, envAppMap), "Unable to initialize myks' globe"); err != nil {
-		return err
+	if err := g.Init(asyncLevel, envAppMap); err != nil {
+		return fmt.Errorf("unable to initialize myks' globe: %w", err)
 	}
-
-	switch {
-	case sync && render:
-		return okOrErrLog(g.SyncAndRender(asyncLevel), "Unable to sync and render applications")
-	case sync:
-		return okOrErrLog(g.Sync(asyncLevel), "Unable to sync external sources")
-	case render:
-		return okOrErrLog(g.Render(asyncLevel), "Unable to render manifests")
+	if err := g.Run(asyncLevel, sync, render); err != nil {
+		return fmt.Errorf("run failed: %w", err)
 	}
 
 	// Cleaning up only if all environments and applications were processed
 	if envAppMap == nil {
-		return okOrErrLog(g.CleanupRenderedManifests(false), "Unable to cleanup rendered manifests")
+		if err := g.CleanupRenderedManifests(false); err != nil {
+			return fmt.Errorf("unable to cleanup rendered manifests: %w", err)
+		}
 	}
 
 	return nil

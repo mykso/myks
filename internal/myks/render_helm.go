@@ -6,13 +6,32 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 )
 
 type Helm struct {
-	ident    string
-	app      *Application
 	additive bool
+	app      *Application
+	ident    string
+	locker   *locker.Locker
+}
+
+// NewHelmRenderer creates a new Helm renderer for the given application and locker.
+func NewHelmRenderer(app *Application, lock *locker.Locker) *Helm {
+	return &Helm{
+		additive: true,
+		app:      app,
+		ident:    "helm",
+		locker:   lock,
+	}
+}
+
+// AcquireLock acquires a read lock on the Helm charts vendor directory for this application.
+func (h *Helm) AcquireLock() (func(), error) {
+	return h.app.AcquireRenderLock(h.locker, func(path string) bool {
+		return strings.HasPrefix(path, h.app.cfg.HelmChartsDirName+"/")
+	}, false)
 }
 
 func (h *Helm) IsAdditive() bool {
