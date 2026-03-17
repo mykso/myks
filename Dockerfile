@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM debian:bookworm-slim@sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421 AS downloader
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd402f451e85223f0f2837acbf89ab020a AS downloader
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 WORKDIR /tools
 RUN apt-get update \
@@ -20,7 +20,7 @@ RUN curl -fsSL \
 
 
 
-FROM --platform=$BUILDPLATFORM debian:bookworm-slim@sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim@sha256:f06537653ac770703bc45b4b113475bd402f451e85223f0f2837acbf89ab020a
 
 ARG TARGETPLATFORM
 
