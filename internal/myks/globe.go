@@ -229,12 +229,12 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 				// them here
 				if err := vendirSyncer.Sync(app, secrets); err != nil {
 					log.Error().Err(err).Str("app", appID).Msgf("Sync failed for tool %s", vendirSyncer.Ident())
-					collectErr(err)
+					collectErr(fmt.Errorf("app %s: %w", appID, err))
 					return nil
 				}
 				if err := helmSyncer.Sync(app, ""); err != nil {
 					log.Error().Err(err).Str("app", appID).Msgf("Sync failed for tool %s", helmSyncer.Ident())
-					collectErr(err)
+					collectErr(fmt.Errorf("app %s: %w", appID, err))
 					return nil
 				}
 			}
@@ -249,17 +249,17 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 				}
 				if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
 					log.Error().Err(err).Str("app", appID).Msg("Rendering failed")
-					collectErr(err)
+					collectErr(fmt.Errorf("app %s: %w", appID, err))
 					return nil
 				}
 				if err := app.copyStaticFiles(); err != nil {
 					log.Error().Err(err).Str("app", appID).Msg("Copying static files failed")
-					collectErr(err)
+					collectErr(fmt.Errorf("app %s: %w", appID, err))
 					return nil
 				}
 				if err := app.renderArgoCD(); err != nil {
 					log.Error().Err(err).Str("app", appID).Msg("Rendering ArgoCD failed")
-					collectErr(err)
+					collectErr(fmt.Errorf("app %s: %w", appID, err))
 					return nil
 				}
 			}
