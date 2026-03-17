@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 )
 
@@ -26,7 +27,27 @@ var (
 
 	metricsMu sync.Mutex
 	metrics   = make(map[string]*StepMetric)
+
+	globalPipelineMetricsMu sync.Mutex
+	globalPipelineMetrics   *PipelineMetrics
+
+	globalLockerStatsMu sync.Mutex
+	globalLockerStats   *locker.Stats
 )
+
+// StorePipelineMetrics stores the pipeline metrics for later printing.
+func StorePipelineMetrics(pm *PipelineMetrics) {
+	globalPipelineMetricsMu.Lock()
+	defer globalPipelineMetricsMu.Unlock()
+	globalPipelineMetrics = pm
+}
+
+// StoreLockerStats stores the locker stats for later printing.
+func StoreLockerStats(s *locker.Stats) {
+	globalLockerStatsMu.Lock()
+	defer globalLockerStatsMu.Unlock()
+	globalLockerStats = s
+}
 
 // TrackCmdMetric records timing and resource usage for a completed command step.
 func TrackCmdMetric(step string, cmd *exec.Cmd, elapsed time.Duration) {
@@ -87,14 +108,14 @@ func buildMetricsSummary(m map[string]*StepMetric) string {
 	return sb.String()
 }
 
-// PrintCmdMetrics prints a summary of all tracked command metrics. Output goes to stdout when PrintStats is true, or to the log otherwise.
+// PrintCmdMetrics prints a summary of all tracked command metrics, pipeline concurrency
+// statistics, and lock contention data. Output goes to stdout when PrintStats is true,
+// or to the log otherwise.
 func PrintCmdMetrics() {
+	var combined strings.Builder
+
+	// --- Tool Resource Metrics ---
 	metricsMu.Lock()
-	if len(metrics) == 0 {
-		metricsMu.Unlock()
-		return
-	}
-	// Snapshot metrics under the lock so we can release it before formatting/logging.
 	snapshot := make(map[string]*StepMetric, len(metrics))
 	for k, v := range metrics {
 		cp := *v
@@ -102,7 +123,33 @@ func PrintCmdMetrics() {
 	}
 	metricsMu.Unlock()
 
-	summary := buildMetricsSummary(snapshot)
+	if cmdSummary := buildMetricsSummary(snapshot); cmdSummary != "" {
+		combined.WriteString(cmdSummary)
+	}
+
+	// --- Pipeline Concurrency Summary ---
+	globalPipelineMetricsMu.Lock()
+	pm := globalPipelineMetrics
+	globalPipelineMetricsMu.Unlock()
+
+	if pm != nil {
+		combined.WriteString(pm.buildPipelineSummary())
+	}
+
+	// --- Lock Contention Summary ---
+	globalLockerStatsMu.Lock()
+	ls := globalLockerStats
+	globalLockerStatsMu.Unlock()
+
+	if ls != nil {
+		var wallClock time.Duration
+		if pm != nil {
+			wallClock = pm.WallClock()
+		}
+		combined.WriteString(ls.BuildSummary(wallClock))
+	}
+
+	summary := combined.String()
 	if summary == "" {
 		return
 	}
