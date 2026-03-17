@@ -3,6 +3,7 @@ package myks
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/fs"
 	"maps"
@@ -11,6 +12,8 @@ import (
 	"slices"
 	"strings"
 	"sync"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/creasty/defaults"
 	"github.com/mykso/myks/internal/locker"
@@ -199,33 +202,32 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 	}
 	helmSyncer := NewHelmSyncer(lock)
 
-	sem := make(chan struct{}, asyncLevel)
-	wg := sync.WaitGroup{}
+	var mu sync.Mutex
+	var errs []error
+	collectErr := func(err error) {
+		mu.Lock()
+		errs = append(errs, err)
+		mu.Unlock()
+	}
+
+	eg := errgroup.Group{}
+	eg.SetLimit(asyncLevel)
 	for _, app := range allApps {
-		wg.Add(1)
-		// TODO: add error collection and reporting
-		go func(app *Application) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
+		eg.Go(func() error {
+			appID := fmt.Sprintf("%s/%s", app.e.ID, app.Name)
 
 			if doSync {
 				// TODO: move to Application.Sync or similar, and pass the sync tools there instead of going through
 				// them here
 				if err := vendirSyncer.Sync(app, secrets); err != nil {
-					log.Error().
-						Err(err).
-						Str("app", fmt.Sprintf("%s/%s", app.e.ID, app.Name)).
-						Msgf("Sync failed for tool %s", vendirSyncer.Ident())
-					return
+					log.Error().Err(err).Str("app", appID).Msgf("Sync failed for tool %s", vendirSyncer.Ident())
+					collectErr(err)
+					return nil
 				}
-				// TODO: implement locking in helmSyncer as well
 				if err := helmSyncer.Sync(app, ""); err != nil {
-					log.Error().
-						Err(err).
-						Str("app", fmt.Sprintf("%s/%s", app.e.ID, app.Name)).
-						Msgf("Sync failed for tool %s", helmSyncer.Ident())
-					return
+					log.Error().Err(err).Str("app", appID).Msgf("Sync failed for tool %s", helmSyncer.Ident())
+					collectErr(err)
+					return nil
 				}
 			}
 
@@ -238,26 +240,34 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 					NewKbldRenderer(app, lock),
 				}
 				if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
-					log.Error().Err(err).Str("app", fmt.Sprintf("%s/%s", app.e.ID, app.Name)).Msg("Rendering failed")
+					log.Error().Err(err).Str("app", appID).Msg("Rendering failed")
+					collectErr(err)
+					return nil
 				}
 				if err := app.copyStaticFiles(); err != nil {
-					log.Error().Err(err).Str("app", fmt.Sprintf("%s/%s", app.e.ID, app.Name)).Msg("Copying static files failed")
+					log.Error().Err(err).Str("app", appID).Msg("Copying static files failed")
+					collectErr(err)
+					return nil
 				}
 				if err := app.renderArgoCD(); err != nil {
-					log.Error().Err(err).Str("app", fmt.Sprintf("%s/%s", app.e.ID, app.Name)).Msg("Rendering ArgoCD failed")
+					log.Error().Err(err).Str("app", appID).Msg("Rendering ArgoCD failed")
+					collectErr(err)
+					return nil
 				}
 			}
-		}(app)
+
+			return nil
+		})
 	}
-	wg.Wait()
+	_ = eg.Wait() // eg.Go always returns nil; errors are collected via collectErr
 
 	for _, env := range g.environments {
 		if err := env.Cleanup(); err != nil {
-			return fmt.Errorf("cleaning up env %s: %w", env.ID, err)
+			errs = append(errs, fmt.Errorf("cleaning up env %s: %w", env.ID, err))
 		}
 	}
 
-	return nil
+	return errors.Join(errs...) //nolint:wrapcheck // each error is already wrapped with its own context
 }
 
 // ExecPlugin executes a plugin in the context of the globe
