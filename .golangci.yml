@@ -3,6 +3,7 @@ version: '2'
 linters:
   default: standard
   enable:
+    - gosec
     - cyclop
     - dupl
     - errorlint
@@ -19,6 +20,10 @@ linters:
     - zerologlint
 
   settings:
+    gosec:
+      excludes:
+        - G304 # Potential file inclusion via variable (false positive in this project)
+
     cyclop:
       # Start lenient; current worst offender is 22 (runSmartMode). Tighten gradually.
       max-complexity: 20

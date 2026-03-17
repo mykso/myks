@@ -16,6 +16,7 @@ type YttPkg struct {
 	locker   *locker.Locker
 }
 
+// NewYttPkgRenderer creates a YttPkg renderer that applies vendored ytt package overlays.
 func NewYttPkgRenderer(app *Application, lock *locker.Locker) *YttPkg {
 	return &YttPkg{
 		additive: true,
@@ -25,6 +26,7 @@ func NewYttPkgRenderer(app *Application, lock *locker.Locker) *YttPkg {
 	}
 }
 
+// AcquireLock acquires a read lock on the ytt-pkg vendor directory for this application.
 func (y *YttPkg) AcquireLock() (func(), error) {
 	return y.app.AcquireRenderLock(y.locker, func(path string) bool {
 		return strings.HasPrefix(path, y.app.cfg.YttPkgStepDirName+"/")

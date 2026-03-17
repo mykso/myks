@@ -14,6 +14,7 @@ type GlobalYtt struct {
 	locker   *locker.Locker
 }
 
+// NewGlobalYttRenderer creates a GlobalYtt renderer that applies environment-level ytt overlays.
 func NewGlobalYttRenderer(app *Application, lock *locker.Locker) *GlobalYtt {
 	return &GlobalYtt{
 		additive: false,
@@ -23,6 +24,7 @@ func NewGlobalYttRenderer(app *Application, lock *locker.Locker) *GlobalYtt {
 	}
 }
 
+// AcquireLock is a no-op for GlobalYtt since it does not read from vendored sources.
 func (g *GlobalYtt) AcquireLock() (func(), error) {
 	// No lock needed for global ytt since it doesn't read any sources.
 	return func() {}, nil

@@ -60,7 +60,7 @@ type YttGlobeData struct {
 // VendirCredentials holds registry authentication credentials for vendir sync.
 type VendirCredentials struct {
 	Username string
-	Password string
+	Password string // #nosec G117 -- credentials struct used for vendir auth, not logged
 }
 
 // EnvAppMap maps environment directory paths to lists of application names to process.
@@ -222,48 +222,9 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 	eg.SetLimit(asyncLevel)
 	for _, app := range allApps {
 		eg.Go(func() error {
-			appID := fmt.Sprintf("%s/%s", app.e.ID, app.Name)
-
-			if doSync {
-				// TODO: move to Application.Sync or similar, and pass the sync tools there instead of going through
-				// them here
-				if err := vendirSyncer.Sync(app, secrets); err != nil {
-					log.Error().Err(err).Str("app", appID).Msgf("Sync failed for tool %s", vendirSyncer.Ident())
-					collectErr(err)
-					return nil
-				}
-				if err := helmSyncer.Sync(app, ""); err != nil {
-					log.Error().Err(err).Str("app", appID).Msgf("Sync failed for tool %s", helmSyncer.Ident())
-					collectErr(err)
-					return nil
-				}
+			if err := g.processApp(app, doSync, doRender, vendirSyncer, helmSyncer, secrets, lock); err != nil {
+				collectErr(err)
 			}
-
-			if doRender {
-				yamlTemplatingTools := []YamlTemplatingTool{
-					NewHelmRenderer(app, lock),
-					NewYttPkgRenderer(app, lock),
-					NewYttRenderer(app, lock),
-					NewGlobalYttRenderer(app, lock),
-					NewKbldRenderer(app, lock),
-				}
-				if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
-					log.Error().Err(err).Str("app", appID).Msg("Rendering failed")
-					collectErr(err)
-					return nil
-				}
-				if err := app.copyStaticFiles(); err != nil {
-					log.Error().Err(err).Str("app", appID).Msg("Copying static files failed")
-					collectErr(err)
-					return nil
-				}
-				if err := app.renderArgoCD(); err != nil {
-					log.Error().Err(err).Str("app", appID).Msg("Rendering ArgoCD failed")
-					collectErr(err)
-					return nil
-				}
-			}
-
 			return nil
 		})
 	}
@@ -276,6 +237,48 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 	}
 
 	return errors.Join(errs...) //nolint:wrapcheck // each error is already wrapped with its own context
+}
+
+// processApp runs the sync and/or render steps for a single application.
+func (g *Globe) processApp(app *Application, doSync, doRender bool, vendirSyncer *VendirSyncer, helmSyncer *HelmSyncer, secrets string, lock *locker.Locker) error {
+	appID := fmt.Sprintf("%s/%s", app.e.ID, app.Name)
+
+	if doSync {
+		// TODO: move to Application.Sync or similar, and pass the sync tools there instead of going through
+		// them here
+		if err := vendirSyncer.Sync(app, secrets); err != nil {
+			log.Error().Err(err).Str("app", appID).Msgf("Sync failed for tool %s", vendirSyncer.Ident())
+			return err
+		}
+		if err := helmSyncer.Sync(app, ""); err != nil {
+			log.Error().Err(err).Str("app", appID).Msgf("Sync failed for tool %s", helmSyncer.Ident())
+			return err
+		}
+	}
+
+	if doRender {
+		yamlTemplatingTools := []YamlTemplatingTool{
+			NewHelmRenderer(app, lock),
+			NewYttPkgRenderer(app, lock),
+			NewYttRenderer(app, lock),
+			NewGlobalYttRenderer(app, lock),
+			NewKbldRenderer(app, lock),
+		}
+		if err := app.RenderAndSlice(yamlTemplatingTools); err != nil {
+			log.Error().Err(err).Str("app", appID).Msg("Rendering failed")
+			return err
+		}
+		if err := app.copyStaticFiles(); err != nil {
+			log.Error().Err(err).Str("app", appID).Msg("Copying static files failed")
+			return err
+		}
+		if err := app.renderArgoCD(); err != nil {
+			log.Error().Err(err).Str("app", appID).Msg("Rendering ArgoCD failed")
+			return err
+		}
+	}
+
+	return nil
 }
 
 // ExecPlugin executes a plugin in the context of the globe

@@ -24,6 +24,7 @@ type Kbld struct {
 	locker   *locker.Locker
 }
 
+// NewKbldRenderer creates a Kbld renderer that resolves image references for the given application.
 func NewKbldRenderer(app *Application, lock *locker.Locker) *Kbld {
 	return &Kbld{
 		additive: false,
@@ -33,6 +34,7 @@ func NewKbldRenderer(app *Application, lock *locker.Locker) *Kbld {
 	}
 }
 
+// AcquireLock is a no-op for Kbld since it does not read from vendored sources.
 func (k *Kbld) AcquireLock() (func(), error) {
 	// No lock needed for kbld since it doesn't read any sources.
 	return func() {}, nil

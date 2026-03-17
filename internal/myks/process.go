@@ -41,7 +41,7 @@ func msgRunCmd(purpose, cmd string, args []string) string {
 }
 
 func runCmd(step, name string, stdin io.Reader, args []string, logFn func(name string, err error, stderr string, args []string)) (CmdResult, error) {
-	cmd := exec.Command(name, args...)
+	cmd := exec.Command(name, args...) // #nosec G204 -- command names are controlled internally (embedded tools)
 
 	if stdin != nil {
 		cmd.Stdin = stdin

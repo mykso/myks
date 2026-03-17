@@ -13,7 +13,7 @@ import (
 )
 
 func printFileNicely(name, content, syntax string) {
-	if !term.IsTerminal(int(os.Stdout.Fd())) {
+	if !term.IsTerminal(int(os.Stdout.Fd())) { // #nosec G115 -- file descriptor fits in int
 		fmt.Println(content)
 		return
 	}

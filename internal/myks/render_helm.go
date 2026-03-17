@@ -27,6 +27,7 @@ func NewHelmRenderer(app *Application, lock *locker.Locker) *Helm {
 	}
 }
 
+// AcquireLock acquires a read lock on the Helm charts vendor directory for this application.
 func (h *Helm) AcquireLock() (func(), error) {
 	return h.app.AcquireRenderLock(h.locker, func(path string) bool {
 		return strings.HasPrefix(path, h.app.cfg.HelmChartsDirName+"/")

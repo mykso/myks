@@ -16,6 +16,7 @@ type Ytt struct {
 	locker   *locker.Locker
 }
 
+// NewYttRenderer creates a Ytt renderer that applies application-level ytt overlays.
 func NewYttRenderer(app *Application, lock *locker.Locker) *Ytt {
 	return &Ytt{
 		additive: false,
@@ -25,6 +26,7 @@ func NewYttRenderer(app *Application, lock *locker.Locker) *Ytt {
 	}
 }
 
+// AcquireLock acquires a read lock on the ytt vendor directory for this application.
 func (y *Ytt) AcquireLock() (func(), error) {
 	return y.app.AcquireRenderLock(y.locker, func(path string) bool {
 		return strings.HasPrefix(path, y.app.cfg.YttStepDirName+"/")

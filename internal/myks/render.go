@@ -285,6 +285,8 @@ func (a *Application) collectAllFilesByGlob(pattern string) []string {
 	return slices.Concat(protoFiles, protoOverrideFiles, files)
 }
 
+// AcquireRenderLock acquires a read or write lock on the vendor paths relevant to this application,
+// filtered by vendorFilter. Returns a release function and any error.
 func (a *Application) AcquireRenderLock(lock *locker.Locker, vendorFilter func(string) bool, forWrite bool) (func(), error) {
 	linksMap, err := a.getLinksMap()
 	if err != nil {
