@@ -189,21 +189,29 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 	}
 
 	if asyncLevel <= 0 {
-		asyncLevel = len(allApps)
+		asyncLevel = -1
 	}
 
 	lock := locker.NewLocker()
 
-	// FIXME: It's a workaround due to the fact that only the vendir sync tool currently generates secrets
-	vendirSyncer := NewVendirSyncer(lock)
-	secrets, err := vendirSyncer.GenerateSecrets(g)
-	if err != nil {
-		return fmt.Errorf("failed to generate secrets for sync tool %s: %w", vendirSyncer.Ident(), err)
+	var vendirSyncer *VendirSyncer
+	var helmSyncer *HelmSyncer
+	var secrets string
+	if doSync {
+		// FIXME: It's a workaround due to the fact that only the vendir sync tool currently generates secrets
+		vendirSyncer = NewVendirSyncer(lock)
+		var err error
+		secrets, err = vendirSyncer.GenerateSecrets(g)
+		if err != nil {
+			return fmt.Errorf("failed to generate secrets for sync tool %s: %w", vendirSyncer.Ident(), err)
+		}
+		helmSyncer = NewHelmSyncer(lock)
 	}
-	helmSyncer := NewHelmSyncer(lock)
 
 	var mu sync.Mutex
 	var errs []error
+	// Intentionally collect all errors rather than fail-fast: all apps are processed even when some fail,
+	// so the user sees the full picture in a single run.
 	collectErr := func(err error) {
 		mu.Lock()
 		errs = append(errs, err)

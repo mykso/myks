@@ -28,7 +28,7 @@ func NewYttPkgRenderer(app *Application, lock *locker.Locker) *YttPkg {
 func (y *YttPkg) AcquireLock() (func(), error) {
 	return y.app.AcquireRenderLock(y.locker, func(path string) bool {
 		return strings.HasPrefix(path, y.app.cfg.YttPkgStepDirName+"/")
-	})
+	}, false)
 }
 
 func (y *YttPkg) IsAdditive() bool {

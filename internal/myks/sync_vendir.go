@@ -368,5 +368,6 @@ func (v *VendirSyncer) saveLinksMap(a *Application, linksMap map[string]string) 
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write links map"))
 		return err
 	}
+	a.linksMap = linksMap
 	return nil
 }

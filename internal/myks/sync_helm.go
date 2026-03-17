@@ -41,7 +41,7 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 
 	unlock, err := a.AcquireRenderLock(hr.locker, func(path string) bool {
 		return strings.HasPrefix(path, a.cfg.HelmChartsDirName+"/")
-	})
+	}, true)
 	if err != nil {
 		return err
 	}

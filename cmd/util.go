@@ -31,13 +31,6 @@ func okOrFatal(err error, msg string) {
 	}
 }
 
-func okOrErrLog(err error, msg string) error {
-	if err != nil {
-		log.Error().Err(err).Msg(msg)
-	}
-	return err
-}
-
 // shellCompletion provides shell completion for envs and apps selection.
 // For the first argument, it returns:
 // - Directory paths under envs/ (excluding _* prefixed directories)

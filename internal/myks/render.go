@@ -285,7 +285,7 @@ func (a *Application) collectAllFilesByGlob(pattern string) []string {
 	return slices.Concat(protoFiles, protoOverrideFiles, files)
 }
 
-func (a *Application) AcquireRenderLock(lock *locker.Locker, vendorFilter func(string) bool) (func(), error) {
+func (a *Application) AcquireRenderLock(lock *locker.Locker, vendorFilter func(string) bool, forWrite bool) (func(), error) {
 	linksMap, err := a.getLinksMap()
 	if err != nil {
 		return nil, err
@@ -296,5 +296,5 @@ func (a *Application) AcquireRenderLock(lock *locker.Locker, vendorFilter func(s
 			names = append(names, link)
 		}
 	}
-	return lock.LockNames(slices.Values(names), false), nil
+	return lock.LockNames(slices.Values(names), forWrite), nil
 }
