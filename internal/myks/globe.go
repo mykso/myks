@@ -171,9 +171,11 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 		return fmt.Errorf("invalid run configuration: both render and sync cannot be false")
 	}
 
-	for _, env := range g.environments {
-		if err := env.renderArgoCD(); err != nil {
-			return err
+	if doRender {
+		for _, env := range g.environments {
+			if err := env.renderArgoCD(); err != nil {
+				return err
+			}
 		}
 	}
 
