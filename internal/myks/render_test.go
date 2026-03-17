@@ -50,6 +50,10 @@ func (h *TestTemplateTool) Render(_ string) (string, error) {
 	return h.renderedYaml, nil
 }
 
+func (h *TestTemplateTool) AcquireLock() (func(), error) {
+	return func() {}, nil
+}
+
 func TestApplication_Render(t *testing.T) {
 	tests := []struct {
 		name     string
