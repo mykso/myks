@@ -20,7 +20,8 @@ jobs:
           # The PAT is needed to run required checks on the release PR.
           # If a PR is created with the GITHUB_TOKEN, it will not trigger workflows.
           token: ${{ secrets.MYKSO_BOT_GITHUB_TOKEN }}
-          release-type: simple
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
     outputs:
       release_created: ${{ steps.release.outputs.release_created }}
 
