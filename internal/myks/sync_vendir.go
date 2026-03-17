@@ -28,7 +28,7 @@ type VendirSyncer struct {
 	locker *locker.Locker
 }
 
-// NewVendirSyncer creates a new instance of VendirSyncer with the provided identifier and locker.
+// NewVendirSyncer creates a new VendirSyncer with the default identifier and the provided locker.
 func NewVendirSyncer(lock *locker.Locker) *VendirSyncer {
 	return &VendirSyncer{
 		ident:  "vendir",
