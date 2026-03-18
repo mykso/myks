@@ -6,12 +6,14 @@ import (
 	"iter"
 	"sort"
 	"sync"
+	"time"
 )
 
 // Locker manages a per-item RWMutex registry.
 type Locker struct {
 	mu    sync.Mutex
 	locks map[string]*sync.RWMutex
+	stats Stats
 }
 
 // LockReq describes what kind of access is needed for an item.
@@ -22,7 +24,12 @@ type LockReq struct {
 
 // NewLocker creates a new Locker with an empty lock registry.
 func NewLocker() *Locker {
-	return &Locker{locks: make(map[string]*sync.RWMutex)}
+	return &Locker{locks: make(map[string]*sync.RWMutex), stats: newStats()}
+}
+
+// GetStats returns a pointer to the Locker's statistics tracker.
+func (l *Locker) GetStats() *Stats {
+	return &l.stats
 }
 
 // getOrCreate lazily creates an RWMutex for a name.
@@ -50,19 +57,26 @@ func (l *Locker) Acquire(reqs []LockReq) (unlock func()) {
 	// Deduplicate: if same item requested for both read & write, escalate to write
 	deduped := dedup(sorted)
 
-	// Acquire in sorted order
-	for _, req := range deduped {
+	// acquireTimes records when each lock was actually acquired (after waiting).
+	acquireTimes := make([]time.Time, len(deduped))
+
+	// Acquire in sorted order, recording wait and acquisition time per lock.
+	for i, req := range deduped {
 		lk := l.getOrCreate(req.Name)
+		waitStart := time.Now()
 		if req.ForWrite {
 			lk.Lock()
 		} else {
 			lk.RLock()
 		}
+		acquireTimes[i] = time.Now()
+		l.stats.recordAcquire(req.Name, req.ForWrite, time.Since(waitStart))
 	}
 
-	// Release in reverse order (conventional, not strictly required)
+	// Release in reverse order (conventional, not strictly required).
 	return func() {
 		for i := len(deduped) - 1; i >= 0; i-- {
+			l.stats.recordRelease(deduped[i].Name, time.Since(acquireTimes[i]))
 			lk := l.getOrCreate(deduped[i].Name)
 			if deduped[i].ForWrite {
 				lk.Unlock()

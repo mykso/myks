@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"time"
 
 	"golang.org/x/sync/errgroup"
 
@@ -188,6 +189,9 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 		return nil
 	}
 
+	// Capture the original asyncLevel for display before clamping.
+	pm := NewPipelineMetrics(asyncLevel)
+
 	if asyncLevel <= 0 {
 		asyncLevel = -1
 	}
@@ -222,13 +226,19 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 	eg.SetLimit(asyncLevel)
 	for _, app := range allApps {
 		eg.Go(func() error {
+			appStart := time.Now()
 			if err := g.processApp(app, doSync, doRender, vendirSyncer, helmSyncer, secrets, lock); err != nil {
 				collectErr(err)
 			}
+			pm.TrackAppDuration(time.Since(appStart))
 			return nil
 		})
 	}
 	_ = eg.Wait() // eg.Go always returns nil; errors are collected via collectErr
+
+	pm.Finish()
+	StorePipelineMetrics(pm)
+	StoreLockerStats(lock.GetStats())
 
 	for _, env := range g.environments {
 		if err := env.Cleanup(); err != nil {
