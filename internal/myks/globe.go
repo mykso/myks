@@ -239,6 +239,9 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 	pm.Finish()
 	StorePipelineMetrics(pm)
 	StoreLockerStats(lock.GetStats())
+	if vendirSyncer != nil {
+		StoreVendirDedupStats(vendirSyncer.GetDedupStats())
+	}
 
 	for _, env := range g.environments {
 		if err := env.Cleanup(); err != nil {

@@ -33,7 +33,17 @@ var (
 
 	globalLockerStatsMu sync.Mutex
 	globalLockerStats   *locker.Stats
+
+	globalVendirDedupStatsMu sync.Mutex
+	globalVendirDedupStats   *VendirDedupStats
 )
+
+// VendirDedupStats holds counters for vendir sync deduplication.
+type VendirDedupStats struct {
+	Executed      int64
+	SkippedInRun  int64
+	SkippedCached int64
+}
 
 // StorePipelineMetrics stores the pipeline metrics for later printing.
 func StorePipelineMetrics(pm *PipelineMetrics) {
@@ -47,6 +57,13 @@ func StoreLockerStats(s *locker.Stats) {
 	globalLockerStatsMu.Lock()
 	defer globalLockerStatsMu.Unlock()
 	globalLockerStats = s
+}
+
+// StoreVendirDedupStats stores the vendir dedup stats for later printing.
+func StoreVendirDedupStats(s *VendirDedupStats) {
+	globalVendirDedupStatsMu.Lock()
+	defer globalVendirDedupStatsMu.Unlock()
+	globalVendirDedupStats = s
 }
 
 // TrackCmdMetric records timing and resource usage for a completed command step.
@@ -149,6 +166,17 @@ func PrintCmdMetrics() {
 		combined.WriteString(ls.BuildSummary(wallClock))
 	}
 
+	// --- Vendir Sync Dedup Summary ---
+	globalVendirDedupStatsMu.Lock()
+	vds := globalVendirDedupStats
+	globalVendirDedupStatsMu.Unlock()
+
+	if vds != nil {
+		if dedupSummary := vds.BuildSummary(); dedupSummary != "" {
+			combined.WriteString(dedupSummary)
+		}
+	}
+
 	summary := combined.String()
 	if summary == "" {
 		return
@@ -159,4 +187,23 @@ func PrintCmdMetrics() {
 	} else {
 		log.Info().Msg(summary)
 	}
+}
+
+// BuildSummary formats the vendir dedup stats as a human-readable summary.
+func (s *VendirDedupStats) BuildSummary() string {
+	total := s.Executed + s.SkippedInRun + s.SkippedCached
+
+	if total == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("\n--- Vendir Sync Dedup Summary ---\n")
+	fmt.Fprintf(&sb, "Syncs executed:          %d\n", s.Executed)
+	fmt.Fprintf(&sb, "Skipped (in-run dedup):  %d\n", s.SkippedInRun)
+	fmt.Fprintf(&sb, "Skipped (cached):        %d\n", s.SkippedCached)
+	fmt.Fprintf(&sb, "Total sync requests:     %d\n", total)
+	sb.WriteString(strings.Repeat("-", 35) + "\n")
+
+	return sb.String()
 }
