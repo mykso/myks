@@ -128,7 +128,7 @@ func (s *Stats) BuildSummary(wallClock time.Duration) string {
 
 	if wallClock > 0 {
 		pct := float64(totalWait) / float64(wallClock) * 100
-		fmt.Fprintf(&sb, "Total lock wait: %s (%.1f%% of wall clock)\n",
+		fmt.Fprintf(&sb, "Total lock wait: %s (%.1f%% of wall clock, may exceed 100%% with parallelism)\n",
 			totalWait.Round(time.Millisecond).String(), pct)
 	} else {
 		fmt.Fprintf(&sb, "Total lock wait: %s\n", totalWait.Round(time.Millisecond).String())

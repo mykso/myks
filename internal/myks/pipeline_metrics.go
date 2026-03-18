@@ -87,9 +87,9 @@ func (pm *PipelineMetrics) buildPipelineSummary() string {
 			speedup := float64(totalWork) / float64(wall)
 			fmt.Fprintf(&sb, "Speedup:             %.2fx\n", speedup)
 
-			effectiveParallelism := float64(asyncLevel)
-			if asyncLevel <= 0 {
-				effectiveParallelism = float64(appCount)
+			effectiveParallelism := float64(appCount)
+			if asyncLevel > 0 && asyncLevel < appCount {
+				effectiveParallelism = float64(asyncLevel)
 			}
 			if effectiveParallelism > 1 {
 				efficiency := speedup / effectiveParallelism * 100
