@@ -1,5 +1,24 @@
 # Changelog
 
+## [5.11.0](https://github.com/mykso/myks/compare/v5.10.0...v5.11.0) (2026-03-18)
+
+
+### Features
+
+* add concurrency statistics and observability ([#773](https://github.com/mykso/myks/issues/773)) ([d869fd9](https://github.com/mykso/myks/commit/d869fd985a0b49eb279056bb3744ad5e727ae2aa))
+
+
+### Bug Fixes
+
+* add myks API library in the environment ArgoCD scope ([#774](https://github.com/mykso/myks/issues/774)) ([e8ac49d](https://github.com/mykso/myks/commit/e8ac49df697f3f271fad268c16a156ad733545dc))
+* update ytt and starlark-go dependencies ([b567d7f](https://github.com/mykso/myks/commit/b567d7f457e5b10589cc75288cf93dfd18f9a3f1))
+
+
+### Refactoring
+
+* improve parallel processing ([#770](https://github.com/mykso/myks/issues/770)) ([10bc824](https://github.com/mykso/myks/commit/10bc82469f96088e42b4a60bef3d7fdefee3d4dc))
+* major overhaul ([#763](https://github.com/mykso/myks/issues/763)) ([5eef80a](https://github.com/mykso/myks/commit/5eef80a25112bfb00371e31e7d965dcfaa54cad1))
+
 ## [5.10.0](https://github.com/mykso/myks/compare/v5.9.3...v5.10.0) (2026-03-06)
 
 
