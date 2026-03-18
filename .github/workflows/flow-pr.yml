@@ -48,18 +48,25 @@ jobs:
           commit_user_email: 135390787+mykso-bot@users.noreply.github.com
 
       - name: Set commit status
-        uses: myrotvorets/set-commit-status-action@3730c0a348a2ace3c110851bed53331bc6406e9f # v2.0.1
+        uses: actions/github-script@v6
         with:
-          context: nix-update
-          description:
-            ${{ steps.commit.outputs.changes_detected == 'true' && 'New changes
-            have been committed' || 'Flake is up to date' }}
-          # When running on a PR, set the commit status on the latest commit in
-          # the branch. Otherwise, the PR will be waiting for the commit status
-          # indefinitely. This, in particular, blocks Renovate from merging PRs
-          # automatically.
-          # If running on a push, set the commit status on the current commit.
-          sha:
-            ${{ steps.commit.outputs.commit_hash ||
-            github.event.pull_request.head.sha || github.sha }}
-          status: success
+          script: |
+            const sha = process.env.COMMIT_SHA || github.event.pull_request?.head?.sha || github.sha;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: sha,
+              state: 'success',
+              context: 'nix-update',
+              description: process.env.CHANGES_DETECTED === 'true'
+                ? 'New changes have been committed'
+                : 'Flake is up to date'
+            });
+          env:
+            # When running on a PR, set the commit status on the latest commit in
+            # the branch. Otherwise, the PR will be waiting for the commit status
+            # indefinitely. This, in particular, blocks Renovate from merging PRs
+            # automatically.
+            # If running on a push, set the commit status on the current commit.
+            COMMIT_SHA: '${{ steps.commit.outputs.commit_hash }}'
+            CHANGES_DETECTED: '${{ steps.commit.outputs.changes_detected }}'
