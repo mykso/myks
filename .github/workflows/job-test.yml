@@ -22,7 +22,7 @@ jobs:
           go-version-file: go.mod
 
       - name: Setup Helm
-        uses: azure/setup-helm@v4.3.1
+        uses: azure/setup-helm@6c9adf38de7d0013ecbb1a6d83ab9116dbd373ac # v4.3.1
 
       - name: Build myks
         run: go install .
