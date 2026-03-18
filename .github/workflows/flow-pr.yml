@@ -48,25 +48,17 @@ jobs:
           commit_user_email: 135390787+mykso-bot@users.noreply.github.com
 
       - name: Set commit status
-        uses: actions/github-script@v8.0.0
+        # When running on a PR, set the commit status on the latest commit in
+        # the branch. Otherwise, the PR will be waiting for the commit status
+        # indefinitely. This, in particular, blocks Renovate from merging PRs
+        # automatically.
+        # If running on a push, set the commit status on the current commit.
         env:
-          # When running on a PR, set the commit status on the latest commit in
-          # the branch. Otherwise, the PR will be waiting for the commit status
-          # indefinitely. This, in particular, blocks Renovate from merging PRs
-          # automatically.
-          # If running on a push, set the commit status on the current commit.
-          COMMIT_SHA: '${{ steps.commit.outputs.commit_hash }}'
-          CHANGES_DETECTED: '${{ steps.commit.outputs.changes_detected }}'
-        with:
-          script: |
-            const sha = process.env.COMMIT_SHA || github.event.pull_request?.head?.sha || github.sha;
-            await github.rest.repos.createCommitStatus({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              sha: sha,
-              state: 'success',
-              context: 'nix-update',
-              description: process.env.CHANGES_DETECTED === 'true'
-                ? 'New changes have been committed'
-                : 'Flake is up to date'
-            });
+          GH_TOKEN: ${{ github.token }}
+          COMMIT_SHA: ${{ steps.commit.outputs.commit_hash || github.event.pull_request.head.sha || github.sha }}
+          DESCRIPTION: ${{ steps.commit.outputs.changes_detected == 'true' && 'New changes have been committed' || 'Flake is up to date' }}
+        run: |
+          gh api repos/${{ github.repository }}/statuses/$COMMIT_SHA \
+            -f state=success \
+            -f context=nix-update \
+            -f "description=$DESCRIPTION"
