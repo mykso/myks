@@ -48,7 +48,7 @@ jobs:
           commit_user_email: 135390787+mykso-bot@users.noreply.github.com
 
       - name: Set commit status
-        uses: actions/github-script@60a0bd502c3285f75f585a579b5c1e4ed5c5021c # v7.0.1
+        uses: actions/github-script@v8.0.0
         env:
           # When running on a PR, set the commit status on the latest commit in
           # the branch. Otherwise, the PR will be waiting for the commit status
