@@ -37,10 +37,12 @@ func (e *Environment) renderArgoCD() error {
 		return nil
 	}
 
-	// 0. Global data values schema and library files are added later in the a.yttS call
-	// 1. Collection of environment main data values and schemas
-	yttFiles := e.collectBySubpath(e.cfg.EnvironmentDataFileName)
-	// 2. Collection of environment argocd-specific data values and schemas, and overlays
+	// 1. API library with rendered environment data (enables `myks` library in overlays)
+	yttFiles := []string{e.getYttLibAPIDir()}
+	// 2a. Global data values schema and library files are added later in the e.yttS call
+	// 2b. Collection of environment main data values and schemas
+	yttFiles = append(yttFiles, e.collectBySubpath(e.cfg.EnvironmentDataFileName)...)
+	// 3. Collection of environment argocd-specific data values and schemas, and overlays
 	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join(e.cfg.EnvsDir, e.cfg.ArgoCDDataDirName))...)
 
 	res, err := e.yttS(
