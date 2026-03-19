@@ -179,10 +179,12 @@ func (v *VendirSyncer) isCachePopulated(a *Application, cacheName string) bool {
 	lockPath := filepath.Join(cacheDir, a.cfg.VendirLockFileName)
 	dataDir := filepath.Join(cacheDir, VendirCacheDataDirName)
 
-	if _, err := os.Stat(lockPath); err != nil {
+	lockStat, err := os.Stat(lockPath)
+	if err != nil || !lockStat.Mode().IsRegular() {
 		return false
 	}
-	if _, err := os.Stat(dataDir); err != nil {
+	dataStat, err := os.Stat(dataDir)
+	if err != nil || !dataStat.IsDir() {
 		return false
 	}
 	return true
@@ -197,10 +199,10 @@ func (v *VendirSyncer) syncCacheEntry(a *Application, cacheName, vendirSecrets s
 	if existing, loaded := v.syncedCaches.LoadOrStore(cacheName, result); loaded {
 		existingResult := existing.(*syncResult)
 		<-existingResult.done
+		v.SyncSkippedInRun.Add(1)
 		if existingResult.err != nil {
 			log.Debug().Str("cache", cacheName).Msg(a.Msg(v.getStepName(), "Skipped vendir sync (failed by another app)"))
 		} else {
-			v.SyncSkippedInRun.Add(1)
 			log.Debug().Str("cache", cacheName).Msg(a.Msg(v.getStepName(), "Skipped vendir sync (already synced this run)"))
 		}
 		return existingResult.err

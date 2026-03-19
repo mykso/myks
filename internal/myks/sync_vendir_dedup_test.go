@@ -68,6 +68,29 @@ func TestIsCachePopulated(t *testing.T) {
 
 		assert.True(t, v.isCachePopulated(app, cacheName))
 	})
+
+	t.Run("returns false when data path is a file not a directory", func(t *testing.T) {
+		t.Parallel()
+		cacheName := "data-is-file-cache"
+		cacheDir := app.expandVendirCache(cacheName)
+		require.NoError(t, os.MkdirAll(cacheDir, 0o700))
+		// Write a regular file named "data" instead of a directory
+		require.NoError(t, os.WriteFile(filepath.Join(cacheDir, VendirCacheDataDirName), []byte("not-a-dir"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(cacheDir, cfg.VendirLockFileName), []byte("lock"), 0o600))
+
+		assert.False(t, v.isCachePopulated(app, cacheName))
+	})
+
+	t.Run("returns false when lock path is a directory not a file", func(t *testing.T) {
+		t.Parallel()
+		cacheName := "lock-is-dir-cache"
+		cacheDir := app.expandVendirCache(cacheName)
+		require.NoError(t, os.MkdirAll(filepath.Join(cacheDir, VendirCacheDataDirName), 0o700))
+		// Create a directory named after the lock file instead of a regular file
+		require.NoError(t, os.MkdirAll(filepath.Join(cacheDir, cfg.VendirLockFileName), 0o700))
+
+		assert.False(t, v.isCachePopulated(app, cacheName))
+	})
 }
 
 func TestSyncCacheEntryWithinRunDedup(t *testing.T) {
@@ -124,6 +147,7 @@ func TestSyncCacheEntryWithinRunDedupPropagatesError(t *testing.T) {
 
 	err := v.syncCacheEntry(app, cacheName, "")
 	assert.ErrorIs(t, err, assert.AnError)
+	assert.Equal(t, int64(1), v.SyncSkippedInRun.Load(), "should count as skipped even when error is propagated")
 }
 
 func TestSyncCacheEntryCrossRunDedup(t *testing.T) {
@@ -158,8 +182,7 @@ func TestSyncCacheEntryCrossRunDedup(t *testing.T) {
 }
 
 func TestSyncCacheEntryNoSkipWhenNotLazy(t *testing.T) {
-	t.Parallel()
-
+	// Not parallel: uses t.Setenv which requires sequential execution.
 	tmpDir := t.TempDir()
 	cfg := &Config{
 		ServiceDirName:       ".myks",
@@ -183,9 +206,13 @@ func TestSyncCacheEntryNoSkipWhenNotLazy(t *testing.T) {
 	// Mark as NOT lazy (default, but be explicit)
 	v.lazyCaches.Store(cacheName, false)
 
-	// This will attempt to run vendir (which will fail since there's no real vendir binary in test),
-	// but the important thing is that it does NOT skip due to cache being populated.
-	_ = v.syncCacheEntry(app, cacheName, "")
+	// Isolate PATH so runVendirSync fails predictably without invoking a real binary.
+	t.Setenv("PATH", t.TempDir())
+
+	// This will attempt to run vendir and fail — the important thing is that it does NOT skip
+	// due to cache being populated.
+	err := v.syncCacheEntry(app, cacheName, "")
+	assert.Error(t, err, "expected vendir to fail with no binary on PATH")
 	assert.Equal(t, int64(0), v.SyncSkippedCached.Load(), "should not skip when lazy=false")
 }
 
