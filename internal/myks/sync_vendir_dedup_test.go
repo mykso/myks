@@ -207,7 +207,8 @@ func TestSyncCacheEntryConcurrentDedup(t *testing.T) {
 
 	// Pre-populate cache so the "winner" goroutine succeeds via cross-run dedup
 	// (avoids needing a real vendir binary)
-	cacheDir := filepath.Join(tmpDir, ".myks", "vendir-cache", cacheName)
+	app := newDedupTestApp(cfg)
+	cacheDir := app.expandVendirCache(cacheName)
 	require.NoError(t, os.MkdirAll(filepath.Join(cacheDir, VendirCacheDataDirName), 0o700))
 	require.NoError(t, os.WriteFile(filepath.Join(cacheDir, cfg.VendirLockFileName), []byte("lock"), 0o600))
 	v.lazyCaches.Store(cacheName, true)

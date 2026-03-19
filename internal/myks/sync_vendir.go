@@ -220,13 +220,13 @@ func (v *VendirSyncer) syncCacheEntry(a *Application, cacheName, vendirSecrets s
 
 	// Acquire lock and run vendir
 	unlock := v.locker.LockNames(slices.Values([]string{cacheName}), true)
+	defer unlock()
 
 	cacheDir := a.expandVendirCache(cacheName)
 	vendirConfigPath := filepath.Join(cacheDir, a.cfg.VendirConfigFileName)
 	vendirLockPath := filepath.Join(cacheDir, a.cfg.VendirLockFileName)
 
 	syncErr := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets)
-	unlock()
 
 	if syncErr != nil {
 		log.Error().Err(syncErr).Msg(a.Msg(v.getStepName(), "Vendir sync failed, cleaning up the cache entry"))
@@ -234,7 +234,6 @@ func (v *VendirSyncer) syncCacheEntry(a *Application, cacheName, vendirSecrets s
 			log.Warn().Err(e).Msg(a.Msg(v.getStepName(), "Unable to remove cache directory"))
 		}
 		result.err = syncErr
-		v.syncedCaches.Delete(cacheName)
 		return syncErr
 	}
 
