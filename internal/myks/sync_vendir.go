@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	vendirconf "carvel.dev/vendir/pkg/vendir/config"
 	"github.com/mykso/myks/internal/locker"
@@ -22,10 +24,28 @@ const (
 	vendirConfigKindConfig = "Config"
 )
 
+// syncResult tracks the outcome of a vendir sync for a single cache entry.
+// Used by the singleflight deduplication to let waiting goroutines reuse the result.
+type syncResult struct {
+	done chan struct{}
+	err  error
+}
+
 // VendirSyncer is responsible for syncing application dependencies defined in vendir configuration.
 type VendirSyncer struct {
 	ident  string
 	locker *locker.Locker
+	// syncedCaches tracks cache entries being synced or already synced in this run.
+	// Key: cache name, Value: *syncResult
+	syncedCaches sync.Map
+	// lazyCaches tracks whether each cache entry has lazy: true.
+	// Key: cache name, Value: bool
+	lazyCaches sync.Map
+
+	// Dedup counters for observability
+	SyncExecuted      atomic.Int64
+	SyncSkippedInRun  atomic.Int64
+	SyncSkippedCached atomic.Int64
 }
 
 // NewVendirSyncer creates a new VendirSyncer with the default identifier and the provided locker.
@@ -38,6 +58,15 @@ func NewVendirSyncer(lock *locker.Locker) *VendirSyncer {
 
 func (v *VendirSyncer) Ident() string {
 	return v.ident
+}
+
+// GetDedupStats returns a snapshot of the dedup counters.
+func (v *VendirSyncer) GetDedupStats() *VendirDedupStats {
+	return &VendirDedupStats{
+		Executed:      v.SyncExecuted.Load(),
+		SkippedInRun:  v.SyncSkippedInRun.Load(),
+		SkippedCached: v.SyncSkippedCached.Load(),
+	}
 }
 
 func (v *VendirSyncer) Sync(a *Application, vendirSecrets string) error {
@@ -126,33 +155,89 @@ func (v *VendirSyncer) doSync(a *Application, vendirSecrets string) error {
 		return fmt.Errorf("reading vendir links map: %w", err)
 	}
 
-	// Acquire all locks first to avoid deadlocks
-	unlock := v.locker.LockNames(maps.Values(linksMap), true)
-	defer unlock()
-
 	if err := os.RemoveAll(a.expandVendorPath("")); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to remove vendor directory"))
 		return err
 	}
 
 	for contentPath, cacheName := range linksMap {
-		cacheDir := a.expandVendirCache(cacheName)
-		vendirConfigPath := filepath.Join(cacheDir, a.cfg.VendirConfigFileName)
-		vendirLockPath := filepath.Join(cacheDir, a.cfg.VendirLockFileName)
+		if err := v.syncCacheEntry(a, cacheName, vendirSecrets); err != nil {
+			return err
+		}
+		if err := v.linkVendorToCache(a, contentPath, cacheName); err != nil {
+			log.Error().Err(err).Msg(a.Msg(v.getStepName(), "Unable to create link to cache"))
+			return err
+		}
+	}
 
-		syncErr := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets)
-		if syncErr != nil {
-			log.Error().Err(syncErr).Msg(a.Msg(v.getStepName(), "Vendir sync failed, cleaning up the cache entry"))
-			if e := os.RemoveAll(cacheDir); e != nil {
-				log.Warn().Err(e).Msg(a.Msg(v.getStepName(), "Unable to remove cache directory"))
-			}
-			return syncErr
+	return nil
+}
+
+// isCachePopulated checks if a cache entry already has synced data from a previous run.
+func (v *VendirSyncer) isCachePopulated(a *Application, cacheName string) bool {
+	cacheDir := a.expandVendirCache(cacheName)
+	lockPath := filepath.Join(cacheDir, a.cfg.VendirLockFileName)
+	dataDir := filepath.Join(cacheDir, VendirCacheDataDirName)
+
+	lockStat, err := os.Stat(lockPath)
+	if err != nil || !lockStat.Mode().IsRegular() {
+		return false
+	}
+	dataStat, err := os.Stat(dataDir)
+	if err != nil || !dataStat.IsDir() {
+		return false
+	}
+	return true
+}
+
+// syncCacheEntry ensures a cache entry is synced, using two levels of deduplication:
+// 1. Within-run: only one goroutine syncs each cache entry; others wait and reuse the result.
+// 2. Cross-run: if the cache is already populated on disk and the content is lazy, skip vendir entirely.
+func (v *VendirSyncer) syncCacheEntry(a *Application, cacheName, vendirSecrets string) error {
+	// Within-run dedup: try to claim ownership of this cache entry
+	result := &syncResult{done: make(chan struct{})}
+	if existing, loaded := v.syncedCaches.LoadOrStore(cacheName, result); loaded {
+		existingResult := existing.(*syncResult)
+		<-existingResult.done
+		v.SyncSkippedInRun.Add(1)
+		if existingResult.err != nil {
+			log.Debug().Str("cache", cacheName).Msg(a.Msg(v.getStepName(), "Skipped vendir sync (failed by another app)"))
+		} else {
+			log.Debug().Str("cache", cacheName).Msg(a.Msg(v.getStepName(), "Skipped vendir sync (already synced this run)"))
 		}
-		linkErr := v.linkVendorToCache(a, contentPath, cacheName)
-		if linkErr != nil {
-			log.Error().Err(linkErr).Msg(a.Msg(v.getStepName(), "Unable to create link to cache"))
-			return linkErr
+		return existingResult.err
+	}
+
+	// We own this cache entry — perform the sync
+	defer close(result.done)
+
+	// Cross-run dedup: check if cache is already populated on disk
+	lazyVal, _ := v.lazyCaches.Load(cacheName)
+	isLazy, _ := lazyVal.(bool)
+	if isLazy && v.isCachePopulated(a, cacheName) {
+		v.SyncSkippedCached.Add(1)
+		log.Debug().Str("cache", cacheName).Msg(a.Msg(v.getStepName(), "Skipped vendir sync (cache already populated)"))
+		return nil
+	}
+
+	// Acquire lock and run vendir
+	unlock := v.locker.LockNames(slices.Values([]string{cacheName}), true)
+	defer unlock()
+
+	cacheDir := a.expandVendirCache(cacheName)
+	vendirConfigPath := filepath.Join(cacheDir, a.cfg.VendirConfigFileName)
+	vendirLockPath := filepath.Join(cacheDir, a.cfg.VendirLockFileName)
+
+	v.SyncExecuted.Add(1)
+	syncErr := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets)
+
+	if syncErr != nil {
+		log.Error().Err(syncErr).Msg(a.Msg(v.getStepName(), "Vendir sync failed, cleaning up the cache entry"))
+		if e := os.RemoveAll(cacheDir); e != nil {
+			log.Warn().Err(e).Msg(a.Msg(v.getStepName(), "Unable to remove cache directory"))
 		}
+		result.err = syncErr
+		return syncErr
 	}
 
 	return nil
@@ -223,11 +308,11 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 			vendorDirToCacheMap[vendorDirPath] = cacheName
 			cacheDir := a.expandVendirCache(cacheName)
 			cacheVendirConfigs[cacheName] = buildCacheVendirConfig(cacheDir, vendirConfig, dir, content)
+			v.lazyCaches.Store(cacheName, content.Lazy)
 		}
 	}
 
-	cacheNames := maps.Values(vendorDirToCacheMap)
-	unlock := v.locker.LockNames(cacheNames, true)
+	unlock := v.locker.LockNames(maps.Values(vendorDirToCacheMap), true)
 	defer unlock()
 
 	for cacheName, cacheVendirConfig := range cacheVendirConfigs {
