@@ -228,6 +228,7 @@ func (v *VendirSyncer) syncCacheEntry(a *Application, cacheName, vendirSecrets s
 	vendirConfigPath := filepath.Join(cacheDir, a.cfg.VendirConfigFileName)
 	vendirLockPath := filepath.Join(cacheDir, a.cfg.VendirLockFileName)
 
+	v.SyncExecuted.Add(1)
 	syncErr := v.runVendirSync(a, vendirConfigPath, vendirLockPath, vendirSecrets)
 
 	if syncErr != nil {
@@ -239,7 +240,6 @@ func (v *VendirSyncer) syncCacheEntry(a *Application, cacheName, vendirSecrets s
 		return syncErr
 	}
 
-	v.SyncExecuted.Add(1)
 	return nil
 }
 
