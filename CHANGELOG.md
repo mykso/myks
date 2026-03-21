@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.11.1](https://github.com/mykso/myks/compare/v5.11.0...v5.11.1) (2026-03-21)
+
+
+### Refactoring
+
+* deduplicate vendir sync tasks ([#778](https://github.com/mykso/myks/issues/778)) ([e6648bb](https://github.com/mykso/myks/commit/e6648bb2dcc61e9fd6ac9ce096ac77c595ef7085))
+
 ## [5.11.0](https://github.com/mykso/myks/compare/v5.10.0...v5.11.0) (2026-03-18)
 
 
