@@ -169,6 +169,26 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 	})
 }
 
+// InitForCleanup discovers and initializes environments for cleanup operations.
+// It is faster than Init because it skips rendering and saving the environment data lib file,
+// which is only required for rendering — not for application discovery.
+func (g *Globe) InitForCleanup(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
+	envAppMap := g.collectEnvironments(g.AddBaseDirToEnvAppMap(envSearchPathToAppMap))
+	log.Debug().Interface("envAppMap", envAppMap).Msg(g.Msg("Environments collected from search paths"))
+
+	return process(asyncLevel, maps.Keys(envAppMap), func(envPath string) error {
+		env, ok := g.environments[envPath]
+		if !ok {
+			return fmt.Errorf("unable to find environment for path: %s", envPath)
+		}
+		appNames, ok := envAppMap[envPath]
+		if !ok {
+			return fmt.Errorf("unable to find app names for path: %s", envPath)
+		}
+		return env.InitForCleanup(appNames)
+	})
+}
+
 // Run executes the sync and render operations based on the provided flags.
 func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 	if !doRender && !doSync {
@@ -312,31 +332,43 @@ func (g *Globe) collectAllApplications() []*Application {
 
 // CleanupRenderedManifests discovers rendered environments that are not known to the Globe struct and removes them.
 // This function should be only run when the Globe is not restricted by a list of environments.
+// The ArgoCD and envs directories are processed concurrently; within each, environments are also concurrent.
 func (g *Globe) CleanupRenderedManifests(dryRun bool) error {
 	legalEnvs := map[string]*Environment{}
 	for _, env := range g.environments {
 		legalEnvs[env.ID] = env
 	}
 
-	argoDir := filepath.Join(g.RootDir, g.RenderedArgoDir)
-	argoFiles, err := listDirEntries(argoDir)
+	eg := errgroup.Group{}
+
+	eg.Go(func() error {
+		argoDir := filepath.Join(g.RootDir, g.RenderedArgoDir)
+		return g.cleanupRenderedDir(argoDir, legalEnvs, dryRun, argoAppNameFromFileName)
+	})
+
+	eg.Go(func() error {
+		envsDir := filepath.Join(g.RootDir, g.RenderedEnvsDir)
+		return g.cleanupRenderedDir(envsDir, legalEnvs, dryRun, nil)
+	})
+
+	return eg.Wait() //nolint:wrapcheck // errors are already wrapped inside each goroutine
+}
+
+// cleanupRenderedDir lists root's entries and processes each environment sub-directory concurrently.
+func (g *Globe) cleanupRenderedDir(root string, legalEnvs map[string]*Environment, dryRun bool, getAppNameFunc func(string) string) error {
+	entries, err := listDirEntries(root)
 	if err != nil {
-		return fmt.Errorf("unable to read ArgoCD rendered manifests directory: %w", err)
-	}
-	for _, envDirEntry := range argoFiles {
-		g.cleanupRenderedEnvDir(argoDir, envDirEntry, legalEnvs, dryRun, argoAppNameFromFileName)
+		return fmt.Errorf("unable to read rendered directory %s: %w", root, err)
 	}
 
-	envsDir := filepath.Join(g.RootDir, g.RenderedEnvsDir)
-	envsFiles, err := listDirEntries(envsDir)
-	if err != nil {
-		return fmt.Errorf("unable to read rendered environments directory: %w", err)
+	eg := errgroup.Group{}
+	for _, envDirEntry := range entries {
+		eg.Go(func() error {
+			g.cleanupRenderedEnvDir(root, envDirEntry, legalEnvs, dryRun, getAppNameFunc)
+			return nil
+		})
 	}
-	for _, envDirEntry := range envsFiles {
-		g.cleanupRenderedEnvDir(envsDir, envDirEntry, legalEnvs, dryRun, nil)
-	}
-
-	return nil
+	return eg.Wait() //nolint:wrapcheck // goroutines return nil; no errors to unwrap
 }
 
 // listDirEntries reads directory entries, returning nil (not an error) when the directory does not exist.
@@ -418,18 +450,26 @@ func (g *Globe) removeOrLog(path string, dryRun bool, label string) {
 
 // CleanupObsoleteCacheEntries removes cache entries that are not used by any application.
 // This function should be only run when the Globe is not restricted by a list of environments.
-func (g *Globe) CleanupObsoleteCacheEntries(dryRun bool) error {
+// getLinksMap calls are parallelized with asyncLevel to reduce I/O wait time.
+func (g *Globe) CleanupObsoleteCacheEntries(asyncLevel int, dryRun bool) error {
+	allApps := g.collectAllApplications()
+
+	var mu sync.Mutex
 	validCacheDirs := map[string]bool{}
-	for _, env := range g.environments {
-		for _, app := range env.Applications {
-			linksMap, err := app.getLinksMap()
-			if err != nil {
-				return err
-			}
-			for _, cacheName := range linksMap {
-				validCacheDirs[cacheName] = true
-			}
+
+	if err := process(asyncLevel, slices.Values(allApps), func(app *Application) error {
+		linksMap, err := app.getLinksMap()
+		if err != nil {
+			return err
 		}
+		mu.Lock()
+		for _, cacheName := range linksMap {
+			validCacheDirs[cacheName] = true
+		}
+		mu.Unlock()
+		return nil
+	}); err != nil {
+		return err
 	}
 
 	cacheDir := filepath.Join(g.RootDir, g.ServiceDirName, g.VendirCache)
