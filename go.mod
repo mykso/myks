@@ -3,13 +3,13 @@ module github.com/mykso/myks
 go 1.25.7
 
 require (
-	carvel.dev/kbld v0.47.1
+	carvel.dev/kbld v0.47.2
 	carvel.dev/vendir v0.45.2
 	carvel.dev/ytt v0.53.2
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.8.0
-	github.com/google/go-containerregistry v0.20.7
+	github.com/google/go-containerregistry v0.21.3
 	github.com/hashicorp/go-version v1.8.0
 	github.com/logrusorgru/aurora/v4 v4.0.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
@@ -17,9 +17,9 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/sync v0.19.0
-	golang.org/x/sys v0.41.0
-	golang.org/x/term v0.40.0
+	golang.org/x/sync v0.20.0
+	golang.org/x/sys v0.42.0
+	golang.org/x/term v0.41.0
 	gopkg.in/yaml.v3 v3.0.1
 	sigs.k8s.io/yaml v1.6.0
 )
@@ -58,13 +58,13 @@ require (
 	github.com/carvel-dev/semver/v4 v4.0.1-0.20240402203627-beb83fbf25e4 // indirect
 	github.com/cheggaaa/pb/v3 v3.1.7 // indirect
 	github.com/chrismellard/docker-credential-acr-env v0.0.0-20220327082430-c57b701bfc08 // indirect
-	github.com/containerd/stargz-snapshotter/estargz v0.18.1 // indirect
+	github.com/containerd/stargz-snapshotter/estargz v0.18.2 // indirect
 	github.com/cppforlife/cobrautil v0.0.0-20221021151949-d60711905d65 // indirect
 	github.com/cppforlife/color v1.9.1-0.20200716202919-6706ac40b835 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dimchansky/utfbom v1.1.0 // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
-	github.com/docker/cli v29.0.3+incompatible // indirect
+	github.com/docker/cli v29.3.0+incompatible // indirect
 	github.com/docker/distribution v2.8.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.3 // indirect
 	github.com/fatih/color v1.18.0 // indirect
@@ -79,7 +79,7 @@ require (
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/klauspost/compress v1.18.1 // indirect
+	github.com/klauspost/compress v1.18.4 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
@@ -93,7 +93,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/sagikazarmark/locafero v0.11.0 // indirect
-	github.com/sirupsen/logrus v1.9.3 // indirect
+	github.com/sirupsen/logrus v1.9.4 // indirect
 	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
 	github.com/spf13/afero v1.15.0 // indirect
 	github.com/spf13/cast v1.10.0 // indirect
@@ -107,9 +107,10 @@ require (
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.45.0 // indirect
 	golang.org/x/net v0.47.0 // indirect
-	golang.org/x/oauth2 v0.33.0 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/text v0.31.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
+	gotest.tools/v3 v3.5.2 // indirect
 	k8s.io/apimachinery v0.32.1 // indirect
 	k8s.io/klog/v2 v2.130.1 // indirect
 	k8s.io/utils v0.0.0-20241104100929-3ea5e8cea738 // indirect
@@ -119,4 +120,4 @@ require (
 
 replace carvel.dev/ytt => github.com/mykso/ytt v0.47.2-0.20260308220025-a4e2475e5969
 
-replace go.starlark.net => github.com/mykso/starlark-go v0.0.0-20260308204554-5a23e8e5ecd1
+replace go.starlark.net => github.com/mykso/starlark-go v0.0.0-20201103203137-b73039650923
