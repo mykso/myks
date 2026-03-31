@@ -47,6 +47,7 @@ type Environment struct {
 	extraYttPaths []string
 
 	argoCDEnabled bool
+	initialized   bool
 	// Runtime data
 	renderedDataLibFilePath string
 	// Found applications
@@ -83,6 +84,8 @@ func (e *Environment) Init(applicationNames []string) error {
 		log.Error().Err(err).Msg(e.Msg("Unable to initialize applications"))
 		return fmt.Errorf("initializing applications for %s: %w", e.Dir, err)
 	}
+
+	e.initialized = true
 
 	return nil
 }

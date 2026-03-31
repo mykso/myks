@@ -176,7 +176,7 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 	}
 
 	if doRender {
-		for _, env := range g.environments {
+		for _, env := range g.getInitializedEnvironments() {
 			if err := env.renderArgoCD(); err != nil {
 				return err
 			}
@@ -243,7 +243,7 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 		StoreVendirDedupStats(vendirSyncer.GetDedupStats())
 	}
 
-	for _, env := range g.environments {
+	for _, env := range g.getInitializedEnvironments() {
 		if err := env.Cleanup(); err != nil {
 			errs = append(errs, fmt.Errorf("cleaning up env %s: %w", env.ID, err))
 		}
@@ -308,6 +308,16 @@ func (g *Globe) collectAllApplications() []*Application {
 		apps = append(apps, env.Applications...)
 	}
 	return apps
+}
+
+func (g *Globe) getInitializedEnvironments() []*Environment {
+	var envs []*Environment
+	for _, env := range g.environments {
+		if env.initialized {
+			envs = append(envs, env)
+		}
+	}
+	return envs
 }
 
 // CleanupRenderedManifests discovers rendered environments that are not known to the Globe struct and removes them.
