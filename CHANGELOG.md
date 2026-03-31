@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.11.2](https://github.com/mykso/myks/compare/v5.11.1...v5.11.2) (2026-03-31)
+
+
+### Bug Fixes
+
+* do not render ArgoCD resources for all environments in smart mode ([#785](https://github.com/mykso/myks/issues/785)) ([b2c3f9e](https://github.com/mykso/myks/commit/b2c3f9e06fe45c062f939c8882ee253c842a4714))
+
 ## [5.11.1](https://github.com/mykso/myks/compare/v5.11.0...v5.11.1) (2026-03-30)
 
 
