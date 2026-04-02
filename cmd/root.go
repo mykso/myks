@@ -101,8 +101,13 @@ LEARN MORE
 		"if not provided, only local changes will be considered"
 	rootCmd.PersistentFlags().String("smart-mode.base-revision", "", smartModeBaseRevisionHelp)
 
-	smartModeOnlyPrintHelp := "only print the list of environments and applications that would be rendered in Smart Mode"
-	rootCmd.PersistentFlags().Bool("smart-mode.only-print", false, smartModeOnlyPrintHelp)
+	smartModeOnlyPrintHelp := "only print the list of environments and applications that would be rendered in Smart Mode\n" +
+		"accepted values: \"text\" (default), \"json\"\n" +
+		"legacy boolean values (true, 1, yes) are treated as \"text\" for backward compatibility\n" +
+		"legacy falsey values (false, 0, no) disable Smart Mode only-print (same as leaving it empty)\n" +
+		"when used without a value (--smart-mode.only-print), defaults to \"text\""
+	rootCmd.PersistentFlags().String("smart-mode.only-print", "", smartModeOnlyPrintHelp)
+	rootCmd.PersistentFlags().Lookup("smart-mode.only-print").NoOptDefVal = outputFormatText
 
 	bufferPluginOutputHelp := "buffer plugin output instead of streaming (useful for parallel execution)"
 	rootCmd.PersistentFlags().Bool("buffer-plugin-output", false, bufferPluginOutputHelp)

@@ -43,6 +43,21 @@ Smart Mode detected:
     traefik
 ```
 
+For machine-readable output, pass `json` as the value:
+
+```console
+$ myks render --smart-mode.only-print=json
+{
+  "envs/alpha": [
+    "traefik"
+  ],
+  "envs/beta": null
+}
+```
+
+A `null` value for an environment means all applications in that environment
+would be processed.
+
 This is useful for understanding what would be processed before running the
 actual command, especially in CI/CD environments.
 
