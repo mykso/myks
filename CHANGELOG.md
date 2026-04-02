@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.12.0](https://github.com/mykso/myks/compare/v5.11.2...v5.12.0) (2026-04-02)
+
+
+### Features
+
+* output smart-mode.only-print as json ([#787](https://github.com/mykso/myks/issues/787)) ([b7f372a](https://github.com/mykso/myks/commit/b7f372aa041ac8ea88b0ddda3bea17339b9405a5))
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#747](https://github.com/mykso/myks/issues/747)) ([4187084](https://github.com/mykso/myks/commit/4187084f8d08832a75956da58e8fda1c1bc4dcea))
+
 ## [5.11.2](https://github.com/mykso/myks/compare/v5.11.1...v5.11.2) (2026-03-31)
 
 
