@@ -126,14 +126,25 @@ myks render --smart-mode.base-revision=HEAD~1
 
 ### `--smart-mode.only-print`
 
-- **Type**: `boolean`
-- **Default**: `false`
+- **Type**: `string`
+- **Default**: `""` (disabled)
+- **Accepted values**: `text` (human-readable, default when no value given), `json`.
+  Legacy truthy boolean values (`true`, `1`, `yes`) are treated as `text` for
+  backward compatibility with earlier versions where this flag was boolean.
+  Legacy falsey boolean values (`false`, `0`, `no`) are treated as disabled
+  (equivalent to `""`) for the same reason.
 - **Description**: Only print the list of environments and applications that
-  would be rendered without actually processing them.
+  would be rendered without actually processing them. When used without a value
+  (`--smart-mode.only-print`), defaults to `text` output for backward
+  compatibility.
 - **Environment Variable**: `MYKS_SMART_MODE_ONLY_PRINT`
 
 ```shell
+# Human-readable text output (backward compatible)
 myks render --smart-mode.only-print
+
+# Machine-readable JSON output
+myks render --smart-mode.only-print=json
 ```
 
 ## Example Configuration
