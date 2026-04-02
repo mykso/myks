@@ -110,7 +110,7 @@ func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 		return err
 	}
 
-	if envAppMap == nil {
+	if onlyPrint != "" && envAppMap == nil {
 		g := getGlobe()
 		envAppMap = myks.EnvAppMap{g.EnvironmentBaseDir: nil}
 	}
