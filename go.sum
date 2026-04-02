@@ -194,8 +194,8 @@ github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd h1:TRLaZ9cD/w
 github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd/go.mod h1:6dJC0mAP4ikYIbvyc7fijjWJddQyLn8Ig3JB5CqoB9Q=
 github.com/modern-go/reflect2 v1.0.2 h1:xBagoLtFs94CBntxluKeaWgTMpvLxC4ur3nMaC9Gz0M=
 github.com/modern-go/reflect2 v1.0.2/go.mod h1:yWuevngMOJpCy52FWWMvUC8ws7m/LJsjYzDa0/r8luk=
-github.com/mykso/starlark-go v0.0.0-20260308204554-5a23e8e5ecd1 h1:y4L8pYpDmt/d8tO6hvexB5tIvBpaJ1mTQTszXcjwvt0=
-github.com/mykso/starlark-go v0.0.0-20260308204554-5a23e8e5ecd1/go.mod h1:YKMCv9b1WrfWmeqdV5MAuEHWsu5iC+fe6kYl2sQjdI8=
+github.com/mykso/starlark-go v0.1.0-mykso.1 h1:HpodsbC4LlYewM23EhFxOndwi69wTp0Z2Sv2vvknAkI=
+github.com/mykso/starlark-go v0.1.0-mykso.1/go.mod h1:YKMCv9b1WrfWmeqdV5MAuEHWsu5iC+fe6kYl2sQjdI8=
 github.com/mykso/ytt v0.47.2-0.20260308220025-a4e2475e5969 h1:w6uAzEzVlbAkgSH6lV0zxbjWcbjybBkHNxYevvYuLMU=
 github.com/mykso/ytt v0.47.2-0.20260308220025-a4e2475e5969/go.mod h1:1FnIEHwkyMeLFrF8xPIPvCPbOHFCHBGxy3Xh64OUkkw=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=

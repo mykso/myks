@@ -119,4 +119,4 @@ require (
 
 replace carvel.dev/ytt => github.com/mykso/ytt v0.47.2-0.20260308220025-a4e2475e5969
 
-replace go.starlark.net => github.com/mykso/starlark-go v0.0.0-20260308204554-5a23e8e5ecd1
+replace go.starlark.net => github.com/mykso/starlark-go v0.1.0-mykso.1

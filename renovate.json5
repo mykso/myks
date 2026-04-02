@@ -15,6 +15,11 @@
       automerge: true,
       matchUpdateTypes: ["minor", "patch", "pin", "digest"],
     },
+    // Disable updates for forked dependencies pinned to specific branches
+    {
+      matchPackageNames: ["github.com/mykso/starlark-go"],
+      enabled: false,
+    },
     // Group all non-major Go module updates into a single PR
     {
       automerge: true,
