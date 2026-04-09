@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.12.1](https://github.com/mykso/myks/compare/v5.12.0...v5.12.1) (2026-04-09)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#791](https://github.com/mykso/myks/issues/791)) ([d4b288b](https://github.com/mykso/myks/commit/d4b288bcb9fc602b2c16ea448da4055c951dddf7))
+* normalize smart-mode matches ([#795](https://github.com/mykso/myks/issues/795)) ([8e9fbb1](https://github.com/mykso/myks/commit/8e9fbb12cae01709453918c4d812a7d30dafe4fa))
+
 ## [5.12.0](https://github.com/mykso/myks/compare/v5.11.2...v5.12.0) (2026-04-02)
 
 
