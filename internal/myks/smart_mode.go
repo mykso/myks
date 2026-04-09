@@ -86,6 +86,7 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 	}
 
 	g.filterStaleEnvApps(envAppMap)
+	pruneNestedEnvAppMap(envAppMap)
 	return envAppMap
 }
 
@@ -209,7 +210,7 @@ func (g *Globe) classifyChangedPaths(
 		}
 	}
 
-	return changedEnvs, changedPrototypes, false
+	return squashEnvPaths(changedEnvs), changedPrototypes, false
 }
 
 // filterStaleEnvApps removes environments not found in the filesystem and
@@ -269,4 +270,53 @@ func (g *Globe) getEnvironmentsUnderRoot(root string) []string {
 	}
 
 	return matchedEnvs
+}
+
+// squashEnvPaths returns only the most general paths from the input slice,
+// dropping any path that is a descendant of another path in the same slice.
+func squashEnvPaths(envs []string) []string {
+	// Build a deduplicated set of cleaned paths.
+	seen := make(map[string]struct{}, len(envs))
+	for _, e := range envs {
+		seen[filepath.Clean(e)] = struct{}{}
+	}
+
+	result := make([]string, 0, len(seen))
+	sep := string(filepath.Separator)
+	for p := range seen {
+		dominated := false
+		for root := range seen {
+			if root != p && strings.HasPrefix(p, root+sep) {
+				dominated = true
+				break
+			}
+		}
+		if !dominated {
+			result = append(result, p)
+		}
+	}
+	return result
+}
+
+// pruneNestedEnvAppMap removes any key from m that is a strict descendant of
+// another key whose value is nil (meaning "all apps in that subtree").
+func pruneNestedEnvAppMap(m EnvAppMap) {
+	sep := string(filepath.Separator)
+
+	var wildcards []string
+	for env, apps := range m {
+		if apps == nil {
+			wildcards = append(wildcards, filepath.Clean(env))
+		}
+	}
+
+	for env := range m {
+		cleaned := filepath.Clean(env)
+		for _, root := range wildcards {
+			if cleaned != root && strings.HasPrefix(cleaned, root+sep) {
+				delete(m, env)
+				break
+			}
+		}
+	}
 }
