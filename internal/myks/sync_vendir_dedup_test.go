@@ -354,7 +354,7 @@ func TestEnsureCacheConfigConcurrent(t *testing.T) {
 		Kind:       "Config",
 	}
 
-	// Pre-create the cache directory so saveCacheVendirConfig can write to it
+	// Pre-create the cache directory so ensureCacheConfig can write the vendir config into it.
 	cacheDir := (&Application{cfg: cfg, e: &Environment{ID: "test-env"}}).expandVendirCache(cacheName)
 	require.NoError(t, os.MkdirAll(cacheDir, 0o700))
 
