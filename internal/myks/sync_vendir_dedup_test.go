@@ -322,12 +322,14 @@ func TestEnsureCacheConfigDedup(t *testing.T) {
 	config := vendirconf.Config{}
 
 	// Simulate a "previous winner" that already wrote the config
-	winner := &syncResult{done: make(chan struct{})}
+	winnerData, err := config.AsBytes()
+	require.NoError(t, err)
+	winner := &configResult{done: make(chan struct{}), configData: winnerData}
 	close(winner.done)
 	v.cacheConfigResults.Store(cacheName, winner)
 
 	app := newDedupTestApp(cfg)
-	err := v.ensureCacheConfig(app, cacheName, config)
+	err = v.ensureCacheConfig(app, cacheName, config)
 	require.NoError(t, err)
 	assert.Equal(t, int64(1), v.ConfigWriteSkipped.Load(), "should count as skipped when config already written")
 	assert.Equal(t, int64(0), v.ConfigWriteExecuted.Load(), "should not count as executed")
@@ -375,6 +377,45 @@ func TestEnsureCacheConfigConcurrent(t *testing.T) {
 	assert.Equal(t, int64(0), errCount.Load(), "no errors expected")
 	assert.Equal(t, int64(1), v.ConfigWriteExecuted.Load(), "exactly one config write should execute")
 	assert.Equal(t, int64(numGoroutines-1), v.ConfigWriteSkipped.Load(), "remaining goroutines should skip")
+}
+
+func TestEnsureCacheConfigMismatchDetected(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	cfg := &Config{
+		ServiceDirName:       ".myks",
+		VendirCache:          "vendir-cache",
+		VendirConfigFileName: "vendir.yaml",
+		RootDir:              tmpDir,
+	}
+
+	v := NewVendirSyncer(locker.NewLocker())
+
+	const cacheName = "mismatch-cache"
+
+	// Winner wrote a config without MinimumRequiredVersion
+	winnerConfig := vendirconf.Config{
+		APIVersion: vendirAPIVersion,
+		Kind:       vendirConfigKindConfig,
+	}
+	winnerData, err := winnerConfig.AsBytes()
+	require.NoError(t, err)
+	winner := &configResult{done: make(chan struct{}), configData: winnerData}
+	close(winner.done)
+	v.cacheConfigResults.Store(cacheName, winner)
+
+	// Loser produces a different config (different MinimumRequiredVersion)
+	loserConfig := vendirconf.Config{
+		APIVersion:             vendirAPIVersion,
+		Kind:                   vendirConfigKindConfig,
+		MinimumRequiredVersion: "0.29.0",
+	}
+
+	app := newDedupTestApp(cfg)
+	err = v.ensureCacheConfig(app, cacheName, loserConfig)
+	assert.ErrorContains(t, err, "vendir cache config conflict")
+	assert.Equal(t, int64(1), v.ConfigWriteSkipped.Load())
 }
 
 func TestFindCacheNameForChart(t *testing.T) {

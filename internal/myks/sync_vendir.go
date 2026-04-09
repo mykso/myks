@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"os"
@@ -30,6 +31,14 @@ type syncResult struct {
 	err  error
 }
 
+// configResult tracks the outcome of a vendir config write for a single cache entry.
+// Extends syncResult with serialized config bytes for mismatch detection.
+type configResult struct {
+	done       chan struct{}
+	err        error
+	configData []byte
+}
+
 // VendirSyncer is responsible for syncing application dependencies defined in vendir configuration.
 type VendirSyncer struct {
 	ident  string
@@ -41,8 +50,9 @@ type VendirSyncer struct {
 	// Key: cache name, Value: bool
 	lazyCaches sync.Map
 	// cacheConfigResults tracks per-cache vendir config writes in-flight or completed this run.
-	// Key: cache name, Value: *syncResult
+	// Key: cache name, Value: *configResult
 	// Used to ensure each cache's vendir.yaml is written exactly once across all concurrent apps.
+	// When two goroutines produce different configs for the same cache name, the mismatch is detected and returned as an error.
 	cacheConfigResults sync.Map
 
 	// Dedup counters for observability
@@ -341,29 +351,39 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 // ensureCacheConfig writes the per-cache vendir config file exactly once per run using a
 // singleflight pattern. The first goroutine per cache name writes the file; subsequent
 // goroutines wait for the write to complete and reuse the result (success or error).
+// If two goroutines produce different configs for the same cache name, an error is returned
+// rather than silently discarding the losing config.
 func (v *VendirSyncer) ensureCacheConfig(a *Application, cacheName string, config vendirconf.Config) error {
-	result := &syncResult{done: make(chan struct{})}
+	configData, err := config.AsBytes()
+	if err != nil {
+		return fmt.Errorf("marshaling vendir config for cache %s: %w", cacheName, err)
+	}
+
+	result := &configResult{done: make(chan struct{}), configData: configData}
 	if existing, loaded := v.cacheConfigResults.LoadOrStore(cacheName, result); loaded {
-		existingResult := existing.(*syncResult)
+		existingResult := existing.(*configResult)
 		<-existingResult.done
 		v.ConfigWriteSkipped.Add(1)
+		if existingResult.err == nil && !bytes.Equal(existingResult.configData, configData) {
+			return fmt.Errorf(
+				"vendir cache config conflict for cache %q: "+
+					"two applications produced different configs for the same content hash; "+
+					"this indicates differing directory permissions or vendir config-level fields",
+				cacheName,
+			)
+		}
 		return existingResult.err
 	}
 	defer close(result.done)
 
 	v.ConfigWriteExecuted.Add(1)
-	result.err = v.saveCacheVendirConfig(a, cacheName, config)
+	result.err = v.writeCacheVendirConfig(a, cacheName, configData)
 	return result.err
 }
 
-func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, vendirConfig vendirconf.Config) error {
-	data, err := vendirConfig.AsBytes()
-	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
-		return err
-	}
+func (v *VendirSyncer) writeCacheVendirConfig(a *Application, cacheName string, data []byte) error {
 	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.cfg.VendirConfigFileName)
-	if err = writeFile(vendirConfigPath, data); err != nil {
+	if err := writeFile(vendirConfigPath, data); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config"))
 		return err
 	}
