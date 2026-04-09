@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
@@ -14,6 +16,14 @@ import (
 type HelmSyncer struct {
 	ident  string
 	locker *locker.Locker
+	// builtCharts tracks helm dependency builds in-flight or completed this run.
+	// Key: cache name, Value: *syncResult
+	// Used to ensure each chart's dependencies are built at most once per run.
+	builtCharts sync.Map
+
+	// Dedup counters for observability
+	BuildExecuted atomic.Int64
+	BuildSkipped  atomic.Int64
 }
 
 // NewHelmSyncer creates a new HelmSyncer with the given locker.
@@ -39,18 +49,16 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 		return err
 	}
 
-	unlock, err := a.AcquireRenderLock(hr.locker, func(path string) bool {
-		return strings.HasPrefix(path, a.cfg.HelmChartsDirName+"/")
-	}, true)
-	if err != nil {
-		return err
-	}
-	defer unlock()
-
 	chartsDirs, err := a.getHelmChartsDirs(hr.getStepName())
 	if err != nil {
 		return err
 	}
+
+	linksMap, err := a.getLinksMap()
+	if err != nil {
+		return err
+	}
+
 	chartNames := []string{}
 	for _, chartDir := range chartsDirs {
 		chartName := filepath.Base(chartDir)
@@ -60,7 +68,8 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 			log.Debug().Msg(a.Msg(hr.getStepName(), fmt.Sprintf(".helm.charts[%s].buildDependencies is disabled, skipping", chartName)))
 			continue
 		}
-		if err := hr.helmBuild(a, chartDir); err != nil {
+		cacheName := findCacheNameForChart(linksMap, chartDir, a.cfg.HelmChartsDirName)
+		if err := hr.buildChartOnce(a, cacheName, chartDir); err != nil {
 			return err
 		}
 	}
@@ -71,6 +80,62 @@ func (hr *HelmSyncer) Sync(a *Application, _ string) error {
 	}
 	log.Info().Msg(a.Msg(hr.getStepName(), "Synced"))
 	return nil
+}
+
+// findCacheNameForChart looks up the vendir cache name for a given chart directory by
+// searching the links map. The chart directory base name (e.g. "nginx") combined with
+// the helm charts dir name (e.g. "charts") forms the vendor path key (e.g. "charts/nginx").
+func findCacheNameForChart(linksMap map[string]string, chartDir, helmChartsDirName string) string {
+	vendorPath := filepath.Join(helmChartsDirName, filepath.Base(chartDir))
+	return linksMap[vendorPath]
+}
+
+// buildChartOnce ensures helm dependencies are built at most once per chart cache entry per run.
+// The first goroutine per cacheName acquires the write lock and runs helm dependencies build;
+// subsequent goroutines wait for that result and skip the redundant build.
+// When cacheName is empty (chart not in the links map), falls back to a per-chart-dir key.
+// This deduplicates concurrent builds of the same chart directory during the current run.
+func (hr *HelmSyncer) buildChartOnce(a *Application, cacheName, chartDir string) error {
+	key := cacheName
+	if key == "" {
+		// Fallback for charts not tracked via vendir cache (e.g. checked-in charts).
+		// Use the chart dir path as the dedup key so concurrent builds of the same dir are deduplicated.
+		log.Debug().Str("chart", filepath.Base(chartDir)).Msg(a.Msg(hr.getStepName(), "Chart not found in links map, using chart dir as dedup key"))
+		key = chartDir
+	}
+
+	result := &syncResult{done: make(chan struct{})}
+	if existing, loaded := hr.builtCharts.LoadOrStore(key, result); loaded {
+		existingResult := existing.(*syncResult)
+		<-existingResult.done
+		hr.BuildSkipped.Add(1)
+		log.Debug().
+			Str("cache", cacheName).
+			Str("key", key).
+			Str("chart", filepath.Base(chartDir)).
+			Msg(a.Msg(hr.getStepName(), "Skipped helm dependencies build (already built this run)"))
+		return existingResult.err
+	}
+	defer close(result.done)
+
+	// Only the singleflight winner acquires the write lock and builds.
+	// The write lock is taken on the dedup/lock key (`key`), which is the cache name when available
+	// and otherwise falls back to the chart directory. This coordinates with any render-phase read lock
+	// taken on the same key, preventing reads of partially-built chart data during helm dependency download.
+	unlock := hr.locker.LockNames(slices.Values([]string{key}), true)
+	defer unlock()
+
+	hr.BuildExecuted.Add(1)
+	result.err = hr.helmBuild(a, chartDir)
+	return result.err
+}
+
+// GetDedupStats returns a snapshot of the helm build dedup counters.
+func (hr *HelmSyncer) GetDedupStats() *HelmDedupStats {
+	return &HelmDedupStats{
+		Executed: hr.BuildExecuted.Load(),
+		Skipped:  hr.BuildSkipped.Load(),
+	}
 }
 
 func (hr *HelmSyncer) helmBuild(a *Application, chartDir string) error {

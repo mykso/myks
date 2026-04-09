@@ -1,9 +1,9 @@
 package myks
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"maps"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,11 +24,21 @@ const (
 	vendirConfigKindConfig = "Config"
 )
 
-// syncResult tracks the outcome of a vendir sync for a single cache entry.
-// Used by the singleflight deduplication to let waiting goroutines reuse the result.
+// syncResult is a singleflight primitive that tracks the outcome of a deduplicated operation.
+// The first goroutine creates the result and closes done when finished; waiting goroutines
+// block on done and then read err.
+// Used by VendirSyncer (cache sync dedup) and HelmSyncer (chart build dedup).
 type syncResult struct {
 	done chan struct{}
 	err  error
+}
+
+// configResult tracks the outcome of a vendir config write for a single cache entry.
+// Extends syncResult with serialized config bytes for mismatch detection.
+type configResult struct {
+	done       chan struct{}
+	err        error
+	configData []byte
 }
 
 // VendirSyncer is responsible for syncing application dependencies defined in vendir configuration.
@@ -41,11 +51,18 @@ type VendirSyncer struct {
 	// lazyCaches tracks whether each cache entry has lazy: true.
 	// Key: cache name, Value: bool
 	lazyCaches sync.Map
+	// cacheConfigResults tracks per-cache vendir config writes in-flight or completed this run.
+	// Key: cache name, Value: *configResult
+	// Used to ensure each cache's vendir.yaml is written exactly once across all concurrent apps.
+	// When two goroutines produce different configs for the same cache name, the mismatch is detected and returned as an error.
+	cacheConfigResults sync.Map
 
 	// Dedup counters for observability
-	SyncExecuted      atomic.Int64
-	SyncSkippedInRun  atomic.Int64
-	SyncSkippedCached atomic.Int64
+	SyncExecuted        atomic.Int64
+	SyncSkippedInRun    atomic.Int64
+	SyncSkippedCached   atomic.Int64
+	ConfigWriteExecuted atomic.Int64
+	ConfigWriteSkipped  atomic.Int64
 }
 
 // NewVendirSyncer creates a new VendirSyncer with the default identifier and the provided locker.
@@ -63,9 +80,11 @@ func (v *VendirSyncer) Ident() string {
 // GetDedupStats returns a snapshot of the dedup counters.
 func (v *VendirSyncer) GetDedupStats() *VendirDedupStats {
 	return &VendirDedupStats{
-		Executed:      v.SyncExecuted.Load(),
-		SkippedInRun:  v.SyncSkippedInRun.Load(),
-		SkippedCached: v.SyncSkippedCached.Load(),
+		Executed:            v.SyncExecuted.Load(),
+		SkippedInRun:        v.SyncSkippedInRun.Load(),
+		SkippedCached:       v.SyncSkippedCached.Load(),
+		ConfigWriteExecuted: v.ConfigWriteExecuted.Load(),
+		ConfigWriteSkipped:  v.ConfigWriteSkipped.Load(),
 	}
 }
 
@@ -312,26 +331,58 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 		}
 	}
 
-	unlock := v.locker.LockNames(maps.Values(vendorDirToCacheMap), true)
-	defer unlock()
-
+	// Write per-cache vendir configs using a singleflight: the first goroutine to
+	// encounter a given cache name writes the file; others wait and reuse the result.
+	// This eliminates the previous bulk write lock, which serialized all apps sharing
+	// any common cache entry even though they produce identical config content.
 	for cacheName, cacheVendirConfig := range cacheVendirConfigs {
-		if err := v.saveCacheVendirConfig(a, cacheName, cacheVendirConfig); err != nil {
+		if err := v.ensureCacheConfig(a, cacheName, cacheVendirConfig); err != nil {
 			return err
 		}
 	}
 
+	// Save the per-app links map after the cache configs are successfully ensured,
+	// so the on-disk links map only points at cache entries whose vendir.yaml was
+	// successfully written.
 	return v.saveLinksMap(a, vendorDirToCacheMap)
 }
 
-func (v *VendirSyncer) saveCacheVendirConfig(a *Application, cacheName string, vendirConfig vendirconf.Config) error {
-	data, err := vendirConfig.AsBytes()
+// ensureCacheConfig writes the per-cache vendir config file exactly once per run using a
+// singleflight pattern. The first goroutine per cache name writes the file; subsequent
+// goroutines wait for the write to complete and reuse the result (success or error).
+// If two goroutines produce different configs for the same cache name, an error is returned
+// rather than silently discarding the losing config.
+func (v *VendirSyncer) ensureCacheConfig(a *Application, cacheName string, config vendirconf.Config) error {
+	configData, err := config.AsBytes()
 	if err != nil {
-		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to marshal vendir config"))
-		return err
+		return fmt.Errorf("marshaling vendir config for cache %s: %w", cacheName, err)
 	}
+
+	result := &configResult{done: make(chan struct{}), configData: configData}
+	if existing, loaded := v.cacheConfigResults.LoadOrStore(cacheName, result); loaded {
+		existingResult := existing.(*configResult)
+		<-existingResult.done
+		v.ConfigWriteSkipped.Add(1)
+		if existingResult.err == nil && !bytes.Equal(existingResult.configData, configData) {
+			return fmt.Errorf(
+				"vendir cache config conflict for cache %q: "+
+					"two applications produced different configs for the same content hash; "+
+					"this indicates differing directory permissions or vendir config-level fields",
+				cacheName,
+			)
+		}
+		return existingResult.err
+	}
+	defer close(result.done)
+
+	v.ConfigWriteExecuted.Add(1)
+	result.err = v.writeCacheVendirConfig(a, cacheName, configData)
+	return result.err
+}
+
+func (v *VendirSyncer) writeCacheVendirConfig(a *Application, cacheName string, data []byte) error {
 	vendirConfigPath := filepath.Join(a.expandVendirCache(cacheName), a.cfg.VendirConfigFileName)
-	if err = writeFile(vendirConfigPath, data); err != nil {
+	if err := writeFile(vendirConfigPath, data); err != nil {
 		log.Warn().Err(err).Msg(a.Msg(v.getStepName(), "Unable to write vendir config"))
 		return err
 	}

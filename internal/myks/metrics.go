@@ -36,13 +36,24 @@ var (
 
 	globalVendirDedupStatsMu sync.Mutex
 	globalVendirDedupStats   *VendirDedupStats
+
+	globalHelmDedupStatsMu sync.Mutex
+	globalHelmDedupStats   *HelmDedupStats
 )
 
 // VendirDedupStats holds counters for vendir sync deduplication.
 type VendirDedupStats struct {
-	Executed      int64
-	SkippedInRun  int64
-	SkippedCached int64
+	Executed            int64
+	SkippedInRun        int64
+	SkippedCached       int64
+	ConfigWriteExecuted int64
+	ConfigWriteSkipped  int64
+}
+
+// HelmDedupStats holds counters for helm dependency build deduplication.
+type HelmDedupStats struct {
+	Executed int64
+	Skipped  int64
 }
 
 // StorePipelineMetrics stores the pipeline metrics for later printing.
@@ -64,6 +75,13 @@ func StoreVendirDedupStats(s *VendirDedupStats) {
 	globalVendirDedupStatsMu.Lock()
 	defer globalVendirDedupStatsMu.Unlock()
 	globalVendirDedupStats = s
+}
+
+// StoreHelmDedupStats stores the helm dedup stats for later printing.
+func StoreHelmDedupStats(s *HelmDedupStats) {
+	globalHelmDedupStatsMu.Lock()
+	defer globalHelmDedupStatsMu.Unlock()
+	globalHelmDedupStats = s
 }
 
 // TrackCmdMetric records timing and resource usage for a completed command step.
@@ -177,6 +195,17 @@ func PrintCmdMetrics() {
 		}
 	}
 
+	// --- Helm Build Dedup Summary ---
+	globalHelmDedupStatsMu.Lock()
+	hds := globalHelmDedupStats
+	globalHelmDedupStatsMu.Unlock()
+
+	if hds != nil {
+		if dedupSummary := hds.BuildSummary(); dedupSummary != "" {
+			combined.WriteString(dedupSummary)
+		}
+	}
+
 	summary := combined.String()
 	if summary == "" {
 		return
@@ -203,6 +232,27 @@ func (s *VendirDedupStats) BuildSummary() string {
 	fmt.Fprintf(&sb, "Skipped (in-run dedup):  %d\n", s.SkippedInRun)
 	fmt.Fprintf(&sb, "Skipped (cached):        %d\n", s.SkippedCached)
 	fmt.Fprintf(&sb, "Total sync requests:     %d\n", total)
+	if configTotal := s.ConfigWriteExecuted + s.ConfigWriteSkipped; configTotal > 0 {
+		fmt.Fprintf(&sb, "Config writes:           %d\n", s.ConfigWriteExecuted)
+		fmt.Fprintf(&sb, "Config writes skipped:   %d\n", s.ConfigWriteSkipped)
+	}
+	sb.WriteString(strings.Repeat("-", 35) + "\n")
+
+	return sb.String()
+}
+
+// BuildSummary formats the helm build dedup stats as a human-readable summary.
+func (s *HelmDedupStats) BuildSummary() string {
+	total := s.Executed + s.Skipped
+	if total == 0 {
+		return ""
+	}
+
+	var sb strings.Builder
+	sb.WriteString("\n--- Helm Build Dedup Summary ---\n")
+	fmt.Fprintf(&sb, "Builds executed:         %d\n", s.Executed)
+	fmt.Fprintf(&sb, "Builds skipped:          %d\n", s.Skipped)
+	fmt.Fprintf(&sb, "Total build requests:    %d\n", total)
 	sb.WriteString(strings.Repeat("-", 35) + "\n")
 
 	return sb.String()
