@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	vendirconf "carvel.dev/vendir/pkg/vendir/config"
 	"github.com/mykso/myks/internal/locker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -285,5 +286,142 @@ func TestVendirDedupStatsBuildSummary(t *testing.T) {
 		assert.Contains(t, summary, "Skipped (in-run dedup):  7")
 		assert.Contains(t, summary, "Skipped (cached):        2")
 		assert.Contains(t, summary, "Total sync requests:     12")
+	})
+
+	t.Run("shows config write stats when non-zero", func(t *testing.T) {
+		t.Parallel()
+		stats := &VendirDedupStats{
+			Executed:            1,
+			ConfigWriteExecuted: 5,
+			ConfigWriteSkipped:  195,
+		}
+
+		summary := stats.BuildSummary()
+		assert.Contains(t, summary, "Config writes:           5")
+		assert.Contains(t, summary, "Config writes skipped:   195")
+	})
+}
+
+func TestEnsureCacheConfigDedup(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	cfg := &Config{
+		ServiceDirName:       ".myks",
+		VendirCache:          "vendir-cache",
+		VendirConfigFileName: "vendir.yaml",
+		RootDir:              tmpDir,
+	}
+
+	v := NewVendirSyncer(locker.NewLocker())
+
+	const cacheName = "test-config-cache"
+	config := vendirconf.Config{}
+
+	// Simulate a "previous winner" that already wrote the config
+	winner := &syncResult{done: make(chan struct{})}
+	close(winner.done)
+	v.cacheConfigResults.Store(cacheName, winner)
+
+	app := newDedupTestApp(cfg)
+	err := v.ensureCacheConfig(app, cacheName, config)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), v.ConfigWriteSkipped.Load(), "should count as skipped when config already written")
+	assert.Equal(t, int64(0), v.ConfigWriteExecuted.Load(), "should not count as executed")
+}
+
+func TestEnsureCacheConfigConcurrent(t *testing.T) {
+	t.Parallel()
+
+	tmpDir := t.TempDir()
+	cfg := &Config{
+		ServiceDirName:       ".myks",
+		VendirCache:          "vendir-cache",
+		VendirConfigFileName: "vendir.yaml",
+		RootDir:              tmpDir,
+	}
+
+	v := NewVendirSyncer(locker.NewLocker())
+
+	cacheName := "concurrent-config-cache"
+	config := vendirconf.Config{
+		APIVersion: "vendir.k14s.io/v1alpha1",
+		Kind:       "Config",
+	}
+
+	// Pre-create the cache directory so saveCacheVendirConfig can write to it
+	cacheDir := (&Application{cfg: cfg, e: &Environment{ID: "test-env"}}).expandVendirCache(cacheName)
+	require.NoError(t, os.MkdirAll(cacheDir, 0o700))
+
+	const numGoroutines = 20
+	var wg sync.WaitGroup
+	var errCount atomic.Int64
+
+	for range numGoroutines {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			app := newDedupTestApp(cfg)
+			if err := v.ensureCacheConfig(app, cacheName, config); err != nil {
+				errCount.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t, int64(0), errCount.Load(), "no errors expected")
+	assert.Equal(t, int64(1), v.ConfigWriteExecuted.Load(), "exactly one config write should execute")
+	assert.Equal(t, int64(numGoroutines-1), v.ConfigWriteSkipped.Load(), "remaining goroutines should skip")
+}
+
+func TestFindCacheNameForChart(t *testing.T) {
+	t.Parallel()
+
+	linksMap := map[string]string{
+		"charts/nginx":      "helm-nginx-1.0.0-abc123",
+		"charts/prometheus": "helm-prometheus-2.0.0-def456",
+	}
+
+	t.Run("finds cache name for known chart", func(t *testing.T) {
+		t.Parallel()
+		result := findCacheNameForChart(linksMap, "/some/vendor/charts/nginx", "charts")
+		assert.Equal(t, "helm-nginx-1.0.0-abc123", result)
+	})
+
+	t.Run("returns empty string for unknown chart", func(t *testing.T) {
+		t.Parallel()
+		result := findCacheNameForChart(linksMap, "/some/vendor/charts/unknown", "charts")
+		assert.Empty(t, result)
+	})
+
+	t.Run("handles custom helmChartsDirName", func(t *testing.T) {
+		t.Parallel()
+		customLinksMap := map[string]string{
+			"helm-charts/nginx": "helm-nginx-1.0.0-abc123",
+		}
+		result := findCacheNameForChart(customLinksMap, "/vendor/helm-charts/nginx", "helm-charts")
+		assert.Equal(t, "helm-nginx-1.0.0-abc123", result)
+	})
+}
+
+func TestHelmDedupStatsBuildSummary(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns empty when no builds happened", func(t *testing.T) {
+		t.Parallel()
+		stats := &HelmDedupStats{}
+		assert.Empty(t, stats.BuildSummary())
+	})
+
+	t.Run("returns summary with executed and skipped", func(t *testing.T) {
+		t.Parallel()
+		stats := &HelmDedupStats{
+			Executed: 3,
+			Skipped:  613,
+		}
+		summary := stats.BuildSummary()
+		assert.Contains(t, summary, "Builds executed:         3")
+		assert.Contains(t, summary, "Builds skipped:          613")
+		assert.Contains(t, summary, "Total build requests:    616")
 	})
 }

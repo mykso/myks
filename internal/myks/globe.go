@@ -242,6 +242,9 @@ func (g *Globe) Run(asyncLevel int, doSync, doRender bool) error {
 	if vendirSyncer != nil {
 		StoreVendirDedupStats(vendirSyncer.GetDedupStats())
 	}
+	if helmSyncer != nil {
+		StoreHelmDedupStats(helmSyncer.GetDedupStats())
+	}
 
 	for _, env := range g.getInitializedEnvironments() {
 		if err := env.Cleanup(); err != nil {
