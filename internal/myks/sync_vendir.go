@@ -342,11 +342,7 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 	// Save the per-app links map after the cache configs are successfully ensured,
 	// so the on-disk links map only points at cache entries whose vendir.yaml was
 	// successfully written.
-	if err := v.saveLinksMap(a, vendorDirToCacheMap); err != nil {
-		return err
-	}
-
-	return nil
+	return v.saveLinksMap(a, vendorDirToCacheMap)
 }
 
 // ensureCacheConfig writes the per-cache vendir config file exactly once per run using a
