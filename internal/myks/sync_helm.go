@@ -109,7 +109,11 @@ func (hr *HelmSyncer) buildChartOnce(a *Application, cacheName, chartDir string)
 		existingResult := existing.(*syncResult)
 		<-existingResult.done
 		hr.BuildSkipped.Add(1)
-		log.Debug().Str("cache", cacheName).Msg(a.Msg(hr.getStepName(), "Skipped helm dependencies build (already built this run)"))
+		log.Debug().
+			Str("cache", cacheName).
+			Str("key", key).
+			Str("chart", filepath.Base(chartDir)).
+			Msg(a.Msg(hr.getStepName(), "Skipped helm dependencies build (already built this run)"))
 		return existingResult.err
 	}
 	defer close(result.done)
