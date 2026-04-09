@@ -327,6 +327,19 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			},
 		},
 		{
+			// Regression guard: verifies pruneNestedEnvAppMap is called in runSmartMode.
+			// Without the call, the result would be {envs: nil, envs/env1: [app1]}.
+			"root _env wildcard prunes nested env entries",
+			ChangedFiles{
+				"envs/_env/argocd/some-file.yaml":             "?",
+				"envs/env1/_apps/app1/app-data.variable.yaml": "M",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs": nil,
+			},
+		},
+		{
 			"changes in rendered envs",
 			ChangedFiles{
 				"rendered/envs/env1-id/app1/some-file.yaml": "M",
