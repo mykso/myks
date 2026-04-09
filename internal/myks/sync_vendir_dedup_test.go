@@ -13,6 +13,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// jn joins path components using the OS path separator (alias for filepath.Join).
+func jn(parts ...string) string { return filepath.Join(parts...) }
+
 // newDedupTestApp creates a minimal Application suitable for dedup tests.
 func newDedupTestApp(cfg *Config) *Application {
 	return &Application{
@@ -378,28 +381,28 @@ func TestFindCacheNameForChart(t *testing.T) {
 	t.Parallel()
 
 	linksMap := map[string]string{
-		"charts/nginx":      "helm-nginx-1.0.0-abc123",
-		"charts/prometheus": "helm-prometheus-2.0.0-def456",
+		jn("charts", "nginx"):      "helm-nginx-1.0.0-abc123",
+		jn("charts", "prometheus"): "helm-prometheus-2.0.0-def456",
 	}
 
 	t.Run("finds cache name for known chart", func(t *testing.T) {
 		t.Parallel()
-		result := findCacheNameForChart(linksMap, "/some/vendor/charts/nginx", "charts")
+		result := findCacheNameForChart(linksMap, jn("some", "vendor", "charts", "nginx"), "charts")
 		assert.Equal(t, "helm-nginx-1.0.0-abc123", result)
 	})
 
 	t.Run("returns empty string for unknown chart", func(t *testing.T) {
 		t.Parallel()
-		result := findCacheNameForChart(linksMap, "/some/vendor/charts/unknown", "charts")
+		result := findCacheNameForChart(linksMap, jn("some", "vendor", "charts", "unknown"), "charts")
 		assert.Empty(t, result)
 	})
 
 	t.Run("handles custom helmChartsDirName", func(t *testing.T) {
 		t.Parallel()
 		customLinksMap := map[string]string{
-			"helm-charts/nginx": "helm-nginx-1.0.0-abc123",
+			jn("helm-charts", "nginx"): "helm-nginx-1.0.0-abc123",
 		}
-		result := findCacheNameForChart(customLinksMap, "/vendor/helm-charts/nginx", "helm-charts")
+		result := findCacheNameForChart(customLinksMap, jn("vendor", "helm-charts", "nginx"), "helm-charts")
 		assert.Equal(t, "helm-nginx-1.0.0-abc123", result)
 	})
 }

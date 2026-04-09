@@ -93,8 +93,8 @@ func findCacheNameForChart(linksMap map[string]string, chartDir, helmChartsDirNa
 // buildChartOnce ensures helm dependencies are built at most once per chart cache entry per run.
 // The first goroutine per cacheName acquires the write lock and runs helm dependencies build;
 // subsequent goroutines wait for that result and skip the redundant build.
-// When cacheName is empty (chart not in the links map), falls back to a per-chart-dir key so
-// that apps sharing the same chart still deduplicate correctly.
+// When cacheName is empty (chart not in the links map), falls back to a per-chart-dir key.
+// This deduplicates concurrent builds of the same chart directory during the current run.
 func (hr *HelmSyncer) buildChartOnce(a *Application, cacheName, chartDir string) error {
 	key := cacheName
 	if key == "" {
