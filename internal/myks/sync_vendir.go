@@ -24,8 +24,10 @@ const (
 	vendirConfigKindConfig = "Config"
 )
 
-// syncResult tracks the outcome of a vendir sync for a single cache entry.
-// Used by the singleflight deduplication to let waiting goroutines reuse the result.
+// syncResult is a singleflight primitive that tracks the outcome of a deduplicated operation.
+// The first goroutine creates the result and closes done when finished; waiting goroutines
+// block on done and then read err.
+// Used by VendirSyncer (cache sync dedup) and HelmSyncer (chart build dedup).
 type syncResult struct {
 	done chan struct{}
 	err  error
