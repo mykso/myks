@@ -115,8 +115,9 @@ func (hr *HelmSyncer) buildChartOnce(a *Application, cacheName, chartDir string)
 	defer close(result.done)
 
 	// Only the singleflight winner acquires the write lock and builds.
-	// The write lock coordinates with the render phase's read lock on the same cache name,
-	// preventing reads of partially-built chart data during helm dependency download.
+	// The write lock is taken on the dedup/lock key (`key`), which is the cache name when available
+	// and otherwise falls back to the chart directory. This coordinates with any render-phase read lock
+	// taken on the same key, preventing reads of partially-built chart data during helm dependency download.
 	unlock := hr.locker.LockNames(slices.Values([]string{key}), true)
 	defer unlock()
 

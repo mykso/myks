@@ -329,12 +329,6 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 		}
 	}
 
-	// Save the per-app links map first — it writes to an app-specific path,
-	// so no cross-app coordination is needed.
-	if err := v.saveLinksMap(a, vendorDirToCacheMap); err != nil {
-		return err
-	}
-
 	// Write per-cache vendir configs using a singleflight: the first goroutine to
 	// encounter a given cache name writes the file; others wait and reuse the result.
 	// This eliminates the previous bulk write lock, which serialized all apps sharing
@@ -343,6 +337,13 @@ func (v *VendirSyncer) extractCacheItems(a *Application) error {
 		if err := v.ensureCacheConfig(a, cacheName, cacheVendirConfig); err != nil {
 			return err
 		}
+	}
+
+	// Save the per-app links map after the cache configs are successfully ensured,
+	// so the on-disk links map only points at cache entries whose vendir.yaml was
+	// successfully written.
+	if err := v.saveLinksMap(a, vendorDirToCacheMap); err != nil {
+		return err
 	}
 
 	return nil
