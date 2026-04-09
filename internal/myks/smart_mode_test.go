@@ -327,6 +327,19 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			},
 		},
 		{
+			// Regression guard: verifies pruneNestedEnvAppMap is called in runSmartMode.
+			// Without the call, the result would be {envs: nil, envs/env1: [app1]}.
+			"root _env wildcard prunes nested env entries",
+			ChangedFiles{
+				"envs/_env/argocd/some-file.yaml":             "?",
+				"envs/env1/_apps/app1/app-data.variable.yaml": "M",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs": nil,
+			},
+		},
+		{
 			"changes in rendered envs",
 			ChangedFiles{
 				"rendered/envs/env1-id/app1/some-file.yaml": "M",
@@ -455,6 +468,93 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				sort.Strings(apps)
 			}
 			assertEqual(t, envAppsMap, tt.envAppsMap)
+		})
+	}
+}
+
+func Test_squashEnvPaths(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []string
+		want []string
+	}{
+		{
+			"ancestor dominates descendant",
+			[]string{"envs/prod", "envs/prod/eu"},
+			[]string{"envs/prod"},
+		},
+		{
+			"siblings are kept",
+			[]string{"envs/prod/eu", "envs/prod/us", "envs/staging"},
+			[]string{"envs/prod/eu", "envs/prod/us", "envs/staging"},
+		},
+		{
+			"dedup and squash",
+			[]string{"envs/prod", "envs/prod", "envs/prod/eu/a"},
+			[]string{"envs/prod"},
+		},
+		{
+			"empty input",
+			[]string{},
+			[]string{},
+		},
+		{
+			"single path",
+			[]string{"envs/prod"},
+			[]string{"envs/prod"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := squashEnvPaths(tt.in)
+			sort.Strings(got)
+			sort.Strings(tt.want)
+			assertEqual(t, got, tt.want)
+		})
+	}
+}
+
+func Test_pruneNestedEnvAppMap(t *testing.T) {
+	tests := []struct {
+		name string
+		in   EnvAppMap
+		want EnvAppMap
+	}{
+		{
+			"descendant with apps pruned under wildcard ancestor",
+			EnvAppMap{"envs/prod": nil, "envs/prod/eu": {"app1"}},
+			EnvAppMap{"envs/prod": nil},
+		},
+		{
+			"no wildcard — nothing pruned",
+			EnvAppMap{"envs/prod": {"app1"}, "envs/prod/eu": {"app2"}},
+			EnvAppMap{"envs/prod": {"app1"}, "envs/prod/eu": {"app2"}},
+		},
+		{
+			"unrelated env not pruned",
+			EnvAppMap{"envs/prod": nil, "envs/staging/eu": {"app1"}},
+			EnvAppMap{"envs/prod": nil, "envs/staging/eu": {"app1"}},
+		},
+		{
+			"wildcard itself not pruned",
+			EnvAppMap{"envs/prod": nil},
+			EnvAppMap{"envs/prod": nil},
+		},
+		{
+			"multiple wildcards",
+			EnvAppMap{
+				"envs/prod":    nil,
+				"envs/staging": nil,
+				"envs/prod/eu": {"app1"},
+				"envs/qa":      {"app2"},
+			},
+			EnvAppMap{"envs/prod": nil, "envs/staging": nil, "envs/qa": {"app2"}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pruneNestedEnvAppMap(tt.in)
+			assertEqual(t, tt.in, tt.want)
 		})
 	}
 }
