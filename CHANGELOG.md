@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.12.2](https://github.com/mykso/myks/compare/v5.12.1...v5.12.2) (2026-04-09)
+
+
+### Performance Improvements
+
+* reduce lock contention in sync pipeline via singleflight dedup ([#796](https://github.com/mykso/myks/issues/796)) ([5fa375e](https://github.com/mykso/myks/commit/5fa375e2558066ec3eba59c665175c8e3d574e47))
+
 ## [5.12.1](https://github.com/mykso/myks/compare/v5.12.0...v5.12.1) (2026-04-09)
 
 
