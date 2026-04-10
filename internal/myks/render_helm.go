@@ -142,6 +142,19 @@ func (h *Helm) warnOnOrphanConfigs(helmConfig *HelmConfig, charts []string) {
 	}
 }
 
+// helmValuesSourceFiles returns all helm values source files for this application.
+// It collects global values (_global.*yaml) and per-chart values (*.*yaml) from:
+//   - prototypes/<prototype>/helm/
+//   - envs/**/_proto/<prototype>/helm/ (at each env hierarchy level)
+//   - envs/**/_apps/<app>/helm/ (at each env hierarchy level)
+//
+// This is a broad collection of all helm config files; during rendering each
+// chart uses only the files matching its own name via prepareValuesFile.
+// Used by both helm render and inspect.
+func (a *Application) helmValuesSourceFiles() []string {
+	return a.collectAllFilesByGlob(filepath.Join(a.cfg.HelmStepDirName, "*.*yaml"))
+}
+
 func (h *Helm) getHelmConfig() (HelmConfig, error) {
 	dataValuesYaml, err := h.app.ytt(h.getStepName(), "get helm config", h.app.yttDataFiles, "--data-values-inspect")
 	if err != nil {

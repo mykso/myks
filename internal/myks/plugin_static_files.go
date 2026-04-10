@@ -9,29 +9,39 @@ import (
 // StaticFilesStepName is the step name identifier for the static files copy plugin.
 const StaticFilesStepName = "static-files"
 
+// staticFilesSourceDirs returns the source directories containing static files for this application.
+// It searches in:
+//  1. prototypes/<prototype>/static/
+//  2. envs/**/_proto/<prototype>/static/ (at each env hierarchy level)
+//  3. envs/**/_env/static/ (at each env hierarchy level)
+//  4. envs/**/_apps/<app>/static/ (at each env hierarchy level)
+//
+// Used by both static files copy and inspect.
+func (a *Application) staticFilesSourceDirs() ([]string, error) {
+	var dirs []string
+
+	prototypeStaticFilesDir := filepath.Join(a.Prototype, a.cfg.StaticFilesDirName)
+	if ok, err := isExist(prototypeStaticFilesDir); err != nil {
+		return nil, err
+	} else if ok {
+		dirs = append(dirs, prototypeStaticFilesDir)
+	}
+	dirs = append(dirs, a.e.collectBySubpath(filepath.Join(a.cfg.PrototypeOverrideDir, a.prototypeDirName(), a.cfg.StaticFilesDirName))...)
+	dirs = append(dirs, a.e.collectBySubpath(filepath.Join(a.cfg.EnvsDir, a.cfg.StaticFilesDirName))...)
+	dirs = append(dirs, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.StaticFilesDirName))...)
+
+	return dirs, nil
+}
+
 func (a *Application) copyStaticFiles() error {
 	logStaticFiles := func(files []string) {
 		log.Trace().Strs("staticFiles", files).Msg(a.Msg(StaticFilesStepName, "Static files"))
 	}
-	staticFilesDirs := []string{}
 
-	// 1. Static files from the prototype
-	prototypeStaticFilesDir := filepath.Join(a.Prototype, a.cfg.StaticFilesDirName)
-	if ok, err := isExist(prototypeStaticFilesDir); err != nil {
+	staticFilesDirs, err := a.staticFilesSourceDirs()
+	if err != nil {
 		return err
-	} else if ok {
-		staticFilesDirs = append(staticFilesDirs, prototypeStaticFilesDir)
 	}
-	logStaticFiles(staticFilesDirs)
-	// 2. Static files from prototype overrides
-	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.cfg.PrototypeOverrideDir, a.prototypeDirName(), a.cfg.StaticFilesDirName))...)
-	logStaticFiles(staticFilesDirs)
-
-	// 3. Static files from the environment
-	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.cfg.EnvsDir, a.cfg.StaticFilesDirName))...)
-	logStaticFiles(staticFilesDirs)
-	// 4. Static files from the application
-	staticFilesDirs = append(staticFilesDirs, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.StaticFilesDirName))...)
 	logStaticFiles(staticFilesDirs)
 
 	staticFilesDestination := filepath.Join(a.getDestinationDir(), a.cfg.StaticFilesDirName)

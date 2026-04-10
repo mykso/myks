@@ -107,37 +107,52 @@ func (v *VendirSyncer) Sync(a *Application, vendirSecrets string) error {
 	return nil
 }
 
-// creates vendir yaml file
-func (v *VendirSyncer) renderVendirConfig(a *Application) error {
-	// Collect ytt arguments following the following steps:
-	// 1. If exists, use the `apps/<prototype>/vendir` directory.
-	// 2. If exists, for every level of environments use `<env>/_apps/<app>/vendir` directory.
-
-	var yttFiles []string
+// vendirSourceFiles returns the vendir-specific source directories for this application.
+// It searches in:
+//   - prototypes/_vendir/ (shared vendir base, prepended if present)
+//   - prototypes/<prototype>/vendir/
+//   - envs/**/_apps/<app>/vendir/ (at each env hierarchy level)
+//
+// Returns an empty slice when no vendir config exists.
+// Used by both vendir sync and inspect.
+func (a *Application) vendirSourceFiles() ([]string, error) {
+	var files []string
 
 	protoVendirDir := filepath.Join(a.Prototype, "vendir")
 	if ok, err := isExist(protoVendirDir); err != nil {
-		return fmt.Errorf("checking prototype vendir dir %s: %w", protoVendirDir, err)
+		return nil, fmt.Errorf("checking prototype vendir dir %s: %w", protoVendirDir, err)
 	} else if ok {
-		yttFiles = append(yttFiles, protoVendirDir)
+		files = append(files, protoVendirDir)
 	}
 
-	appVendirDirs := a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, "vendir"))
-	yttFiles = append(yttFiles, appVendirDirs...)
+	files = append(files, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, "vendir"))...)
 
-	if len(yttFiles) == 0 {
-		return ErrNoVendirConfig
+	if len(files) == 0 {
+		return nil, nil
 	}
 
 	baseDir := filepath.Join(a.cfg.PrototypesDir, "_vendir")
 	if ok, err := isExist(baseDir); err != nil {
-		return fmt.Errorf("checking vendir base dir %s: %w", baseDir, err)
+		return nil, fmt.Errorf("checking vendir base dir %s: %w", baseDir, err)
 	} else if ok {
-		yttFiles = slices.Insert(yttFiles, 0, baseDir)
+		files = slices.Insert(files, 0, baseDir)
+	}
+
+	return files, nil
+}
+
+// creates vendir yaml file
+func (v *VendirSyncer) renderVendirConfig(a *Application) error {
+	vendirFiles, err := a.vendirSourceFiles()
+	if err != nil {
+		return err
+	}
+	if len(vendirFiles) == 0 {
+		return ErrNoVendirConfig
 	}
 
 	// add environment, prototype, and application data files
-	yttFiles = slices.Insert(yttFiles, 0, a.yttDataFiles...)
+	yttFiles := slices.Concat(a.yttDataFiles, vendirFiles)
 
 	// create vendir config yaml
 	vendirConfig, err := a.yttS(v.getStepName(), "creating vendir config", yttFiles, nil)

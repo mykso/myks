@@ -38,6 +38,13 @@ func (g *GlobalYtt) IsAdditive() bool {
 	return g.additive
 }
 
+// globalYttSourceFiles returns the environment-level ytt overlay directories for this application.
+// It searches `envs/**/_env/ytt/` at each env hierarchy level.
+// Used by both global ytt render and inspect.
+func (a *Application) globalYttSourceFiles() []string {
+	return a.e.collectBySubpath(filepath.Join(a.cfg.EnvsDir, a.cfg.YttStepDirName))
+}
+
 func (g *GlobalYtt) Render(previousStepFile string) (string, error) {
 	yttFiles := make([]string, len(g.app.yttDataFiles))
 	copy(yttFiles, g.app.yttDataFiles)
@@ -48,8 +55,7 @@ func (g *GlobalYtt) Render(previousStepFile string) (string, error) {
 
 	// Global or environment-specific ytt files.
 	// By default, located in `envs/<env>/_env/ytt`.
-	globalYttFiles := g.app.e.collectBySubpath(filepath.Join(g.app.cfg.EnvsDir, g.app.cfg.YttStepDirName))
-	yttFiles = append(yttFiles, globalYttFiles...)
+	yttFiles = append(yttFiles, g.app.globalYttSourceFiles()...)
 
 	if len(yttFiles) == 0 {
 		log.Debug().Msg(g.app.Msg(globalYttStepName, "No ytt files found"))

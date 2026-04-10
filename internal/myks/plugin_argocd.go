@@ -31,19 +31,23 @@ argocd:
       targetRevision: "{{ .TargetRevision }}"
 `
 
+// argoCDEnvSourceFiles returns the source files used to render the ArgoCD environment (AppProject) yaml.
+// It includes the API library, env-data files, and environment-level argocd overlays.
+// Used by both ArgoCD env render and inspect.
+func (e *Environment) argoCDEnvSourceFiles() []string {
+	files := []string{e.getYttLibAPIDir()}
+	files = append(files, e.collectBySubpath(e.cfg.EnvironmentDataFileName)...)
+	files = append(files, e.collectBySubpath(filepath.Join(e.cfg.EnvsDir, e.cfg.ArgoCDDataDirName))...)
+	return files
+}
+
 func (e *Environment) renderArgoCD() error {
 	if !e.argoCDEnabled {
 		log.Debug().Msg(e.Msg("ArgoCD is disabled"))
 		return nil
 	}
 
-	// 1. API library with rendered environment data (enables `myks` library in overlays)
-	yttFiles := []string{e.getYttLibAPIDir()}
-	// 2a. Global data values schema and library files are added later in the e.yttS call
-	// 2b. Collection of environment main data values and schemas
-	yttFiles = append(yttFiles, e.collectBySubpath(e.cfg.EnvironmentDataFileName)...)
-	// 3. Collection of environment argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, e.collectBySubpath(filepath.Join(e.cfg.EnvsDir, e.cfg.ArgoCDDataDirName))...)
+	yttFiles := e.argoCDEnvSourceFiles()
 
 	res, err := e.yttS(
 		"create ArgoCD project yaml",
@@ -66,6 +70,30 @@ func (e *Environment) getArgoCDDestinationDir() string {
 	return filepath.Join(e.cfg.RootDir, e.cfg.RenderedArgoDir, e.ID)
 }
 
+// argoCDAppSourceFiles returns the ArgoCD-specific source files for this application.
+// It searches in:
+//   - prototypes/<prototype>/argocd/
+//   - envs/**/_env/argocd/ (at each env hierarchy level)
+//   - envs/**/_apps/<app>/argocd/ (at each env hierarchy level)
+//
+// Note: the dynamically generated argocd_defaults.ytt.yaml is NOT included here
+// as it is a runtime artifact, not a source file.
+// Used by both ArgoCD app render and inspect.
+func (a *Application) argoCDAppSourceFiles() ([]string, error) {
+	var files []string
+
+	prototypeArgoCDDir := filepath.Join(a.Prototype, a.cfg.ArgoCDDataDirName)
+	if ok, err := isExist(prototypeArgoCDDir); err != nil {
+		return nil, err
+	} else if ok {
+		files = append(files, prototypeArgoCDDir)
+	}
+	files = append(files, a.e.collectBySubpath(filepath.Join(a.cfg.EnvsDir, a.cfg.ArgoCDDataDirName))...)
+	files = append(files, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.ArgoCDDataDirName))...)
+
+	return files, nil
+}
+
 func (a *Application) renderArgoCD() error {
 	if !a.argoCDEnabled {
 		log.Debug().Msg(a.Msg(ArgoCDStepName, "ArgoCD is disabled"))
@@ -78,21 +106,16 @@ func (a *Application) renderArgoCD() error {
 	}
 
 	// 0. Global data values schema and library files are added later in the a.yttS call
-	// 1. Dynamic ArgoCD default values
+	// 1. Dynamic ArgoCD default values (generated, not a source file)
 	yttFiles := []string{defaultsPath}
 	// 2. Collection of application main data values and schemas
 	yttFiles = append(yttFiles, a.yttDataFiles...)
-	// 3. Use argocd-specific data values, schemas, and overlays from the prototype
-	prototypeArgoCDDir := filepath.Join(a.Prototype, a.cfg.ArgoCDDataDirName)
-	if ok, errExists := isExist(prototypeArgoCDDir); errExists != nil {
-		return errExists
-	} else if ok {
-		yttFiles = append(yttFiles, prototypeArgoCDDir)
+	// 3-5. ArgoCD-specific source files
+	argoCDFiles, err := a.argoCDAppSourceFiles()
+	if err != nil {
+		return err
 	}
-	// 4. Collection of environment argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.cfg.EnvsDir, a.cfg.ArgoCDDataDirName))...)
-	// 5. Collection of application argocd-specific data values and schemas, and overlays
-	yttFiles = append(yttFiles, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.ArgoCDDataDirName))...)
+	yttFiles = append(yttFiles, argoCDFiles...)
 
 	res, err := a.yttS(
 		"argocd",
