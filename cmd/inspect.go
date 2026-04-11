@@ -113,6 +113,31 @@ func outputFormat(cmd *cobra.Command) string {
 
 // ── inspect envs ──────────────────────────────────────────────────────────────
 
+const inspectEnvsUsageTemplate = `Usage:
+  {{.CommandPath}} [env-selector] [flags]
+
+Arguments:
+  env-selector    (Optional) Comma-separated list of environments or ALL
+                  When omitted, all environments are processed.
+                  ALL will also process all environments.
+                  Examples: ALL
+                            prod,stage,dev
+                            prod/region1,stage/region1
+                            dev
+
+{{if .HasAvailableFlags}}Flags:
+{{.Flags.FlagUsages | trimTrailingWhitespaces}}{{end}}
+Examples:
+  # Inspect all environments
+  {{.CommandPath}}
+
+  # Inspect specific environments
+  {{.CommandPath}} prod,stage
+
+  # Inspect all environments explicitly
+  {{.CommandPath}} ALL
+`
+
 func newInspectEnvsCmd() *cobra.Command {
 	var dataValues bool
 
@@ -149,10 +174,44 @@ func newInspectEnvsCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&dataValues, "data-values", false, "include final resolved ytt data values")
+	cmd.SetUsageTemplate(inspectEnvsUsageTemplate)
 	return cmd
 }
 
 // ── inspect apps ──────────────────────────────────────────────────────────────
+
+const inspectAppsUsageTemplate = `Usage:
+  {{.CommandPath}} [env-selector [app-selector]] [flags]
+
+Arguments:
+  env-selector    (Optional) Comma-separated list of environments or ALL
+                  When omitted, all environments are processed.
+                  ALL will also process all environments.
+                  Examples: ALL
+                            prod,stage,dev
+                            prod/region1,stage/region1
+
+  app-selector    (Optional) Comma-separated list of applications or ALL
+                  When omitted, all applications are processed.
+                  ALL will also process all applications.
+                  Examples: ALL
+                            app1,app2
+
+{{if .HasAvailableFlags}}Flags:
+{{.Flags.FlagUsages | trimTrailingWhitespaces}}{{end}}
+Examples:
+  # Inspect all apps in all environments
+  {{.CommandPath}}
+
+  # Inspect all apps in production and staging
+  {{.CommandPath}} prod,stage ALL
+
+  # Inspect specific apps in all environments
+  {{.CommandPath}} ALL app1,app2
+
+  # Inspect specific apps in specific environments
+  {{.CommandPath}} prod,stage app1,app2
+`
 
 func newInspectAppsCmd() *cobra.Command {
 	var dataValues bool
@@ -187,6 +246,7 @@ func newInspectAppsCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&dataValues, "data-values", false, "include final resolved ytt data values")
 	cmd.Flags().BoolVar(&rendered, "rendered", false, "include rendered artifacts from .myks/ if available")
+	cmd.SetUsageTemplate(inspectAppsUsageTemplate)
 	return cmd
 }
 

@@ -119,20 +119,20 @@ func (v *VendirSyncer) Sync(a *Application, vendirSecrets string) error {
 func (a *Application) vendirSourceFiles() ([]string, error) {
 	var files []string
 
-	protoVendirDir := filepath.Join(a.Prototype, "vendir")
+	protoVendirDir := filepath.Join(a.Prototype, a.cfg.VendirStepDirName)
 	if ok, err := isExist(protoVendirDir); err != nil {
 		return nil, fmt.Errorf("checking prototype vendir dir %s: %w", protoVendirDir, err)
 	} else if ok {
 		files = append(files, protoVendirDir)
 	}
 
-	files = append(files, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, "vendir"))...)
+	files = append(files, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.VendirStepDirName))...)
 
 	if len(files) == 0 {
 		return nil, nil
 	}
 
-	baseDir := filepath.Join(a.cfg.RootDir, a.cfg.PrototypesDir, "_vendir")
+	baseDir := filepath.Join(a.cfg.RootDir, a.cfg.PrototypesDir, "_"+a.cfg.VendirStepDirName)
 	if ok, err := isExist(baseDir); err != nil {
 		return nil, fmt.Errorf("checking vendir base dir %s: %w", baseDir, err)
 	} else if ok {
