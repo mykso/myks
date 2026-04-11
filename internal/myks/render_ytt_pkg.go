@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 type YttPkg struct {
@@ -116,6 +117,17 @@ func (y *YttPkg) Render(_ string) (string, error) {
 	log.Info().Msg(y.app.Msg(y.getStepName(), "Ytt package rendered"))
 
 	return strings.Join(outputs, "---\n"), nil
+}
+
+// yttPkgValuesSourceFiles returns all ytt-pkg values source files for this application.
+// It collects global values (_global.*yaml) and per-package values (*.*yaml) from:
+//   - prototypes/<prototype>/ytt-pkg/
+//   - envs/**/_proto/<prototype>/ytt-pkg/ (at each env hierarchy level)
+//   - envs/**/_apps/<app>/ytt-pkg/ (at each env hierarchy level)
+//
+// Used by both ytt-pkg render and inspect.
+func (a *Application) yttPkgValuesSourceFiles() []string {
+	return a.collectAllFilesByGlob(filepath.Join(a.cfg.YttPkgStepDirName, "*.*yaml"))
 }
 
 func (y *YttPkg) getStepName() string {

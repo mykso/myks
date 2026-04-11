@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mykso/myks/internal/locker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 // TestStatsPopulatedAfterAcquireUnlock verifies that acquire/release increments

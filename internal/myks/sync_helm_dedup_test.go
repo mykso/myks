@@ -7,9 +7,10 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/mykso/myks/internal/locker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 func TestBuildChartOnceWithinRunDedup(t *testing.T) {

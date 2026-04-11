@@ -8,8 +8,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 // StepMetric holds aggregated timing and resource usage metrics for a rendering step.

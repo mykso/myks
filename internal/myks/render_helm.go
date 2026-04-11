@@ -6,8 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 type Helm struct {
@@ -140,6 +141,19 @@ func (h *Helm) warnOnOrphanConfigs(helmConfig *HelmConfig, charts []string) {
 			log.Warn().Msg(h.app.Msg(h.getStepName(), fmt.Sprintf("'%s' values file doesn't belong to any chart", valuesFile)))
 		}
 	}
+}
+
+// helmValuesSourceFiles returns all helm values source files for this application.
+// It collects global values (_global.*yaml) and per-chart values (*.*yaml) from:
+//   - prototypes/<prototype>/helm/
+//   - envs/**/_proto/<prototype>/helm/ (at each env hierarchy level)
+//   - envs/**/_apps/<app>/helm/ (at each env hierarchy level)
+//
+// This is a broad collection of all helm config files; during rendering each
+// chart uses only the files matching its own name via prepareValuesFile.
+// Used by both helm render and inspect.
+func (a *Application) helmValuesSourceFiles() []string {
+	return a.collectAllFilesByGlob(filepath.Join(a.cfg.HelmStepDirName, "*.*yaml"))
 }
 
 func (h *Helm) getHelmConfig() (HelmConfig, error) {

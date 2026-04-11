@@ -8,8 +8,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 // HelmSyncer is responsible for building Helm charts' dependencies.
