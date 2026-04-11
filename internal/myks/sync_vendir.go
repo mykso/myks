@@ -132,7 +132,7 @@ func (a *Application) vendirSourceFiles() ([]string, error) {
 		return nil, nil
 	}
 
-	baseDir := filepath.Join(a.cfg.PrototypesDir, "_vendir")
+	baseDir := filepath.Join(a.cfg.RootDir, a.cfg.PrototypesDir, "_vendir")
 	if ok, err := isExist(baseDir); err != nil {
 		return nil, fmt.Errorf("checking vendir base dir %s: %w", baseDir, err)
 	} else if ok {

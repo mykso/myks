@@ -83,8 +83,8 @@ func (g *Globe) InspectEnvironments(includeDataValues bool) ([]InspectEnvironmen
 		entry := InspectEnvironment{
 			ID:          env.ID,
 			Dir:         env.Dir,
-			RenderedDir: filepath.Join(g.RenderedEnvsDir, env.ID),
-			ArgoDir:     filepath.Join(g.RenderedArgoDir, env.ID),
+			RenderedDir: filepath.Join(g.RootDir, g.RenderedEnvsDir, env.ID),
+			ArgoDir:     filepath.Join(g.RootDir, g.RenderedArgoDir, env.ID),
 			ConfigFiles: env.collectBySubpath(g.EnvironmentDataFileName),
 		}
 
@@ -165,7 +165,7 @@ func (g *Globe) InspectPrototypes() ([]InspectPrototype, error) {
 		if entry.IsDir() && !isInternalDir(entry.Name()) {
 			byName[entry.Name()] = &InspectPrototype{
 				Name: entry.Name(),
-				Dir:  filepath.Join(g.PrototypesDir, entry.Name()),
+				Dir:  filepath.Join(g.RootDir, g.PrototypesDir, entry.Name()),
 			}
 		}
 	}
@@ -177,7 +177,7 @@ func (g *Globe) InspectPrototypes() ([]InspectPrototype, error) {
 			if _, ok := byName[protoName]; !ok {
 				byName[protoName] = &InspectPrototype{
 					Name: protoName,
-					Dir:  filepath.Join(g.PrototypesDir, protoName),
+					Dir:  filepath.Join(g.RootDir, g.PrototypesDir, protoName),
 				}
 			}
 			byName[protoName].Usages = append(byName[protoName].Usages, InspectPrototypeUsage{
@@ -219,7 +219,7 @@ func (a *Application) inspectInstance(includeDataValues, includeRendered bool) (
 	instance := InspectAppInstance{
 		EnvironmentID:  a.e.ID,
 		EnvironmentDir: a.e.Dir,
-		Prototype:      a.Prototype,
+		Prototype:      a.prototypeDirName(),
 		RenderedDir:    a.getDestinationDir(),
 		ServiceDir:     a.expandServicePath(""),
 		CommonFiles: InspectCommonFiles{
@@ -301,7 +301,7 @@ func (a *Application) inspectStepFiles() (map[string][]string, error) {
 // error, so that real I/O problems (e.g. permission denied) are surfaced rather than
 // silently treated as "artifact not present".
 func (a *Application) warnIfUnexpectedReadErr(err error, path, msg string) {
-	if !os.IsNotExist(err) {
+	if err != nil && !os.IsNotExist(err) {
 		log.Warn().Err(err).Str("path", path).Msg(a.Msg("inspect", msg))
 	}
 }
