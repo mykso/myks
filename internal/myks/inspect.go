@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+
+	"github.com/rs/zerolog/log"
 )
 
 // InspectEnvironment holds inspection data for a single environment.
@@ -295,6 +297,15 @@ func (a *Application) inspectStepFiles() (map[string][]string, error) {
 	return result, nil
 }
 
+// warnIfUnexpectedReadErr logs a warning when err is non-nil and not an os.ErrNotExist
+// error, so that real I/O problems (e.g. permission denied) are surfaced rather than
+// silently treated as "artifact not present".
+func (a *Application) warnIfUnexpectedReadErr(err error, path, msg string) {
+	if !os.IsNotExist(err) {
+		log.Warn().Err(err).Str("path", path).Msg(a.Msg("inspect", msg))
+	}
+}
+
 // inspectRenderedArtifacts reads rendered artifacts from the .myks/ service directory.
 // Returns nil if no artifacts are present. Does not trigger rendering.
 func (a *Application) inspectRenderedArtifacts() *InspectRendered {
@@ -306,6 +317,8 @@ func (a *Application) inspectRenderedArtifacts() *InspectRendered {
 	if data, err := os.ReadFile(vendirConfigPath); err == nil {
 		rendered.VendirConfig = string(data)
 		hasContent = true
+	} else {
+		a.warnIfUnexpectedReadErr(err, vendirConfigPath, "Unable to read vendir config")
 	}
 
 	// Rendered helm values (skip unmerged_ files)
@@ -327,11 +340,15 @@ func (a *Application) inspectRenderedArtifacts() *InspectRendered {
 			if data, err := os.ReadFile(path); err == nil {
 				rendered.HelmValues[name] = string(data)
 				hasContent = true
+			} else {
+				a.warnIfUnexpectedReadErr(err, path, "Unable to read helm values file")
 			}
 		}
 		if len(rendered.HelmValues) == 0 {
 			rendered.HelmValues = nil
 		}
+	} else {
+		a.warnIfUnexpectedReadErr(err, helmDir, "Unable to read helm directory")
 	}
 
 	// Step outputs
@@ -346,11 +363,15 @@ func (a *Application) inspectRenderedArtifacts() *InspectRendered {
 			if data, err := os.ReadFile(path); err == nil {
 				rendered.StepOutputs[entry.Name()] = string(data)
 				hasContent = true
+			} else {
+				a.warnIfUnexpectedReadErr(err, path, "Unable to read step output file")
 			}
 		}
 		if len(rendered.StepOutputs) == 0 {
 			rendered.StepOutputs = nil
 		}
+	} else {
+		a.warnIfUnexpectedReadErr(err, stepsDir, "Unable to read steps directory")
 	}
 
 	if !hasContent {

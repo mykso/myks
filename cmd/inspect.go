@@ -3,6 +3,8 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	aurora "github.com/logrusorgru/aurora/v4"
@@ -22,9 +24,13 @@ func newInspectCmd() *cobra.Command {
 		Short: "Inspect environments, applications, and prototypes",
 		Long: `Display structural information about environments, applications, and prototypes.
 
-The inspect command provides read-only introspection without triggering rendering.
-It shows configuration file locations, rendered output paths, and relationships
-between environments, applications, and prototypes.`,
+The inspect command does not run the full sync/render pipeline (vendir, Helm,
+ytt, kbld, ArgoCD). It initializes environments and applications to resolve
+configuration, data values, and file paths, which writes intermediate files to
+the .myks/ service directory.`,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return validateOutputFormat(cmd)
+		},
 	}
 
 	inspectCmd.PersistentFlags().StringP("output", "o", inspectOutputText, `output format: "text" or "json"`)
@@ -67,6 +73,16 @@ func parseInspectEnvAppMap(args []string) myks.EnvAppMap {
 			}
 		}
 		return m
+	}
+}
+
+// validateOutputFormat returns an error if the --output flag has an unsupported value.
+func validateOutputFormat(cmd *cobra.Command) error {
+	switch outputFormat(cmd) {
+	case inspectOutputText, inspectOutputJSON:
+		return nil
+	default:
+		return fmt.Errorf("unsupported output format %q: must be %q or %q", outputFormat(cmd), inspectOutputText, inspectOutputJSON)
 	}
 }
 
@@ -213,16 +229,17 @@ func newInspectPrototypesCmd() *cobra.Command {
 
 // printOutput writes either JSON or human-readable text, depending on --output.
 func printOutput(cmd *cobra.Command, data any, textPrinter func()) error {
-	format := outputFormat(cmd)
-	switch format {
+	switch outputFormat(cmd) {
 	case inspectOutputJSON:
 		out, err := json.MarshalIndent(data, "", "  ")
 		if err != nil {
 			return fmt.Errorf("marshalling to JSON: %w", err)
 		}
 		fmt.Println(string(out))
-	default:
+	case inspectOutputText:
 		textPrinter()
+	default:
+		return fmt.Errorf("unsupported output format: %q", outputFormat(cmd))
 	}
 	return nil
 }
@@ -324,13 +341,13 @@ func printInspectStepFiles(stepFiles map[string][]string) {
 			fmt.Printf("      - %s\n", f)
 		}
 	}
-	// Print any steps not in the known order.
-	for step, files := range stepFiles {
+	// Print any steps not in the known order, sorted for deterministic output.
+	for _, step := range slices.Sorted(maps.Keys(stepFiles)) {
 		if printed[step] {
 			continue
 		}
 		fmt.Printf("    %s:\n", step)
-		for _, f := range files {
+		for _, f := range stepFiles[step] {
 			fmt.Printf("      - %s\n", f)
 		}
 	}
@@ -344,13 +361,13 @@ func printInspectRendered(r *myks.InspectRendered) {
 	}
 	if len(r.HelmValues) > 0 {
 		fmt.Println("    Helm values:")
-		for name := range r.HelmValues {
+		for _, name := range slices.Sorted(maps.Keys(r.HelmValues)) {
 			fmt.Printf("      - %s\n", name)
 		}
 	}
 	if len(r.StepOutputs) > 0 {
 		fmt.Println("    Step outputs:")
-		for name := range r.StepOutputs {
+		for _, name := range slices.Sorted(maps.Keys(r.StepOutputs)) {
 			fmt.Printf("      - %s\n", name)
 		}
 	}
