@@ -114,7 +114,7 @@ func (v *VendirSyncer) Sync(a *Application, vendirSecrets string) error {
 //   - prototypes/<prototype>/vendir/
 //   - envs/**/_apps/<app>/vendir/ (at each env hierarchy level)
 //
-// Returns an empty slice when no vendir config exists.
+// Returns nil when no vendir config exists.
 // Used by both vendir sync and inspect.
 func (a *Application) vendirSourceFiles() ([]string, error) {
 	var files []string

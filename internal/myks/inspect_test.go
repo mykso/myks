@@ -25,7 +25,7 @@ func newTestApp(t *testing.T) *Application {
 
 	return &Application{
 		Name:      "test-app",
-		Prototype: "prototypes/test-proto",
+		Prototype: filepath.Join(cfg.RootDir, cfg.PrototypesDir, "test-proto"),
 		e:         env,
 		cfg:       cfg,
 	}

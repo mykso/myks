@@ -53,14 +53,22 @@ func parseInspectEnvAppMap(args []string) myks.EnvAppMap {
 		m := make(myks.EnvAppMap)
 		g := getGlobe()
 		for env := range strings.SplitSeq(args[0], ",") {
-			m[g.ResolveEnvIdentifier(strings.TrimSpace(env))] = nil
+			env = strings.TrimSpace(env)
+			if env == "" {
+				continue
+			}
+			m[g.ResolveEnvIdentifier(env)] = nil
 		}
 		return m
 	default: // len >= 2
 		var appNames []string
 		if args[1] != allEnvsToken {
 			for app := range strings.SplitSeq(args[1], ",") {
-				appNames = append(appNames, strings.TrimSpace(app))
+				app = strings.TrimSpace(app)
+				if app == "" {
+					continue
+				}
+				appNames = append(appNames, app)
 			}
 		}
 		m := make(myks.EnvAppMap)
@@ -69,7 +77,11 @@ func parseInspectEnvAppMap(args []string) myks.EnvAppMap {
 			m[g.EnvironmentBaseDir] = appNames
 		} else {
 			for env := range strings.SplitSeq(args[0], ",") {
-				m[g.ResolveEnvIdentifier(strings.TrimSpace(env))] = appNames
+				env = strings.TrimSpace(env)
+				if env == "" {
+					continue
+				}
+				m[g.ResolveEnvIdentifier(env)] = appNames
 			}
 		}
 		return m
