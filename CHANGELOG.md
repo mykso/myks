@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.13.0](https://github.com/mykso/myks/compare/v5.12.2...v5.13.0) (2026-04-11)
+
+
+### Features
+
+* add `inspect` command ([#798](https://github.com/mykso/myks/issues/798)) ([11d7f49](https://github.com/mykso/myks/commit/11d7f496f8493569548ee1d2818a9d22e751b5ec))
+
 ## [5.12.2](https://github.com/mykso/myks/compare/v5.12.1...v5.12.2) (2026-04-09)
 
 
