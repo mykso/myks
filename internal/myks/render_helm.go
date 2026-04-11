@@ -6,8 +6,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 type Helm struct {

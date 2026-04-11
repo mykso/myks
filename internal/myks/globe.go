@@ -14,12 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/creasty/defaults"
-	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 // GlobalLogFormat is the printf format used for global-level log prefixes.

@@ -105,9 +105,9 @@ func newInspectEnvsCmd() *cobra.Command {
 	var dataValues bool
 
 	cmd := &cobra.Command{
-		Use:               "envs [env-selector]",
-		Short:             "Inspect environments",
-		Args:              cobra.MaximumNArgs(1),
+		Use:   "envs [env-selector]",
+		Short: "Inspect environments",
+		Args:  cobra.MaximumNArgs(1),
 		ValidArgsFunction: func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 			if len(args) > 0 {
 				return nil, cobra.ShellCompDirectiveNoFileComp
@@ -390,4 +390,3 @@ func printInspectPrototypes(protos []myks.InspectPrototype) {
 		}
 	}
 }
-

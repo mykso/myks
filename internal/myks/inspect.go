@@ -29,21 +29,21 @@ type InspectEnvironmentApp struct {
 
 // InspectApplication groups all environment instances of an application by name.
 type InspectApplication struct {
-	Name      string              `json:"name"`
+	Name      string               `json:"name"`
 	Instances []InspectAppInstance `json:"instances"`
 }
 
 // InspectAppInstance holds inspection data for one (environment, application) pair.
 type InspectAppInstance struct {
-	EnvironmentID  string             `json:"environmentId"`
-	EnvironmentDir string             `json:"environmentDir"`
-	Prototype      string             `json:"prototype"`
-	RenderedDir    string             `json:"renderedDir"`
-	ServiceDir     string             `json:"serviceDir"`
-	CommonFiles    InspectCommonFiles `json:"commonFiles"`
+	EnvironmentID  string              `json:"environmentId"`
+	EnvironmentDir string              `json:"environmentDir"`
+	Prototype      string              `json:"prototype"`
+	RenderedDir    string              `json:"renderedDir"`
+	ServiceDir     string              `json:"serviceDir"`
+	CommonFiles    InspectCommonFiles  `json:"commonFiles"`
 	StepFiles      map[string][]string `json:"stepFiles"`
-	DataValues     string             `json:"dataValues,omitempty"`
-	Rendered       *InspectRendered   `json:"rendered,omitempty"`
+	DataValues     string              `json:"dataValues,omitempty"`
+	Rendered       *InspectRendered    `json:"rendered,omitempty"`
 }
 
 // InspectCommonFiles holds the file paths shared across all rendering steps.

@@ -13,10 +13,11 @@ import (
 	"sync/atomic"
 
 	vendirconf "carvel.dev/vendir/pkg/vendir/config"
-	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 	goyaml "gopkg.in/yaml.v3"
 	"sigs.k8s.io/yaml"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 const (

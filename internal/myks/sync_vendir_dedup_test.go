@@ -8,9 +8,10 @@ import (
 	"testing"
 
 	vendirconf "carvel.dev/vendir/pkg/vendir/config"
-	"github.com/mykso/myks/internal/locker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 // jn joins path components using the OS path separator (alias for filepath.Join).

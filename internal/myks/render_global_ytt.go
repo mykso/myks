@@ -3,8 +3,9 @@ package myks
 import (
 	"path/filepath"
 
-	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 type GlobalYtt struct {

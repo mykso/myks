@@ -7,9 +7,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 const (

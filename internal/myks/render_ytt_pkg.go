@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/mykso/myks/internal/locker"
 	"github.com/rs/zerolog/log"
+
+	"github.com/mykso/myks/internal/locker"
 )
 
 type YttPkg struct {
