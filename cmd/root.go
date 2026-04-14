@@ -196,7 +196,7 @@ func checkMinVersion(current string) {
 }
 
 func initColors() {
-	if _, noColor := os.LookupEnv("NO_COLOR"); noColor || !term.IsTerminal(int(os.Stdout.Fd())) {
+	if _, noColor := os.LookupEnv("NO_COLOR"); noColor || !term.IsTerminal(int(os.Stdout.Fd())) { // #nosec G115 -- file descriptor fits in int
 		aurora.DefaultColorizer = aurora.New(aurora.WithColors(false))
 	}
 }
