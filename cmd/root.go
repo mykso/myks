@@ -10,10 +10,12 @@ import (
 	"time"
 
 	gv "github.com/hashicorp/go-version"
+	aurora "github.com/logrusorgru/aurora/v4"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/term"
 
 	"github.com/mykso/myks/cmd/embedded"
 	"github.com/mykso/myks/internal/myks"
@@ -36,6 +38,7 @@ var (
 
 // NewMyksCmd creates the root cobra command for the myks CLI.
 func NewMyksCmd(version, commit, date string) *cobra.Command {
+	cobra.OnInitialize(initColors)
 	cobra.OnInitialize(initLogger)
 	cobra.OnInitialize(func() { checkMinVersion(version) })
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
@@ -189,6 +192,12 @@ func checkMinVersion(current string) {
 	}
 	if v1.GreaterThan(v2) {
 		log.Error().Str("min-version", minVersion).Str("current-version", current).Msg("Current version is lower than min-version")
+	}
+}
+
+func initColors() {
+	if _, noColor := os.LookupEnv("NO_COLOR"); noColor || !term.IsTerminal(int(os.Stdout.Fd())) {
+		aurora.DefaultColorizer = aurora.New(aurora.WithColors(false))
 	}
 }
 

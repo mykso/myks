@@ -326,24 +326,24 @@ func printInspectEnvs(envs []myks.InspectEnvironment) {
 }
 
 func printInspectEnv(env *myks.InspectEnvironment) {
-	fmt.Printf("%s %s\n", aurora.Bold("Environment:"), aurora.Bold(env.ID))
-	fmt.Printf("  Dir:      %s\n", env.Dir)
-	fmt.Printf("  Rendered: %s\n", env.RenderedDir)
-	fmt.Printf("  ArgoCD:   %s\n", env.ArgoDir)
+	fmt.Printf("%s %s\n", aurora.Bold(aurora.Cyan("Environment:")), aurora.Bold(aurora.Cyan(env.ID)))
+	fmt.Printf("  %s %s\n", aurora.Bold("Dir:     "), aurora.Faint(env.Dir))
+	fmt.Printf("  %s %s\n", aurora.Bold("Rendered:"), aurora.Faint(env.RenderedDir))
+	fmt.Printf("  %s %s\n", aurora.Bold("ArgoCD:  "), aurora.Faint(env.ArgoDir))
 	if len(env.ConfigFiles) > 0 {
-		fmt.Println("  Config:")
+		fmt.Printf("  %s\n", aurora.Yellow("Config:"))
 		for _, f := range env.ConfigFiles {
-			fmt.Printf("    - %s\n", f)
+			fmt.Printf("    - %s\n", aurora.Faint(f))
 		}
 	}
 	if len(env.Applications) > 0 {
-		fmt.Println("  Applications:")
+		fmt.Printf("  %s\n", aurora.Yellow("Applications:"))
 		for _, app := range env.Applications {
-			fmt.Printf("    %-30s prototype: %s\n", app.Name, app.Prototype)
+			fmt.Printf("    %s %s %s\n", aurora.Green(fmt.Sprintf("%-30s", app.Name)), aurora.Faint("prototype:"), aurora.Green(app.Prototype))
 		}
 	}
 	if env.DataValues != "" {
-		fmt.Println("  Data Values:")
+		fmt.Printf("  %s\n", aurora.Yellow("Data Values:"))
 		for _, line := range strings.Split(strings.TrimRight(env.DataValues, "\n"), "\n") {
 			fmt.Printf("    %s\n", line)
 		}
@@ -358,7 +358,7 @@ func printInspectApps(apps []myks.InspectApplication) {
 		if i > 0 {
 			fmt.Println()
 		}
-		fmt.Printf("%s %s\n", aurora.Bold("Application:"), aurora.Bold(apps[i].Name))
+		fmt.Printf("%s %s\n", aurora.Bold(aurora.Cyan("Application:")), aurora.Bold(aurora.Cyan(apps[i].Name)))
 		for j := range apps[i].Instances {
 			fmt.Println()
 			printInspectAppInstance(&apps[i].Instances[j])
@@ -367,18 +367,18 @@ func printInspectApps(apps []myks.InspectApplication) {
 }
 
 func printInspectAppInstance(inst *myks.InspectAppInstance) {
-	fmt.Printf("  %s %s (%s)\n", aurora.Bold("Environment:"), inst.EnvironmentID, inst.EnvironmentDir)
-	fmt.Printf("  Prototype:  %s\n", inst.Prototype)
-	fmt.Printf("  Rendered:   %s\n", inst.RenderedDir)
-	fmt.Printf("  Service:    %s\n", inst.ServiceDir)
+	fmt.Printf("  %s %s %s\n", aurora.Bold(aurora.Cyan("Environment:")), aurora.Cyan(inst.EnvironmentID), aurora.Faint("("+inst.EnvironmentDir+")"))
+	fmt.Printf("  %s %s\n", aurora.Bold("Prototype: "), aurora.Green(inst.Prototype))
+	fmt.Printf("  %s %s\n", aurora.Bold("Rendered:  "), aurora.Faint(inst.RenderedDir))
+	fmt.Printf("  %s %s\n", aurora.Bold("Service:   "), aurora.Faint(inst.ServiceDir))
 
 	fmt.Println()
-	fmt.Println("  Common Files:")
+	fmt.Printf("  %s\n", aurora.Yellow("Common Files:"))
 	for _, f := range inst.CommonFiles.ExtraYttPaths {
-		fmt.Printf("    - %s\n", f)
+		fmt.Printf("    - %s\n", aurora.Faint(f))
 	}
 	for _, f := range inst.CommonFiles.YttDataFiles {
-		fmt.Printf("    - %s\n", f)
+		fmt.Printf("    - %s\n", aurora.Faint(f))
 	}
 
 	if len(inst.StepFiles) > 0 {
@@ -387,7 +387,7 @@ func printInspectAppInstance(inst *myks.InspectAppInstance) {
 
 	if inst.DataValues != "" {
 		fmt.Println()
-		fmt.Println("  Data Values:")
+		fmt.Printf("  %s\n", aurora.Yellow("Data Values:"))
 		for _, line := range strings.Split(strings.TrimRight(inst.DataValues, "\n"), "\n") {
 			fmt.Printf("    %s\n", line)
 		}
@@ -400,7 +400,7 @@ func printInspectAppInstance(inst *myks.InspectAppInstance) {
 
 func printInspectStepFiles(stepFiles map[string][]string) {
 	fmt.Println()
-	fmt.Println("  Step Files:")
+	fmt.Printf("  %s\n", aurora.Yellow("Step Files:"))
 	printed := map[string]bool{}
 	for _, step := range knownStepOrder {
 		files, ok := stepFiles[step]
@@ -408,9 +408,9 @@ func printInspectStepFiles(stepFiles map[string][]string) {
 			continue
 		}
 		printed[step] = true
-		fmt.Printf("    %s:\n", step)
+		fmt.Printf("    %s:\n", aurora.Green(step))
 		for _, f := range files {
-			fmt.Printf("      - %s\n", f)
+			fmt.Printf("      - %s\n", aurora.Faint(f))
 		}
 	}
 	// Print any steps not in the known order, sorted for deterministic output.
@@ -418,29 +418,29 @@ func printInspectStepFiles(stepFiles map[string][]string) {
 		if printed[step] {
 			continue
 		}
-		fmt.Printf("    %s:\n", step)
+		fmt.Printf("    %s:\n", aurora.Green(step))
 		for _, f := range stepFiles[step] {
-			fmt.Printf("      - %s\n", f)
+			fmt.Printf("      - %s\n", aurora.Faint(f))
 		}
 	}
 }
 
 func printInspectRendered(r *myks.InspectRendered) {
 	fmt.Println()
-	fmt.Println("  Rendered Artifacts:")
+	fmt.Printf("  %s\n", aurora.Yellow("Rendered Artifacts:"))
 	if r.VendirConfig != "" {
-		fmt.Println("    vendir.yaml: (present)")
+		fmt.Printf("    vendir.yaml: %s\n", aurora.Faint("(present)"))
 	}
 	if len(r.HelmValues) > 0 {
-		fmt.Println("    Helm values:")
+		fmt.Printf("    %s\n", aurora.Bold("Helm values:"))
 		for _, name := range slices.Sorted(maps.Keys(r.HelmValues)) {
-			fmt.Printf("      - %s\n", name)
+			fmt.Printf("      - %s\n", aurora.Green(name))
 		}
 	}
 	if len(r.StepOutputs) > 0 {
-		fmt.Println("    Step outputs:")
+		fmt.Printf("    %s\n", aurora.Bold("Step outputs:"))
 		for _, name := range slices.Sorted(maps.Keys(r.StepOutputs)) {
-			fmt.Printf("      - %s\n", name)
+			fmt.Printf("      - %s\n", aurora.Green(name))
 		}
 	}
 }
@@ -450,15 +450,15 @@ func printInspectPrototypes(protos []myks.InspectPrototype) {
 		if i > 0 {
 			fmt.Println()
 		}
-		fmt.Printf("%s %s\n", aurora.Bold("Prototype:"), aurora.Bold(proto.Name))
-		fmt.Printf("  Dir: %s\n", proto.Dir)
+		fmt.Printf("%s %s\n", aurora.Bold(aurora.Cyan("Prototype:")), aurora.Bold(aurora.Cyan(proto.Name)))
+		fmt.Printf("  %s %s\n", aurora.Bold("Dir:"), aurora.Faint(proto.Dir))
 		if len(proto.Usages) > 0 {
-			fmt.Println("  Used by:")
+			fmt.Printf("  %s\n", aurora.Yellow("Used by:"))
 			for _, u := range proto.Usages {
-				fmt.Printf("    %-30s in %s (%s)\n", u.AppName, u.EnvironmentID, u.EnvironmentDir)
+				fmt.Printf("    %s %s %s %s\n", aurora.Green(fmt.Sprintf("%-30s", u.AppName)), aurora.Faint("in"), aurora.Cyan(u.EnvironmentID), aurora.Faint("("+u.EnvironmentDir+")"))
 			}
 		} else {
-			fmt.Println("  Used by: (none)")
+			fmt.Printf("  Used by: %s\n", aurora.Faint("(none)"))
 		}
 	}
 }
