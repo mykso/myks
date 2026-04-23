@@ -1,9 +1,9 @@
 carvel.dev/imgpkg v0.47.2 h1:rEqC/Saf3PHmHEhaJMcqZLjatALTPD9VmBXuUYqPaGk=
 carvel.dev/imgpkg v0.47.2/go.mod h1:3vIZkREPq+i7s8eloLEv5+t+LzzC49uv9xeh+KLADdk=
-carvel.dev/kbld v0.47.2 h1:eokkq8iDYnC2dCoLXUyz69vMUk0oGkDi7+jshJBFNe4=
-carvel.dev/kbld v0.47.2/go.mod h1:/0JzUS+Q3zbSiPOGW7PiI1Zh6qMhozJ/UP0XRq9YgzI=
-carvel.dev/vendir v0.45.2 h1:oaOqEVgw/z4AZgCvZPgfY+JUFf3YGJSUTH2QLTyIV5A=
-carvel.dev/vendir v0.45.2/go.mod h1:R6wZyF61/mbTe4VpXBky0FiDNoCSIND+/LQvUJkkQVQ=
+carvel.dev/kbld v0.47.3 h1:2UhSW0wB7H6CFB5UStidgHreiD0JTASq2fLxv1MMm5o=
+carvel.dev/kbld v0.47.3/go.mod h1:ewl9fMraEfHxqrTjfOe/sU2x3m4g542YUzHn0CTfH40=
+carvel.dev/vendir v0.45.3 h1:crIwlGpsdvABTiUM71IbAaanavyET7+FhnI8hrd3x3U=
+carvel.dev/vendir v0.45.3/go.mod h1:ulOigkUjXfCYidNbHqNAtEf0MFnuwG4jhoEqG2giOnU=
 cloud.google.com/go/compute/metadata v0.7.0 h1:PBWF+iiAerVNe8UCHxdOt6eHLVc3ydFeOCw78U8ytSU=
 cloud.google.com/go/compute/metadata v0.7.0/go.mod h1:j5MvL9PprKL39t166CoB1uVHfQMs4tFQZZcKwksXUjo=
 github.com/Azure/azure-sdk-for-go v55.0.0+incompatible h1:L4/vUGbg1Xkw5L20LZD+hJI5I+ibWSytqQ68lTCfLwY=
@@ -73,8 +73,8 @@ github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.9.1 h1:50sS0RWhGpW/
 github.com/awslabs/amazon-ecr-credential-helper/ecr-login v0.9.1/go.mod h1:ErZOtbzuHabipRTDTor0inoRlYwbsV1ovwSxjGs/uJo=
 github.com/bmatcuk/doublestar v1.2.1 h1:eetYiv8DDYOZcBADY+pRvRytf3Dlz1FhnpvL2FsClBc=
 github.com/bmatcuk/doublestar v1.2.1/go.mod h1:wiQtGV+rzVYxB7WIlirSN++5HPtPlXEo9MEoZQC/PmE=
-github.com/carvel-dev/semver/v4 v4.0.1-0.20240402203627-beb83fbf25e4 h1:F4rZiMGZyC66j9VB7doVOE4tFHF1yNEihQlOuht4jmM=
-github.com/carvel-dev/semver/v4 v4.0.1-0.20240402203627-beb83fbf25e4/go.mod h1:4cFTBLAr/U11ykiEEQMccu4uJ1i0GS+atJmeETHCFtI=
+github.com/carvel-dev/semver/v4 v4.0.1-0.20260413160702-f136b2e8bf02 h1:LP+GFDwgIBQFld1EhQt3UaN1typu03sqU3eWCKM5Isk=
+github.com/carvel-dev/semver/v4 v4.0.1-0.20260413160702-f136b2e8bf02/go.mod h1:4cFTBLAr/U11ykiEEQMccu4uJ1i0GS+atJmeETHCFtI=
 github.com/cheggaaa/pb/v3 v3.1.7 h1:2FsIW307kt7A/rz/ZI2lvPO+v3wKazzE4K/0LtTWsOI=
 github.com/cheggaaa/pb/v3 v3.1.7/go.mod h1:/Ji89zfVPeC/u5j8ukD0MBPHt2bzTYp74lQ7KlgFWTQ=
 github.com/chrismellard/docker-credential-acr-env v0.0.0-20220327082430-c57b701bfc08 h1:9Qh4lJ/KMr5iS1zfZ8I97+3MDpiKjl+0lZVUNBhdvRs=
@@ -102,8 +102,8 @@ github.com/dimchansky/utfbom v1.1.0 h1:FcM3g+nofKgUteL8dm/UpdRXNC9KmADgTpLKsu0TR
 github.com/dimchansky/utfbom v1.1.0/go.mod h1:rO41eb7gLfo8SF1jd9F8HplJm1Fewwi4mQvIirEdv+8=
 github.com/dlclark/regexp2 v1.11.5 h1:Q/sSnsKerHeCkc/jSTNq1oCm7KiVgUMZRDUoRu0JQZQ=
 github.com/dlclark/regexp2 v1.11.5/go.mod h1:DHkYz0B9wPfa6wondMfaivmHpzrQ3v9q8cnmRbL6yW8=
-github.com/docker/cli v29.3.1+incompatible h1:M04FDj2TRehDacrosh7Vlkgc7AuQoWloQkf1PA5hmoI=
-github.com/docker/cli v29.3.1+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
+github.com/docker/cli v29.4.0+incompatible h1:+IjXULMetlvWJiuSI0Nbor36lcJ5BTcVpUmB21KBoVM=
+github.com/docker/cli v29.4.0+incompatible/go.mod h1:JLrzqnKDaYBop7H2jaqPtU4hHvMKP+vjCwu2uszcLI8=
 github.com/docker/docker-credential-helpers v0.9.3 h1:gAm/VtF9wgqJMoxzT3Gj5p4AqIjCBS4wrsOh9yRqcz8=
 github.com/docker/docker-credential-helpers v0.9.3/go.mod h1:x+4Gbw9aGmChi3qTLZj8Dfn0TD20M/fuWy0E5+WDeCo=
 github.com/fatih/color v1.18.0 h1:S8gINlzdQ840/4pfAwic/ZE0djQEH3wM94VfqLTZcOM=
@@ -139,8 +139,8 @@ github.com/google/go-cmp v0.5.2/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/
 github.com/google/go-cmp v0.5.9/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
 github.com/google/go-cmp v0.7.0 h1:wk8382ETsv4JYUZwIsn6YpYiWiBsYLSJiTsyBybVuN8=
 github.com/google/go-cmp v0.7.0/go.mod h1:pXiqmnSA92OHEEa9HXL2W4E7lf9JzCmGVUdgjX3N/iU=
-github.com/google/go-containerregistry v0.21.4 h1:VrhlIQtdhE6riZW//MjPrcJ1snAjPoCCpPHqGOygrv8=
-github.com/google/go-containerregistry v0.21.4/go.mod h1:kxgc23zQ2qMY/hAKt0wCbB/7tkeovAP2mE2ienynJUw=
+github.com/google/go-containerregistry v0.21.5 h1:KTJG9Pn/jC0VdZR6ctV3/jcN+q6/Iqlx0sTVz3ywZlM=
+github.com/google/go-containerregistry v0.21.5/go.mod h1:ySvMuiWg+dOsRW0Hw8GYwfMwBlNRTmpYBFJPlkco5zU=
 github.com/google/go-github v17.0.0+incompatible h1:N0LgJ1j65A7kfXrZnUDaYCs/Sf4rEjNlfyDHW9dolSY=
 github.com/google/go-github v17.0.0+incompatible/go.mod h1:zLgOLi98H3fifZn+44m+umXrS52loVEgC2AApnigrVQ=
 github.com/google/go-querystring v1.1.0 h1:AnCroh3fv4ZBgVIf1Iwtovgjaw/GiKJo8M8yD/fhyJ8=
