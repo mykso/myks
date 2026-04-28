@@ -5,7 +5,7 @@ go 1.25.7
 require (
 	carvel.dev/kbld v0.47.3
 	carvel.dev/vendir v0.45.3
-	carvel.dev/ytt v0.53.2
+	carvel.dev/ytt v0.54.0
 	github.com/alecthomas/chroma/v2 v2.23.1
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.8.0
@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/go-version v1.9.0
 	github.com/logrusorgru/aurora/v4 v4.0.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
-	github.com/rs/zerolog v1.35.0
+	github.com/rs/zerolog v1.35.1
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
