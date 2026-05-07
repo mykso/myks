@@ -54,7 +54,7 @@ var nul = []byte{0}
 func hashDirectory(dirPath string) (string, error) {
 	h := fnv.New64a()
 	hasherErr := func(err error) error {
-		return fmt.Errorf("writing to hasher: %w", err)
+		return fmt.Errorf("hashing directory %s: %w", dirPath, err)
 	}
 
 	root, err := os.OpenRoot(dirPath)
