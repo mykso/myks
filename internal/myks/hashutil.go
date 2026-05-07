@@ -79,6 +79,19 @@ func hashDirectory(dirPath string) (string, error) {
 		}
 
 		switch {
+		case d.IsDir():
+			// Skip the root itself; all other directories are hashed by path so
+			// that adding/removing empty directories invalidates the hash.
+			if relPath == "." {
+				return nil
+			}
+			// Hash: relPath NUL "dir" NUL
+			for _, part := range [][]byte{[]byte(relPath), nul, []byte("dir"), nul} {
+				if _, err := h.Write(part); err != nil {
+					return hasherErr(err)
+				}
+			}
+
 		case d.Type().IsRegular():
 			// Hash: relPath NUL file-content NUL
 			if _, err := h.Write([]byte(relPath)); err != nil {

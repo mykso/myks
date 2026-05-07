@@ -292,6 +292,11 @@ func (k *Kbld) getLockFileName(overridesFilePath string, sourcesDirPaths []strin
 		if _, err := sourcesHasher.Write([]byte(dirHash)); err != nil {
 			log.Warn().Err(err).Str("dir", dir).Msg(
 				k.app.Msg(k.getStepName(), "Unable to update sources hash, skipping"))
+			continue
+		}
+		if _, err := sourcesHasher.Write(nul); err != nil {
+			log.Warn().Err(err).Str("dir", dir).Msg(
+				k.app.Msg(k.getStepName(), "Unable to update sources hash separator, skipping"))
 		}
 	}
 	sourcesHash := fmt.Sprintf("%x", sourcesHasher.Sum64())
