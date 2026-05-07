@@ -56,7 +56,18 @@ func hashDirectory(dirPath string) (string, error) {
 	hasherErr := func(err error) error {
 		return fmt.Errorf("writing to hasher: %w", err)
 	}
-	err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
+
+	root, err := os.OpenRoot(dirPath)
+	if err != nil {
+		return "", fmt.Errorf("opening root directory %s: %w", dirPath, err)
+	}
+	defer func() {
+		if closeErr := root.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("Failed to close root directory")
+		}
+	}()
+
+	err = filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -76,9 +87,9 @@ func hashDirectory(dirPath string) (string, error) {
 			if _, err := h.Write(nul); err != nil {
 				return hasherErr(err)
 			}
-			file, err := os.Open(path)
+			file, err := root.Open(relPath)
 			if err != nil {
-				return fmt.Errorf("opening file %s: %w", path, err)
+				return fmt.Errorf("opening file %s: %w", relPath, err)
 			}
 			defer func() {
 				if closeErr := file.Close(); closeErr != nil {
@@ -96,9 +107,9 @@ func hashDirectory(dirPath string) (string, error) {
 			// Hash: relPath NUL "symlink:" linkTarget NUL
 			// We hash the link target string rather than following it to avoid
 			// infinite loops on circular symlinks.
-			linkTarget, err := os.Readlink(path)
+			linkTarget, err := root.Readlink(relPath)
 			if err != nil {
-				return fmt.Errorf("reading link %s: %w", path, err)
+				return fmt.Errorf("reading link %s: %w", relPath, err)
 			}
 			parts := [][]byte{[]byte(relPath), nul, []byte("symlink:" + linkTarget), nul}
 			for _, part := range parts {
