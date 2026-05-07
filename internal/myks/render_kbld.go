@@ -1,9 +1,13 @@
 package myks
 
 import (
+	"errors"
 	"fmt"
+	"hash/fnv"
+	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -88,11 +92,15 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 
 	// if cache is enabled, check existence of the lock file and include it in the args
 	if config.Cache {
-		// The lock file name is based on the hash of the overrides file (if any).
-		// Since the lock file is also used as a digest resolution cache, this forces
-		// kbld to re-resolve images if the overrides change. Otherwise, the new overrides
-		// might not be applied if the images are already resolved and cached in the lock file.
-		lockFileName := k.getLockFileName(overridesFilePath)
+		// The lock file name is based on the hash of the overrides file (if any) and the
+		// hash of any kbld source directories (if any). This forces kbld to re-resolve
+		// images when either the overrides or the build context changes.
+		sourcesDirPaths, err := extractKbldSourcePaths(previousStepFile)
+		if err != nil {
+			log.Warn().Err(err).Msg(k.app.Msg(k.getStepName(), "Unable to extract kbld source paths"))
+			sourcesDirPaths = nil
+		}
+		lockFileName := k.getLockFileName(overridesFilePath, sourcesDirPaths)
 		lockFilePath := k.app.expandServicePath(lockFileName)
 
 		defer k.cleanupLockFiles(lockFileName)
@@ -255,18 +263,95 @@ func (k *Kbld) generateKbldOverrideConfig(overrides map[string]string) (string, 
 	return filename, err
 }
 
-func (k *Kbld) getLockFileName(overridesFilePath string) string {
+func (k *Kbld) getLockFileName(overridesFilePath string, sourcesDirPaths []string) string {
 	// This is the FNV-1a 64-bit hash of an empty string ("").
 	// It serves as the default hash value when no overrides file exists.
-	hash := "cbf29ce484222325"
+	overridesHash := "cbf29ce484222325"
 	if overridesFilePath != "" {
 		if data, err := hashFile(overridesFilePath); err == nil {
-			hash = data
+			overridesHash = data
 		} else {
 			log.Warn().Err(err).Msg(k.app.Msg(k.getStepName(), "Unable to hash overrides file for lock file naming"))
 		}
 	}
-	return fmt.Sprintf("%s%s.yaml", kbldLockFilePrefix, hash)
+
+	// If no source directories, use existing single-hash format for backward compatibility.
+	if len(sourcesDirPaths) == 0 {
+		return fmt.Sprintf("%s%s.yaml", kbldLockFilePrefix, overridesHash)
+	}
+
+	// Combine per-directory hashes into a single sources hash.
+	sourcesHasher := fnv.New64a()
+	for _, dir := range sourcesDirPaths {
+		dirHash, err := hashDirectory(dir)
+		if err != nil {
+			log.Warn().Err(err).Str("dir", dir).Msg(
+				k.app.Msg(k.getStepName(), "Unable to hash source directory, skipping"))
+			continue
+		}
+		if _, err := sourcesHasher.Write([]byte(dirHash)); err != nil {
+			log.Warn().Err(err).Str("dir", dir).Msg(
+				k.app.Msg(k.getStepName(), "Unable to update sources hash, skipping"))
+			continue
+		}
+		if _, err := sourcesHasher.Write(nul); err != nil {
+			log.Warn().Err(err).Str("dir", dir).Msg(
+				k.app.Msg(k.getStepName(), "Unable to update sources hash separator, skipping"))
+		}
+	}
+	sourcesHash := fmt.Sprintf("%x", sourcesHasher.Sum64())
+
+	return fmt.Sprintf("%s%s-%s.yaml", kbldLockFilePrefix, overridesHash, sourcesHash)
+}
+
+// extractKbldSourcePaths parses a multi-document YAML file (the previous render
+// step output) and returns the deduplicated, sorted list of `sources[].path`
+// values from kbld Config documents.
+func extractKbldSourcePaths(previousStepFile string) ([]string, error) {
+	file, err := os.Open(filepath.Clean(previousStepFile))
+	if err != nil {
+		return nil, fmt.Errorf("failed to open file: %w", err)
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("Failed to close file")
+		}
+	}()
+
+	type kbldSourceConfig struct {
+		APIVersion string `yaml:"apiVersion"`
+		Kind       string `yaml:"kind"`
+		Sources    []struct {
+			Path string `yaml:"path"`
+		} `yaml:"sources"`
+	}
+
+	var paths []string
+	decoder := yaml.NewDecoder(file)
+	for {
+		var doc kbldSourceConfig
+		if err := decoder.Decode(&doc); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			// Log a warning but continue — some documents may not conform to
+			// our struct (e.g. Kubernetes resources with complex nested types).
+			log.Warn().Err(err).Str("file", previousStepFile).Msg("Failed to decode YAML document while extracting kbld source paths")
+			continue
+		}
+		if doc.APIVersion != "kbld.k14s.io/v1alpha1" || doc.Kind != "Config" {
+			continue
+		}
+		for _, src := range doc.Sources {
+			if src.Path != "" {
+				paths = append(paths, filepath.Clean(src.Path))
+			}
+		}
+	}
+
+	sort.Strings(paths)
+	paths = slices.Compact(paths)
+	return paths, nil
 }
 
 func (k *Kbld) cleanupLockFiles(leaveFile string) {
