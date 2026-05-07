@@ -4,8 +4,11 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -248,4 +251,166 @@ func TestKbld_generateKbldOverrideConfig_Consistency(t *testing.T) {
 			t.Errorf("Output %d differs from the first output\nFirst:\n%s\n\nOutput %d:\n%s", i+1, firstOutput, i+1, output)
 		}
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Tests for extractKbldSourcePaths
+// ---------------------------------------------------------------------------
+
+func TestExtractKbldSourcePaths_WithSources(t *testing.T) {
+	content := `
+apiVersion: kbld.k14s.io/v1alpha1
+kind: Config
+sources:
+  - path: /tmp/myapp
+  - path: /tmp/otherapp
+`
+	f := writeTempFile(t, content)
+	paths, err := extractKbldSourcePaths(f)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/tmp/myapp", "/tmp/otherapp"}, paths)
+}
+
+func TestExtractKbldSourcePaths_WithoutSources(t *testing.T) {
+	content := `
+apiVersion: kbld.k14s.io/v1alpha1
+kind: Config
+overrides:
+  - image: nginx
+    newImage: my-registry/nginx
+`
+	f := writeTempFile(t, content)
+	paths, err := extractKbldSourcePaths(f)
+	require.NoError(t, err)
+	assert.Empty(t, paths)
+}
+
+func TestExtractKbldSourcePaths_NonKbldDocumentsSkipped(t *testing.T) {
+	content := `
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp
+`
+	f := writeTempFile(t, content)
+	paths, err := extractKbldSourcePaths(f)
+	require.NoError(t, err)
+	assert.Empty(t, paths)
+}
+
+func TestExtractKbldSourcePaths_MultiDocMixedTypes(t *testing.T) {
+	content := strings.Join([]string{
+		`apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: myapp`,
+		`apiVersion: kbld.k14s.io/v1alpha1
+kind: Config
+sources:
+  - path: /build/context`,
+		`apiVersion: v1
+kind: Service
+metadata:
+  name: myapp`,
+	}, "\n---\n")
+	f := writeTempFile(t, content)
+	paths, err := extractKbldSourcePaths(f)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/build/context"}, paths)
+}
+
+func TestExtractKbldSourcePaths_EmptyFile(t *testing.T) {
+	f := writeTempFile(t, "")
+	paths, err := extractKbldSourcePaths(f)
+	require.NoError(t, err)
+	assert.Empty(t, paths)
+}
+
+func TestExtractKbldSourcePaths_Deduplicated(t *testing.T) {
+	content := strings.Join([]string{
+		`apiVersion: kbld.k14s.io/v1alpha1
+kind: Config
+sources:
+  - path: /build/ctx
+  - path: /build/ctx`,
+		`apiVersion: kbld.k14s.io/v1alpha1
+kind: Config
+sources:
+  - path: /build/ctx`,
+	}, "\n---\n")
+	f := writeTempFile(t, content)
+	paths, err := extractKbldSourcePaths(f)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/build/ctx"}, paths)
+}
+
+// ---------------------------------------------------------------------------
+// Tests for getLockFileName
+// ---------------------------------------------------------------------------
+
+func newTestKbld(t *testing.T) *Kbld {
+	t.Helper()
+	tmpDir := t.TempDir()
+	globe := &Globe{Config: Config{RootDir: tmpDir}}
+	env := &Environment{ID: "test-env", g: globe, cfg: &globe.Config, Dir: tmpDir}
+	app := &Application{Name: "test-app", Prototype: "test-proto", e: env, cfg: &globe.Config}
+	return &Kbld{ident: "test", app: app}
+}
+
+func TestGetLockFileName_NoOverridesNoSources(t *testing.T) {
+	k := newTestKbld(t)
+	name := k.getLockFileName("", nil)
+	// Must use the legacy single-hash format with the FNV-1a hash of ""
+	assert.Equal(t, "kbld-lock-cbf29ce484222325.yaml", name)
+}
+
+func TestGetLockFileName_OverridesNoSources(t *testing.T) {
+	k := newTestKbld(t)
+	f := writeTempFile(t, "some: overrides")
+	name := k.getLockFileName(f, nil)
+	// Single-hash format (backward compat) — hash is non-default
+	assert.True(t, strings.HasPrefix(name, "kbld-lock-"), "should start with kbld-lock-")
+	assert.True(t, strings.HasSuffix(name, ".yaml"), "should end with .yaml")
+	parts := strings.Split(strings.TrimSuffix(strings.TrimPrefix(name, "kbld-lock-"), ".yaml"), "-")
+	assert.Len(t, parts, 1, "without sources there should be only one hash segment")
+	assert.NotEqual(t, "cbf29ce484222325", parts[0], "hash should differ from the empty-string default")
+}
+
+func TestGetLockFileName_OverridesAndSources(t *testing.T) {
+	k := newTestKbld(t)
+	overridesFile := writeTempFile(t, "some: overrides")
+
+	srcDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "Dockerfile"), []byte("FROM alpine"), 0o600))
+
+	name := k.getLockFileName(overridesFile, []string{srcDir})
+	assert.True(t, strings.HasPrefix(name, "kbld-lock-"), "should start with kbld-lock-")
+	assert.True(t, strings.HasSuffix(name, ".yaml"), "should end with .yaml")
+	parts := strings.Split(strings.TrimSuffix(strings.TrimPrefix(name, "kbld-lock-"), ".yaml"), "-")
+	assert.Len(t, parts, 2, "with sources there should be two hash segments separated by '-'")
+}
+
+func TestGetLockFileName_SourcesNoOverrides(t *testing.T) {
+	k := newTestKbld(t)
+
+	srcDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(srcDir, "app.go"), []byte("package main"), 0o600))
+
+	name := k.getLockFileName("", []string{srcDir})
+	assert.True(t, strings.HasPrefix(name, "kbld-lock-"), "should start with kbld-lock-")
+	parts := strings.Split(strings.TrimSuffix(strings.TrimPrefix(name, "kbld-lock-"), ".yaml"), "-")
+	assert.Len(t, parts, 2, "with sources there should be two hash segments")
+	// First segment is the default overrides hash (empty string hash)
+	assert.Equal(t, "cbf29ce484222325", parts[0])
+}
+
+// writeTempFile is a test helper that writes content to a temp file and returns its path.
+func writeTempFile(t *testing.T, content string) string {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "kbld-test-*.yaml")
+	require.NoError(t, err)
+	_, err = f.WriteString(content)
+	require.NoError(t, err)
+	require.NoError(t, f.Close())
+	return f.Name()
 }
