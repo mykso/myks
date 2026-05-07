@@ -1,7 +1,6 @@
 package myks
 
 import (
-	"bytes"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -303,10 +302,15 @@ func (k *Kbld) getLockFileName(overridesFilePath string, sourcesDirPaths []strin
 // step output) and returns the deduplicated, sorted list of `sources[].path`
 // values from kbld Config documents.
 func extractKbldSourcePaths(previousStepFile string) ([]string, error) {
-	data, err := os.ReadFile(filepath.Clean(previousStepFile))
+	file, err := os.Open(filepath.Clean(previousStepFile))
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, fmt.Errorf("failed to open file: %w", err)
 	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("Failed to close file")
+		}
+	}()
 
 	type kbldSourceConfig struct {
 		APIVersion string `yaml:"apiVersion"`
@@ -317,14 +321,16 @@ func extractKbldSourcePaths(previousStepFile string) ([]string, error) {
 	}
 
 	var paths []string
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	decoder := yaml.NewDecoder(file)
 	for {
 		var doc kbldSourceConfig
 		if err := decoder.Decode(&doc); err != nil {
 			if err == io.EOF {
 				break
 			}
-			// Skip unparseable documents.
+			// Log a warning but continue — some documents may not conform to
+			// our struct (e.g. Kubernetes resources with complex nested types).
+			log.Warn().Err(err).Str("file", previousStepFile).Msg("Failed to decode YAML document while extracting kbld source paths")
 			continue
 		}
 		if doc.APIVersion != "kbld.k14s.io/v1alpha1" || doc.Kind != "Config" {

@@ -97,3 +97,28 @@ func TestHashDirectory_NonExistentDirectory(t *testing.T) {
 	_, err := hashDirectory("/does/not/exist/at/all")
 	assert.Error(t, err, "non-existent directory should return an error")
 }
+
+func TestHashDirectory_SymlinkChange(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create two targets the symlink can point to.
+	target1 := filepath.Join(dir, "target1.txt")
+	target2 := filepath.Join(dir, "target2.txt")
+	require.NoError(t, os.WriteFile(target1, []byte("v1"), 0o600))
+	require.NoError(t, os.WriteFile(target2, []byte("v2"), 0o600))
+
+	link := filepath.Join(dir, "link.txt")
+	require.NoError(t, os.Symlink(target1, link))
+
+	h1, err := hashDirectory(dir)
+	require.NoError(t, err)
+
+	// Re-point the symlink to a different target.
+	require.NoError(t, os.Remove(link))
+	require.NoError(t, os.Symlink(target2, link))
+
+	h2, err := hashDirectory(dir)
+	require.NoError(t, err)
+
+	assert.NotEqual(t, h1, h2, "changing a symlink target should change the hash")
+}
