@@ -78,7 +78,7 @@ func hashDirectory(dirPath string) (string, error) {
 		if err != nil {
 			return fmt.Errorf("getting info for %s: %w", relPath, err)
 		}
-		mode := []byte(fmt.Sprintf("%o", info.Mode().Perm()))
+		mode := fmt.Appendf(nil, "%o", info.Mode().Perm())
 
 		switch {
 		case d.IsDir():
