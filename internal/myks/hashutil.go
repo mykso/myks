@@ -53,9 +53,6 @@ var nul = []byte{0}
 // to avoid circular-link issues). Other non-regular entries are skipped.
 func hashDirectory(dirPath string) (string, error) {
 	h := fnv.New64a()
-	hasherErr := func(err error) error {
-		return fmt.Errorf("hashing directory %s: %w", dirPath, err)
-	}
 
 	root, err := os.OpenRoot(dirPath)
 	if err != nil {
@@ -71,9 +68,8 @@ func hashDirectory(dirPath string) (string, error) {
 		if err != nil {
 			return err
 		}
-		path = filepath.Clean(path)
 
-		relPath, err := filepath.Rel(dirPath, path)
+		relPath, err := filepath.Rel(dirPath, filepath.Clean(path))
 		if err != nil {
 			return fmt.Errorf("getting relative path for %s: %w", path, err)
 		}
@@ -86,71 +82,78 @@ func hashDirectory(dirPath string) (string, error) {
 
 		switch {
 		case d.IsDir():
-			// Skip the root itself; all other directories are hashed by path so
-			// that adding/removing empty directories invalidates the hash.
-			if relPath == "." {
-				return nil
-			}
-			// Hash: relPath NUL "dir" NUL mode NUL
-			for _, part := range [][]byte{[]byte(relPath), nul, []byte("dir"), nul, mode, nul} {
-				if _, err := h.Write(part); err != nil {
-					return hasherErr(err)
-				}
-			}
-
+			return hashDirEntry(h, relPath, mode)
 		case d.Type().IsRegular():
-			// Hash: relPath NUL mode NUL file-content NUL
-			// Mode is included so that permission-only changes (e.g. chmod +x)
-			// invalidate the hash — important for Docker build contexts where
-			// the executable bit affects the resulting image.
-			if _, err := h.Write([]byte(relPath)); err != nil {
-				return hasherErr(err)
-			}
-			if _, err := h.Write(nul); err != nil {
-				return hasherErr(err)
-			}
-			if _, err := h.Write(mode); err != nil {
-				return hasherErr(err)
-			}
-			if _, err := h.Write(nul); err != nil {
-				return hasherErr(err)
-			}
-			file, err := root.Open(relPath)
-			if err != nil {
-				return fmt.Errorf("opening file %s: %w", relPath, err)
-			}
-			defer func() {
-				if closeErr := file.Close(); closeErr != nil {
-					log.Error().Err(closeErr).Msg("Failed to close file")
-				}
-			}()
-			if _, err := io.Copy(h, file); err != nil {
-				return hasherErr(err)
-			}
-			if _, err := h.Write(nul); err != nil {
-				return hasherErr(err)
-			}
-
+			return hashFileEntry(h, root, relPath, mode)
 		case d.Type()&fs.ModeSymlink != 0:
-			// Hash: relPath NUL "symlink:" linkTarget NUL mode NUL
-			// We hash the link target string rather than following it to avoid
-			// infinite loops on circular symlinks.
-			linkTarget, err := root.Readlink(relPath)
-			if err != nil {
-				return fmt.Errorf("reading link %s: %w", relPath, err)
-			}
-			parts := [][]byte{[]byte(relPath), nul, []byte("symlink:" + linkTarget), nul, mode, nul}
-			for _, part := range parts {
-				if _, err := h.Write(part); err != nil {
-					return hasherErr(err)
-				}
-			}
+			return hashSymlinkEntry(h, root, relPath, mode)
 		}
-
 		return nil
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to hash directory: %w", err)
 	}
 	return fmt.Sprintf("%x", h.Sum64()), nil
+}
+
+// hashDirEntry hashes a directory entry (path + mode) into h.
+// The root directory itself (relPath == ".") is skipped so that only its
+// contents, not its existence, affect the hash.
+func hashDirEntry(h io.Writer, relPath string, mode []byte) error {
+	if relPath == "." {
+		return nil
+	}
+	// Hash: relPath NUL "dir" NUL mode NUL
+	for _, part := range [][]byte{[]byte(relPath), nul, []byte("dir"), nul, mode, nul} {
+		if _, err := h.Write(part); err != nil {
+			return fmt.Errorf("writing to hasher: %w", err)
+		}
+	}
+	return nil
+}
+
+// hashFileEntry hashes a regular file (path + mode + content) into h.
+// Mode is included so that permission-only changes (e.g. chmod +x) invalidate
+// the hash — important for Docker build contexts where the executable bit
+// affects the resulting image.
+func hashFileEntry(h io.Writer, root *os.Root, relPath string, mode []byte) error {
+	for _, part := range [][]byte{[]byte(relPath), nul, mode, nul} {
+		if _, err := h.Write(part); err != nil {
+			return fmt.Errorf("writing to hasher: %w", err)
+		}
+	}
+
+	file, err := root.Open(relPath)
+	if err != nil {
+		return fmt.Errorf("opening file %s: %w", relPath, err)
+	}
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil {
+			log.Error().Err(closeErr).Msg("Failed to close file")
+		}
+	}()
+
+	if _, err := io.Copy(h, file); err != nil {
+		return fmt.Errorf("writing to hasher: %w", err)
+	}
+	if _, err := h.Write(nul); err != nil {
+		return fmt.Errorf("writing to hasher: %w", err)
+	}
+	return nil
+}
+
+// hashSymlinkEntry hashes a symlink (path + target + mode) into h.
+// The link target string is hashed rather than following it to avoid infinite
+// loops on circular symlinks.
+func hashSymlinkEntry(h io.Writer, root *os.Root, relPath string, mode []byte) error {
+	linkTarget, err := root.Readlink(relPath)
+	if err != nil {
+		return fmt.Errorf("reading link %s: %w", relPath, err)
+	}
+	for _, part := range [][]byte{[]byte(relPath), nul, []byte("symlink:" + linkTarget), nul, mode, nul} {
+		if _, err := h.Write(part); err != nil {
+			return fmt.Errorf("writing to hasher: %w", err)
+		}
+	}
+	return nil
 }
