@@ -78,6 +78,12 @@ func hashDirectory(dirPath string) (string, error) {
 			return fmt.Errorf("getting relative path for %s: %w", path, err)
 		}
 
+		info, err := d.Info()
+		if err != nil {
+			return fmt.Errorf("getting info for %s: %w", relPath, err)
+		}
+		mode := []byte(fmt.Sprintf("%o", info.Mode().Perm()))
+
 		switch {
 		case d.IsDir():
 			// Skip the root itself; all other directories are hashed by path so
@@ -85,16 +91,25 @@ func hashDirectory(dirPath string) (string, error) {
 			if relPath == "." {
 				return nil
 			}
-			// Hash: relPath NUL "dir" NUL
-			for _, part := range [][]byte{[]byte(relPath), nul, []byte("dir"), nul} {
+			// Hash: relPath NUL "dir" NUL mode NUL
+			for _, part := range [][]byte{[]byte(relPath), nul, []byte("dir"), nul, mode, nul} {
 				if _, err := h.Write(part); err != nil {
 					return hasherErr(err)
 				}
 			}
 
 		case d.Type().IsRegular():
-			// Hash: relPath NUL file-content NUL
+			// Hash: relPath NUL mode NUL file-content NUL
+			// Mode is included so that permission-only changes (e.g. chmod +x)
+			// invalidate the hash — important for Docker build contexts where
+			// the executable bit affects the resulting image.
 			if _, err := h.Write([]byte(relPath)); err != nil {
+				return hasherErr(err)
+			}
+			if _, err := h.Write(nul); err != nil {
+				return hasherErr(err)
+			}
+			if _, err := h.Write(mode); err != nil {
 				return hasherErr(err)
 			}
 			if _, err := h.Write(nul); err != nil {
@@ -117,14 +132,14 @@ func hashDirectory(dirPath string) (string, error) {
 			}
 
 		case d.Type()&fs.ModeSymlink != 0:
-			// Hash: relPath NUL "symlink:" linkTarget NUL
+			// Hash: relPath NUL "symlink:" linkTarget NUL mode NUL
 			// We hash the link target string rather than following it to avoid
 			// infinite loops on circular symlinks.
 			linkTarget, err := root.Readlink(relPath)
 			if err != nil {
 				return fmt.Errorf("reading link %s: %w", relPath, err)
 			}
-			parts := [][]byte{[]byte(relPath), nul, []byte("symlink:" + linkTarget), nul}
+			parts := [][]byte{[]byte(relPath), nul, []byte("symlink:" + linkTarget), nul, mode, nul}
 			for _, part := range parts {
 				if _, err := h.Write(part); err != nil {
 					return hasherErr(err)
