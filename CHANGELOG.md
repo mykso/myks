@@ -1,5 +1,23 @@
 # Changelog
 
+## [5.13.0](https://github.com/mykso/myks/compare/v5.12.2...v5.13.0) (2026-05-07)
+
+
+### Features
+
+* add `inspect` command ([#798](https://github.com/mykso/myks/issues/798)) ([11d7f49](https://github.com/mykso/myks/commit/11d7f496f8493569548ee1d2818a9d22e751b5ec))
+* make output of `inspect` command colorful ([#803](https://github.com/mykso/myks/issues/803)) ([e77019e](https://github.com/mykso/myks/commit/e77019ecc8f942a7e0f6e0911e501fba7bfd60ff))
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#806](https://github.com/mykso/myks/issues/806)) ([c9ba2ca](https://github.com/mykso/myks/commit/c9ba2ca4965de6dde68a961e6753251ea41e8dab))
+* **deps:** update golang dependencies (non-major) ([#810](https://github.com/mykso/myks/issues/810)) ([fc1f701](https://github.com/mykso/myks/commit/fc1f701a18c80feaf41559b2573a60cbb8ae2f22))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.24.1 ([#811](https://github.com/mykso/myks/issues/811)) ([b34f357](https://github.com/mykso/myks/commit/b34f357d8af5c22eb24a60ab8dd727f8ba58deea))
+* **deps:** update module github.com/google/go-containerregistry to v0.21.4 ([#802](https://github.com/mykso/myks/issues/802)) ([f4cd819](https://github.com/mykso/myks/commit/f4cd819814b176473ce53ed05ba23c295097b444))
+* **deps:** update module golang.org/x/term to v0.42.0 ([#805](https://github.com/mykso/myks/issues/805)) ([482e36c](https://github.com/mykso/myks/commit/482e36cc656ea11f3320e86c86ccc45291af9fed))
+* **kbld:** invalidate lock file when Docker build context changes ([#813](https://github.com/mykso/myks/issues/813)) ([9a3e8c4](https://github.com/mykso/myks/commit/9a3e8c4dfa63bffbf61f1ca9d4967ff5d593049a))
+
 ## [5.12.2](https://github.com/mykso/myks/compare/v5.12.1...v5.12.2) (2026-04-09)
 
 
