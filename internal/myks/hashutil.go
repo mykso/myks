@@ -53,28 +53,32 @@ var nul = []byte{0}
 // to avoid circular-link issues). Other non-regular entries are skipped.
 func hashDirectory(dirPath string) (string, error) {
 	h := fnv.New64a()
+	hasherErr := func(err error) error {
+		return fmt.Errorf("writing to hasher: %w", err)
+	}
 	err := filepath.WalkDir(dirPath, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
+		path = filepath.Clean(path)
 
 		relPath, err := filepath.Rel(dirPath, path)
 		if err != nil {
-			return err
+			return fmt.Errorf("getting relative path for %s: %w", path, err)
 		}
 
 		switch {
 		case d.Type().IsRegular():
 			// Hash: relPath NUL file-content NUL
 			if _, err := h.Write([]byte(relPath)); err != nil {
-				return err
+				return hasherErr(err)
 			}
 			if _, err := h.Write(nul); err != nil {
-				return err
+				return hasherErr(err)
 			}
-			file, err := os.Open(filepath.Clean(path))
+			file, err := os.Open(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("opening file %s: %w", path, err)
 			}
 			defer func() {
 				if closeErr := file.Close(); closeErr != nil {
@@ -82,10 +86,10 @@ func hashDirectory(dirPath string) (string, error) {
 				}
 			}()
 			if _, err := io.Copy(h, file); err != nil {
-				return err
+				return hasherErr(err)
 			}
 			if _, err := h.Write(nul); err != nil {
-				return err
+				return hasherErr(err)
 			}
 
 		case d.Type()&fs.ModeSymlink != 0:
@@ -94,19 +98,13 @@ func hashDirectory(dirPath string) (string, error) {
 			// infinite loops on circular symlinks.
 			linkTarget, err := os.Readlink(path)
 			if err != nil {
-				return err
+				return fmt.Errorf("reading link %s: %w", path, err)
 			}
-			if _, err := h.Write([]byte(relPath)); err != nil {
-				return err
-			}
-			if _, err := h.Write(nul); err != nil {
-				return err
-			}
-			if _, err := h.Write([]byte("symlink:" + linkTarget)); err != nil {
-				return err
-			}
-			if _, err := h.Write(nul); err != nil {
-				return err
+			parts := [][]byte{[]byte(relPath), nul, []byte("symlink:" + linkTarget), nul}
+			for _, part := range parts {
+				if _, err := h.Write(part); err != nil {
+					return hasherErr(err)
+				}
 			}
 		}
 

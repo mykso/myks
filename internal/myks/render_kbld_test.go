@@ -327,17 +327,16 @@ func TestExtractKbldSourcePaths_EmptyFile(t *testing.T) {
 }
 
 func TestExtractKbldSourcePaths_Deduplicated(t *testing.T) {
-	content := strings.Join([]string{
-		`apiVersion: kbld.k14s.io/v1alpha1
+	content := `apiVersion: kbld.k14s.io/v1alpha1
 kind: Config
 sources:
   - path: /build/ctx
-  - path: /build/ctx`,
-		`apiVersion: kbld.k14s.io/v1alpha1
+  - path: /build/ctx
+---
+apiVersion: kbld.k14s.io/v1alpha1
 kind: Config
 sources:
-  - path: /build/ctx`,
-	}, "\n---\n")
+  - path: /build/ctx`
 	f := writeTempFile(t, content)
 	paths, err := extractKbldSourcePaths(f)
 	require.NoError(t, err)

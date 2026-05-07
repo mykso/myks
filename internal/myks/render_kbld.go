@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"errors"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -325,7 +326,7 @@ func extractKbldSourcePaths(previousStepFile string) ([]string, error) {
 	for {
 		var doc kbldSourceConfig
 		if err := decoder.Decode(&doc); err != nil {
-			if err == io.EOF {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			// Log a warning but continue — some documents may not conform to
