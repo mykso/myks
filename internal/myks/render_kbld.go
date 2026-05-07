@@ -344,7 +344,7 @@ func extractKbldSourcePaths(previousStepFile string) ([]string, error) {
 		}
 		for _, src := range doc.Sources {
 			if src.Path != "" {
-				paths = append(paths, src.Path)
+				paths = append(paths, filepath.Clean(src.Path))
 			}
 		}
 	}
