@@ -6,11 +6,15 @@ pkgs.mkShell {
     go-task
     gofumpt
     goimports-reviser
-    golangci-lint
     goreleaser
     gosec
     lefthook
+    mise
     nix-update
     upx
   ];
+  shellHook = ''
+    mise install
+    source <(mise activate)
+  '';
 }
