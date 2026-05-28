@@ -40,6 +40,7 @@ var (
 func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cobra.OnInitialize(initColors)
 	cobra.OnInitialize(initLogger)
+	cobra.OnInitialize(initAsync)
 	cobra.OnInitialize(func() { checkMinVersion(version) })
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	cmd := newRootCmd(version, commit, date)
@@ -199,6 +200,10 @@ func initColors() {
 	if _, noColor := os.LookupEnv("NO_COLOR"); noColor || !term.IsTerminal(int(os.Stdout.Fd())) { // #nosec G115 -- file descriptor fits in int
 		aurora.DefaultColorizer = aurora.New(aurora.WithColors(false))
 	}
+}
+
+func initAsync() {
+	asyncLevel = viper.GetInt("async")
 }
 
 func initLogger() {
