@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.13.1](https://github.com/mykso/myks/compare/v5.13.0...v5.13.1) (2026-05-29)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#820](https://github.com/mykso/myks/issues/820)) ([b713390](https://github.com/mykso/myks/commit/b713390a6985d6b0e6e3ac7154852c77f1244e87))
+* **deps:** update module carvel.dev/kbld to v0.48.0 ([#823](https://github.com/mykso/myks/issues/823)) ([5c60a35](https://github.com/mykso/myks/commit/5c60a355abcd01a978e652de2d59632e0bc56205))
+* **deps:** update module github.com/google/go-containerregistry to v0.21.6 ([#826](https://github.com/mykso/myks/issues/826)) ([713901a](https://github.com/mykso/myks/commit/713901a262b84e53b8f3a86992723746e70b5399))
+* **deps:** update module golang.org/x/sys to v0.44.0 ([#816](https://github.com/mykso/myks/issues/816)) ([240b216](https://github.com/mykso/myks/commit/240b2160843046d5cd31caabfe5b0901884c83b8))
+* **deps:** update module golang.org/x/sys to v0.45.0 ([#828](https://github.com/mykso/myks/issues/828)) ([d6a9352](https://github.com/mykso/myks/commit/d6a93525b2a401638b2abcec6cc5ba2a033a5a2f))
+* read `async` configuration via viper ([#827](https://github.com/mykso/myks/issues/827)) ([c0e1281](https://github.com/mykso/myks/commit/c0e1281ec5cd0f159d9e288ae63af0e9f27cb35b))
+
 ## [5.13.0](https://github.com/mykso/myks/compare/v5.12.2...v5.13.0) (2026-05-07)
 
 
