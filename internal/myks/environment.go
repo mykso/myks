@@ -90,6 +90,27 @@ func (e *Environment) Init(applicationNames []string) error {
 	return nil
 }
 
+// InitForCleanup initializes the environment for cleanup operations.
+// Unlike Init, it skips rendering and saving the environment data lib file,
+// which is only needed for rendering — not for application discovery.
+func (e *Environment) InitForCleanup(applicationNames []string) error {
+	envDataFiles := e.collectBySubpath(e.cfg.EnvironmentDataFileName)
+	envDataYaml, err := e.renderEnvData(envDataFiles)
+	if err != nil {
+		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to render environment data"))
+		return fmt.Errorf("rendering environment data for %s: %w", e.Dir, err)
+	}
+	if err = e.setEnvDataFromYaml(envDataYaml); err != nil {
+		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to set environment data"))
+		return fmt.Errorf("parsing environment data yaml for %s: %w", e.Dir, err)
+	}
+	if err := e.initApplications(applicationNames); err != nil {
+		log.Error().Err(err).Msg(e.Msg("Unable to initialize applications"))
+		return fmt.Errorf("initializing applications for %s: %w", e.Dir, err)
+	}
+	return nil
+}
+
 // Cleanup removes rendered outputs for apps that are no longer configured.
 func (e *Environment) Cleanup() error {
 	apps, err := e.renderedApplications()
