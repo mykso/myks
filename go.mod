@@ -4,7 +4,7 @@ go 1.26.3
 
 require (
 	carvel.dev/kbld v0.48.1
-	carvel.dev/vendir v0.45.4
+	carvel.dev/vendir v0.46.0
 	carvel.dev/ytt v0.55.1
 	github.com/alecthomas/chroma/v2 v2.26.1
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
