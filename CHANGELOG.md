@@ -1,5 +1,15 @@
 # Changelog
 
+## [5.13.2](https://github.com/mykso/myks/compare/v5.13.1...v5.13.2) (2026-06-20)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#833](https://github.com/mykso/myks/issues/833)) ([7f6004a](https://github.com/mykso/myks/commit/7f6004a4fb0db5b1f2ac720acfc85e5b286623a6))
+* **deps:** update golang dependencies (non-major) ([#837](https://github.com/mykso/myks/issues/837)) ([b8575eb](https://github.com/mykso/myks/commit/b8575eb2a63cda2900f218133b611693a5579552))
+* **deps:** update golang dependencies (non-major) to v0.46.0 ([#835](https://github.com/mykso/myks/issues/835)) ([131e3f2](https://github.com/mykso/myks/commit/131e3f2740d42b07939dcc6f64132b91134df61e))
+* **deps:** update module github.com/alecthomas/chroma/v2 to v2.25.0 ([#829](https://github.com/mykso/myks/issues/829)) ([87338bd](https://github.com/mykso/myks/commit/87338bdb3ae0c2288f1eac3ab93f3af0122bd7e4))
+
 ## [5.13.1](https://github.com/mykso/myks/compare/v5.13.0...v5.13.1) (2026-05-29)
 
 
