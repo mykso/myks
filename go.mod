@@ -3,7 +3,7 @@ module github.com/mykso/myks
 go 1.26.3
 
 require (
-	carvel.dev/kbld v0.48.1
+	carvel.dev/kbld v0.49.0
 	carvel.dev/vendir v0.46.0
 	carvel.dev/ytt v0.55.1
 	github.com/alecthomas/chroma/v2 v2.26.1
@@ -17,9 +17,9 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/sync v0.20.0
+	golang.org/x/sync v0.21.0
 	golang.org/x/sys v0.46.0
-	golang.org/x/term v0.43.0
+	golang.org/x/term v0.44.0
 	gopkg.in/yaml.v3 v3.0.1
 	sigs.k8s.io/yaml v1.6.0
 )
