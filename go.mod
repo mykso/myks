@@ -3,10 +3,10 @@ module github.com/mykso/myks
 go 1.26.3
 
 require (
-	carvel.dev/kbld v0.49.0
+	carvel.dev/kbld v0.49.1
 	carvel.dev/vendir v0.46.0
 	carvel.dev/ytt v0.55.1
-	github.com/alecthomas/chroma/v2 v2.26.1
+	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.8.0
 	github.com/google/go-containerregistry v0.21.6
@@ -63,7 +63,7 @@ require (
 	github.com/cppforlife/color v1.9.1-0.20200716202919-6706ac40b835 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dimchansky/utfbom v1.1.0 // indirect
-	github.com/dlclark/regexp2/v2 v2.1.1 // indirect
+	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
 	github.com/docker/cli v29.4.3+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.5 // indirect
 	github.com/fatih/color v1.18.0 // indirect
