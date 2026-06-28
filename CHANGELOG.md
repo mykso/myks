@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.13.3](https://github.com/mykso/myks/compare/v5.13.2...v5.13.3) (2026-06-28)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#844](https://github.com/mykso/myks/issues/844)) ([ed17353](https://github.com/mykso/myks/commit/ed1735389e642584bd87bbbd584e9fc2b7e5032b))
+* **deps:** update golang dependencies (non-major) ([#846](https://github.com/mykso/myks/issues/846)) ([50b7b45](https://github.com/mykso/myks/commit/50b7b45edfc901ff09effe7f6b9eb0321bd7913f))
+
 ## [5.13.2](https://github.com/mykso/myks/compare/v5.13.1...v5.13.2) (2026-06-20)
 
 
