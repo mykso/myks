@@ -19,8 +19,8 @@ func Test_normalizeOnlyPrint(t *testing.T) {
 		{name: "whitespace only", raw: "  ", want: ""},
 
 		// Canonical values
-		{name: "text", raw: "text", want: "text"},
-		{name: "json", raw: "json", want: "json"},
+		{name: outputFormatText, raw: outputFormatText, want: outputFormatText},
+		{name: outputFormatJSON, raw: outputFormatJSON, want: outputFormatJSON},
 
 		// Case insensitivity
 		{name: "TEXT uppercase", raw: "TEXT", want: "text"},
@@ -33,19 +33,19 @@ func Test_normalizeOnlyPrint(t *testing.T) {
 		{name: "json with spaces", raw: " json ", want: "json"},
 
 		// Legacy truthy -> text
-		{name: "true", raw: "true", want: "text"},
+		{name: AnnotationTrue, raw: AnnotationTrue, want: outputFormatText},
 		{name: "TRUE", raw: "TRUE", want: "text"},
 		{name: "True", raw: "True", want: "text"},
 		{name: "1", raw: "1", want: "text"},
-		{name: "yes", raw: "yes", want: "text"},
+		{name: booleanYes, raw: booleanYes, want: outputFormatText},
 		{name: "YES", raw: "YES", want: "text"},
 
 		// Legacy falsey -> disabled
-		{name: "false", raw: "false", want: ""},
+		{name: annotationFalse, raw: annotationFalse, want: ""},
 		{name: "FALSE", raw: "FALSE", want: ""},
 		{name: "False", raw: "False", want: ""},
 		{name: "0", raw: "0", want: ""},
-		{name: "no", raw: "no", want: ""},
+		{name: booleanNo, raw: booleanNo, want: ""},
 		{name: "NO", raw: "NO", want: ""},
 
 		// Invalid values
