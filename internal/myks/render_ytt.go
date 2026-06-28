@@ -22,7 +22,7 @@ func NewYttRenderer(app *Application, lock *locker.Locker) *Ytt {
 	return &Ytt{
 		additive: false,
 		app:      app,
-		ident:    "ytt",
+		ident:    yttToolName,
 		locker:   lock,
 	}
 }
