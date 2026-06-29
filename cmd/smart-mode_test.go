@@ -23,22 +23,22 @@ func Test_normalizeOnlyPrint(t *testing.T) {
 		{name: outputFormatJSON, raw: outputFormatJSON, want: outputFormatJSON},
 
 		// Case insensitivity
-		{name: "TEXT uppercase", raw: "TEXT", want: "text"},
-		{name: "JSON uppercase", raw: "JSON", want: "json"},
-		{name: "Json mixed case", raw: "Json", want: "json"},
-		{name: "Text mixed case", raw: "Text", want: "text"},
+		{name: "TEXT uppercase", raw: "TEXT", want: outputFormatText},
+		{name: "JSON uppercase", raw: "JSON", want: outputFormatJSON},
+		{name: "Json mixed case", raw: "Json", want: outputFormatJSON},
+		{name: "Text mixed case", raw: "Text", want: outputFormatText},
 
 		// Whitespace trimming
-		{name: "text with spaces", raw: "  text  ", want: "text"},
-		{name: "json with spaces", raw: " json ", want: "json"},
+		{name: "text with spaces", raw: "  text  ", want: outputFormatText},
+		{name: "json with spaces", raw: " json ", want: outputFormatJSON},
 
 		// Legacy truthy -> text
 		{name: AnnotationTrue, raw: AnnotationTrue, want: outputFormatText},
-		{name: "TRUE", raw: "TRUE", want: "text"},
-		{name: "True", raw: "True", want: "text"},
-		{name: "1", raw: "1", want: "text"},
+		{name: "TRUE", raw: "TRUE", want: outputFormatText},
+		{name: "True", raw: "True", want: outputFormatText},
+		{name: "1", raw: "1", want: outputFormatText},
 		{name: booleanYes, raw: booleanYes, want: outputFormatText},
-		{name: "YES", raw: "YES", want: "text"},
+		{name: "YES", raw: "YES", want: outputFormatText},
 
 		// Legacy falsey -> disabled
 		{name: annotationFalse, raw: annotationFalse, want: ""},
