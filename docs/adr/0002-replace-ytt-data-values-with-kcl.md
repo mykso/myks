@@ -5,7 +5,13 @@ the redesigned renderer, scoped to **value computation + helm-value templating**
 **retained** for match-and-mutate overlays. **CUE and Jsonnet are both kept on the table as the
 fallback**; which one is not yet settled (see Status).
 
-Status: **accepted.** The primary (KCL) is decided and the long-tail edge cases are closed — a
+Status: **reopened (was accepted).** The KCL pick was settled on a *byte-identical* gate. The
+redesign now decides the language on a **UX rubric** over a full per-language bake-off (KCL, CUE,
+Jsonnet each implement the whole config layer; see `docs/redesign/requirements.md` and ADR 0003). KCL
+is the incumbent front-runner, not a settled choice — the winner is re-derived from the rubric. The
+rest of this ADR records the original KCL reasoning and the spike evidence, still valid as input.
+
+Original status: **accepted.** The primary (KCL) is decided and the long-tail edge cases are closed — a
 realistic-filesystem spike (`docs/redesign/spike/tree/`) ran all flagged ytt data-values
 behaviours through KCL byte-identical against a ytt baseline, with **no blocker** (two contained
 engine-level frictions; see below). The fallback ordering is now settled: **Jsonnet if types are

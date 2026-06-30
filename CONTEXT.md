@@ -40,11 +40,32 @@ Applications can read it by a hardcoded path. The standard workaround for the no
 under refactoring because the path is a stringly-typed contract spread across prototypes.
 _Avoid_: global flag, feature flag.
 
+**Introspection**:
+The umbrella capability ytt data-values lacks: a value reading another value. Three distinct scopes, by boundary
+crossed — (1) **self-reference**, within one document (one local feeding two keys); (2) **cross-stage reference**,
+within one Application across pipeline stages (an `app-data` toggle deciding `vendir/values` sources — the root of the
+double-toggle); (3) **cross-application reference**, one Application deriving from sibling Applications' resolved
+values within the same environment (B targets A's namespace; alertmanager routes by every app's namespace+metadata).
+Scope 3 is what the **shared key** workaround fakes by hand.
+_Avoid_: cross-referencing (ambiguous over which scope), visibility.
+
 ## Pipeline stages
 
 **Sync stage**:
 The pre-render phase that fetches sources — vendir downloads external artifacts, helm builds charts. Runs before any
 templating. Its vendir config is itself rendered by ytt from the `prototype.*` data values.
+
+**Full-tree evaluation**:
+Computing the entire configuration tree (root → cluster-group → tier → region → every env → every app) in one pass
+into a single frozen, fully-resolved structure, *before* any sync or render. Resolves all inheritance and all
+introspection (scopes 1–3) up front. The proposed replacement for ytt's per-Application data-values pass (ADR 0003).
+_Avoid_: compile, build.
+
+**Fan-out stage**:
+The post-evaluation phase that, for each Application in parallel, reads its slice of the frozen full-tree-evaluation
+result and runs sync + render. Pure read of precomputed values — no re-evaluation, no cross-app access at this point.
+Where parallelism and smart change detection live.
+_Avoid_: render loop, processing.
 
 **Render stage**:
 The fixed, hardcoded sequence helm-template → ytt-pkg → ytt-overlay → global-ytt → kbld → slice → static → argocd.
