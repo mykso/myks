@@ -1,0 +1,9 @@
+#! Layer 1 — envs/env-data.* (root, applies to ALL clusters)
+#@data/values
+---
+environment:
+  applications:
+  #@overlay/append
+  - name: cilium
+  #@overlay/append
+  - name: namespaces

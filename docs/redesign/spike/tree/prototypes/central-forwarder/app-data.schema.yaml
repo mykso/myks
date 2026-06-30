@@ -1,0 +1,23 @@
+#! PROTOTYPE: central-forwarder. Carries the dense validation surface (edge 4),
+#! modelled on the real prometheus-central-package/app-data.schema.yaml.
+#@data/values-schema
+---
+#@overlay/match-child-defaults missing_ok=True
+application:
+  centralForwarder:
+    #! Edge 4: one_of enum.
+    #@schema/validation one_of=["prometheus", "prometheus-agent", "vm-agent"]
+    mode: prometheus-agent
+    #! Edge 4: enable toggle that ALSO drives a vendir source (edge 5 double-toggle).
+    enabled: false
+    #! Edge 4: min constraint.
+    #@schema/validation min=1
+    shards: 2
+    #! Edge 4: nullable scalar (may be left null).
+    #@schema/nullable
+    alertmanagerVersion: v0.27.0
+    #! Edge 4: conditional cross-field validation — url must be non-empty WHEN the
+    #! forwarder is enabled. v = the remoteWrite map; ctx.parent = centralForwarder.
+    #@schema/validation ("set the URL when enabling the forwarder", lambda v: len(v["url"]) > 0), when=lambda _, ctx: ctx.parent["enabled"]
+    remoteWrite:
+      url: ''

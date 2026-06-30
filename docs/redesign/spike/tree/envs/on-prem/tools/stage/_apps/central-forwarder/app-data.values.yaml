@@ -1,0 +1,11 @@
+#! Per-app override enabling the forwarder at this leaf.
+#! Edge 4: enabling it makes the conditional validation REQUIRE url (set below).
+#! Edge 5: in KCL this single `enabled: true` also switches on the vm-agent vendir
+#! source — no hand-mirroring.
+#@data/values
+---
+application:
+  centralForwarder:
+    enabled: true
+    remoteWrite:
+      url: http://10.0.0.1:8427/api/v1/write
