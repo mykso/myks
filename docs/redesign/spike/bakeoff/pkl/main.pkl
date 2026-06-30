@@ -1,0 +1,85 @@
+/// LEAF env: tools-stage-eu-dc1. Sets identity, assembles leaf apps, removes bootstrap,
+/// derives env-scope flags, and resolves all cross-app introspection (L4a/b/c) in one scope.
+///
+///   nix shell nixpkgs#pkl -c pkl eval -f yaml main.pkl   # from pkl/
+module main
+
+import "lib.pkl"
+import "tools.pkl"
+
+// --- env-scope overrides (apps stay a Listing while inheriting) ---
+local lvl = (tools.env) {
+  id = "tools-stage-eu-dc1"
+  helm { common { global { tier = "stage"; octet = 20 } } }
+}
+
+// --- leaf apps: instantiate prototypes + per-app overrides (the _apps/<app> layer) ---
+local karmaBase: lib.Karma = new {
+  name = "karma"; proto = "karma"; namespace = "karma"; monitored = true
+  replicas = 2                                            // L1: beats prototype default 1
+  config = new {
+    ui { refresh = "30s" }
+    alertmanager = new Listing { new { name = "central"; uri = "http://10.0.0.1:9093" } }
+  }
+}
+local cf: lib.CentralForwarder = new {
+  name = "central-forwarder"; proto = "central-forwarder"; namespace = "monitoring"; monitored = true
+  centralForwarder = new {
+    mode = "vm-agent"; enabled = true; shards = 4
+    remoteWrite { url = "http://10.0.0.1:8427/api/v1/write" }
+  }
+}
+local arc: lib.Arc = new { name = "arc"; proto = "arc"; namespace = "arc-system" }
+local alert: lib.Alertmanager = new { name = "alertmanager"; proto = "alertmanager"; namespace = "monitoring"; monitored = true }
+local dash: lib.App = new { name = "karma-dashboards"; proto = "dashboards" } // namespace via L4a below
+
+// --- roster: drop bootstrap (remove-by-key during composition), append leaf apps ---
+local appList: List<lib.App> =
+  lvl.apps.toList().filter((a) -> a.proto != "bootstrap")
+  + List(karmaBase, cf, arc, alert, dash)
+
+// --- env-scope derivation ---
+local runsGO: Boolean = appList.any((a) -> a.proto == "grafana-operator") // L4c
+local fullName: String = lvl.helm.common.global.clusterFullName
+
+// --- karma computed helm values (depends on env clusterFullName) ---
+local karma: lib.Karma = (karmaBase) {
+  helm = new Dynamic {
+    values {
+      replicaCount = karmaBase.replicas
+      image = karmaBase.image
+      external_url = "https://karma.\(fullName).example.com"
+    }
+  }
+}
+
+// --- cross-app introspection, one eval scope ---
+local byName: Map<String, lib.App> = appList.toMap((a) -> a.name, (a) -> a)
+local routeList: List<Mapping<String, String>> =
+  appList
+    .filter((a) -> a.monitored && a.name != "alertmanager")
+    .sortBy((a) -> a.name) // L4b: name-sorted (Pkl sortBy has a key fn)
+    .map((a) -> new Mapping { ["receiver"] = a.name; ["namespace"] = a.namespace })
+
+// Apps whose final config needs cross-app / computed values layered on the base instance.
+local patched: Map<String, lib.App> = Map(
+  "karma", karma,
+  "karma-dashboards", (dash) { namespace = byName["karma"].namespace },   // L4a: B targets A's ns
+  "alertmanager", (alert) { routes = new { for (r in routeList) { r } } },   // L4b
+  "central-forwarder", (cf) { grafanaIntegration = runsGO }               // L4c
+)
+
+// --- final output: root key `environment` (matches golden.yaml) ---
+environment = new Dynamic {
+  id = lvl.id
+  kubernetesDistribution = lvl.kubernetesDistribution
+  rancherEnabled = lvl.rancherEnabled
+  runsGrafanaOperator = runsGO
+  helm = lvl.helm
+  argocd = lvl.argocd
+  applications = new Dynamic {
+    for (a in appList) {
+      [a.name] = if (patched.containsKey(a.name)) patched[a.name] else a
+    }
+  }
+}

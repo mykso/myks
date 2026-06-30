@@ -1,0 +1,10 @@
+#! ROOT application list — base apps every cluster gets.
+#! Edge 1 (list append): lower levels APPEND to this list (ytt data-values default
+#! is array-append, confirmed). bootstrap is inherited here and REMOVED at the leaf.
+#@data/values
+---
+environment:
+  applications:
+    - proto: bootstrap
+    - proto: cilium
+    - proto: namespaces

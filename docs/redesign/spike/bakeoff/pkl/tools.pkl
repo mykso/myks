@@ -1,0 +1,13 @@
+/// TIER: tools — sets cluster identity, appends grafana-operator (drives L4c) + knot.
+module tools
+
+import "lib.pkl"
+import "onprem.pkl"
+
+env: Dynamic = (onprem.env) {
+  helm { common { global { clusterGroup = "tools"; region = "europe-dc1" } } }
+  apps {
+    new lib.GrafanaOperator { name = "grafana-operator"; proto = "grafana-operator"; namespace = "grafana"; monitored = true }
+    new lib.App { name = "knot"; proto = "knot"; namespace = "knot" }
+  }
+}

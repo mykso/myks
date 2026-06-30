@@ -1,0 +1,94 @@
+/// Base + prototype classes shared by every env level.
+/// A prototype = a class with typed defaults an app instance overrides at the leaf.
+module lib
+
+/// region -> short code (env-scope constant, not emitted).
+const regionShort: Mapping<String, String> = new {
+  ["europe-dc1"] = "eu-dc1"
+  ["europe-west4"] = "eu-w4"
+  ["us-central1"] = "us-c1"
+  ["asia-southeast1"] = "as-se1"
+}
+
+/// Env-global helm block. clusterFullName/clusterAddress are DERIVED (L7).
+/// Pkl evaluates lazily, so intermediate (empty region) levels stay valid without guards.
+class Global {
+  clusterGroup: String = ""
+  tier: String = ""
+  region: String = ""
+  octet: Int = 0
+  clusterFullName: String = if (regionShort.containsKey(region)) "\(clusterGroup)-\(tier)-\(regionShort[region])" else ""
+  clusterAddress: String = "10.0.0.\(octet)"
+}
+
+/// Base application. namespace defaults to the app name; monitored is the L4b metadata mark.
+open class App {
+  name: String
+  proto: String
+  namespace: String = name
+  monitored: Boolean = false
+}
+
+/// karma — L7 typed defaults, L6 any-passthrough config. helm.values computed at the leaf.
+class Karma extends App {
+  port: Int = 8080
+  image: String = "registry.example.com/ghcr-io-mirror/prymitive/karma:v0.131"
+  replicas: Int = 1
+  config: Dynamic?
+  helm: Dynamic?
+}
+
+/// central-forwarder — L7 dense validation surface.
+class RemoteWrite {
+  url: String = ""
+}
+
+class CF {
+  mode: "prometheus" | "prometheus-agent" | "vm-agent" = "prometheus-agent" // one_of
+  enabled: Boolean = false
+  shards: Int(this >= 1) = 2                                                // min=1
+  alertmanagerVersion: String? = "v0.27.0"                                  // nullable
+  remoteWrite: RemoteWrite = new {}
+  // conditional cross-field (L7): URL required when enabled. hidden = validated, not emitted.
+  hidden urlRequired: Boolean(this) = if (enabled) (remoteWrite.url.length > 0) else true
+}
+
+class CentralForwarder extends App {
+  centralForwarder: CF = new {}
+  grafanaIntegration: Boolean = false // L4c: set from env runsGrafanaOperator at the leaf
+  // L3: vendir source set derived from the enabled flag (one source of truth, no double-toggle).
+  vendir: Dynamic = new {
+    sources {
+      ["namespace"] { helmChart { name = "namespace"; url = "https://charts.example.com"; version = "3.0.0" } }
+      when (centralForwarder.enabled) {
+        ["vm-agent"] { helmChart { name = "victoria-metrics-agent"; url = "https://victoriametrics.github.io/helm-charts"; version = "0.14.0" } }
+      }
+    }
+  }
+}
+
+/// grafana-operator — its presence in the roster drives L4c.
+class GrafanaOperator extends App {
+  image: String = "ghcr.io/grafana/grafana-operator:v5.20.0"
+}
+
+/// arc — L2 self-reference: one namespace feeds two keys. Static helm = plain-YAML passthrough.
+class Arc extends App {
+  namespace: String = "arc-system"
+  controllerNamespace: String = namespace
+  runnerNamespace: String = namespace
+  helm: Dynamic = new {
+    values { githubConfigUrl = "https://github.com/myorg"; minRunners = 1; maxRunners = 10 }
+  }
+  vendir: Dynamic = new {
+    sources {
+      ["controller"] { helmChart { name = "gha-runner-scale-set-controller"; url = "https://actions.github.io/actions-runner-controller-charts"; version = "0.9.3" } }
+      ["runner-set"] { helmChart { name = "gha-runner-scale-set"; url = "https://actions.github.io/actions-runner-controller-charts"; version = "0.9.3" } }
+    }
+  }
+}
+
+/// alertmanager — L4b: routes are a comprehension over every monitored app, computed at the leaf.
+class Alertmanager extends App {
+  routes: Listing<Mapping<String, String>> = new {}
+}
