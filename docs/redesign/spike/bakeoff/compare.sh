@@ -7,10 +7,11 @@ EMIT="${1:-kcl run kcl/}"
 
 canon() { yq -P 'sort_keys(..) | ... comments=""'; }
 
-eval "$EMIT" | canon > /tmp/bakeoff.candidate.yaml
-canon < fixtures/golden.yaml > /tmp/bakeoff.golden.yaml
+CAND=$(mktemp); GOLD=$(mktemp); trap 'rm -f "$CAND" "$GOLD"' EXIT
+eval "$EMIT" | canon > "$CAND"
+canon < fixtures/golden.yaml > "$GOLD"
 
-if diff -u /tmp/bakeoff.golden.yaml /tmp/bakeoff.candidate.yaml; then
+if diff -u "$GOLD" "$CAND"; then
   echo "PASS — resolved tree matches golden"
 else
   echo "FAIL — see diff above"; exit 1

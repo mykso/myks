@@ -3,30 +3,68 @@
 Gate = resolved tree matches `fixtures/golden.yaml` after `yq -P 'sort_keys(..)'` + comment-strip
 (`bash compare.sh '<emit cmd>'`). Winner decided by the UX rubric below, not the gate.
 
-| Candidate | Gate | Built |
-|---|---|---|
-| **KCL (flat)** | ✅ PASS | ✅ full tree, single-file leaf assembler (`kcl/`) — comparison baseline |
-| KCL (per-app layout) | — | ⬜ todo (`kcl-apps/`) — same language, app-per-file/dir; isolates file-tree UX |
-| CUE | — | ⬜ todo |
-| Jsonnet | — | ⬜ todo |
-| Pkl | — | ⬜ todo (stretch) |
+| Candidate | Gate | Eval (L8) | Built |
+|---|---|---|---|
+| **KCL (flat)** | ✅ PASS | ~66 ms | full tree, single-file leaf assembler (`kcl/`) — comparison baseline |
+| KCL (per-app layout) | ✅ PASS | ~30 ms | app-per-file/dir, isolates file-tree UX (`kcl-apps/`, [findings](kcl-apps/FINDINGS.md)) |
+| CUE | ✅ PASS | ~10 ms | package auto-aggregation, override-via-data-flow (`cue/`, [findings](cue/FINDINGS.md)) |
+| Jsonnet | ✅ PASS | ~10–15 ms | object `+`/`+:` merge, assert-based validation (`jsonnet/`, [findings](jsonnet/FINDINGS.md)) |
+| Pkl | ✅ PASS | ~0.70 s warm / ~1.05 s cold | typed classes + `amends`, JVM startup-bound (`pkl/`, [findings](pkl/FINDINGS.md)) |
 
-## Rubric (1–5, ×weight). Only gate-passers scored.
+## Rubric (1–5, ×weight). All five gate-passers scored.
 
-| Dimension | w | KCL | CUE | Jsonnet | Pkl |
-|---|---|---|---|---|---|
-| User-surface readability | ×2 | 4 | | | |
-| LSP / editor support (L6) | ×2 | 4* | | | |
-| Eval speed, benchmarked (L8) | ×1.5 | 5 | | | |
-| Error-message quality | ×1.5 | 4 | | | |
-| Typing & validation (L7) | ×1 | 5 | | | |
-| Library / reuse (L5) | ×1 | 4 | | | |
-| Learning curve | ×1 | 3 | | | |
-| Engine-harness complexity | ×0.5 | 5 | | | |
-| **Weighted total** | | **40.5 / 50** | | | |
+| Dimension | w | KCL (flat) | KCL (per-app) | CUE | Jsonnet | Pkl |
+|---|---|---|---|---|---|---|
+| User-surface readability | ×2 | 4 | 4 | 4 | 4 | 4 |
+| LSP / editor support (L6) | ×2 | 4* | 4* | 3* | 2* | 4* |
+| Eval speed, benchmarked (L8) | ×1.5 | 5 | 5 | 5 | 5 | 2 |
+| Error-message quality | ×1.5 | 4 | 4 | 4 | 3 | 5 |
+| Typing & validation (L7) | ×1 | 5 | 5 | 5 | 2 | 5 |
+| Library / reuse (L5) | ×1 | 4 | 4 | 4 | 4 | 4 |
+| Learning curve | ×1 | 3 | 3 | 2 | 4 | 3 |
+| Engine-harness complexity | ×0.5 | 5 | 5 | 5 | 5 | 5 |
+| **Weighted total** (max 52.5) | | **44.0** | **44.0** | **41.0** | **36.5** | **41.0** |
 
-`*` LSP scored from KCL *shipping* `kcl-language-server` (completion/go-to-def/diagnostics) — **not yet
-exercised hands-on in an editor over this tree**. Confirm before the dimension is final; it is ×2.
+`*` LSP scored from each tool *shipping* a language server (completion/go-to-def/diagnostics) — **not yet
+exercised hands-on in an editor over this tree**. Confirm before the dimension is final; it is ×2 and is
+the largest unverified swing in the table.
+
+Totals are raw weighted sums (weights as shown; all-5s = 52.5). A prior draft listed KCL flat as
+`40.5/50` — arithmetically off; recomputed consistently here.
+
+## Synthesis & recommendation (reopens/closes ADR 0002)
+
+**Ranking:** KCL (flat) **44.0** = KCL (per-app) **44.0** > CUE **41.0** = Pkl **41.0** > Jsonnet **36.5**.
+
+**Winner: KCL** — it leads on the weighted rubric with no single dimension below 3, and it is the only
+candidate that pairs full static typing (L7=5) with fast eval (L8=5) and a shipping language server. The
+flat vs per-app layout is a **wash on score** (identical columns); per-app buys *searchability* but charges
+a fixed ~2–3-line import tax per app and splits an app's env-scoped config out of its file (see
+[kcl-apps findings](kcl-apps/FINDINGS.md)). Recommend **flat as the spike baseline**, revisit per-app only
+once app count outgrows one file *and* the engine layers convention-discovery back to erase the import tax.
+
+**Runners-up, both genuinely close:**
+- **CUE (41.0)** — *lightest* file-layout story (package auto-aggregation: zero import/roster wiring, adding
+  an app is one struct) and it structurally **eliminates the KCL derived-field guard tax** (no override →
+  no intermediate re-eval). Cost is conceptual: unification-not-mutation is a real learning-curve hit
+  (LC=2) and last-wins must be modeled as an explicit per-field `#last` "override history". Strong second
+  if the team values the discovery story and can absorb the mental model.
+- **Pkl (41.0)** — best **error messages** in the field (5), full typing, `import*` glob discovery as cheap
+  as CUE, and lazy eval kills the guard tax. **Only real weakness: JVM startup** (~0.7 s warm, ~1.05 s
+  cold — startup-bound, not tree-bound; L8=2). Fine for once-per-render CI, a papercut in tight edit loops;
+  a GraalVM native build would likely close the gap. Pick Pkl if eval latency is acceptable and error UX
+  is paramount.
+
+**Last: Jsonnet (36.5)** — fastest learning curve and hyphen-key-free, but the **L7 typing gap is
+structural**: no types, no closed structs, no required-field enforcement; all validation is hand-written
+`assert` (value-only, runtime, first-failure). The sharper day-to-day footgun is silent array-*replace* on
+merge (forget `parent.apps +` → inherited apps vanish, no error). Not recommended for a config layer whose
+job is catching misconfig before render.
+
+**ADR 0002:** KCL is re-derived as the winner from the rubric (not assumed) — the bake-off **confirms**
+the choice and can close the reopened ADR. CUE and Pkl are documented near-ties worth noting as fallbacks.
+Remaining caveat before final sign-off: the ×2 LSP dimension is scored from docs for all five — a hands-on
+editor pass over this tree is the one open item that could still move the ranking.
 
 ## KCL findings (from building `kcl/`)
 
