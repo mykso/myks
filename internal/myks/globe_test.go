@@ -128,8 +128,8 @@ func Test_getEnvironmentsUnderRoot(t *testing.T) {
 	// Set up test environments
 	g.environments = map[string]*Environment{
 		"envs/dev":         {},
-		"envs/staging":     {},
-		"envs/prod":        {},
+		envStagingPath:     {},
+		envProdPath:        {},
 		"envs/team-a/dev":  {},
 		"envs/team-b/prod": {},
 		"envs/something":   {},
@@ -148,12 +148,12 @@ func Test_getEnvironmentsUnderRoot(t *testing.T) {
 		{
 			name:     "prefix match",
 			path:     "envs",
-			expected: []string{"envs/dev", "envs/staging", "envs/prod", "envs/team-a/dev", "envs/team-b/prod", "envs/something"},
+			expected: []string{"envs/dev", envStagingPath, envProdPath, "envs/team-a/dev", "envs/team-b/prod", "envs/something"},
 		},
 		{
 			name:     "prefix match with separator",
 			path:     "envs/",
-			expected: []string{"envs/dev", "envs/staging", "envs/prod", "envs/team-a/dev", "envs/team-b/prod", "envs/something"},
+			expected: []string{"envs/dev", envStagingPath, envProdPath, "envs/team-a/dev", "envs/team-b/prod", "envs/something"},
 		},
 		{
 			name:     "nested prefix match",
