@@ -1,0 +1,141 @@
+# Expected resolved configuration tree for env `tools-stage-eu-dc1` (whole-tree eval, ADR 0003).
+# Independent design-intent oracle. Each candidate language must reproduce this after
+#   yq -P 'sort_keys(..)'  canonicalization. ytt cannot express L2/L3/L4 — hand-authored.
+environment:
+  id: tools-stage-eu-dc1
+  kubernetesDistribution: rke2          # on-prem overrides root gke
+  rancherEnabled: true                  # on-prem overrides root false
+  runsGrafanaOperator: true             # L4c: derived from roster (grafana-operator present)
+  helm:
+    common:
+      global:
+        clusterGroup: tools
+        tier: stage
+        region: europe-dc1
+        octet: 20
+        clusterFullName: tools-stage-eu-dc1   # L7 derived: {group}-{tier}-{regionShort}
+        clusterAddress: 10.0.0.20             # L7 derived: 10.0.0.{octet}
+  argocd:
+    app:
+      syncPolicy:
+        syncOptions:
+          ServerSideApply: 'true'             # CreateNamespace: null was dropped
+  applications:
+    cilium:
+      name: cilium
+      proto: cilium
+      namespace: kube-system
+      monitored: false
+    namespaces:
+      name: namespaces
+      proto: namespaces
+      namespace: default
+      monitored: false
+    goldpinger:
+      name: goldpinger
+      proto: goldpinger
+      namespace: monitoring
+      monitored: true
+    cluster-autoscaler:
+      name: cluster-autoscaler
+      proto: cluster-autoscaler
+      namespace: kube-system
+      monitored: false
+    grafana-operator:
+      name: grafana-operator
+      proto: grafana-operator
+      namespace: grafana
+      monitored: true
+      image: ghcr.io/grafana/grafana-operator:v5.20.0
+    knot:
+      name: knot
+      proto: knot
+      namespace: knot
+      monitored: false
+    karma:
+      name: karma
+      proto: karma
+      namespace: karma
+      monitored: true
+      port: 8080                              # L7 schema default
+      image: registry.example.com/ghcr-io-mirror/prymitive/karma:v0.131
+      replicas: 2                             # L1: leaf override beats prototype default 1
+      config:                                 # L6 any-typed passthrough
+        ui:
+          refresh: 30s
+        alertmanager:
+          - name: central
+            uri: http://10.0.0.1:9093
+      helm:                                   # computed helm values (derived in-language)
+        values:
+          replicaCount: 2
+          image: registry.example.com/ghcr-io-mirror/prymitive/karma:v0.131
+          external_url: https://karma.tools-stage-eu-dc1.example.com
+    central-forwarder:
+      name: central-forwarder
+      proto: central-forwarder
+      namespace: monitoring
+      monitored: true
+      centralForwarder:
+        mode: vm-agent
+        enabled: true
+        shards: 4
+        alertmanagerVersion: v0.27.0
+        remoteWrite:
+          url: http://10.0.0.1:8427/api/v1/write
+      grafanaIntegration: true                # L4c: grafana-operator present in env
+      vendir:                                 # L3: sources derived from enabled flag
+        sources:
+          namespace:
+            helmChart:
+              name: namespace
+              url: https://charts.example.com
+              version: 3.0.0
+          vm-agent:
+            helmChart:
+              name: victoria-metrics-agent
+              url: https://victoriametrics.github.io/helm-charts
+              version: 0.14.0
+    arc:
+      name: arc
+      proto: arc
+      namespace: arc-system
+      monitored: false
+      controllerNamespace: arc-system         # L2 self-ref
+      runnerNamespace: arc-system             # L2 self-ref (same source)
+      helm:                                    # static helm = plain YAML passthrough
+        values:
+          githubConfigUrl: https://github.com/myorg
+          minRunners: 1
+          maxRunners: 10
+      vendir:                                  # multi-chart
+        sources:
+          controller:
+            helmChart:
+              name: gha-runner-scale-set-controller
+              url: https://actions.github.io/actions-runner-controller-charts
+              version: 0.9.3
+          runner-set:
+            helmChart:
+              name: gha-runner-scale-set
+              url: https://actions.github.io/actions-runner-controller-charts
+              version: 0.9.3
+    karma-dashboards:
+      name: karma-dashboards
+      proto: dashboards
+      namespace: karma                        # L4a: = applications.karma.namespace
+      monitored: false
+    alertmanager:
+      name: alertmanager
+      proto: alertmanager
+      namespace: monitoring
+      monitored: true
+      routes:                                 # L4b: comprehension over monitored apps (sorted by name, self excluded)
+        - receiver: central-forwarder
+          namespace: monitoring
+        - receiver: goldpinger
+          namespace: monitoring
+        - receiver: grafana-operator
+          namespace: grafana
+        - receiver: karma
+          namespace: karma

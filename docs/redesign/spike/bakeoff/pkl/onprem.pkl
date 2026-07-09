@@ -1,0 +1,14 @@
+/// CLUSTER GROUP: on-prem — overrides distro + rancher, appends two infra apps.
+module onprem
+
+import "lib.pkl"
+import "root.pkl"
+
+env: Dynamic = (root.env) {
+  kubernetesDistribution = "rke2"     // L1 override gke -> rke2
+  rancherEnabled = true
+  apps {
+    new lib.App { name = "goldpinger"; proto = "goldpinger"; namespace = "monitoring"; monitored = true }
+    new lib.App { name = "cluster-autoscaler"; proto = "cluster-autoscaler"; namespace = "kube-system" }
+  }
+}

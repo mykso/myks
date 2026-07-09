@@ -1,0 +1,16 @@
+#! LEAF helm values.
+#! Edge 8 (computed value): clusterAddress depends on `octet` (another data value),
+#! and clusterFullName depends on clusterGroup/tier/region. ytt data values CANNOT
+#! self-reference, so both are HAND-WRITTEN here (drift-prone). KCL DERIVES both from
+#! octet/group/tier/region — they are omitted from the KCL inputs and computed in the
+#! engine. The merged struct is identical either way; only the authoring burden differs.
+#@data/values
+---
+environment:
+  helm:
+    common:
+      global:
+        octet: 20
+        #! Hand-written — ytt cannot derive these within the data-values merge.
+        clusterAddress: 10.0.0.1
+        clusterFullName: tools-stage-eu-dc1

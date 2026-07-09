@@ -1,0 +1,23 @@
+#! PROTOTYPE vendir sources (prototype.* scope — only the sync stage reads these).
+#! Edge 5 (DOUBLE-TOGGLE): the vm-agent chart should be synced ONLY when
+#! application.centralForwarder.enabled is true. But ytt data values cannot
+#! self-reference, so vendir CANNOT read application.* here — the operator must set
+#! prototype.sources.vm-agent by HAND to mirror the application flag. Get the two out
+#! of sync and you either sync a chart you don't deploy or deploy without the chart.
+#! In KCL this source is DERIVED from application.centralForwarder.enabled (one source
+#! of truth) — the whole point of edge 5.
+#@data/values
+---
+prototype:
+  sources:
+    namespace:
+      helmChart:
+        name: namespace
+        url: https://charts.example.com
+        version: 3.0.0
+    #! Hand-mirrored toggle — must match application.centralForwarder.enabled.
+    vm-agent:
+      helmChart:
+        name: victoria-metrics-agent
+        url: https://victoriametrics.github.io/helm-charts
+        version: 0.14.0

@@ -1,0 +1,11 @@
+#! CLUSTER GROUP: on-prem.
+#! Edge 2 (override precedence): overrides root's kubernetesDistribution gke -> rke2.
+#! Edge 1 (list append): appends two infra apps.
+#@data/values
+---
+environment:
+  kubernetesDistribution: rke2
+  rancherEnabled: true
+  applications:
+    - proto: goldpinger
+    - proto: cluster-autoscaler
