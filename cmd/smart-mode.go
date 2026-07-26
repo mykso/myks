@@ -19,9 +19,12 @@ import (
 const (
 	AnnotationSmartMode = "feat:smart-mode"
 	AnnotationTrue      = "true"
+	annotationFalse     = "false"
 
 	outputFormatText = "text"
 	outputFormatJSON = "json"
+	booleanYes       = "yes"
+	booleanNo        = "no"
 )
 
 // normalizeOnlyPrint normalizes the raw --smart-mode.only-print flag value.
@@ -32,9 +35,9 @@ func normalizeOnlyPrint(raw string) (string, error) {
 	switch v {
 	case "":
 		return "", nil
-	case "true", "1", "yes":
+	case AnnotationTrue, "1", booleanYes:
 		return outputFormatText, nil
-	case "false", "0", "no":
+	case annotationFalse, "0", booleanNo:
 		return "", nil
 	case outputFormatText, outputFormatJSON:
 		return v, nil

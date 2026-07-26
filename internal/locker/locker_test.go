@@ -9,6 +9,8 @@ import (
 	"github.com/mykso/myks/internal/locker"
 )
 
+const sharedLockName = "shared"
+
 // TestAcquireSortsOrder verifies that Acquire acquires locks in a consistent
 // sorted order regardless of the order in which they are requested. It does
 // this by verifying that two goroutines requesting the same locks in different
@@ -126,14 +128,14 @@ func TestWriterBlocksReaders(t *testing.T) {
 	lk := locker.NewLocker()
 
 	// Acquire a write lock on "shared".
-	writeUnlock := lk.Acquire([]locker.LockReq{{Name: "shared", ForWrite: true}})
+	writeUnlock := lk.Acquire([]locker.LockReq{{Name: sharedLockName, ForWrite: true}})
 
 	// Launch a reader; it should block until the writer releases.
 	readStarted := make(chan struct{})
 	readDone := make(chan struct{})
 	go func() {
 		close(readStarted)
-		unlock := lk.Acquire([]locker.LockReq{{Name: "shared", ForWrite: false}})
+		unlock := lk.Acquire([]locker.LockReq{{Name: sharedLockName, ForWrite: false}})
 		unlock()
 		close(readDone)
 	}()
@@ -165,11 +167,11 @@ func TestReadersBlockWriter(t *testing.T) {
 
 	lk := locker.NewLocker()
 
-	readUnlock := lk.Acquire([]locker.LockReq{{Name: "shared", ForWrite: false}})
+	readUnlock := lk.Acquire([]locker.LockReq{{Name: sharedLockName, ForWrite: false}})
 
 	writerDone := make(chan struct{})
 	go func() {
-		unlock := lk.Acquire([]locker.LockReq{{Name: "shared", ForWrite: true}})
+		unlock := lk.Acquire([]locker.LockReq{{Name: sharedLockName, ForWrite: true}})
 		unlock()
 		close(writerDone)
 	}()
@@ -262,7 +264,7 @@ func TestConcurrentReadersDontBlockEachOther(t *testing.T) {
 	for range n {
 		go func() {
 			defer wg.Done()
-			unlock := lk.Acquire([]locker.LockReq{{Name: "shared", ForWrite: false}})
+			unlock := lk.Acquire([]locker.LockReq{{Name: sharedLockName, ForWrite: false}})
 			time.Sleep(30 * time.Millisecond)
 			unlock()
 		}()
