@@ -1,0 +1,48 @@
+#! ROOT schema — the base myks injects for every Application.
+#! Edge 3 (schema layering): prototypes EXTEND this additively via
+#! `#@overlay/match-child-defaults missing_ok=True`. Here we define only the
+#! environment-scope shape shared by all apps; per-app shape is added downstream.
+#@data/values-schema
+---
+#@overlay/match-child-defaults missing_ok=True
+environment:
+  #! Set only on leaf envs (marks a renderable cluster).
+  id: ''
+  #! Edge 4: one_of enum validation.
+  #@schema/validation one_of=["gke", "rke2", "k3s"]
+  kubernetesDistribution: gke
+  rancherEnabled: false
+  #! SHARED KEY (CONTEXT.md): hand-set at the tier that runs the operator. Fragile.
+  runsGrafanaOperator: false
+  helm:
+    common:
+      global:
+        clusterGroup: ''
+        tier: ''
+        region: ''
+        #! Edge 8: scalar input that clusterAddress is computed from.
+        octet: 0
+        #! Edge 8: must be hand-written today; cannot derive from the three fields above.
+        clusterFullName: ''
+        #! Edge 8: computed-at-data-level address (real env-data.helm pattern).
+        clusterAddress: ''
+  applications:
+  - name: ''
+    proto: ''
+argocd:
+  app:
+    syncPolicy:
+      syncOptions:
+        #! Edge 7: nullable so a value of null is legal (and drops the key on inspect).
+        #@schema/nullable
+        CreateNamespace: ''
+        ServerSideApply: ''
+#! Application scope declared (empty) at root so prototype schemas can EXTEND it
+#! additively (edge 3). Prototypes add typed children under here via missing_ok=True.
+application: {}
+constants:
+  region_short:
+    europe-dc1: eu-dc1
+    europe-west4: eu-w4
+    us-central1: us-c1
+    asia-southeast1: as-se1

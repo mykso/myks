@@ -1,0 +1,15 @@
+#! LEAF apps. Edge 1: APPEND karma + central-forwarder, and REMOVE the inherited
+#! bootstrap via match-by-key + remove. This remove runs DURING data-values
+#! composition (not the later match-mutate overlay), so under ADR 0002 scope A′
+#! the new language (KCL) must own it. Real usage: envs/on-prem/rook,
+#! envs/web/stage/eu-dc1.
+#@data/values
+---
+environment:
+  applications:
+    - proto: karma
+    - name: central-forwarder
+      proto: central-forwarder
+    #@overlay/match by="proto"
+    #@overlay/remove
+    - proto: bootstrap

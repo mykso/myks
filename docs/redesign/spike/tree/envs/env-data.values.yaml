@@ -1,0 +1,11 @@
+#! ROOT values — applied to ALL clusters.
+#! Edge 7 (null-to-remove): CreateNamespace: null DROPS the key from the merged
+#! struct (real envs/env-data.values.yaml pattern). Tests how KCL expresses key removal.
+#@data/values
+---
+argocd:
+  app:
+    syncPolicy:
+      syncOptions:
+        CreateNamespace: null
+        ServerSideApply: 'true'

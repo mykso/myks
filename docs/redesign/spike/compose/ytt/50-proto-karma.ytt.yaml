@@ -1,0 +1,5 @@
+#! Layer 5 — prototypes/karma/app-data.values.yaml (prototype defaults for the app)
+#@data/values
+---
+application:
+  image: registry.example.com/ghcr-io-mirror/prymitive/karma:v0.131

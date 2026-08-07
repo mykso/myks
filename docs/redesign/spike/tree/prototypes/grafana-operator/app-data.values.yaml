@@ -1,0 +1,7 @@
+#! Minimal prototype — present so the grafana-operator app instantiates. Its mere
+#! PRESENCE in the composed app list is what the leaf hoists to runsGrafanaOperator
+#! (edge 5 shared key); KCL derives that flag, ytt hand-sets it.
+#@data/values
+---
+application:
+  image: ghcr.io/grafana/grafana-operator:v5.20.0

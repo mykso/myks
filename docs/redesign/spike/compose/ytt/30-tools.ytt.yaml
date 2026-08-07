@@ -1,0 +1,17 @@
+#! Layer 3 — envs/on-prem/tools/env-data.ytt.yaml (tier/project)
+#@data/values
+---
+environment:
+  #! Hand-set shared key. There is no way to say "true because the grafana-operator app
+  #! is in my applications list" — data values cannot read each other.
+  runsGrafanaOperator: true
+  helm:
+    common:
+      global:
+        clusterGroup: tools
+        region: europe-dc1
+  applications:
+  #@overlay/append
+  - name: grafana-operator
+  #@overlay/append
+  - name: knot
