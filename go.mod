@@ -9,7 +9,7 @@ require (
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.8.0
-	github.com/google/go-containerregistry v0.21.8
+	github.com/google/go-containerregistry v0.21.9
 	github.com/hashicorp/go-version v1.9.0
 	github.com/logrusorgru/aurora/v4 v4.0.0
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2
