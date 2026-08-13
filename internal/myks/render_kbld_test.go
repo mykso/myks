@@ -24,14 +24,14 @@ func TestKbld_generateKbldOverrideConfig(t *testing.T) {
 	}
 
 	env := &Environment{
-		ID:  "test-env",
+		ID:  testEnvID,
 		g:   globe,
 		cfg: &globe.Config,
 		Dir: tmpDir,
 	}
 
 	app := &Application{
-		Name:      "test-app",
+		Name:      testAppName,
 		Prototype: "test-proto",
 		e:         env,
 		cfg:       &globe.Config,
@@ -200,14 +200,14 @@ func TestKbld_generateKbldOverrideConfig_Consistency(t *testing.T) {
 	}
 
 	env := &Environment{
-		ID:  "test-env",
+		ID:  testEnvID,
 		g:   globe,
 		cfg: &globe.Config,
 		Dir: tmpDir,
 	}
 
 	app := &Application{
-		Name:      "test-app",
+		Name:      testAppName,
 		Prototype: "test-proto",
 		e:         env,
 		cfg:       &globe.Config,
@@ -351,8 +351,8 @@ func newTestKbld(t *testing.T) *Kbld {
 	t.Helper()
 	tmpDir := t.TempDir()
 	globe := &Globe{Config: Config{RootDir: tmpDir}}
-	env := &Environment{ID: "test-env", g: globe, cfg: &globe.Config, Dir: tmpDir}
-	app := &Application{Name: "test-app", Prototype: "test-proto", e: env, cfg: &globe.Config}
+	env := &Environment{ID: testEnvID, g: globe, cfg: &globe.Config, Dir: tmpDir}
+	app := &Application{Name: testAppName, Prototype: "test-proto", e: env, cfg: &globe.Config}
 	return &Kbld{ident: "test", app: app}
 }
 
