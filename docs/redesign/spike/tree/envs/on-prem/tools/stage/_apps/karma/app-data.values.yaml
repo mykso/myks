@@ -1,0 +1,14 @@
+#! Per-app override at the LEAF env level (envs/.../_apps/<app>/).
+#! Edge 2 (precedence): overrides the prototype default. Final winner must be this
+#! value (env-tree _apps beats prototype app-data.values).
+#@data/values
+---
+application:
+  #! Edge 6 (any-typed passthrough): free-form config blob, schema type any=True.
+  config:
+    ui:
+      refresh: 30s
+    alertmanager:
+      - name: central
+        uri: http://10.0.0.1:9093
+  replicas: 2

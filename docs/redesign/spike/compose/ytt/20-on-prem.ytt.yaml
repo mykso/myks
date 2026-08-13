@@ -1,0 +1,11 @@
+#! Layer 2 — envs/on-prem/env-data.ytt.yaml (cluster group)
+#@data/values
+---
+environment:
+  kubernetesDistribution: rke2
+  rancherEnabled: true
+  applications:
+  #@overlay/append
+  - name: goldpinger
+  #@overlay/append
+  - name: cluster-autoscaler

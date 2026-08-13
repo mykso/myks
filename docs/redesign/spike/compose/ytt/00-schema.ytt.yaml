@@ -1,0 +1,34 @@
+#! BASELINE — how myks composes data values today.
+#! myks hands ytt this schema + the layer files below (root -> on-prem -> tools -> stage
+#! -> prototype) and runs `ytt ... --data-values-inspect` to get ONE flat merged struct.
+#! The struct is computed in pass 1, so NO field can derive from another (no self-reference,
+#! no conditionals). That is the root pain this spike measures.
+#@data/values-schema
+---
+#@overlay/match-child-defaults missing_ok=True
+environment:
+  #@schema/validation one_of=["gke", "rke2", "k3s"]
+  kubernetesDistribution: gke
+  rancherEnabled: false
+  #! SHARED KEY: hoisted to env scope so karma/grafana apps can read it by hardcoded path.
+  #! Must be set by hand at the tier that happens to run the operator — fragile.
+  runsGrafanaOperator: false
+  helm:
+    common:
+      global:
+        clusterGroup: ''
+        tier: ''
+        region: ''
+        #! Must be hand-written; cannot be derived from clusterGroup/tier/region here.
+        clusterFullName: ''
+  applications:
+  - name: ''
+constants:
+  region_short:
+    europe-dc1: eu-dc1
+    europe-west4: eu-w4
+    us-central1: us-c1
+    asia-southeast1: as-se1
+application:
+  port: 8080
+  image: ''

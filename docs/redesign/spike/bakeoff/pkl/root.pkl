@@ -1,0 +1,19 @@
+/// ROOT env level — base every cluster inherits.
+module root
+
+import "lib.pkl"
+
+env: Dynamic = new {
+  id = ""
+  kubernetesDistribution = "gke"
+  rancherEnabled = false
+  runsGrafanaOperator = false
+  helm { common { global = new lib.Global {} } }
+  // CreateNamespace: null is simply omitted (null-to-remove is trivial when composing in-language).
+  argocd { app { syncPolicy { syncOptions { ServerSideApply = "true" } } } }
+  apps = new Listing<lib.App> {
+    new lib.App { name = "bootstrap"; proto = "bootstrap" }
+    new lib.App { name = "cilium"; proto = "cilium"; namespace = "kube-system" }
+    new lib.App { name = "namespaces"; proto = "namespaces"; namespace = "default" }
+  }
+}

@@ -1,0 +1,7 @@
+#! PROTOTYPE defaults (application-scope base). Edge 2: the env-tree _apps/karma
+#! override beats these (config + replicas win from the leaf; image stays from here).
+#@data/values
+---
+application:
+  image: registry.example.com/ghcr-io-mirror/prymitive/karma:v0.131
+  replicas: 1

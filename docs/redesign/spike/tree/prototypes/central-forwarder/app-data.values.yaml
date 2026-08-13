@@ -1,0 +1,6 @@
+#@data/values
+---
+application:
+  centralForwarder:
+    mode: vm-agent
+    shards: 4

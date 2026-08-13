@@ -1,0 +1,15 @@
+#! Layer 4 — envs/on-prem/tools/stage/env-data.*.yaml (leaf env, has environment.id)
+#@data/values
+---
+environment:
+  helm:
+    common:
+      global:
+        tier: stage
+        #! HARDCODED. Conceptually this is "{clusterGroup}-{tier}-{region_short[region]}"
+        #! = "tools-stage-eu-dc1", but data values cannot compute it, so every leaf env
+        #! repeats the string by hand and it can drift from the parts above.
+        clusterFullName: tools-stage-eu-dc1
+  applications:
+  #@overlay/append
+  - name: karma

@@ -1,0 +1,12 @@
+#! LEAF env (has environment.id => renders). tier=stage.
+#! Edge 5 (shared key): runsGrafanaOperator hand-set true here because the tier runs
+#! grafana-operator. In KCL this is DERIVED from the app list, not hand-set.
+#@data/values
+---
+environment:
+  id: tools-stage-eu-dc1
+  runsGrafanaOperator: true
+  helm:
+    common:
+      global:
+        tier: stage

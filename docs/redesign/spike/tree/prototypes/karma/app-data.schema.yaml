@@ -1,0 +1,12 @@
+#! PROTOTYPE schema — EXTENDS the root env schema additively (edge 3).
+#! missing_ok=True lets a prototype add application-scope keys the root never declared.
+#@data/values-schema
+---
+#@overlay/match-child-defaults missing_ok=True
+application:
+  port: 8080
+  image: ''
+  replicas: 1
+  #! Edge 6: any-typed passthrough (karma's real `#@schema/type any=True` config).
+  #@schema/type any=True
+  config:

@@ -1,0 +1,14 @@
+#! TIER: tools. Sets cluster identity (clusterGroup, region) and appends the
+#! grafana-operator app — whose PRESENCE the leaf must hoist to runsGrafanaOperator
+#! (shared key, edge 5). clusterFullName/clusterAddress are derived in KCL from these.
+#@data/values
+---
+environment:
+  helm:
+    common:
+      global:
+        clusterGroup: tools
+        region: europe-dc1
+  applications:
+    - proto: grafana-operator
+    - proto: knot
