@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.13.4](https://github.com/mykso/myks/compare/v5.13.3...v5.13.4) (2026-08-20)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/stretchr/testify to v1.12.0 ([#873](https://github.com/mykso/myks/issues/873)) ([1687c11](https://github.com/mykso/myks/commit/1687c11915c7ba2311dd2e6c7005fe8cb40b0fc9))
+
 ## [5.13.3](https://github.com/mykso/myks/compare/v5.13.2...v5.13.3) (2026-08-13)
 
 
