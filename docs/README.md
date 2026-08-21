@@ -10,7 +10,7 @@ share the configuration between applications and clusters.
 Basically, myks downloads sources and renders them into ready-to-use Kubernetes
 manifests.
 
-Join our [Slack channel](https://kubernetes.slack.com/archives/C06BVDBHZC2)!
+Join our [Slack channel](https://slack.k8s.io/)!
 
 ## Features
 
