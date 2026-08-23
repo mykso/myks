@@ -13,6 +13,15 @@ data-values authoring.
   helm chart; per-app resolved values from the tree reach ytt templates via a
   generated data-values file
 
+## Run
+
+```sh
+myks render ALL
+```
+
+Smart Mode is not supported in KCL mode: a plain `myks render` warns and
+renders everything.
+
 ## File tree
 
 ```python

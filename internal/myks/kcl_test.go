@@ -90,8 +90,11 @@ func TestWriteKclAppDataFile(t *testing.T) {
 	content, err := os.ReadFile(path) // #nosec G304 -- test-controlled path
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "#@data/values-schema")
-	assert.Contains(t, string(content), "greeting: hi")
-	assert.NotContains(t, string(content), "proto", "engine-only key must not leak into data values")
+
+	var values map[string]any
+	require.NoError(t, yaml.Unmarshal(content, &values))
+	assert.Equal(t, map[string]any{"greeting": "hi"}, values["application"])
+	assert.NotContains(t, values, "proto", "engine-only key must not leak into data values")
 	// the source map is left intact
 	assert.Contains(t, appConfig, "proto")
 }
@@ -131,5 +134,36 @@ environments = {
 		dir := writeModule(t, `environments = {}`)
 		_, err := evalKclTree(dir)
 		assert.ErrorContains(t, err, "myksSchemaVersion")
+	})
+
+	t.Run("missing environments", func(t *testing.T) {
+		t.Parallel()
+		dir := writeModule(t, `myksSchemaVersion = "0.1.0"`)
+		_, err := evalKclTree(dir)
+		assert.ErrorContains(t, err, "missing environments")
+	})
+
+	t.Run("empty environments are valid", func(t *testing.T) {
+		t.Parallel()
+		dir := writeModule(t, `
+myksSchemaVersion = "0.1.0"
+environments = {}
+`)
+		tree, err := evalKclTree(dir)
+		require.NoError(t, err)
+		assert.Empty(t, tree.Environments)
+	})
+
+	t.Run("duplicate environment ids", func(t *testing.T) {
+		t.Parallel()
+		dir := writeModule(t, `
+myksSchemaVersion = "0.1.0"
+environments = {
+    dev = {id = "same"}
+    prod = {id = "same"}
+}
+`)
+		_, err := evalKclTree(dir)
+		assert.ErrorContains(t, err, `duplicate environment id "same"`)
 	})
 }

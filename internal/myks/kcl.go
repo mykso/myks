@@ -45,13 +45,26 @@ type kclEnvironmentData struct {
 }
 
 // isKclMode reports whether the repo opts into the KCL config layer (kcl.mod at the config root).
-func (g *Globe) isKclMode() bool {
+// A stat error is propagated: silently falling back to legacy mode on a KCL repo would render wrong output.
+func (g *Globe) isKclMode() (bool, error) {
 	ok, err := isExist(filepath.Join(g.RootDir, kclModFileName))
 	if err != nil {
-		log.Warn().Err(err).Msg(g.Msg("Unable to stat kcl.mod, falling back to legacy mode"))
-		return false
+		return false, fmt.Errorf("checking for %s: %w", kclModFileName, err)
 	}
-	return ok
+	return ok, nil
+}
+
+// loadKclTree evaluates the KCL config root once and caches the result on the Globe.
+func (g *Globe) loadKclTree() (*kclTree, error) {
+	if g.kclTreeCache != nil {
+		return g.kclTreeCache, nil
+	}
+	tree, err := evalKclTree(g.RootDir)
+	if err != nil {
+		return nil, err
+	}
+	g.kclTreeCache = tree
+	return tree, nil
 }
 
 // evalKclTree evaluates the KCL module at rootDir and parses the frozen resolved tree.
@@ -71,13 +84,27 @@ func evalKclTree(rootDir string) (*kclTree, error) {
 	}
 	// ponytail: no version compatibility assert yet; wired in with the published schema package (roadmap step 2)
 
+	// A nil map means the key is absent (an explicit empty mapping unmarshals to a non-nil map).
+	if tree.Environments == nil {
+		return nil, fmt.Errorf("KCL evaluation output is missing environments")
+	}
+
+	envPathByID := map[string]string{}
+	for _, envPath := range slices.Sorted(maps.Keys(tree.Environments)) {
+		id := tree.Environments[envPath].ID
+		if prev, ok := envPathByID[id]; ok {
+			return nil, fmt.Errorf("duplicate environment id %q used by both %s and %s", id, prev, envPath)
+		}
+		envPathByID[id] = envPath
+	}
+
 	return tree, nil
 }
 
 // initFromKclTree initializes environments and applications from the frozen tree.
 // No filesystem walk is performed: the tree is the sole discovery mechanism.
 func (g *Globe) initFromKclTree(envSearchPathToAppMap EnvAppMap) error {
-	tree, err := evalKclTree(g.RootDir)
+	tree, err := g.loadKclTree()
 	if err != nil {
 		return err
 	}
@@ -85,6 +112,7 @@ func (g *Globe) initFromKclTree(envSearchPathToAppMap EnvAppMap) error {
 		Msg(g.Msg("Initialized from KCL frozen tree"))
 
 	filter := g.AddBaseDirToEnvAppMap(envSearchPathToAppMap)
+	// ponytail: sequential env init (ignores asyncLevel); parallelize with process() if KCL repos grow many envs
 	for _, envPath := range slices.Sorted(maps.Keys(tree.Environments)) {
 		dir := filepath.Join(g.EnvironmentBaseDir, filepath.FromSlash(envPath))
 		appNames, matched := matchEnvFilter(dir, filter)
@@ -99,6 +127,22 @@ func (g *Globe) initFromKclTree(envSearchPathToAppMap EnvAppMap) error {
 	}
 
 	return nil
+}
+
+// kclEnvIDToPath resolves an environment ID to its path (relative to the environments base dir)
+// via the frozen tree. Returns "" if the ID is unknown or the tree cannot be evaluated.
+func (g *Globe) kclEnvIDToPath(envID string) string {
+	tree, err := g.loadKclTree()
+	if err != nil {
+		log.Warn().Err(err).Msg(g.Msg("Unable to evaluate KCL tree for environment ID resolution"))
+		return ""
+	}
+	for envPath, envData := range tree.Environments {
+		if envData.ID == envID {
+			return filepath.FromSlash(envPath)
+		}
+	}
+	return ""
 }
 
 // matchEnvFilter checks an environment dir against the CLI env/app selection.
@@ -144,7 +188,13 @@ func (g *Globe) initKclEnvironment(dir string, envData kclEnvironmentData, appNa
 	}
 
 	// ArgoCD is opt-in per tree entry in KCL mode (unlike the legacy schema default of true).
-	env.argoCDEnabled, _ = envData.ArgoCD["enabled"].(bool)
+	if v, present := envData.ArgoCD["enabled"]; present {
+		enabled, ok := v.(bool)
+		if !ok {
+			return nil, fmt.Errorf("argocd.enabled must be a boolean, got %T (%v)", v, v)
+		}
+		env.argoCDEnabled = enabled
+	}
 
 	envDataYaml, err := envData.dataValuesYaml()
 	if err != nil {

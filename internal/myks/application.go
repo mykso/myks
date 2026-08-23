@@ -134,13 +134,17 @@ func (a *Application) writeServiceFile(name, content string) error {
 // Note: The order of the libs is inverted, so that the most specific ones take precedence.
 func (a *Application) collectDataFiles() {
 	APILibraries := []string{a.e.getYttLibAPIDir()}
+	appLibraries := a.collectAllFilesByGlob(a.cfg.YttLibraryDirName)
 	if a.e.kclMode {
 		// KCL mode: the resolved config comes frozen from the KCL tree as a generated
-		// data-values bridge file; no data files are collected from the filesystem.
-		a.yttDataFiles = []string{a.e.getYttLibAPIDir(), a.expandServicePath(kclGeneratedAppDataFileName)}
+		// data-values bridge file; only data-values files are skipped — ytt lib dirs still apply.
+		a.yttDataFiles = slices.Concat(
+			APILibraries,
+			appLibraries,
+			[]string{a.expandServicePath(kclGeneratedAppDataFileName)},
+		)
 		return
 	}
-	appLibraries := a.collectAllFilesByGlob(a.cfg.YttLibraryDirName)
 	envDataFiles := a.e.collectBySubpath(a.cfg.EnvironmentDataFileName)
 	appDataFiles := a.collectAllFilesByGlob(a.cfg.ApplicationDataFileName)
 	a.yttDataFiles = slices.Concat(

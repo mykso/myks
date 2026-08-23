@@ -50,6 +50,9 @@ type Globe struct {
 	// Extra ytt file paths (schema, global lib, config dump).
 	// Populated during New() before any environments are created.
 	extraYttPaths []string
+
+	// Cached frozen resolved tree (KCL mode only); evaluated at most once per Globe.
+	kclTreeCache *kclTree
 }
 
 // YttGlobeData controls runtime data available to ytt templates
@@ -155,7 +158,11 @@ func (g *Globe) ValidateRootDir() error {
 // In KCL mode (kcl.mod at the config root), discovery comes from the frozen resolved tree instead
 // of a filesystem walk.
 func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
-	if g.isKclMode() {
+	kclMode, err := g.isKclMode()
+	if err != nil {
+		return err
+	}
+	if kclMode {
 		return g.initFromKclTree(envSearchPathToAppMap)
 	}
 
@@ -696,9 +703,17 @@ func (g *Globe) IsRenderedEnvID(envID string) bool {
 	return info.IsDir()
 }
 
-// ResolveEnvIDToPath finds the environment path for a given environment ID by scanning env-data files.
+// ResolveEnvIDToPath finds the environment path for a given environment ID.
+// In KCL mode it looks up the frozen tree; otherwise it scans env-data files.
 // Returns the relative path (without the base dir prefix) if found, or empty string if not found.
 func (g *Globe) ResolveEnvIDToPath(envID string) string {
+	if kclMode, err := g.isKclMode(); err != nil {
+		log.Warn().Err(err).Msg(g.Msg("Unable to detect KCL mode"))
+		return ""
+	} else if kclMode {
+		return g.kclEnvIDToPath(envID)
+	}
+
 	baseDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
 
 	var foundPath string
@@ -767,6 +782,13 @@ func (g *Globe) readEnvIDFromFile(filePath string) string {
 // If it's an environment ID, it resolves to the corresponding path.
 // If it's already a path, it returns it as-is.
 func (g *Globe) ResolveEnvIdentifier(identifier string) string {
+	// In KCL mode the frozen tree resolves IDs exactly (and works before the first render).
+	if kclMode, err := g.isKclMode(); err == nil && kclMode {
+		if path := g.kclEnvIDToPath(identifier); path != "" {
+			return path
+		}
+		return identifier
+	}
 	// First check if it's a rendered environment ID
 	if g.IsRenderedEnvID(identifier) {
 		// Try to resolve the ID to a path
