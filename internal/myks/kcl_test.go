@@ -107,6 +107,8 @@ func TestCheckKclSchemaVersion(t *testing.T) {
 	assert.ErrorContains(t, checkKclSchemaVersion("0.2.0"), "unsupported myksSchemaVersion")
 	assert.ErrorContains(t, checkKclSchemaVersion("1.1.0"), "unsupported myksSchemaVersion")
 	assert.ErrorContains(t, checkKclSchemaVersion("nonsense"), "malformed myksSchemaVersion")
+	assert.ErrorContains(t, checkKclSchemaVersion("0.1"), "malformed myksSchemaVersion")
+	assert.ErrorContains(t, checkKclSchemaVersion("0.1.0.1"), "malformed myksSchemaVersion")
 }
 
 // TestEvalKclTree verifies evaluation and validation of a minimal KCL module.

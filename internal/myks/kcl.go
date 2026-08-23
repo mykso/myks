@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	version "github.com/hashicorp/go-version"
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 	kcl "kcl-lang.io/kcl-go"
@@ -123,23 +124,22 @@ func evalKclTree(rootDir string) (*kclTree, error) {
 
 // checkKclSchemaVersion asserts the tree's schema version is compatible with the engine.
 // Compatible means same major.minor as supportedKclSchemaVersion; patch versions may differ.
-func checkKclSchemaVersion(version string) error {
-	majorMinor := func(v string) (string, bool) {
-		parts := strings.SplitN(v, ".", 3)
-		if len(parts) < 2 {
-			return "", false
-		}
-		return parts[0] + "." + parts[1], true
+func checkKclSchemaVersion(schemaVersion string) error {
+	parsed, err := version.NewSemver(schemaVersion)
+	core, _, _ := strings.Cut(schemaVersion, "+")
+	core, _, _ = strings.Cut(core, "-")
+	if err != nil || len(strings.Split(core, ".")) != 3 {
+		return fmt.Errorf("malformed myksSchemaVersion %q: expected a semver like %s", schemaVersion, supportedKclSchemaVersion)
 	}
-	got, ok := majorMinor(version)
-	if !ok {
-		return fmt.Errorf("malformed myksSchemaVersion %q: expected a semver like %s", version, supportedKclSchemaVersion)
+	want, err := version.NewSemver(supportedKclSchemaVersion)
+	if err != nil {
+		return fmt.Errorf("parsing supported KCL schema version %q: %w", supportedKclSchemaVersion, err)
 	}
-	want, _ := majorMinor(supportedKclSchemaVersion)
-	if got != want {
+	gotSegments, wantSegments := parsed.Segments(), want.Segments()
+	if gotSegments[0] != wantSegments[0] || gotSegments[1] != wantSegments[1] {
 		return fmt.Errorf(
 			"unsupported myksSchemaVersion %s: this myks build supports %s.x — align the myks schema package pinned in kcl.mod with the myks version",
-			version, want)
+			schemaVersion, fmt.Sprintf("%d.%d", wantSegments[0], wantSegments[1]))
 	}
 	return nil
 }
