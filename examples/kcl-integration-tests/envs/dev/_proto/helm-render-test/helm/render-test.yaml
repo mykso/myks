@@ -1,0 +1,5 @@
+#@ load("@ytt:data", "data")
+---
+outputYaml:
+  fromPrototypeOverride: true
+  fromPrototypeOverrideFromAppData: #@ data.values.application.protoOverwriteValue

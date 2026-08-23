@@ -50,6 +50,8 @@ type Environment struct {
 	initialized   bool
 	// Environment is defined by the KCL frozen tree, not by env-data files
 	kclMode bool
+	// Generated env-level ytt data files (schema + values), used instead of env-data files in KCL mode
+	kclDataFiles []string
 	// Runtime data
 	renderedDataLibFilePath string
 	// Found applications
@@ -185,7 +187,7 @@ func (e *Environment) setID() error {
 }
 
 func (e *Environment) initEnvData() error {
-	envDataFiles := e.collectBySubpath(e.cfg.EnvironmentDataFileName)
+	envDataFiles := e.envDataFiles()
 	envDataYaml, err := e.renderEnvData(envDataFiles)
 	if err != nil {
 		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to render environment data"))
@@ -206,6 +208,15 @@ func (e *Environment) initEnvData() error {
 	}
 
 	return nil
+}
+
+// envDataFiles returns the environment's data-values source files:
+// the generated bridge files in KCL mode, the env-data files of the dir hierarchy otherwise.
+func (e *Environment) envDataFiles() []string {
+	if e.kclMode {
+		return e.kclDataFiles
+	}
+	return e.collectBySubpath(e.cfg.EnvironmentDataFileName)
 }
 
 func (e *Environment) renderEnvData(envDataFiles []string) ([]byte, error) {

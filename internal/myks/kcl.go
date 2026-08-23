@@ -16,19 +16,33 @@ import (
 const (
 	// kclModFileName is the KCL module manifest; its presence at the config root selects KCL mode.
 	kclModFileName = "kcl.mod"
-	// kclGeneratedAppDataFileName is the per-app data-values bridge file generated from the frozen tree.
-	// It is the only ytt data file of a KCL-mode application.
-	kclGeneratedAppDataFileName = "app-data.kcl-generated.ytt.yaml"
+	// Generated ytt bridge files (per environment and per application). Each config unit is
+	// split in two because ytt forbids mixing schema and plain data-values documents in one file:
+	// the schema part extends the embedded data schema with keys unknown to it, the values part
+	// sets values of the engine-owned scopes (plain data values, unlike schema docs, can carry
+	// array values).
+	kclEnvSchemaFileName = "env-data.kcl-schema.ytt.yaml"
+	kclEnvValuesFileName = "env-data.kcl-values.ytt.yaml"
+	kclAppSchemaFileName = "app-data.kcl-schema.ytt.yaml"
+	kclAppValuesFileName = "app-data.kcl-values.ytt.yaml"
 )
+
+// kclEmbeddedScopes are the engine-owned top-level data-values scopes with a fixed schema
+// (assets/data-schema.ytt.yaml). Their resolved values go into the generated plain data-values
+// file; all other keys extend the schema, exactly like legacy app-data schema documents do.
+var kclEmbeddedScopes = map[string]bool{
+	"argocd":      true,
+	"environment": true,
+	"helm":        true,
+	"kbld":        true,
+	"myks":        true,
+	"render":      true,
+	"yttPkg":      true,
+}
 
 // supportedKclSchemaVersion is the myks schema version the engine understands.
 // Kept in lockstep with kcl/myks/version.k; compatibility is same major.minor.
 const supportedKclSchemaVersion = "0.1.0"
-
-// kclGeneratedAppDataHeader turns the resolved app config into a ytt schema-extension document.
-// A schema doc (not a plain data-values doc) is used so that keys unknown to the embedded
-// data schema (e.g. prototype-specific `application` values) are accepted.
-const kclGeneratedAppDataHeader = "#@data/values-schema\n#@overlay/match-child-defaults missing_ok=True\n---\n"
 
 // kclTree is the frozen resolved tree produced by evaluating the KCL config root.
 // It is the sole discovery mechanism for environments and applications in KCL mode.
@@ -47,6 +61,9 @@ type kclEnvironmentData struct {
 	ArgoCD map[string]any `yaml:"argocd"`
 	// Applications maps application names to their self-contained resolved config.
 	Applications map[string]map[string]any `yaml:"applications"`
+	// Extra captures the remaining env-level keys (e.g. the myks scope or a global value bag);
+	// they flow into the environment data values like legacy env-data content does.
+	Extra map[string]any `yaml:",inline"`
 }
 
 // isKclMode reports whether the repo opts into the KCL config layer (kcl.mod at the config root).
@@ -213,11 +230,15 @@ func matchEnvFilter(dir string, filter EnvAppMap) (appNames []string, matched bo
 }
 
 // initKclEnvironment builds a fully initialized Environment from one frozen-tree entry.
+// The tree entry is materialized as generated ytt bridge files (one env-level pair and one pair
+// per application), after which the regular environment initialization runs on top of them, so
+// legacy semantics (embedded schema defaults, env data lib, ArgoCD settings) apply unchanged.
 func (g *Globe) initKclEnvironment(dir string, envData kclEnvironmentData, appNames []string) (*Environment, error) {
 	if envData.ID == "" {
 		return nil, fmt.Errorf("environment entry is missing id")
 	}
 
+	serviceDir := filepath.Join(g.RootDir, g.ServiceDirName, dir)
 	env := &Environment{
 		Dir:                     dir,
 		ID:                      envData.ID,
@@ -225,95 +246,87 @@ func (g *Globe) initKclEnvironment(dir string, envData kclEnvironmentData, appNa
 		g:                       g,
 		cfg:                     &g.Config,
 		extraYttPaths:           g.extraYttPaths,
-		renderedDataLibFilePath: filepath.Join(g.RootDir, g.ServiceDirName, dir, g.RenderedEnvironmentDataLibFileName),
+		renderedDataLibFilePath: filepath.Join(serviceDir, g.RenderedEnvironmentDataLibFileName),
 		foundApplications:       map[string]string{},
 		kclMode:                 true,
+		kclDataFiles: []string{
+			filepath.Join(serviceDir, kclEnvSchemaFileName),
+			filepath.Join(serviceDir, kclEnvValuesFileName),
+		},
 	}
 
-	// ArgoCD is opt-in per tree entry in KCL mode (unlike the legacy schema default of true).
-	if v, present := envData.ArgoCD["enabled"]; present {
-		enabled, ok := v.(bool)
-		if !ok {
-			return nil, fmt.Errorf("argocd.enabled must be a boolean, got %T (%v)", v, v)
-		}
-		env.argoCDEnabled = enabled
-	}
-
-	envDataYaml, err := envData.dataValuesYaml()
-	if err != nil {
-		return nil, err
-	}
-	envDataLib, err := env.renderEnvDataLib(envDataYaml)
-	if err != nil {
-		return nil, fmt.Errorf("rendering environment data lib: %w", err)
-	}
-	if err := env.saveRenderedEnvDataLib(envDataLib); err != nil {
-		return nil, fmt.Errorf("saving rendered environment data lib: %w", err)
+	if err := writeKclDataFiles(env.kclDataFiles[0], env.kclDataFiles[1], envData.dataValues()); err != nil {
+		return nil, fmt.Errorf("writing generated environment data values: %w", err)
 	}
 
 	for _, name := range slices.Sorted(maps.Keys(envData.Applications)) {
-		appConfig := envData.Applications[name]
-		proto := name
-		if p, ok := appConfig["proto"].(string); ok && p != "" {
-			proto = p
-		}
-		env.foundApplications[name] = proto
-
-		bridgeFile := filepath.Join(g.RootDir, g.ServiceDirName, dir, g.AppsDir, name, kclGeneratedAppDataFileName)
-		if err := writeKclAppDataFile(bridgeFile, appConfig); err != nil {
+		values := maps.Clone(envData.Applications[name])
+		delete(values, "proto")
+		appDir := filepath.Join(serviceDir, g.AppsDir, name)
+		err := writeKclDataFiles(
+			filepath.Join(appDir, kclAppSchemaFileName),
+			filepath.Join(appDir, kclAppValuesFileName),
+			values,
+		)
+		if err != nil {
 			return nil, fmt.Errorf("writing generated data values for app %s: %w", name, err)
 		}
 	}
 
-	if err := env.initApplications(appNames); err != nil {
-		return nil, fmt.Errorf("initializing applications: %w", err)
+	if err := env.Init(appNames); err != nil {
+		return nil, err
 	}
-	env.initialized = true
 
 	return env, nil
 }
 
-// dataValuesYaml serializes the environment entry as ytt data values
-// (feeds the env data lib consumed by templates via the myks ytt API).
-func (d kclEnvironmentData) dataValuesYaml() ([]byte, error) {
-	type appEntry struct {
-		// Name of the application.
-		Name string `yaml:"name"`
-		// Proto is the application's prototype name.
-		Proto string `yaml:"proto"`
+// dataValues shapes the environment entry as ytt data values: extras stay top-level scopes,
+// id and the application roster go under the engine-owned environment scope.
+func (d kclEnvironmentData) dataValues() map[string]any {
+	values := map[string]any{}
+	maps.Copy(values, d.Extra)
+	if d.ArgoCD != nil {
+		values["argocd"] = d.ArgoCD
 	}
-	data := struct {
-		ArgoCD      map[string]any `yaml:"argocd,omitempty"`
-		Environment struct {
-			ID           string     `yaml:"id"`
-			Applications []appEntry `yaml:"applications"`
-		} `yaml:"environment"`
-	}{ArgoCD: d.ArgoCD}
-	data.Environment.ID = d.ID
+
+	apps := make([]map[string]any, 0, len(d.Applications))
 	for _, name := range slices.Sorted(maps.Keys(d.Applications)) {
 		proto, _ := d.Applications[name]["proto"].(string)
 		if proto == "" {
 			proto = name
 		}
-		data.Environment.Applications = append(data.Environment.Applications, appEntry{Name: name, Proto: proto})
+		apps = append(apps, map[string]any{"name": name, "proto": proto})
 	}
+	values["environment"] = map[string]any{"id": d.ID, "applications": apps}
 
-	yamlBytes, err := yaml.Marshal(data)
-	if err != nil {
-		return nil, fmt.Errorf("marshalling environment data: %w", err)
-	}
-	return yamlBytes, nil
+	return values
 }
 
-// writeKclAppDataFile writes the app's resolved config (minus the engine-only proto key)
-// as a generated ytt data-values bridge file.
-func writeKclAppDataFile(path string, appConfig map[string]any) error {
-	values := maps.Clone(appConfig)
-	delete(values, "proto")
-
-	yamlBytes, err := yaml.Marshal(values)
-	if err != nil {
-		return fmt.Errorf("marshalling app data values: %w", err)
+// writeKclDataFiles writes one resolved config unit as a pair of generated ytt files:
+// keys unknown to the embedded data schema become a schema-extension document, engine-owned
+// scopes become a plain data-values document. Both files are always written (with an empty
+// body when there is nothing to say) so no stale content survives a re-run.
+func writeKclDataFiles(schemaPath, valuesPath string, values map[string]any) error {
+	schemaValues := map[string]any{}
+	plainValues := map[string]any{}
+	for key, value := range values {
+		if kclEmbeddedScopes[key] {
+			plainValues[key] = value
+		} else {
+			schemaValues[key] = value
+		}
 	}
-	return writeFile(path, append([]byte(kclGeneratedAppDataHeader), yamlBytes...))
+
+	write := func(path, header string, values map[string]any) error {
+		yamlBytes, err := yaml.Marshal(values)
+		if err != nil {
+			return fmt.Errorf("marshalling generated data values: %w", err)
+		}
+		return writeFile(path, append([]byte(header), yamlBytes...))
+	}
+
+	if err := write(schemaPath, "#@data/values-schema\n#@overlay/match-child-defaults missing_ok=True\n---\n", schemaValues); err != nil {
+		return err
+	}
+	return write(valuesPath, "#@data/values\n---\n", plainValues)
 }

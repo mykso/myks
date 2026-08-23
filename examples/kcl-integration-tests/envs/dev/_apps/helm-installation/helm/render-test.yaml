@@ -1,0 +1,5 @@
+#@ load("@ytt:data", "data")
+---
+outputYaml:
+  fromAppConfig: true
+  fromAppConfigAppData: #@ data.values.application.appValue

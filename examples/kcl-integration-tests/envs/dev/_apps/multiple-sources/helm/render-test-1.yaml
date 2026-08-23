@@ -1,0 +1,3 @@
+outputYaml:
+  fromAppSpecificChart: true
+  appSpecificChart: appSpecificChart

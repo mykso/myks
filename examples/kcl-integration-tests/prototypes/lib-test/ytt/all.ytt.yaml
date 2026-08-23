@@ -1,0 +1,11 @@
+#@ load("application.star", "applicationVar")
+#@ load("global.star", "globalVar")
+#@ load("prototype.star", "prototypeVar")
+
+---
+kind: MyksTest
+metadata:
+  name: lib-test
+applicationVar: #@ applicationVar
+globalVar: #@ globalVar
+prototypeVar: #@ prototypeVar

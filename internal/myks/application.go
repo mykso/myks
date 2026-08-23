@@ -136,12 +136,17 @@ func (a *Application) collectDataFiles() {
 	APILibraries := []string{a.e.getYttLibAPIDir()}
 	appLibraries := a.collectAllFilesByGlob(a.cfg.YttLibraryDirName)
 	if a.e.kclMode {
-		// KCL mode: the resolved config comes frozen from the KCL tree as a generated
-		// data-values bridge file; only data-values files are skipped — ytt lib dirs still apply.
+		// KCL mode: the resolved config comes frozen from the KCL tree as generated bridge
+		// files (env-level, then app-level, so app values win — mirroring the legacy order);
+		// only data-values files are skipped — ytt lib dirs still apply.
 		a.yttDataFiles = slices.Concat(
 			APILibraries,
 			appLibraries,
-			[]string{a.expandServicePath(kclGeneratedAppDataFileName)},
+			a.e.kclDataFiles,
+			[]string{
+				a.expandServicePath(kclAppSchemaFileName),
+				a.expandServicePath(kclAppValuesFileName),
+			},
 		)
 		return
 	}

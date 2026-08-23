@@ -1,0 +1,1 @@
+prototypeVar = "defined in prototype"
