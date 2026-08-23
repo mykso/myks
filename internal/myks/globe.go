@@ -152,7 +152,13 @@ func (g *Globe) ValidateRootDir() error {
 }
 
 // Init discovers and initializes environments and their applications based on the provided map.
+// In KCL mode (kcl.mod at the config root), discovery comes from the frozen resolved tree instead
+// of a filesystem walk.
 func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
+	if g.isKclMode() {
+		return g.initFromKclTree(envSearchPathToAppMap)
+	}
+
 	envAppMap := g.collectEnvironments(g.AddBaseDirToEnvAppMap(envSearchPathToAppMap))
 	log.Debug().Interface("envAppMap", envAppMap).Msg(g.Msg("Environments collected from search paths"))
 

@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  greeting: hello from dev
+kind: ConfigMap
+metadata:
+  name: hello
+  namespace: dev-hello

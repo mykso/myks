@@ -1,0 +1,7 @@
+apiVersion: v1
+data:
+  greeting: hello
+kind: ConfigMap
+metadata:
+  name: hello
+  namespace: prod-hello

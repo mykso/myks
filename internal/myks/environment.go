@@ -48,6 +48,8 @@ type Environment struct {
 
 	argoCDEnabled bool
 	initialized   bool
+	// Environment is defined by the KCL frozen tree, not by env-data files
+	kclMode bool
 	// Runtime data
 	renderedDataLibFilePath string
 	// Found applications

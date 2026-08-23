@@ -1,0 +1,24 @@
+#! A minimal inline helm chart: keeps the example hermetic (no network access during sync).
+---
+apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+  - path: charts/hello
+    contents:
+      - path: .
+        inline:
+          paths:
+            Chart.yaml: |
+              apiVersion: v2
+              name: hello
+              version: 0.1.0
+            values.yaml: |
+              greeting: hello
+            templates/configmap.yaml: |
+              apiVersion: v1
+              kind: ConfigMap
+              metadata:
+                name: hello
+                namespace: {{ .Release.Namespace }}
+              data:
+                greeting: {{ .Values.greeting | quote }}
