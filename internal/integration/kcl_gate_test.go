@@ -9,6 +9,7 @@ import (
 
 	"github.com/mykso/myks/cmd"
 	"github.com/mykso/myks/internal/myks"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // TestKclGate is the byte-identical migration gate (config-layer redesign, roadmap step 3):
@@ -31,13 +32,8 @@ func TestKclGate(t *testing.T) {
 		// Per-app waivers: app name -> reason. Waived apps are expected to differ because a
 		// KCL derivation intentionally changes values; their outputs are excluded from the diff.
 		map[string]string{},
-		// The repos live in different directories, so repo-relative paths baked into the output
-		// (e.g. the ArgoCD Application source.path) legitimately differ; normalize them away.
-		func(content []byte) []byte {
-			return bytes.ReplaceAll(content,
-				[]byte("examples/kcl-integration-tests/"),
-				[]byte("examples/integration-tests/"))
-		},
+		// The repos live in different directories, so ArgoCD Application source paths legitimately differ.
+		normalizeArgoCDSourcePath,
 	)
 }
 
@@ -52,8 +48,8 @@ func renderRepo(t *testing.T, baseFolder, root string) {
 
 // diffRenderedTrees compares the rendered/ trees of two repo roots byte for byte.
 // Waived applications are excluded from the comparison; normalize (optional) is applied to
-// every file of the second tree before comparing.
-func diffRenderedTrees(t *testing.T, wantRoot, gotRoot string, waivedApps map[string]string, normalize func([]byte) []byte) {
+// files of the second tree before comparing.
+func diffRenderedTrees(t *testing.T, wantRoot, gotRoot string, waivedApps map[string]string, normalize func(*testing.T, string, []byte) []byte) {
 	t.Helper()
 
 	for app, reason := range waivedApps {
@@ -70,7 +66,7 @@ func diffRenderedTrees(t *testing.T, wantRoot, gotRoot string, waivedApps map[st
 			continue
 		}
 		if normalize != nil {
-			got = normalize(got)
+			got = normalize(t, path, got)
 		}
 		if !bytes.Equal(want, got) {
 			t.Errorf("rendered file differs: %s\n--- %s\n%s\n--- %s\n%s", path, wantRoot, want, gotRoot, got)
@@ -80,6 +76,64 @@ func diffRenderedTrees(t *testing.T, wantRoot, gotRoot string, waivedApps map[st
 		if _, ok := wantFiles[path]; !ok {
 			t.Errorf("unexpected rendered file: %s", path)
 		}
+	}
+}
+
+// normalizeArgoCDSourcePath reconciles the fixture-root difference only in an ArgoCD
+// Application's spec.source.path. Every other rendered value remains byte-compared.
+func normalizeArgoCDSourcePath(t *testing.T, relPath string, content []byte) []byte {
+	t.Helper()
+	if !strings.HasPrefix(relPath, "argocd/") || !strings.HasPrefix(filepath.Base(relPath), "app-") {
+		return content
+	}
+
+	var application struct {
+		Kind string `yaml:"kind"`
+		Spec struct {
+			Source struct {
+				Path string `yaml:"path"`
+			} `yaml:"source"`
+		} `yaml:"spec"`
+	}
+	if err := yaml.Unmarshal(content, &application); err != nil {
+		t.Fatalf("parsing ArgoCD Application %s: %s", relPath, err)
+	}
+	if application.Kind != "Application" || !strings.HasPrefix(application.Spec.Source.Path, "examples/kcl-integration-tests/") {
+		return content
+	}
+
+	got := []byte("path: " + application.Spec.Source.Path)
+	if bytes.Count(content, got) != 1 {
+		t.Fatalf("finding unique spec.source.path in %s", relPath)
+	}
+	want := []byte("path: " + strings.Replace(application.Spec.Source.Path, "examples/kcl-integration-tests/", "examples/integration-tests/", 1))
+	return bytes.Replace(content, got, want, 1)
+}
+
+func TestNormalizeArgoCDSourcePath(t *testing.T) {
+	t.Parallel()
+	content := []byte(`apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    repository: examples/kcl-integration-tests/
+spec:
+  source:
+    path: examples/kcl-integration-tests/rendered/envs/dev/app
+`)
+
+	got := normalizeArgoCDSourcePath(t, "argocd/dev/app-app.yaml", content)
+	want := []byte(`apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    repository: examples/kcl-integration-tests/
+spec:
+  source:
+    path: examples/integration-tests/rendered/envs/dev/app
+`)
+	if !bytes.Equal(got, want) {
+		t.Errorf("normalized content differs:\nwant:\n%s\ngot:\n%s", want, got)
 	}
 }
 

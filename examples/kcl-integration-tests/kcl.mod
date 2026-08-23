@@ -7,3 +7,5 @@ version = "0.1.0"
 #   kcl mod add oci://ghcr.io/mykso/myks
 [dependencies]
 myks = { path = "../../kcl/myks" }
+
+# vim: ft=toml:
