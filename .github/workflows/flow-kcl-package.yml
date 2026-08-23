@@ -1,0 +1,37 @@
+name: flow-kcl-package
+
+# Publishes the myks KCL schema package (kcl/myks) to the OCI registry.
+# The tag is the version in kcl/myks/kcl.mod; pushing an existing version overwrites it.
+'on':
+  push:
+    branches:
+      - main
+    paths:
+      - kcl/myks/**
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Publish KCL package
+        env:
+          KCL_CLI_VERSION: v0.12.4 # keep in lockstep with kcl-lang.io/kcl-go in go.mod
+        run: |
+          go install kcl-lang.io/cli/cmd/kcl@$KCL_CLI_VERSION
+          echo '${{ secrets.GITHUB_TOKEN }}' \
+            | kcl registry login -u '${{ github.actor }}' --password-stdin ghcr.io
+          cd kcl/myks
+          kcl mod push oci://ghcr.io/mykso/myks

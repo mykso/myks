@@ -4,6 +4,9 @@ Minimal repo exercising the KCL-based configuration layer ([design](../../docs/r
 at the root selects KCL mode: myks evaluates the KCL module into a frozen resolved tree and discovers environments and
 applications from it — no filesystem walk, no ytt data-values authoring.
 
+- `kcl.mod` depends on the [myks schema package](../../kcl/myks) (`Environment`, `App`, `finalize`,
+  `SCHEMA_VERSION`) — by path here so the example tracks the engine at HEAD; user repos pin the
+  published package with `kcl mod add oci://ghcr.io/mykso/myks`
 - `main.k` emits the frozen tree (`myksSchemaVersion`, `environments`)
 - `envs/env.k` holds global defaults and the shared application roster
 - `envs/dev/env.k` and `envs/prod/env.k` import the base level and patch it
@@ -22,7 +25,7 @@ Smart Mode is not supported in KCL mode: a plain `myks render` warns and renders
 
 ```
 .
-├── kcl.mod                # KCL module manifest; the KCL-mode marker
+├── kcl.mod                # KCL module manifest; the KCL-mode marker; pins the myks schema package
 ├── main.k                 # root evaluation: emits the frozen resolved tree
 ├── envs
 │   ├── env.k              # base level: defaults + application roster

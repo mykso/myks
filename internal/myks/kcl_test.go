@@ -99,6 +99,16 @@ func TestWriteKclAppDataFile(t *testing.T) {
 	assert.Contains(t, appConfig, "proto")
 }
 
+// TestCheckKclSchemaVersion verifies the engine's schema-version compatibility rule.
+func TestCheckKclSchemaVersion(t *testing.T) {
+	t.Parallel()
+	assert.NoError(t, checkKclSchemaVersion(supportedKclSchemaVersion))
+	assert.NoError(t, checkKclSchemaVersion("0.1.99"), "patch versions may differ")
+	assert.ErrorContains(t, checkKclSchemaVersion("0.2.0"), "unsupported myksSchemaVersion")
+	assert.ErrorContains(t, checkKclSchemaVersion("1.1.0"), "unsupported myksSchemaVersion")
+	assert.ErrorContains(t, checkKclSchemaVersion("nonsense"), "malformed myksSchemaVersion")
+}
+
 // TestEvalKclTree verifies evaluation and validation of a minimal KCL module.
 func TestEvalKclTree(t *testing.T) {
 	t.Parallel()
@@ -152,6 +162,42 @@ environments = {}
 		tree, err := evalKclTree(dir)
 		require.NoError(t, err)
 		assert.Empty(t, tree.Environments)
+	})
+
+	t.Run("incompatible schema version", func(t *testing.T) {
+		t.Parallel()
+		dir := writeModule(t, `
+myksSchemaVersion = "99.0.0"
+environments = {}
+`)
+		_, err := evalKclTree(dir)
+		assert.ErrorContains(t, err, "unsupported myksSchemaVersion 99.0.0")
+	})
+
+	t.Run("kcl.mod path dependency is resolved", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		depDir := filepath.Join(dir, "dep")
+		require.NoError(t, os.MkdirAll(depDir, 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(depDir, "kcl.mod"),
+			[]byte("[package]\nname = \"dep\"\nversion = \"0.1.0\"\n"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(depDir, "main.k"),
+			[]byte(`VERSION = "0.1.0"`), 0o600))
+
+		modDir := filepath.Join(dir, "config")
+		require.NoError(t, os.MkdirAll(modDir, 0o700))
+		require.NoError(t, os.WriteFile(filepath.Join(modDir, "kcl.mod"),
+			[]byte("[package]\nname = \"config\"\n\n[dependencies]\ndep = { path = \"../dep\" }\n"), 0o600))
+		require.NoError(t, os.WriteFile(filepath.Join(modDir, "main.k"), []byte(`
+import dep
+
+myksSchemaVersion = dep.VERSION
+environments = {}
+`), 0o600))
+
+		tree, err := evalKclTree(modDir)
+		require.NoError(t, err)
+		assert.Equal(t, "0.1.0", tree.MyksSchemaVersion)
 	})
 
 	t.Run("duplicate environment ids", func(t *testing.T) {
