@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strings"
 
+	version "github.com/hashicorp/go-version"
 	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 	kcl "kcl-lang.io/kcl-go"
@@ -19,6 +20,10 @@ const (
 	// It is the only ytt data file of a KCL-mode application.
 	kclGeneratedAppDataFileName = "app-data.kcl-generated.ytt.yaml"
 )
+
+// supportedKclSchemaVersion is the myks schema version the engine understands.
+// Kept in lockstep with kcl/myks/version.k; compatibility is same major.minor.
+const supportedKclSchemaVersion = "0.1.0"
 
 // kclGeneratedAppDataHeader turns the resolved app config into a ytt schema-extension document.
 // A schema doc (not a plain data-values doc) is used so that keys unknown to the embedded
@@ -69,7 +74,21 @@ func (g *Globe) loadKclTree() (*kclTree, error) {
 
 // evalKclTree evaluates the KCL module at rootDir and parses the frozen resolved tree.
 func evalKclTree(rootDir string) (*kclTree, error) {
-	res, err := kcl.Run(rootDir)
+	// The resolver treats a relative manifest path as relative to its own cache dir, not the cwd.
+	absRootDir, err := filepath.Abs(rootDir)
+	if err != nil {
+		return nil, fmt.Errorf("resolving absolute path of %s: %w", rootDir, err)
+	}
+	deps, err := kcl.UpdateDependencies(&kcl.UpdateDependenciesArgs{ManifestPath: absRootDir})
+	if err != nil {
+		return nil, fmt.Errorf("resolving KCL dependencies at %s: %w", rootDir, err)
+	}
+	opts := make([]kcl.Option, 0, len(deps.ExternalPkgs))
+	for _, pkg := range deps.ExternalPkgs {
+		opts = append(opts, kcl.WithExternalPkgAndPath(pkg.PkgName, pkg.PkgPath))
+	}
+
+	res, err := kcl.Run(rootDir, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("evaluating KCL config at %s: %w", rootDir, err)
 	}
@@ -82,7 +101,9 @@ func evalKclTree(rootDir string) (*kclTree, error) {
 	if tree.MyksSchemaVersion == "" {
 		return nil, fmt.Errorf("KCL evaluation output is missing myksSchemaVersion")
 	}
-	// ponytail: no version compatibility assert yet; wired in with the published schema package (roadmap step 2)
+	if err := checkKclSchemaVersion(tree.MyksSchemaVersion); err != nil {
+		return nil, err
+	}
 
 	// A nil map means the key is absent (an explicit empty mapping unmarshals to a non-nil map).
 	if tree.Environments == nil {
@@ -99,6 +120,28 @@ func evalKclTree(rootDir string) (*kclTree, error) {
 	}
 
 	return tree, nil
+}
+
+// checkKclSchemaVersion asserts the tree's schema version is compatible with the engine.
+// Compatible means same major.minor as supportedKclSchemaVersion; patch versions may differ.
+func checkKclSchemaVersion(schemaVersion string) error {
+	parsed, err := version.NewSemver(schemaVersion)
+	core, _, _ := strings.Cut(schemaVersion, "+")
+	core, _, _ = strings.Cut(core, "-")
+	if err != nil || len(strings.Split(core, ".")) != 3 {
+		return fmt.Errorf("malformed myksSchemaVersion %q: expected a semver like %s", schemaVersion, supportedKclSchemaVersion)
+	}
+	want, err := version.NewSemver(supportedKclSchemaVersion)
+	if err != nil {
+		return fmt.Errorf("parsing supported KCL schema version %q: %w", supportedKclSchemaVersion, err)
+	}
+	gotSegments, wantSegments := parsed.Segments(), want.Segments()
+	if gotSegments[0] != wantSegments[0] || gotSegments[1] != wantSegments[1] {
+		return fmt.Errorf(
+			"unsupported myksSchemaVersion %s: this myks build supports %s.x — align the myks schema package pinned in kcl.mod with the myks version",
+			schemaVersion, fmt.Sprintf("%d.%d", wantSegments[0], wantSegments[1]))
+	}
+	return nil
 }
 
 // initFromKclTree initializes environments and applications from the frozen tree.
