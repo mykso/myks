@@ -1,8 +1,8 @@
 # Build on the myks lineage, do not adopt a foreign rendering tool
 
 We will redesign the GitOps renderer by **building on myks** (fork-and-evolve, or rewrite sharing its model —
-that sub-decision is still open) rather than adopting an existing integrated tool (Holos, Helmfile, kluctl, Timoni,
-cdk8s, KCL ecosystem, kpt/kustomize) as a wholesale replacement.
+that sub-decision was later settled: evolve in place, ADR 0005) rather than adopting an existing integrated tool
+(Holos, Helmfile, kluctl, Timoni, cdk8s, KCL ecosystem, kpt/kustomize) as a wholesale replacement.
 
 ## Why
 
@@ -17,9 +17,9 @@ slice at `globe.go:276`; the additive/mutative loop is generic), so evolving it 
 
 ## Consequences
 
-- Sub-decisions still open, sequenced as separate sessions: (1) **configuration language** to replace ytt data-values
-  (handed off — see `$TMPDIR/handoff-config-language-selection.md`), then (2) **host programming language**
-  and **fork-vs-rewrite**.
+- Sub-decisions sequenced as separate sessions: (1) **configuration language** to replace ytt data-values
+  (decided: KCL — ADR 0002, confirmed by the bake-off in `docs/redesign/bakeoff-results.md`),
+  then (2) **host programming language** and **fork-vs-rewrite** (decided: Go, evolve in place — ADR 0005).
 - We will adopt the **KRM ResourceList** spec as the external/exec rendering-plugin wire contract (the one cross-tool
   standard), while keeping an internal Go-style step interface for in-process renderers.
 - We own renderer maintenance (already true today), accepting that in exchange for exact fit to our model and an

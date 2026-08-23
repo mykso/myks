@@ -2,13 +2,13 @@
 
 Evidence base for the rendering-pipeline redesign. Distilled from a 2025-2026 landscape survey
 (config languages, integrated GitOps tools, pluggable-pipeline prior art, myks fork feasibility).
-Decisions that flow from this live in `docs/adr/`; vocabulary in `/CONTEXT.md`.
+Decisions that flow from this live in `docs/adr/`.
 
-## Baseline we must match (verified against this repo)
+## Baseline we must match (measured on a large production myks installation)
 
 61 prototypes · 25 leaf environments · ~681 ArgoCD Applications · ~22.5k rendered per-resource YAML files ·
 1,030 `.ytt.yaml` + 9 `.star` modules · 9 kbld mirror rules · `async: 16` · vendir cache in `.myks/vendir-cache/` ·
-3 plugins (rightsize/karl, argo-refresh, debug). Pattern = **Rendered Manifests Pattern** (render in CI → commit
+3 in-house plugins. Pattern = **Rendered Manifests Pattern** (render in CI → commit
 hydrated YAML → ArgoCD applies static YAML). myks itself: independent, ~17 stars → **low bus factor is the real
 driver to evaluate alternatives**.
 
@@ -90,6 +90,10 @@ plugins → replace the **ytt data-values engine** with a real language → migr
 ### Decisions status
 - **DECIDED** — do not adopt a foreign tool; build on myks (ADR 0001). Adopt+glue is rejected.
 - **DECIDED** — rendering = unified plugin engine; KRM ResourceList = external wire contract.
-- **OPEN, session 1 (handed off)** — configuration language to replace ytt data-values (KCL vs CUE vs Jsonnet vs
-  cdk8s). Handoff brief: `$TMPDIR/handoff-config-language-selection.md`.
-- **OPEN, session 2** — host programming language + fork-myks vs rewrite-from-scratch.
+- **DECIDED, session 1** — configuration language = **KCL**, re-derived on a UX rubric over a 5-track
+  bake-off (KCL flat/per-app, CUE, Jsonnet, Pkl): `docs/redesign/bakeoff-results.md`, ADR 0002.
+  Note: the Finding-4 ranking above predates the bake-off (it weighted Go-embeddability, later dropped
+  as a rubric dimension) — the scorecard supersedes it.
+- **DECIDED, session 2** — host language = **Go**, evolve myks in place (rewrite rejected): ADR 0005.
+  Engine integration (in-process kcl-go, tree-as-discovery, per-repo mode, ytt bridge): ADR 0006.
+  Implementation: `docs/redesign/design.md` + `docs/redesign/roadmap.md`.

@@ -1,5 +1,14 @@
 # Configuration-layer requirements (redesign)
 
+> **Status: closed — all decisions settled; this document is the historical requirement set.**
+> All five bake-off tracks (KCL flat, KCL per-app, CUE, Jsonnet, Pkl) passed the correctness gate;
+> **KCL won the UX rubric** ([bakeoff-results.md](bakeoff-results.md)), closing the reopened
+> ADR 0002. The pure-language surface survived (ADR 0004). The multi-cluster scale spike settled
+> flat-vs-per-app (flat default, per-app opt-in) and confirmed L8 at scale (linear to 1000
+> clusters), accepting ADR 0003. Host language + fork-vs-rewrite closed as Go / evolve-in-place
+> (ADR 0005), engine integration decided (ADR 0006). Implementation: [design.md](design.md) +
+> [roadmap.md](roadmap.md). Spike code was removed after the decisions closed.
+
 The requirement set the **config-language bake-off** is judged against. Scope is the *configuration
 layer* — what replaces ytt data-values composition (ADR 0002). Engine/orchestration requirements are
 settled by ADR 0001 and are **out of scope this session** (listed below for the boundary, not evaluated).
@@ -53,8 +62,8 @@ Same regardless of which language wins. Listed for the boundary only.
 Two tiers:
 
 1. **Correctness gate (pass/fail).** Each language's harness emits the resolved configuration tree
-   for the shared fixture (the existing `spike/tree/` fixture, *extended* with L3 cross-stage + L4
-   cross-app cases). Gate = matches the **shared golden tree** after canonicalization (`yq sort_keys`)
+   for the shared fixture (the earlier realistic-filesystem spike fixture, *extended* with L3
+   cross-stage + L4 cross-app cases). Gate = matches the **shared golden tree** after canonicalization (`yq sort_keys`)
    — same YAML structure. Golden = the ytt `--data-values-inspect` baseline where ytt can express the
    case; **hand-authored** for the new L3/L4 cases (ytt cannot produce them).
 2. **UX rubric (scored — decides the winner among gate-passers).**
@@ -94,7 +103,7 @@ logic. Each candidate builds **≥2 helm apps**:
 
 ### Fixture scenario matrix
 
-Reuse + extend `spike/tree/`'s apps; each maps to requirements:
+Reuse + extend the earlier spike fixture's apps; each maps to requirements:
 
 | App | Exercises |
 |---|---|

@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: accepted
 ---
 
 # Evaluate the whole configuration tree once, then fan out rendering
@@ -33,6 +33,11 @@ root to evaluate any environment. So eval the whole tree.
 - **Eval speed becomes a hard gate** (requirement L8). "Eval everything" is only viable if full-tree
   eval is fast; this is benchmarked per language in the bake-off. If too slow across **all**
   candidates, this decision is reconsidered (subtree eval, memoization, or caching the frozen tree).
+  **Gate cleared (scale spike, 2026-08-23):** KCL whole-tree eval is linear with no knee up to 1000
+  clusters (~40 ms startup + ~1.6 ms/cluster; ~0.9 MB/cluster peak RSS). At a realistic repo size
+  (~30 clusters) that is ~90 ms / ~80 MB; per-cluster fan-out evaluation is 8–33x slower at every
+  size because it pays interpreter startup per env. Evidence summarized in
+  `docs/redesign/bakeoff-results.md`. Hence status: accepted.
 - **Cross-environment references** are not a use case; the eval computes the whole tree but apps are
   expected to reference only within their environment + ancestors. Not enforced unless a need appears.
 - Kills the **shared-key** and **double-toggle** workarounds: scope-2 and scope-3 introspection
