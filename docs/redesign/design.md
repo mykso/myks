@@ -138,6 +138,8 @@ Requirements on the shape (they exist so later phases bolt on without breaking i
 
 ## Migration
 
+User-facing steps: [docs/migration.md](../migration.md).
+
 - **Converter**: `myks migrate` subcommand. Machine-seeds the KCL tree from an existing repo:
   `kcl import` for the plain-YAML data-values files, re-parenting onto the level/import structure,
   roster generation from the existing `_apps` layout. Hand-finishing (typed schemas, derivations)
