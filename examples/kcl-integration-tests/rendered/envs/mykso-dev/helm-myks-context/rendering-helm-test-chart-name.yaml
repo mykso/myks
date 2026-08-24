@@ -1,0 +1,11 @@
+kind: rendering
+metadata:
+  name: helm-test-chart-name
+outputYaml:
+  fromChartDefaultValues: true
+  myksContext:
+    app: helm-myks-context
+    helm:
+      chart: test-chart-name
+    prototype: prototypes/helm-myks-context
+    step: render

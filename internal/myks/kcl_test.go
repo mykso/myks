@@ -43,8 +43,8 @@ func TestMatchEnvFilter(t *testing.T) {
 	}
 }
 
-// TestKclEnvironmentDataValuesYaml verifies serialization of a tree entry into env data values.
-func TestKclEnvironmentDataValuesYaml(t *testing.T) {
+// TestKclEnvironmentDataValues verifies shaping of a tree entry into env data values.
+func TestKclEnvironmentDataValues(t *testing.T) {
 	t.Parallel()
 	envData := kclEnvironmentData{
 		ID:     "kcl-dev",
@@ -53,50 +53,58 @@ func TestKclEnvironmentDataValuesYaml(t *testing.T) {
 			"hello": {"proto": "hello-proto"},
 			"world": {},
 		},
+		Extra: map[string]any{"myks": map[string]any{"gitRepoBranch": "main"}},
 	}
-	yamlBytes, err := envData.dataValuesYaml()
-	require.NoError(t, err)
+	values := envData.dataValues()
 
-	var parsed struct {
-		ArgoCD      map[string]any `yaml:"argocd"`
-		Environment struct {
-			ID           string `yaml:"id"`
-			Applications []struct {
-				Name  string `yaml:"name"`
-				Proto string `yaml:"proto"`
-			} `yaml:"applications"`
-		} `yaml:"environment"`
-	}
-	require.NoError(t, yaml.Unmarshal(yamlBytes, &parsed))
-	assert.Equal(t, "kcl-dev", parsed.Environment.ID)
-	assert.Equal(t, map[string]any{"enabled": false}, parsed.ArgoCD)
-	require.Len(t, parsed.Environment.Applications, 2)
-	assert.Equal(t, "hello", parsed.Environment.Applications[0].Name)
-	assert.Equal(t, "hello-proto", parsed.Environment.Applications[0].Proto)
+	assert.Equal(t, map[string]any{"enabled": false}, values["argocd"])
+	assert.Equal(t, map[string]any{"gitRepoBranch": "main"}, values["myks"], "extra keys stay top-level scopes")
+
+	environment, ok := values["environment"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "kcl-dev", environment["id"])
+	apps, ok := environment["applications"].([]map[string]any)
+	require.True(t, ok)
+	require.Len(t, apps, 2)
+	assert.Equal(t, map[string]any{"name": "hello", "proto": "hello-proto"}, apps[0])
 	// proto falls back to the application name when absent
-	assert.Equal(t, "world", parsed.Environment.Applications[1].Proto)
+	assert.Equal(t, map[string]any{"name": "world", "proto": "world"}, apps[1])
 }
 
-// TestWriteKclAppDataFile verifies the generated data-values bridge file content.
-func TestWriteKclAppDataFile(t *testing.T) {
+// TestWriteKclDataFiles verifies the split of a resolved config unit into the generated
+// schema-extension and plain data-values bridge files.
+func TestWriteKclDataFiles(t *testing.T) {
 	t.Parallel()
-	path := filepath.Join(t.TempDir(), "app-data.kcl-generated.ytt.yaml")
-	appConfig := map[string]any{
-		"proto":       "hello",
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.ytt.yaml")
+	valuesPath := filepath.Join(dir, "values.ytt.yaml")
+	values := map[string]any{
 		"application": map[string]any{"greeting": "hi"},
+		"helm":        map[string]any{"charts": []any{map[string]any{"name": "c1", "releaseName": "r1"}}},
 	}
-	require.NoError(t, writeKclAppDataFile(path, appConfig))
+	require.NoError(t, writeKclDataFiles(schemaPath, valuesPath, values))
 
-	content, err := os.ReadFile(path) // #nosec G304 -- test-controlled path
+	schemaContent, err := os.ReadFile(schemaPath) // #nosec G304 -- test-controlled path
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "#@data/values-schema")
+	assert.Contains(t, string(schemaContent), "#@data/values-schema")
+	var schemaValues map[string]any
+	require.NoError(t, yaml.Unmarshal(schemaContent, &schemaValues))
+	assert.Equal(t, map[string]any{"greeting": "hi"}, schemaValues["application"])
+	assert.NotContains(t, schemaValues, "helm", "engine-owned scopes belong to the values file")
 
-	var values map[string]any
-	require.NoError(t, yaml.Unmarshal(content, &values))
-	assert.Equal(t, map[string]any{"greeting": "hi"}, values["application"])
-	assert.NotContains(t, values, "proto", "engine-only key must not leak into data values")
-	// the source map is left intact
-	assert.Contains(t, appConfig, "proto")
+	valuesContent, err := os.ReadFile(valuesPath) // #nosec G304 -- test-controlled path
+	require.NoError(t, err)
+	assert.Contains(t, string(valuesContent), "#@data/values")
+	var plainValues map[string]any
+	require.NoError(t, yaml.Unmarshal(valuesContent, &plainValues))
+	assert.Contains(t, plainValues, "helm")
+	assert.NotContains(t, plainValues, "application")
+
+	// re-running with an emptied unit leaves no stale content behind
+	require.NoError(t, writeKclDataFiles(schemaPath, valuesPath, nil))
+	schemaContent, err = os.ReadFile(schemaPath) // #nosec G304 -- test-controlled path
+	require.NoError(t, err)
+	assert.NotContains(t, string(schemaContent), "greeting")
 }
 
 // TestCheckKclSchemaVersion verifies the engine's schema-version compatibility rule.

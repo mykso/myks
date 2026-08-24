@@ -1,0 +1,9 @@
+#@data/values-schema
+---
+#@overlay/match-child-defaults missing_ok=True
+application:
+  #! WARNING: The order of the keys (alphabetical) is important for renovate.
+  #!          When changed, renovate won't be able to detect the new version.
+  #!          See renovate.json for more details.
+  #! renovate: datasource=helm
+  name: render-test

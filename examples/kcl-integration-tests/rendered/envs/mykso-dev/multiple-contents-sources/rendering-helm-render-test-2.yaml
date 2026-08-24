@@ -1,0 +1,5 @@
+kind: rendering
+metadata:
+  name: helm-render-test-2
+outputYaml:
+  fromChartDefaultValues: true
