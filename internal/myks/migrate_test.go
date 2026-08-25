@@ -1,7 +1,9 @@
 package myks
 
 import (
-	"strings"
+	"math"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +17,8 @@ func TestHasYttLogicRe(t *testing.T) {
 	}{
 		{"plain values header", "#@data/values\n---\nfoo: bar\n", false},
 		{"schema header with overlay", "#@data/values-schema\n#@overlay/match-child-defaults missing_ok=True\n---\nfoo: bar\n", false},
+		{"overlay remove", "#@data/values\n---\n#@overlay/remove\nfoo: bar\n", true},
+		{"overlay replace", "#@data/values\n---\n#@overlay/replace\nfoo: bar\n", true},
 		{"load directive", "#@ load(\"@myks:data.lib.yaml\", \"env_data\")\n#@data/values-schema\n---\n", true},
 		{"inline expression", "#@data/values-schema\n---\nenvId: #@ env_data.environment.id\n", true},
 		{"schema default annotation", "#@data/values-schema\n---\n#@schema/default [\"x\"]\nitems: ['']\n", true},
@@ -81,10 +85,18 @@ func TestKclScalar(t *testing.T) {
 		{42, "42"},
 		{int64(-7), "-7"},
 		{1.5, "1.5"},
-		{1.0, "1.0"}, // integral floats keep the dot to stay floats in KCL
+		{1.0, "1.0"},                            // integral floats keep the dot to stay floats in KCL
+		{"literal ${VAR}", `"literal \${VAR}"`}, // KCL interpolates ${...} in string literals
 	}
 	for _, tt := range tests {
-		assert.Equal(t, tt.want, kclScalar(tt.value))
+		got, err := kclScalar(tt.value)
+		assert.NoError(t, err)
+		assert.Equal(t, tt.want, got)
+	}
+
+	for _, value := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
+		_, err := kclScalar(value)
+		assert.Error(t, err, "non-finite floats have no KCL representation")
 	}
 }
 
@@ -100,7 +112,7 @@ func TestWriteKclEntries(t *testing.T) {
 		"floatValue": 2.0,
 	}
 
-	assign := &strings.Builder{}
+	assign := &kclWriter{}
 	writeKclEntries(assign, values, 0, false)
 	assert.Equal(t, `emptyDict = {}
 emptyList = []
@@ -119,7 +131,7 @@ plain = "v"
 "weird-key" = True
 `, assign.String())
 
-	merge := &strings.Builder{}
+	merge := &kclWriter{}
 	writeKclEntries(merge, map[string]any{"nested": map[string]any{"inner": 1}, "scalar": "v"}, 0, true)
 	assert.Equal(t, `nested: {
     inner = 1
@@ -137,4 +149,14 @@ func TestIsKclIdentifier(t *testing.T) {
 	assert.False(t, isKclIdentifier("schema"))
 	assert.False(t, isKclIdentifier("str"))
 	assert.False(t, isKclIdentifier(""))
+}
+
+func TestRefuseExisting(t *testing.T) {
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "env.k")
+	assert.NoError(t, refuseExisting([]string{missing}))
+
+	assert.NoError(t, os.WriteFile(missing, []byte("env = {}\n"), 0o600))
+	err := refuseExisting([]string{missing})
+	assert.ErrorContains(t, err, "refusing to overwrite")
 }

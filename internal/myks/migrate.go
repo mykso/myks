@@ -138,8 +138,13 @@ func isKclIdentifier(s string) bool {
 // so each must be a valid KCL identifier.
 func (m *migrator) buildTree() error {
 	base := m.g.EnvironmentBaseDir
-	if !isKclIdentifier(filepath.Base(base)) {
-		return fmt.Errorf("environments base dir %q is not a valid KCL identifier; rename it before migrating", base)
+	// Every component of the base dir becomes a component of the generated KCL import paths.
+	for component := range strings.SplitSeq(filepath.ToSlash(filepath.Clean(base)), "/") {
+		if !isKclIdentifier(component) {
+			return fmt.Errorf(
+				"environments base dir %q contains path component %q, which is not a valid KCL identifier; rename it before migrating",
+				base, component)
+		}
 	}
 	m.root = m.newNode(base, nil)
 
@@ -303,10 +308,11 @@ func (m *migrator) convertPerDirGlobs(base, filePattern string) (map[string]map[
 }
 
 // hasYttLogicRe detects ytt computation in a data file: a directive with code after it
-// (`#@ load(...)`, `key: #@ expr`) or a schema annotation that changes values
-// (`#@schema/default`). Plain document headers (`#@data/values`, `#@overlay/...`) carry no
-// space after `#@` and do not match.
-var hasYttLogicRe = regexp.MustCompile(`#@[ \t]|#@schema/`)
+// (`#@ load(...)`, `key: #@ expr`), a schema annotation that changes values
+// (`#@schema/default`), or an overlay directive that rewrites values instead of merging
+// them (`#@overlay/remove`, which plain YAML parsing would keep). Plain document headers
+// (`#@data/values`) and pure matching hints (`#@overlay/match-child-defaults`) do not match.
+var hasYttLogicRe = regexp.MustCompile(`#@[ \t]|#@schema/|#@overlay/(remove|replace|append|insert)`)
 
 // convertDataFile parses one data-values file as plain YAML. Files containing ytt logic
 // are skipped (converted=false) and recorded: raw parsing would misread computed values.
