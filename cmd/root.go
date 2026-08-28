@@ -47,6 +47,7 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cmd.AddCommand(newRenderCmd())
 	cmd.AddCommand(newCleanupCmd())
 	cmd.AddCommand(newInitCmd(version))
+	cmd.AddCommand(newMigrateCmd())
 	cmd.AddCommand(newPrintConfigCmd())
 	cmd.AddCommand(newInspectCmd())
 	cmd.AddCommand(embedded.Cmd("vendir", "Vendir is embedded in myks to manage vendir.yaml files."))
