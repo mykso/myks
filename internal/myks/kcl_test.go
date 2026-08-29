@@ -223,3 +223,29 @@ environments = {
 		assert.ErrorContains(t, err, `duplicate environment id "same"`)
 	})
 }
+
+// TestWriteKclDataFilesUndeclaredKeys verifies that keys the embedded data schema does not
+// declare survive the bridge: nested inside a declared scope, and holding an array.
+func TestWriteKclDataFilesUndeclaredKeys(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.ytt.yaml")
+	valuesPath := filepath.Join(dir, "values.ytt.yaml")
+	values := map[string]any{
+		// helm is declared, helm.removeLabels is not
+		"helm":  map[string]any{"namespace": "ns", "removeLabels": true},
+		"myapp": map[string]any{"hosts": []any{"a", "b"}},
+	}
+	require.NoError(t, writeKclDataFiles(schemaPath, valuesPath, values))
+
+	rendered, err := testApp.renderDataYaml([]string{"./assets/data-schema.ytt.yaml", schemaPath, valuesPath})
+	require.NoError(t, err)
+	var resolved map[string]any
+	require.NoError(t, yaml.Unmarshal(rendered, &resolved))
+	assert.Equal(t, map[string]any{"hosts": []any{"a", "b"}}, resolved["myapp"], "arrays must not be flattened to the empty schema default")
+	helm, ok := resolved["helm"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, true, helm["removeLabels"])
+	assert.Equal(t, "ns", helm["namespace"])
+	assert.Equal(t, true, helm["includeCRDs"], "declared defaults stay intact")
+}
