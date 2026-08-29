@@ -16,7 +16,8 @@ Running `myks migrate` in a legacy repository writes:
 - `prototypes/<name>/proto.k` — one base schema per prototype, subclassing `myks.App` with
   the prototype's `app-data*` values as attribute defaults. Applications instantiate it
   instead of repeating those values ([ADR 0004](adr/0004-pure-language-config-surface.md)).
-  Only prototypes whose directory name is a valid KCL identifier get one; see below.
+  A prototype directory whose name is not a valid KCL identifier is renamed to make it one;
+  see below.
 - `envs/**/env.k` — one file per environment-tree level. Each level converts its
   `env-data.*.yaml` values, declares the applications rostered there (with the values from
   `_proto/` and `_apps/` files, and from `prototypes/*/app-data*` when the prototype has no
@@ -38,19 +39,23 @@ The legacy files are left in place so the conversion is easy to inspect and reve
    `central-forwarder`. Rename first if needed — the converter refuses otherwise. The
    environments base dir itself must not be an environment.
 
-   Prototype directory names are subject to the same rule, but it is **optional**: a
-   prototype whose name is not an identifier (or is `m` or `parent`, which a generated
-   `env.k` already binds) simply gets no base schema, and the converter warns. To get one,
-   rename the directory and update the roster entries that reference it. Give the entry an
-   explicit `name:` to keep the application name — and every rendered path — unchanged:
+   Prototype directory names are subject to the same rule, but the converter handles them
+   for you: `prototypes/cert-manager` becomes `prototypes/cert_manager`, together with the
+   `_proto/cert-manager/` override directories of every environment level. **Application
+   names are not affected** — they come from the legacy roster and stay the keys of the
+   generated `applications` dict, so every rendered path stays where it is.
 
-   ```yaml
-   - proto: cert_manager
-     name: cert-manager
-   ```
+   Each legacy name is left behind as a symlink to the new directory, which keeps the legacy
+   sources resolvable: `myks migrate --force` can re-read them, and you can still render the
+   legacy tree (delete `kcl.mod`) to compare. Delete the symlinks once you drop the legacy
+   data-values files.
 
-   Renaming also changes `myks.context.prototype`, which ytt templates can read; the gate
-   in step 3 catches any rendered-output difference that causes.
+   One thing does change: `myks.context.prototype`, which ytt templates can read, now carries
+   the new directory name. Grep for it before converting; the gate in step 3 reports any
+   rendered-output difference it causes.
+
+   A name no rename can fix — one starting with a digit, a KCL keyword, or `m`/`parent`
+   (which a generated `env.k` already binds) — gets no base schema, and the converter warns.
 2. **Convert:**
 
    ```sh
@@ -139,9 +144,14 @@ styles coexist ([design](redesign/design.md#tree-layout)).
 
 The converter warns about each of these when it detects them:
 
-- **`environment.*` extras.** The engine owns the `environment` scope (id and application
-  roster). Any other key under it in legacy env-data is dropped; move such values to
-  another scope by hand.
+- **`environment.*` extras.** The engine owns only `environment.id` and
+  `environment.applications`; it regenerates both from the tree. Other keys of the scope are
+  ordinary data and are carried over, so templates reading `data.values.environment.<key>`
+  keep working.
+- **Mapping key order.** KCL emits mapping keys sorted, while ytt kept file order. Values are
+  unchanged, but a template that dumps a whole data-values subtree (`yaml.encode`, a Helm
+  values file, a ConfigMap body) renders its keys in a different order — and anything hashing
+  that text (a `checksum/config` annotation) changes with it.
 - **Array semantics.** ytt *appends* data-values arrays onto schema defaults, while KCL
   dict union *replaces* lists. The converter simulates the real engine seam, so seeded
   trees are faithful — but a frozen array literal in a `_patch` can double up after

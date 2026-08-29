@@ -58,7 +58,11 @@ env = m.Environment {
             }
         }
         "static-test" = m.App {}
-        "helm-myks-context" = m.App {}
+        # An identifier prototype dir: it could own a proto.k. The app keeps its own name,
+        # so proto has to name the directory explicitly.
+        "helm-myks-context" = m.App {
+            proto = "helm_myks_context"
+        }
         "lib-test" = m.App {}
     }
 }

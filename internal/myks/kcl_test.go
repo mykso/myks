@@ -53,7 +53,10 @@ func TestKclEnvironmentDataValues(t *testing.T) {
 			"hello": {"proto": "hello-proto"},
 			"world": {},
 		},
-		Extra: map[string]any{"myks": map[string]any{"gitRepoBranch": "main"}},
+		Extra: map[string]any{
+			"myks":        map[string]any{"gitRepoBranch": "main"},
+			"environment": map[string]any{"baseDomain": "example.com", "id": "overridden"},
+		},
 	}
 	values := envData.dataValues()
 
@@ -62,7 +65,8 @@ func TestKclEnvironmentDataValues(t *testing.T) {
 
 	environment, ok := values["environment"].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "kcl-dev", environment["id"])
+	assert.Equal(t, "example.com", environment["baseDomain"], "user keys of the environment scope survive")
+	assert.Equal(t, "kcl-dev", environment["id"], "the engine owns environment.id")
 	apps, ok := environment["applications"].([]map[string]any)
 	require.True(t, ok)
 	require.Len(t, apps, 2)
@@ -147,6 +151,24 @@ environments = {
 		require.Contains(t, tree.Environments, "dev")
 		assert.Equal(t, "kcl-dev", tree.Environments["dev"].ID)
 		assert.Equal(t, "hello", tree.Environments["dev"].Applications["hello"]["proto"])
+	})
+
+	t.Run("underscore-prefixed keys survive", func(t *testing.T) {
+		t.Parallel()
+		dir := writeModule(t, `
+myksSchemaVersion = "0.1.0"
+environments = {
+    dev = {
+        id = "kcl-dev"
+        applications.hello._.shared = "cross-step value"
+    }
+}
+`)
+		tree, err := evalKclTree(dir)
+		require.NoError(t, err)
+		private, ok := tree.Environments["dev"].Applications["hello"]["_"].(map[string]any)
+		require.True(t, ok, "KCL hides underscore-prefixed attributes unless show-hidden is set")
+		assert.Equal(t, "cross-step value", private["shared"])
 	})
 
 	t.Run("missing schema version", func(t *testing.T) {

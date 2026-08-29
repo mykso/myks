@@ -93,7 +93,10 @@ func evalKclTree(rootDir string) (*kclTree, error) {
 	if err != nil {
 		return nil, fmt.Errorf("resolving KCL dependencies at %s: %w", rootDir, err)
 	}
-	opts := make([]kcl.Option, 0, len(deps.ExternalPkgs))
+	// KCL hides underscore-prefixed attributes from its output; config values are data, and a
+	// leading underscore is a legitimate key (myks repos use `_` for cross-step private values).
+	opts := make([]kcl.Option, 0, len(deps.ExternalPkgs)+1)
+	opts = append(opts, kcl.WithShowHidden(true))
 	for _, pkg := range deps.ExternalPkgs {
 		opts = append(opts, kcl.WithExternalPkgAndPath(pkg.PkgName, pkg.PkgPath))
 	}
@@ -274,7 +277,9 @@ func (g *Globe) initKclEnvironment(dir string, envData kclEnvironmentData, appNa
 }
 
 // dataValues shapes the environment entry as ytt data values: extras stay top-level scopes,
-// id and the application roster go under the engine-owned environment scope.
+// id and the application roster go under the environment scope. The engine owns only those
+// two keys there; an `environment` extra carrying further keys is merged underneath them,
+// so a level can publish shared values under the scope its templates already read.
 func (d kclEnvironmentData) dataValues() map[string]any {
 	values := map[string]any{}
 	maps.Copy(values, d.Extra)
@@ -290,7 +295,13 @@ func (d kclEnvironmentData) dataValues() map[string]any {
 		}
 		apps = append(apps, map[string]any{"name": name, "proto": proto})
 	}
-	values["environment"] = map[string]any{"id": d.ID, "applications": apps}
+	envScope := map[string]any{}
+	if extra, ok := values["environment"].(map[string]any); ok {
+		maps.Copy(envScope, extra)
+	}
+	envScope["id"] = d.ID
+	envScope["applications"] = apps
+	values["environment"] = envScope
 
 	return values
 }

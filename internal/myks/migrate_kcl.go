@@ -123,6 +123,9 @@ func (m *migrator) writeProtoK(proto string) error {
 	b.WriteString("# and override only what they change. See docs/migration.md.\n")
 	b.WriteString("import myks as m\n\n")
 	b.printf("schema %s(m.App):\n", m.protoSchemas[proto])
+	// KCL does not inherit an index signature into a subclass, so m.App's has to be repeated:
+	// without it an application could only set keys the prototype's app-data already had.
+	b.WriteString("    [...str]: any\n")
 	b.printf("    proto: str = %s\n", quoteKclString(proto))
 	for _, key := range slices.Sorted(maps.Keys(values)) {
 		value := values[key]

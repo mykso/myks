@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHasYttLogicRe(t *testing.T) {
@@ -140,6 +141,37 @@ scalar = "v"
 `, merge.String())
 }
 
+func TestExtractEnvironmentScope(t *testing.T) {
+	t.Parallel()
+	m := &migrator{}
+	node := &migNode{dir: "envs/dev", envValues: map[string]any{
+		"helm": map[string]any{"removeLabels": true},
+		"environment": map[string]any{
+			"id":           "dev",
+			"applications": []any{map[string]any{"proto": "webapp", "name": "echo"}, map[string]any{"proto": "argocd"}},
+			"baseDomain":   "example.com",
+		},
+	}}
+	m.extractEnvironmentScope(node)
+
+	assert.Equal(t, map[string]any{"baseDomain": "example.com"}, node.envValues["environment"],
+		"only id and applications are engine-owned")
+	assert.Equal(t, []migApp{{name: "echo", proto: "webapp"}, {name: "argocd", proto: "argocd"}}, node.rawRoster)
+	assert.Empty(t, m.warnings)
+}
+
+func TestWithoutEngineEnvKeys(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t,
+		map[string]any{"environment": map[string]any{"baseDomain": "example.com"}},
+		withoutEngineEnvKeys(map[string]any{"environment": map[string]any{
+			"id": "dev", "applications": []any{}, "baseDomain": "example.com",
+		}}))
+	assert.Equal(t, map[string]any{},
+		withoutEngineEnvKeys(map[string]any{"environment": map[string]any{"id": "dev"}}),
+		"a scope holding only engine keys is dropped entirely")
+}
+
 func TestIsKclIdentifier(t *testing.T) {
 	assert.True(t, isKclIdentifier("envs"))
 	assert.True(t, isKclIdentifier("central_forwarder"))
@@ -159,6 +191,40 @@ func TestRefuseExisting(t *testing.T) {
 	assert.NoError(t, os.WriteFile(missing, []byte("env = {}\n"), 0o600))
 	err := refuseExisting([]string{missing})
 	assert.ErrorContains(t, err, "refusing to overwrite")
+}
+
+// TestWriteProtoK pins the index signature: KCL does not inherit m.App's into a generated
+// subclass, so an application declaring a key the prototype's app-data lacks fails to compile
+// without it.
+func TestWriteProtoK(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	m := &migrator{
+		g:            &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}},
+		protoSchemas: map[string]string{"kb_mcp": "KbMcp"},
+		protoBase:    map[string]map[string]any{"kb_mcp": {"helm": map[string]any{"removeLabels": true}}},
+	}
+	require.NoError(t, m.writeProtoK("kb_mcp"))
+
+	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "kb_mcp", protoKFileName))
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "schema KbMcp(m.App):\n    [...str]: any\n    proto: str = \"kb_mcp\"\n")
+}
+
+func TestSanitizeKclIdentifier(t *testing.T) {
+	t.Parallel()
+	for name, want := range map[string]string{
+		"cert-manager":               "cert_manager",
+		"victoria-metrics-k8s-stack": "victoria_metrics_k8s_stack",
+		"already_fine":               "already_fine",
+		"dots.and spaces":            "dots_and_spaces",
+		"2fa":                        "", // a leading digit cannot be repaired
+		"map":                        "", // a KCL builtin type name
+		"m":                          "", // shadows the myks import a generated env.k binds
+		"parent":                     "", // shadows the parent-level import
+	} {
+		assert.Equal(t, want, sanitizeKclIdentifier(name), name)
+	}
 }
 
 func TestKclSchemaName(t *testing.T) {
