@@ -251,3 +251,36 @@ func TestPlanPrototypeSchemas(t *testing.T) {
 	assert.Equal(t, map[string]string{"webapp": "Webapp"}, m.protoSchemas)
 	assert.Len(t, m.warnings, 4, "every skipped prototype with values is reported")
 }
+
+// TestRenderLevelFiles pins the split level layout: env.k carries the level's own values and
+// references the roster and the frozen patch bound by its sibling files, which are emitted
+// only when they have content.
+func TestRenderLevelFiles(t *testing.T) {
+	t.Parallel()
+	m := &migrator{
+		g:            &Globe{Config: Config{PrototypesDir: "prototypes"}},
+		nodes:        map[string]*migNode{},
+		protoSchemas: map[string]string{},
+	}
+	m.root = m.newNode("envs", nil)
+	leaf := m.newNode(filepath.Join("envs", "dev"), m.root)
+	leaf.env = &Environment{ID: "dev"}
+	leaf.declared["web"] = migApp{name: "web", proto: "web", values: map[string]any{"replicas": 3}}
+	leaf.envPatch = map[string]any{"computed": "x"}
+
+	assert.Equal(t, []string{envKFileName}, nodeFileNames(m.root))
+	assert.Equal(t, []string{envKFileName, appsKFileName, patchKFileName}, nodeFileNames(leaf))
+
+	envK, err := m.renderEnvK(leaf, m.root)
+	require.NoError(t, err)
+	assert.Contains(t, envK, "_lvl = parent.env | {\n    id = \"dev\"\n    applications: _applications\n}\n")
+	assert.Contains(t, envK, "env = m.finalize(_lvl | _patch)\n")
+
+	appsK, err := m.renderAppsK(leaf)
+	require.NoError(t, err)
+	assert.Contains(t, appsK, "_applications = {\n    web = m.App {\n        replicas = 3\n    }\n}\n")
+
+	patchK, err := m.renderPatchK(leaf)
+	require.NoError(t, err)
+	assert.Contains(t, patchK, "_patch = {\n    computed = \"x\"\n}\n")
+}

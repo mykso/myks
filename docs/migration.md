@@ -18,19 +18,29 @@ Running `myks migrate` in a legacy repository writes:
   instead of repeating those values ([ADR 0004](adr/0004-pure-language-config-surface.md)).
   A prototype directory whose name is not a valid KCL identifier is renamed to make it one;
   see below.
-- `envs/**/env.k` — one file per environment-tree level. Each level converts its
-  `env-data.*.yaml` values, declares the applications rostered there (with the values from
-  `_proto/` and `_apps/` files, and from `prototypes/*/app-data*` when the prototype has no
-  base schema, merged in), and overrides applications declared above it.
+- `envs/**/*.k` — the files of each environment-tree level, mirroring the legacy split of
+  `env-data.yaml` / `env-data.apps.yaml`. A KCL package is a directory, so the files of one
+  level share a namespace and cross-reference each other directly:
+  - `env.k` — the level's converted `env-data.*.yaml` values, the import of the parent
+    level, and the wiring (`id`, `myks.finalize` on a leaf). Always written.
+  - `apps.k` — `_applications`: the applications rostered at this level (with the values
+    from `_proto/` and `_apps/` files, and from `prototypes/*/app-data*` when the prototype
+    has no base schema, merged in), plus overrides of applications declared above it.
+    Written only when the level has any.
+  - `patch.k` — `_patch`: values frozen from the legacy-resolved output, see below. Written
+    only when the level needs one.
 
 Data-values files containing **ytt logic** (`#@ load(...)`, inline `#@` expressions,
 `#@schema/default` annotations) cannot be translated. The converter skips them and instead
-freezes their *resolved* values as literals in a leaf-level `_patch` block marked with a
+freezes their *resolved* values as literals in a leaf-level `patch.k` marked with a
 `TODO(myks migrate)` comment. The result still renders identically; the literals are yours
 to replace with real KCL derivations.
 
+Splitting a level further is free: any `.k` file you add next to `env.k` joins the same
+package, so a level's own schemas or a large roster can live in a file of their own.
+
 The legacy files are left in place so the conversion is easy to inspect and revert
-(`git checkout` / delete `kcl.mod`, `main.k` and the `env.k` files).
+(`git checkout` / delete `kcl.mod`, `main.k` and the generated level files).
 
 ## Step by step
 
@@ -55,7 +65,8 @@ The legacy files are left in place so the conversion is easy to inspect and reve
    rendered-output difference it causes.
 
    A name no rename can fix — one starting with a digit, a KCL keyword, or `m`/`parent`
-   (which a generated `env.k` already binds) — gets no base schema, and the converter warns.
+   (which the generated level files already bind) — gets no base schema, and the converter
+   warns.
 2. **Convert:**
 
    ```sh
@@ -65,8 +76,8 @@ The legacy files are left in place so the conversion is easy to inspect and reve
    By default `kcl.mod` pins `oci://ghcr.io/mykso/myks` at the schema version this myks
    build supports. Use `--schema-package` to point at a fork or a local path.
 
-   The converter never overwrites by accident: if any of `kcl.mod`, `main.k` or an `env.k`
-   already exists, it refuses and names the files. Re-run with `--force` to read the legacy
+   The converter never overwrites by accident: if any of `kcl.mod`, `main.k` or a generated
+   level file already exists, it refuses and names the files. Re-run with `--force` to read the legacy
    files again and overwrite the generated ones — hand-written KCL is lost, so commit the
    seed before iterating on it.
 3. **Run the gate.** The migration gate is byte-identical rendered output:
@@ -136,7 +147,7 @@ and write the schema by hand.
 
 ### Per-app opt-in layout
 
-Flat declarations in `env.k` are the default. Move an application with substantial
+Flat declarations in `apps.k` are the default. Move an application with substantial
 configuration into its own package (`envs/<...>/<app_name>/app.k`) and import it — both
 styles coexist ([design](redesign/design.md#tree-layout)).
 
