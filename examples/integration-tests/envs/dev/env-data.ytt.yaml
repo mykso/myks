@@ -9,7 +9,10 @@ environment:
       name: argocd-tests
     - proto: helm-render-test
       name: helm-installation
-    - proto: per-chart-override
+    #! A KCL-identifier prototype dir: `myks migrate` gives it a base schema. The explicit
+    #! name keeps the application name (and its rendered paths) independent of the rename.
+    - proto: per_chart_override
+      name: per-chart-override
     - proto: multiple-sources
     - proto: multiple-contents-sources
     - proto: ytt-render-test

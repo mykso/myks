@@ -1,7 +1,9 @@
 # Root level: shared defaults and the application roster with root-level values.
 # This is the KCL port of the legacy fixture's envs/env-data.ytt.yaml plus the
-# app-data.ytt.yaml files of prototypes/, envs/_proto/ and envs/_apps/.
+# app-data.ytt.yaml files of envs/_proto/ and envs/_apps/. A prototype whose directory name
+# is a KCL identifier owns its defaults instead (see prototypes/per_chart_override/proto.k).
 import myks as m
+import prototypes.per_chart_override
 
 env = m.Environment {
     argocd = {
@@ -41,12 +43,10 @@ env = m.Environment {
                 envGroupValue = True
             }
         }
-        "per-chart-override" = m.App {
-            helm.charts = [
-                {name = "render-test-1", releaseName = "overridden-release-name-1"}
-                {name = "render-test-2", releaseName = "overridden-release-name-2"}
-            ]
-        }
+        # A prototype-owned base: the defaults live in prototypes/per_chart_override/proto.k
+        # and the application only names itself. The key stays the application name, so the
+        # rendered paths are independent of the prototype directory.
+        "per-chart-override" = per_chart_override.PerChartOverride {}
         "multiple-sources" = m.App {}
         "multiple-contents-sources" = m.App {}
         "ytt-installation" = m.App {

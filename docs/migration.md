@@ -13,10 +13,14 @@ Running `myks migrate` in a legacy repository writes:
   switches myks to the KCL path; the legacy data-values files are ignored from then on.
 - `main.k` — the root evaluation emitting the frozen resolved tree; it imports every
   environment.
+- `prototypes/<name>/proto.k` — one base schema per prototype, subclassing `myks.App` with
+  the prototype's `app-data*` values as attribute defaults. Applications instantiate it
+  instead of repeating those values ([ADR 0004](adr/0004-pure-language-config-surface.md)).
+  Only prototypes whose directory name is a valid KCL identifier get one; see below.
 - `envs/**/env.k` — one file per environment-tree level. Each level converts its
   `env-data.*.yaml` values, declares the applications rostered there (with the values from
-  `prototypes/*/app-data*`, `_proto/` and `_apps/` files merged in), and overrides
-  applications declared above it.
+  `_proto/` and `_apps/` files, and from `prototypes/*/app-data*` when the prototype has no
+  base schema, merged in), and overrides applications declared above it.
 
 Data-values files containing **ytt logic** (`#@ load(...)`, inline `#@` expressions,
 `#@schema/default` annotations) cannot be translated. The converter skips them and instead
@@ -33,6 +37,20 @@ The legacy files are left in place so the conversion is easy to inspect and reve
    valid identifiers (letters, digits, underscores): `central_forwarder`, not
    `central-forwarder`. Rename first if needed — the converter refuses otherwise. The
    environments base dir itself must not be an environment.
+
+   Prototype directory names are subject to the same rule, but it is **optional**: a
+   prototype whose name is not an identifier (or is `m` or `parent`, which a generated
+   `env.k` already binds) simply gets no base schema, and the converter warns. To get one,
+   rename the directory and update the roster entries that reference it. Give the entry an
+   explicit `name:` to keep the application name — and every rendered path — unchanged:
+
+   ```yaml
+   - proto: cert_manager
+     name: cert-manager
+   ```
+
+   Renaming also changes `myks.context.prototype`, which ytt templates can read; the gate
+   in step 3 catches any rendered-output difference that causes.
 2. **Convert:**
 
    ```sh
@@ -85,22 +103,31 @@ env = m.finalize(envs.env | {
 
 Delete the `_patch` block when it is empty.
 
-### Introduce typed schemas
+### Tighten the prototype schemas
 
-The seed uses untyped `m.App {}` instances and plain dicts. Shared prototype configuration
-duplicated across applications (the converter inlines `_proto`/prototype values into every
-application using the prototype) is the signal to define a prototype schema:
+The generated `proto.k` is deliberately loose: containers keep their kind (`{str:any}`,
+`[any]`) so a `key: {...}` union merges into the default instead of replacing it, and
+scalars are `any` so an application may override with a different type, as ytt data values
+allowed. Typing the fields is where the schema starts catching mistakes:
 
 ```kcl
-import myks as m
-
+# seed:
 schema Forwarder(m.App):
-    proto = "forwarder"
+    proto: str = "forwarder"
+    application?: {str:any} = {logLevel = "info"}
+
+# hand-finished:
+schema Forwarder(m.App):
+    proto: str = "forwarder"
     application: Application = Application {}
 
 schema Application:
     logLevel: str = "info"
 ```
+
+A prototype the converter skipped (no base schema) has its values inlined into every
+application declaration using it — that duplication is the signal to rename the directory
+and write the schema by hand.
 
 ### Per-app opt-in layout
 

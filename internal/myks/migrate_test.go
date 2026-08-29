@@ -160,3 +160,28 @@ func TestRefuseExisting(t *testing.T) {
 	err := refuseExisting([]string{missing})
 	assert.ErrorContains(t, err, "refusing to overwrite")
 }
+
+func TestKclSchemaName(t *testing.T) {
+	assert.Equal(t, "Webapp", kclSchemaName("webapp"))
+	assert.Equal(t, "PerChartOverride", kclSchemaName("per_chart_override"))
+	assert.Equal(t, "Starbase80", kclSchemaName("starbase80"))
+}
+
+// TestPlanPrototypeSchemas covers which prototypes get a generated base schema: a prototype
+// that does not qualify is not an error, its defaults keep being hoisted into declarations.
+func TestPlanPrototypeSchemas(t *testing.T) {
+	m := &migrator{
+		g: &Globe{Config: Config{PrototypesDir: "prototypes"}},
+		protoBase: map[string]map[string]any{
+			"webapp":       {"application": map[string]any{"ingress": true}},
+			"cert-manager": {"application": map[string]any{"ingress": true}},
+			"parent":       {"application": map[string]any{"ingress": true}},
+			"no_data":      {},
+			"odd_keys":     {"a-b": 1},
+			"own_proto":    {"proto": "elsewhere"},
+		},
+	}
+	m.planPrototypeSchemas()
+	assert.Equal(t, map[string]string{"webapp": "Webapp"}, m.protoSchemas)
+	assert.Len(t, m.warnings, 4, "every skipped prototype with values is reported")
+}

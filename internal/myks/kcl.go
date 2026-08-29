@@ -17,6 +17,9 @@ import (
 const (
 	// kclModFileName is the KCL module manifest; its presence at the config root selects KCL mode.
 	kclModFileName = "kcl.mod"
+	// protoKFileName holds a prototype's base schema, subclassing myks.App with the
+	// prototype's default values; applications instantiate it.
+	protoKFileName = "proto.k"
 	// Generated ytt bridge files (per environment and per application). Each config unit is
 	// split in two because ytt forbids mixing schema and plain data-values documents in one file:
 	// the schema part declares the keys the embedded data schema does not, the values part sets

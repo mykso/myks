@@ -53,6 +53,7 @@ func Migrate(g *Globe, schemaPackage string, force bool) error {
 	if err := m.collectContributions(); err != nil {
 		return err
 	}
+	m.planPrototypeSchemas()
 	m.placeApplications()
 	if err := m.computePatches(); err != nil {
 		return err
@@ -72,6 +73,10 @@ type migrator struct {
 	root  *migNode
 	// protoBase holds the converted prototypes/<proto>/app-data values (root-level contributions).
 	protoBase map[string]map[string]any
+	// protoSchemas maps a prototype to the KCL schema name generated for it in
+	// prototypes/<proto>/proto.k. A prototype absent here gets no schema; its defaults are
+	// hoisted into every declaration instead.
+	protoSchemas map[string]string
 	// skipped lists data files containing ytt logic; their values are frozen into leaf patches.
 	skipped []string
 	// warnings lists conditions the user must resolve by hand.
@@ -345,6 +350,69 @@ func (m *migrator) convertDataFile(file string) (values map[string]any, converte
 	return values, true, nil
 }
 
+// kclGeneratedNames are the identifiers a generated env.k already binds; a prototype
+// package importing under one of them would shadow it.
+var kclGeneratedNames = map[string]bool{"m": true, "parent": true}
+
+// planPrototypeSchemas decides which prototypes get a generated base schema in
+// prototypes/<proto>/proto.k. A prototype qualifies when its directory name is a usable KCL
+// package name and its convertible app-data has top-level keys that can all become schema
+// attributes. A prototype that does not qualify is not an error: its defaults keep being
+// hoisted into every application declaration, as before, and the warning names the fix.
+func (m *migrator) planPrototypeSchemas() {
+	m.protoSchemas = map[string]string{}
+	prototypesDirUsable := true
+	for component := range strings.SplitSeq(filepath.ToSlash(filepath.Clean(m.g.PrototypesDir)), "/") {
+		if !isKclIdentifier(component) {
+			m.warn("%s: path component %q is not a valid KCL identifier, so no prototype base schemas are generated; rename it to get them",
+				m.g.PrototypesDir, component)
+			prototypesDirUsable = false
+			break
+		}
+	}
+	if !prototypesDirUsable {
+		return
+	}
+
+	for _, proto := range slices.Sorted(maps.Keys(m.protoBase)) {
+		values := m.protoBase[proto]
+		if len(values) == 0 {
+			continue
+		}
+		if !isKclIdentifier(proto) || kclGeneratedNames[proto] {
+			m.warn("%s/%s: no base schema generated (the directory name is not usable as a KCL package name); its defaults are repeated in every application declaration instead — rename the directory (and the roster entries referencing it) to a valid KCL identifier other than %q, then migrate again",
+				m.g.PrototypesDir, proto, slices.Sorted(maps.Keys(kclGeneratedNames)))
+			continue
+		}
+		var unusable []string
+		for _, key := range slices.Sorted(maps.Keys(values)) {
+			// `proto` is set by the generated schema itself, so it cannot also be an attribute.
+			if !isKclIdentifier(key) || key == "proto" {
+				unusable = append(unusable, key)
+			}
+		}
+		if len(unusable) > 0 {
+			m.warn("%s/%s: no base schema generated (data keys unusable as KCL attributes: %s); its defaults are repeated in every application declaration instead",
+				m.g.PrototypesDir, proto, strings.Join(unusable, ", "))
+			continue
+		}
+		m.protoSchemas[proto] = kclSchemaName(proto)
+	}
+}
+
+// kclSchemaName turns a prototype directory name into its schema name: web_app -> WebApp.
+// The directory is a validated KCL identifier, so the result is one too.
+func kclSchemaName(dir string) string {
+	b := &strings.Builder{}
+	for part := range strings.SplitSeq(dir, "_") {
+		if part == "" {
+			continue
+		}
+		b.WriteString(strings.ToUpper(part[:1]) + part[1:])
+	}
+	return b.String()
+}
+
 // placeApplications turns raw contributions into per-node declarations and overrides.
 //
 // The resolved per-environment roster (foundApplications) is the truth: an application is
@@ -358,6 +426,24 @@ func (m *migrator) convertDataFile(file string) (values map[string]any, converte
 // ancestors. Nodes below D contribute overrides. The legacy order interleaves _proto and
 // _apps across levels differently; any resulting value difference is corrected by the leaf
 // patches.
+// declarationValues merges the values a declaration at node decl carries, in legacy file
+// order. With a generated base schema the prototype's own defaults stay in it
+// (prototypes/<proto>/proto.k) and only what the environment tree adds on top is carried;
+// without one they are hoisted into the declaration.
+func (m *migrator) declarationValues(decl *migNode, name, proto string) map[string]any {
+	var values map[string]any
+	if m.protoSchemas[proto] == "" {
+		values = m.protoBase[proto]
+	}
+	for _, node := range decl.chain() {
+		values = mergeValues(values, node.protoValues[proto])
+	}
+	for _, node := range decl.chain() {
+		values = mergeValues(values, node.appValues[name])
+	}
+	return values
+}
+
 func (m *migrator) placeApplications() {
 	for _, leafDir := range slices.Sorted(maps.Keys(m.g.environments)) {
 		leaf := m.nodes[leafDir]
@@ -374,14 +460,7 @@ func (m *migrator) placeApplications() {
 			}
 
 			if _, ok := decl.declared[name]; !ok {
-				values := m.protoBase[proto]
-				for _, node := range decl.chain() {
-					values = mergeValues(values, node.protoValues[proto])
-				}
-				for _, node := range decl.chain() {
-					values = mergeValues(values, node.appValues[name])
-				}
-				decl.declared[name] = migApp{name: name, proto: proto, values: values}
+				decl.declared[name] = migApp{name: name, proto: proto, values: m.declarationValues(decl, name, proto)}
 			}
 
 			afterDecl := false
@@ -470,7 +549,9 @@ func (m *migrator) computePatches() error {
 			for _, node := range chain {
 				if !afterDecl {
 					if decl, ok := node.declared[app.Name]; ok {
-						treeApp = mergeValues(treeApp, decl.values)
+						// The generated declaration instantiates the prototype's schema, so the
+						// simulated values start from that schema's defaults.
+						treeApp = mergeValues(m.protoBase[decl.proto], decl.values)
 						afterDecl = true
 					}
 					continue

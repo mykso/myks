@@ -31,13 +31,17 @@ envs/
       <region>/
         env.k                leaf: identity values (region, octet, …) + finalize
         <big_app>/app.k      optional per-app opt-in for apps with substantial config
+prototypes/
+  <name>/
+    proto.k                  prototype base schema: subclasses App with the prototype's defaults
 lib/                         user-local shared logic (importable)
 kcl.mod                      KCL module manifest; pins the myks schema package
 ```
 
 - **Flat is the default; per-app directories are a per-app opt-in** (bake-off addendum). Both
   styles coexist in one tree.
-- Directory names must be KCL identifiers (`central_forwarder/`, not `central-forwarder/`);
+- Directory names must be KCL identifiers (`central_forwarder/`, not `central-forwarder/`) —
+  under `prototypes/` too, for a prototype that owns a base schema;
   display names live in the config body (`name = "central-forwarder"`).
 - No `_apps/` convention: imports disambiguate sub-environments from applications (ADR 0004).
 - Variable-depth trees work: intermediate directories need no `.k` files; a child package can
@@ -88,8 +92,10 @@ are computed in KCL and merged by the engine over the static YAML.
 
 ## myks schema package
 
-myks ships its KCL schemas (`Environment`, `App`, prototype bases, the `finalize` helper) as a
-**KCL package on an OCI registry** (ADR 0006). User repos depend on it via `kcl.mod`
+myks ships its KCL schemas (`Environment`, `App`, the `finalize` helper) as a
+**KCL package on an OCI registry** (ADR 0006). Prototype bases are not shipped: each repo owns
+them, one package per prototype (`prototypes/<name>/proto.k`, subclassing `App` — see
+[ADR 0007](../adr/0007-prototype-bases-as-packages.md)). User repos depend on it via `kcl.mod`
 (`kcl mod add …`), pinned by version; the LSP resolves it like any dependency. The evaluated tree
 carries the schema version; the engine asserts compatibility at eval time and fails fast on
 mismatch.
