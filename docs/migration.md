@@ -42,8 +42,10 @@ The legacy files are left in place so the conversion is easy to inspect and reve
    By default `kcl.mod` pins `oci://ghcr.io/mykso/myks` at the schema version this myks
    build supports. Use `--schema-package` to point at a fork or a local path.
 
-   The converter never overwrites: if any of `kcl.mod`, `main.k` or an `env.k` already
-   exists, it refuses and names the files. Delete them to re-run.
+   The converter never overwrites by accident: if any of `kcl.mod`, `main.k` or an `env.k`
+   already exists, it refuses and names the files. Re-run with `--force` to read the legacy
+   files again and overwrite the generated ones — hand-written KCL is lost, so commit the
+   seed before iterating on it.
 3. **Run the gate.** The migration gate is byte-identical rendered output:
 
    ```sh

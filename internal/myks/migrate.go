@@ -27,13 +27,15 @@ import (
 // docs/migration.md.
 //
 // schemaPackage selects the myks KCL schema package dependency: an oci:// reference or a
-// local path.
-func Migrate(g *Globe, schemaPackage string) error {
+// local path. force re-runs the conversion over an already converted repo: the legacy sources
+// are read again even with kcl.mod present, and the generated files are overwritten.
+func Migrate(g *Globe, schemaPackage string, force bool) error {
 	if kclMode, err := g.isKclMode(); err != nil {
 		return err
-	} else if kclMode {
-		return fmt.Errorf("%s already exists: this repo is already in KCL mode", kclModFileName)
+	} else if kclMode && !force {
+		return fmt.Errorf("%s already exists: this repo is already in KCL mode; re-run with --force to overwrite the generated files", kclModFileName)
 	}
+	g.forceLegacyMode = force
 	if err := g.ValidateRootDir(); err != nil {
 		return err
 	}
@@ -44,7 +46,7 @@ func Migrate(g *Globe, schemaPackage string) error {
 		return errors.New("no environments found, nothing to migrate")
 	}
 
-	m := &migrator{g: g, nodes: map[string]*migNode{}, protoBase: map[string]map[string]any{}}
+	m := &migrator{g: g, nodes: map[string]*migNode{}, protoBase: map[string]map[string]any{}, force: force}
 	if err := m.buildTree(); err != nil {
 		return err
 	}
@@ -76,6 +78,8 @@ type migrator struct {
 	warnings []string
 	// patched counts leaf-level patched value paths.
 	patched int
+	// force allows overwriting the generated files of a previous run.
+	force bool
 }
 
 // migNode is one level of the environment tree under conversion.

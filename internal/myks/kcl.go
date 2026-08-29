@@ -56,6 +56,9 @@ type kclEnvironmentData struct {
 // isKclMode reports whether the repo opts into the KCL config layer (kcl.mod at the config root).
 // A stat error is propagated: silently falling back to legacy mode on a KCL repo would render wrong output.
 func (g *Globe) isKclMode() (bool, error) {
+	if g.forceLegacyMode {
+		return false, nil
+	}
 	ok, err := isExist(filepath.Join(g.RootDir, kclModFileName))
 	if err != nil {
 		return false, fmt.Errorf("checking for %s: %w", kclModFileName, err)

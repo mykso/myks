@@ -25,8 +25,10 @@ func (m *migrator) emit(schemaPackage string) error {
 	for _, dir := range envKDirs {
 		targets = append(targets, filepath.Join(m.g.RootDir, dir, "env.k"))
 	}
-	if err := refuseExisting(targets); err != nil {
-		return err
+	if !m.force {
+		if err := refuseExisting(targets); err != nil {
+			return err
+		}
 	}
 
 	if err := m.writeKclMod(schemaPackage); err != nil {
@@ -67,7 +69,7 @@ func refuseExisting(paths []string) error {
 		}
 	}
 	if len(existing) > 0 {
-		return fmt.Errorf("refusing to overwrite existing file(s): %s; remove them to re-run the migration",
+		return fmt.Errorf("refusing to overwrite existing file(s): %s; remove them or re-run the migration with --force",
 			strings.Join(existing, ", "))
 	}
 	return nil

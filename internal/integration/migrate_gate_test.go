@@ -36,8 +36,16 @@ func TestMigrateGate(t *testing.T) {
 	copyFixture(t, filepath.Join(baseFolder, "..", "..", "examples", "_lib"), filepath.Join(scratch, "_lib"))
 
 	chgDir(t, migratedRoot, "")
-	if err := myks.Migrate(myks.New("."), schemaPath); err != nil {
+	if err := myks.Migrate(myks.New("."), schemaPath, false); err != nil {
 		t.Fatalf("Migrate failed: %s", err)
+	}
+	// Re-running is refused unless --force reads the legacy sources again; the gate below then
+	// covers the regenerated tree.
+	if err := myks.Migrate(myks.New("."), schemaPath, false); err == nil {
+		t.Fatal("Migrate over an already converted repo must fail without force")
+	}
+	if err := myks.Migrate(myks.New("."), schemaPath, true); err != nil {
+		t.Fatalf("Migrate --force failed: %s", err)
 	}
 	if err := cmd.RenderCmd(myks.New("."), true, true); err != nil {
 		t.Fatalf("Render of the migrated repo failed: %s", err)
