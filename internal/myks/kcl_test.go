@@ -115,8 +115,8 @@ func TestWriteKclDataFiles(t *testing.T) {
 func TestCheckKclSchemaVersion(t *testing.T) {
 	t.Parallel()
 	assert.NoError(t, checkKclSchemaVersion(supportedKclSchemaVersion))
-	assert.NoError(t, checkKclSchemaVersion("0.1.99"), "patch versions may differ")
-	assert.ErrorContains(t, checkKclSchemaVersion("0.2.0"), "unsupported myksSchemaVersion")
+	assert.NoError(t, checkKclSchemaVersion("0.2.99"), "patch versions may differ")
+	assert.ErrorContains(t, checkKclSchemaVersion("0.3.0"), "unsupported myksSchemaVersion")
 	assert.ErrorContains(t, checkKclSchemaVersion("1.1.0"), "unsupported myksSchemaVersion")
 	assert.ErrorContains(t, checkKclSchemaVersion("nonsense"), "malformed myksSchemaVersion")
 	assert.ErrorContains(t, checkKclSchemaVersion("0.1"), "malformed myksSchemaVersion")
@@ -137,7 +137,7 @@ func TestEvalKclTree(t *testing.T) {
 	t.Run("valid tree", func(t *testing.T) {
 		t.Parallel()
 		dir := writeModule(t, `
-myksSchemaVersion = "0.1.0"
+myksSchemaVersion = "0.2.0"
 environments = {
     dev = {
         id = "kcl-dev"
@@ -147,7 +147,7 @@ environments = {
 `)
 		tree, err := evalKclTree(dir)
 		require.NoError(t, err)
-		assert.Equal(t, "0.1.0", tree.MyksSchemaVersion)
+		assert.Equal(t, "0.2.0", tree.MyksSchemaVersion)
 		require.Contains(t, tree.Environments, "dev")
 		assert.Equal(t, "kcl-dev", tree.Environments["dev"].ID)
 		assert.Equal(t, "hello", tree.Environments["dev"].Applications["hello"]["proto"])
@@ -156,7 +156,7 @@ environments = {
 	t.Run("underscore-prefixed keys survive", func(t *testing.T) {
 		t.Parallel()
 		dir := writeModule(t, `
-myksSchemaVersion = "0.1.0"
+myksSchemaVersion = "0.2.0"
 environments = {
     dev = {
         id = "kcl-dev"
@@ -180,7 +180,7 @@ environments = {
 
 	t.Run("missing environments", func(t *testing.T) {
 		t.Parallel()
-		dir := writeModule(t, `myksSchemaVersion = "0.1.0"`)
+		dir := writeModule(t, `myksSchemaVersion = "0.2.0"`)
 		_, err := evalKclTree(dir)
 		assert.ErrorContains(t, err, "missing environments")
 	})
@@ -188,7 +188,7 @@ environments = {
 	t.Run("empty environments are valid", func(t *testing.T) {
 		t.Parallel()
 		dir := writeModule(t, `
-myksSchemaVersion = "0.1.0"
+myksSchemaVersion = "0.2.0"
 environments = {}
 `)
 		tree, err := evalKclTree(dir)
@@ -214,7 +214,7 @@ environments = {}
 		require.NoError(t, os.WriteFile(filepath.Join(depDir, "kcl.mod"),
 			[]byte("[package]\nname = \"dep\"\nversion = \"0.1.0\"\n"), 0o600))
 		require.NoError(t, os.WriteFile(filepath.Join(depDir, "main.k"),
-			[]byte(`VERSION = "0.1.0"`), 0o600))
+			[]byte(`VERSION = "0.2.0"`), 0o600))
 
 		modDir := filepath.Join(dir, "config")
 		require.NoError(t, os.MkdirAll(modDir, 0o700))
@@ -229,13 +229,13 @@ environments = {}
 
 		tree, err := evalKclTree(modDir)
 		require.NoError(t, err)
-		assert.Equal(t, "0.1.0", tree.MyksSchemaVersion)
+		assert.Equal(t, "0.2.0", tree.MyksSchemaVersion)
 	})
 
 	t.Run("duplicate environment ids", func(t *testing.T) {
 		t.Parallel()
 		dir := writeModule(t, `
-myksSchemaVersion = "0.1.0"
+myksSchemaVersion = "0.2.0"
 environments = {
     dev = {id = "same"}
     prod = {id = "same"}

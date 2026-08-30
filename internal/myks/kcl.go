@@ -32,7 +32,7 @@ const (
 
 // supportedKclSchemaVersion is the myks schema version the engine understands.
 // Kept in lockstep with kcl/myks/version.k; compatibility is same major.minor.
-const supportedKclSchemaVersion = "0.1.0"
+const supportedKclSchemaVersion = "0.2.0"
 
 // kclTree is the frozen resolved tree produced by evaluating the KCL config root.
 // It is the sole discovery mechanism for environments and applications in KCL mode.
