@@ -340,10 +340,12 @@ func (m *migrator) convertPerDirGlobs(base, filePattern string) (map[string]map[
 
 // hasYttLogicRe detects ytt computation in a data file: a directive with code after it
 // (`#@ load(...)`, `key: #@ expr`), a schema annotation that changes values
-// (`#@schema/default`), or an overlay directive that rewrites values instead of merging
-// them (`#@overlay/remove`, which plain YAML parsing would keep). Plain document headers
-// (`#@data/values`) and pure matching hints (`#@overlay/match-child-defaults`) do not match.
-var hasYttLogicRe = regexp.MustCompile(`#@[ \t]|#@schema/|#@overlay/(remove|replace|append|insert)`)
+// (`#@schema/default`, `#@schema/nullable`), or an overlay directive that rewrites values
+// instead of merging them (`#@overlay/remove`, which plain YAML parsing would keep). Plain
+// document headers (`#@data/values`), pure matching hints
+// (`#@overlay/match-child-defaults`) and annotations that only describe or constrain a
+// value (`#@schema/validation`, `#@schema/type`, `#@schema/desc`) do not match.
+var hasYttLogicRe = regexp.MustCompile(`#@[ \t]|#@schema/(default|nullable)|#@overlay/(remove|replace|append|insert)`)
 
 // convertDataFile parses one data-values file as plain YAML. Files containing ytt logic
 // are skipped (converted=false) and recorded: raw parsing would misread computed values.

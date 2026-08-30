@@ -25,6 +25,9 @@ func TestHasYttLogicRe(t *testing.T) {
 		{"load directive", "#@ load(\"@myks:data.lib.yaml\", \"env_data\")\n#@data/values-schema\n---\n", true},
 		{"inline expression", "#@data/values-schema\n---\nenvId: #@ env_data.environment.id\n", true},
 		{"schema default annotation", "#@data/values-schema\n---\n#@schema/default [\"x\"]\nitems: ['']\n", true},
+		{"schema nullable annotation", "#@data/values-schema\n---\n#@schema/nullable\nfoo: ''\n", true},
+		{"schema validation annotation", "#@data/values-schema\n---\n#@schema/validation min_len=1\nimage: ''\n", false},
+		{"schema type annotation", "#@data/values-schema\n---\n#@schema/type any=True\nfoo: bar\n", false},
 		{"plain comment", "#! just a comment\n#@data/values\n---\nfoo: bar\n", false},
 	}
 	for _, tt := range tests {
