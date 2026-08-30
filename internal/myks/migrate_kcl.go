@@ -5,6 +5,7 @@ import (
 	"maps"
 	"math"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -207,11 +208,18 @@ func (m *migrator) writeProtoK(proto string) error {
 	// without it an application could only set keys the prototype's app-data already had.
 	b.WriteString("    [...str]: any\n")
 	b.printf("    proto: str = %s\n", quoteKclString(proto))
+	schema := m.protoInspected[proto]
 	for _, key := range slices.Sorted(maps.Keys(values)) {
 		value := values[key]
-		b.printf("    %s?: %s = ", key, kclAttributeType(value))
+		b.printf("    %s?: %s = ", key, attributeType(schema, key, value))
 		writeKclValue(b, value, 4, false)
 		b.WriteString("\n")
+	}
+	if checks := m.kclChecks(proto, schema); len(checks) > 0 {
+		b.WriteString("\n    check:\n")
+		for _, check := range checks {
+			b.printf("        %s\n", check)
+		}
 	}
 	if b.err != nil {
 		return b.err
@@ -219,10 +227,17 @@ func (m *migrator) writeProtoK(proto string) error {
 	return writeFile(m.protoKPath(proto), []byte(b.String()))
 }
 
-// kclAttributeType types a generated attribute loosely: containers keep their kind so that
+// attributeType types a generated attribute from the inspected schema, which is what ytt
+// enforced on the legacy data values. Without an inspected schema (a plain data-values
+// document) the type is inferred from the value, loosely: containers keep their kind so that
 // a `key: {...}` union merges into the default instead of replacing it, scalars stay `any`
-// so an application may override with a different type, as ytt data values allowed.
-func kclAttributeType(value any) string {
+// so an application may override with a different type, as plain ytt data values allowed.
+func attributeType(schema *inspectedSchema, key string, value any) string {
+	if schema != nil {
+		if kclType, ok := schema.types[key]; ok {
+			return kclType
+		}
+	}
 	switch value.(type) {
 	case map[string]any:
 		return "{str:any}"
@@ -230,6 +245,169 @@ func kclAttributeType(value any) string {
 		return "[any]"
 	default:
 		return "any"
+	}
+}
+
+// kclChecks restates the schema's validations as KCL check items. A nested value is reached
+// by indexing and guarded by the keys on the way to it, so a check never fails on an
+// application that replaced the scope wholesale; a nullable attribute is guarded against
+// its own null default.
+//
+// A KCL check runs where the schema is instantiated — where the application is declared —
+// while ytt validated the final data values of a render. A validation the prototype's own
+// defaults do not satisfy (`min_len=1` on an empty default, the way a prototype demands a
+// value) would therefore fail on every declaration that fills it in later, so it is reported
+// instead of generated.
+func (m *migrator) kclChecks(proto string, schema *inspectedSchema) []string {
+	if schema == nil {
+		return nil
+	}
+	var checks []string
+	for _, constraint := range schema.constraints {
+		if !constraintHoldsForDefaults(m.protoBase[proto], constraint) {
+			m.warn("%s/%s: validation %s of %s is not carried into the generated KCL schema: the prototype's own default does not satisfy it, so the generated check would fail wherever an application is declared; restate it where the value is set",
+				m.g.PrototypesDir, proto, constraint.kind, strings.Join(constraint.path, "."))
+			continue
+		}
+		access := constraint.path[0]
+		var guards []string
+		for _, key := range constraint.path[1:] {
+			guards = append(guards, fmt.Sprintf("%s in %s", quoteKclString(key), access))
+			access += "[" + quoteKclString(key) + "]"
+		}
+		if schema.nullable[constraint.path[0]] {
+			guards = append(guards, access+" != None")
+		}
+		condition, requirement, err := checkCondition(access, constraint)
+		if err != nil {
+			m.warn("%s/%s: validation %s of %s is not carried into the generated KCL schema (%s)",
+				m.g.PrototypesDir, proto, constraint.kind, strings.Join(constraint.path, "."), err)
+			continue
+		}
+		if len(guards) > 0 {
+			condition += " if " + strings.Join(guards, " and ")
+		}
+		checks = append(checks, fmt.Sprintf("%s, %s", condition,
+			quoteKclString(strings.Join(constraint.path, ".")+" "+requirement)))
+	}
+	return checks
+}
+
+// constraintHoldsForDefaults reports whether the prototype's own default values satisfy a
+// constraint. A path that is absent counts as satisfied: the check is guarded by the same
+// keys, so it does not fire either.
+func constraintHoldsForDefaults(defaults map[string]any, constraint schemaConstraint) bool {
+	value := any(defaults)
+	for _, key := range constraint.path {
+		scope, ok := value.(map[string]any)
+		if !ok {
+			return true
+		}
+		if value, ok = scope[key]; !ok {
+			return true
+		}
+	}
+	switch constraint.kind {
+	case constraintMinLength, constraintMaxLength:
+		length, ok := valueLength(value)
+		if !ok {
+			return false
+		}
+		bound, ok := constraint.value.(int)
+		if !ok {
+			return false
+		}
+		if constraint.kind == constraintMinLength {
+			return length >= bound
+		}
+		return length <= bound
+	case constraintMinimum, constraintMaximum:
+		number, ok := valueNumber(value)
+		bound, boundOk := valueNumber(constraint.value)
+		if !ok || !boundOk {
+			return false
+		}
+		if constraint.kind == constraintMinimum {
+			return number >= bound
+		}
+		return number <= bound
+	case constraintEnum:
+		allowed, ok := constraint.value.([]any)
+		if !ok {
+			return false
+		}
+		return slices.ContainsFunc(allowed, func(candidate any) bool { return reflect.DeepEqual(candidate, value) })
+	default:
+		return false
+	}
+}
+
+func valueLength(value any) (int, bool) {
+	switch typed := value.(type) {
+	case string:
+		return len(typed), true
+	case []any:
+		return len(typed), true
+	case map[string]any:
+		return len(typed), true
+	default:
+		return 0, false
+	}
+}
+
+func valueNumber(value any) (float64, bool) {
+	switch typed := value.(type) {
+	case int:
+		return float64(typed), true
+	case int64:
+		return float64(typed), true
+	case float64:
+		return typed, true
+	default:
+		return 0, false
+	}
+}
+
+// checkCondition renders one constraint as a KCL boolean expression over the accessed value,
+// with the requirement it states in words for the check message.
+func checkCondition(access string, constraint schemaConstraint) (condition, requirement string, err error) {
+	if constraint.kind == constraintEnum {
+		values, ok := constraint.value.([]any)
+		if !ok {
+			return "", "", fmt.Errorf("enum is not a list")
+		}
+		rendered := make([]string, 0, len(values))
+		for _, value := range values {
+			scalar, err := kclScalar(value)
+			if err != nil {
+				return "", "", err
+			}
+			rendered = append(rendered, scalar)
+		}
+		list := strings.Join(rendered, ", ")
+		return fmt.Sprintf("%s in [%s]", access, list), fmt.Sprintf("must be one of [%s]", list), nil
+	}
+	value := constraint.value
+	// OpenAPI numbers decode as floats; an integral bound reads better as an int and compares
+	// the same.
+	if number, ok := value.(float64); ok && number == math.Trunc(number) {
+		value = int64(number)
+	}
+	bound, err := kclScalar(value)
+	if err != nil {
+		return "", "", err
+	}
+	switch constraint.kind {
+	case constraintMinLength:
+		return fmt.Sprintf("len(%s) >= %s", access, bound), "must be at least " + bound + " long", nil
+	case constraintMaxLength:
+		return fmt.Sprintf("len(%s) <= %s", access, bound), "must be at most " + bound + " long", nil
+	case constraintMinimum:
+		return fmt.Sprintf("%s >= %s", access, bound), "must be >= " + bound, nil
+	case constraintMaximum:
+		return fmt.Sprintf("%s <= %s", access, bound), "must be <= " + bound, nil
+	default:
+		return "", "", fmt.Errorf("unknown constraint kind %q", constraint.kind)
 	}
 }
 

@@ -31,12 +31,25 @@ Running `myks migrate` in a legacy repository writes:
   - `patch.k` — `_patch`: environment values frozen from the legacy-resolved output, see
     below. Written only when the level needs one.
 
-Data-values files containing **ytt logic** (`#@ load(...)`, inline `#@` expressions,
-`#@schema/default` annotations) cannot be translated. The converter skips them and instead
-freezes their *resolved* values as literals at the leaf, marked with a `TODO(myks migrate)`
-comment: application values in that application's file, environment values in `patch.k`. The
-result still renders identically; the literals are yours to replace with real KCL
-derivations.
+A data-values file that is a schema document (`#@data/values-schema`) is resolved by ytt
+itself (`ytt --data-values-schema-inspect`), so its converted defaults carry the schema
+semantics plain YAML parsing cannot see: a schema array declares only the type of its items
+and defaults to `[]` unless `#@schema/default` says otherwise, `#@schema/default` wins over
+the written value, and a `#@schema/nullable` key defaults to null. Its `#@schema/validation`
+constraints feed the generated prototype schema's type and `check:` block where ytt reports
+them in its OpenAPI output (`min_len`, `max_len`, `min`, `max`, `one_of`; see "Tighten the
+prototype schemas" below) — any other validation, a custom rule or a keyword argument ytt does
+not report, is not carried over, and neither is one the prototype's own defaults do not
+satisfy; the converter warns naming each.
+
+A file translates as plain YAML otherwise. It is skipped only when it contains **ytt
+computation**: a directive with code after it (`#@ load(...)`, `key: #@ expr`), an overlay
+directive that rewrites values instead of merging them (`#@overlay/remove`,
+`#@overlay/replace`, `#@overlay/append`, `#@overlay/insert`), or a schema document ytt cannot
+inspect standalone. A skipped file's *resolved* values are frozen as literals at the leaf
+instead, marked with a `TODO(myks migrate)` comment: application values in that application's
+file, environment values in `patch.k`. The result still renders identically; the literals are
+yours to replace with real KCL derivations.
 
 The application files unify into one accumulator, `_apps`, which `env.k` folds into
 `applications`:
@@ -150,10 +163,26 @@ Delete the frozen block, and `patch.k` once its `_patch` is empty.
 
 ### Tighten the prototype schemas
 
-The generated `proto.k` is deliberately loose: containers keep their kind (`{str:any}`,
-`[any]`) so a `key: {...}` union merges into the default instead of replacing it, and
-scalars are `any` so an application may override with a different type, as ytt data values
-allowed. Typing the fields is where the schema starts catching mistakes:
+When a prototype's `app-data*` file is a schema document ytt could inspect, `proto.k` already
+carries what that schema said: attribute types come from it (`str`, `int`, `float`, `bool`,
+`{str:any}`, `[any]`, or `any` for `#@schema/type any=True`), and its `#@schema/validation`
+bounds become `check:` items — a nested value reached by indexing and guarded by the keys on
+the way to it, so a check never fails on an application that replaced the enclosing scope
+wholesale. A custom rule or any other validation keyword argument the migration warned about
+is not in that block; restate it there by hand.
+
+Neither is a validation the prototype's own defaults do not satisfy — `min_len=1` on an empty
+default, which is how a prototype demands a value. A KCL check runs where the schema is
+instantiated, that is where the application is declared, while ytt validated the final data
+values of a render; a check like that would fail on every declaration that only fills the
+value in at a deeper level. Once the declaration carries the value, the check belongs in
+`proto.k` too.
+
+Without an inspected schema to draw on, the generated `proto.k` is deliberately loose:
+containers keep their kind (`{str:any}`, `[any]`) so a `key: {...}` union merges into the
+default instead of replacing it, and scalars are `any` so an application may override with a
+different type, as ytt data values allowed. Typing the fields is where the schema starts
+catching mistakes:
 
 ```kcl
 # seed:

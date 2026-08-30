@@ -24,10 +24,11 @@ func TestHasYttLogicRe(t *testing.T) {
 		{"overlay replace", "#@data/values\n---\n#@overlay/replace\nfoo: bar\n", true},
 		{"load directive", "#@ load(\"@myks:data.lib.yaml\", \"env_data\")\n#@data/values-schema\n---\n", true},
 		{"inline expression", "#@data/values-schema\n---\nenvId: #@ env_data.environment.id\n", true},
-		{"schema default annotation", "#@data/values-schema\n---\n#@schema/default [\"x\"]\nitems: ['']\n", true},
-		{"schema nullable annotation", "#@data/values-schema\n---\n#@schema/nullable\nfoo: ''\n", true},
+		{"schema default annotation", "#@data/values-schema\n---\n#@schema/default [\"x\"]\nitems: ['']\n", false},
+		{"schema nullable annotation", "#@data/values-schema\n---\n#@schema/nullable\nfoo: ''\n", false},
 		{"schema validation annotation", "#@data/values-schema\n---\n#@schema/validation min_len=1\nimage: ''\n", false},
 		{"schema type annotation", "#@data/values-schema\n---\n#@schema/type any=True\nfoo: bar\n", false},
+		{"schema doc with a load directive", "#@ load(\"@ytt:data\", \"data\")\n#@data/values-schema\n---\nfoo: bar\n", true},
 		{"plain comment", "#! just a comment\n#@data/values\n---\nfoo: bar\n", false},
 	}
 	for _, tt := range tests {
@@ -201,19 +202,107 @@ func TestRefuseExisting(t *testing.T) {
 // TestWriteProtoK pins the index signature: KCL does not inherit m.App's into a generated
 // subclass, so an application declaring a key the prototype's app-data lacks fails to compile
 // without it.
+// TestConvertDataFile covers how a data file is read: a schema document through ytt (so the
+// schema semantics plain YAML cannot see are applied), a plain document as YAML, and a
+// computed one not at all.
+func TestConvertDataFile(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	m := &migrator{g: &Globe{Config: Config{RootDir: dir}}}
+	write := func(t *testing.T, name, content string) string {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+		return path
+	}
+
+	t.Run("schema document is resolved by ytt", func(t *testing.T) {
+		path := write(t, "schema.ytt.yaml", `#@data/values-schema
+---
+application:
+  #@schema/validation min_len=1
+  image: ''
+  #! a schema array carries only the type of its item and defaults to empty
+  env:
+  - name: TZ
+  #@schema/default 2
+  replicas: 1
+`)
+		converted, err := m.convertDataFile(path)
+		require.NoError(t, err)
+		require.NotNil(t, converted)
+		app, ok := converted.values["application"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "", app["image"])
+		assert.Empty(t, app["env"], "a schema array defaults to empty, whatever its item says")
+		assert.Equal(t, 2, app["replicas"], "#@schema/default wins over the written value")
+		require.NotNil(t, converted.schema)
+		assert.Equal(t, "{str:any}", converted.schema.types["application"])
+		require.Len(t, converted.schema.constraints, 1)
+		assert.Equal(t, []string{"application", "image"}, converted.schema.constraints[0].path)
+	})
+
+	t.Run("plain document is parsed as YAML", func(t *testing.T) {
+		path := write(t, "values.ytt.yaml", "#@data/values\n---\napplication:\n  env:\n  - name: TZ\n")
+		converted, err := m.convertDataFile(path)
+		require.NoError(t, err)
+		require.NotNil(t, converted)
+		app := converted.values["application"].(map[string]any)
+		assert.Len(t, app["env"], 1, "a plain data-values list is a value, not a schema")
+		assert.Nil(t, converted.schema)
+	})
+
+	t.Run("computed document is skipped", func(t *testing.T) {
+		path := write(t, "computed.ytt.yaml", "#@ load(\"@ytt:data\", \"data\")\n#@data/values-schema\n---\nfoo: bar\n")
+		converted, err := m.convertDataFile(path)
+		require.NoError(t, err)
+		assert.Nil(t, converted)
+		assert.Contains(t, m.skipped, path)
+	})
+}
+
+// TestWarnUnmappedValidations verifies the validations ytt's OpenAPI output cannot carry are
+// reported instead of silently dropped.
+func TestWarnUnmappedValidations(t *testing.T) {
+	t.Parallel()
+	m := &migrator{}
+	m.warnUnmappedValidations("app-data.ytt.yaml", []byte(`#@data/values-schema
+---
+#@schema/validation min_len=1, not_null=True
+a: ''
+#@schema/validation ("must be lowercase", lambda v: v == v.lower())
+b: ''
+#@schema/validation one_of=["x"]
+c: 'x'
+`))
+	require.Len(t, m.warnings, 1)
+	assert.Contains(t, m.warnings[0], "custom rule, not_null")
+	assert.NotContains(t, m.warnings[0], "min_len")
+}
+
 func TestWriteProtoK(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	m := &migrator{
 		g:            &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}},
 		protoSchemas: map[string]string{"kb_mcp": "KbMcp"},
-		protoBase:    map[string]map[string]any{"kb_mcp": {"helm": map[string]any{"removeLabels": true}}},
+		protoBase: map[string]map[string]any{"kb_mcp": {
+			"helm":  map[string]any{"removeLabels": true},
+			"image": "kb-mcp:1.0.0",
+		}},
+		protoInspected: map[string]*inspectedSchema{"kb_mcp": {
+			types:       map[string]string{"image": "str"},
+			constraints: []schemaConstraint{{path: []string{"image"}, kind: constraintMinLength, value: 1}},
+		}},
 	}
 	require.NoError(t, m.writeProtoK("kb_mcp"))
 
 	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "kb_mcp", protoKFileName))
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "schema KbMcp(m.App):\n    [...str]: any\n    proto: str = \"kb_mcp\"\n")
+	assert.Contains(t, string(content), "image?: str = \"kb-mcp:1.0.0\"", "the inspected schema types the attribute")
+	assert.Contains(t, string(content), "\n    check:\n        len(image) >= 1, \"image must be at least 1 long\"\n")
+	assert.Contains(t, string(content), "helm?: {str:any} = {", "without an inspected type the value decides")
 }
 
 func TestSanitizeKclIdentifier(t *testing.T) {

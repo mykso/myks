@@ -76,6 +76,9 @@ type migrator struct {
 	root  *migNode
 	// protoBase holds the converted prototypes/<proto>/app-data values (root-level contributions).
 	protoBase map[string]map[string]any
+	// protoInspected holds, per prototype, what its app-data schema document declares:
+	// attribute types and validations, which the generated base schema restates.
+	protoInspected map[string]*inspectedSchema
 	// protoSchemas maps a prototype to the KCL schema name generated for it in
 	// prototypes/<proto>/proto.k. A prototype absent here gets no schema; its defaults are
 	// hoisted into every declaration instead.
@@ -230,24 +233,35 @@ func (m *migrator) collectContributions() error {
 	cfg := &m.g.Config
 	for _, dir := range slices.Sorted(maps.Keys(m.nodes)) {
 		node := m.nodes[dir]
-		envValues, err := m.convertFileGlob(filepath.Join(node.dir, cfg.EnvironmentDataFileName))
+		envData, err := m.convertFileGlob(filepath.Join(node.dir, cfg.EnvironmentDataFileName))
 		if err != nil {
 			return err
 		}
-		node.envValues = envValues
+		node.envValues = envData.values
 		m.extractEnvironmentScope(node)
 
-		if node.protoValues, err = m.convertPerDirGlobs(filepath.Join(node.dir, cfg.PrototypeOverrideDir), cfg.ApplicationDataFileName); err != nil {
+		protoOverrides, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.PrototypeOverrideDir), cfg.ApplicationDataFileName)
+		if err != nil {
 			return err
 		}
-		if node.appValues, err = m.convertPerDirGlobs(filepath.Join(node.dir, cfg.AppsDir), cfg.ApplicationDataFileName); err != nil {
+		node.protoValues = valuesOf(protoOverrides)
+		apps, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.AppsDir), cfg.ApplicationDataFileName)
+		if err != nil {
 			return err
 		}
+		node.appValues = valuesOf(apps)
 	}
 
-	var err error
-	if m.protoBase, err = m.convertPerDirGlobs(filepath.Join(m.g.RootDir, cfg.PrototypesDir), cfg.ApplicationDataFileName); err != nil {
+	prototypes, err := m.convertPerDirGlobs(filepath.Join(m.g.RootDir, cfg.PrototypesDir), cfg.ApplicationDataFileName)
+	if err != nil {
 		return err
+	}
+	m.protoBase = valuesOf(prototypes)
+	m.protoInspected = map[string]*inspectedSchema{}
+	for proto, converted := range prototypes {
+		if converted.schema != nil {
+			m.protoInspected[proto] = converted.schema
+		}
 	}
 	return nil
 }
@@ -293,73 +307,161 @@ func (m *migrator) extractEnvironmentScope(node *migNode) {
 	}
 }
 
-// convertFileGlob raw-converts all files matching the glob into one merged value map.
-func (m *migrator) convertFileGlob(pattern string) (map[string]any, error) {
+// convertedFile is the conversion of one or more data-values files: the values, plus what
+// the schema documents among them declare (nil when none did).
+type convertedFile struct {
+	values map[string]any
+	schema *inspectedSchema
+}
+
+// convertFileGlob converts all files matching the glob into one merged result.
+func (m *migrator) convertFileGlob(pattern string) (*convertedFile, error) {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, fmt.Errorf("globbing %s: %w", pattern, err)
 	}
-	values := map[string]any{}
+	merged := &convertedFile{values: map[string]any{}}
 	for _, file := range files {
-		fileValues, converted, err := m.convertDataFile(file)
+		converted, err := m.convertDataFile(file)
 		if err != nil {
 			return nil, err
 		}
-		if converted {
-			values = mergeValues(values, fileValues)
+		if converted == nil {
+			continue
 		}
+		merged.values = mergeValues(merged.values, converted.values)
+		merged.schema = mergeInspectedSchemas(merged.schema, converted.schema)
 	}
-	return values, nil
+	return merged, nil
 }
 
-// convertPerDirGlobs raw-converts <base>/<name>/<filePattern> for every subdirectory of base,
+// convertPerDirGlobs converts <base>/<name>/<filePattern> for every subdirectory of base,
 // returning a map keyed by subdirectory name.
-func (m *migrator) convertPerDirGlobs(base, filePattern string) (map[string]map[string]any, error) {
+func (m *migrator) convertPerDirGlobs(base, filePattern string) (map[string]*convertedFile, error) {
 	entries, err := os.ReadDir(base)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return map[string]map[string]any{}, nil
+			return map[string]*convertedFile{}, nil
 		}
 		return nil, fmt.Errorf("reading %s: %w", base, err)
 	}
-	result := map[string]map[string]any{}
+	result := map[string]*convertedFile{}
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-		values, err := m.convertFileGlob(filepath.Join(base, entry.Name(), filePattern))
+		converted, err := m.convertFileGlob(filepath.Join(base, entry.Name(), filePattern))
 		if err != nil {
 			return nil, err
 		}
-		if len(values) > 0 {
-			result[entry.Name()] = values
+		if len(converted.values) > 0 {
+			result[entry.Name()] = converted
 		}
 	}
 	return result, nil
 }
 
-// hasYttLogicRe detects ytt computation in a data file: a directive with code after it
-// (`#@ load(...)`, `key: #@ expr`), a schema annotation that changes values
-// (`#@schema/default`, `#@schema/nullable`), or an overlay directive that rewrites values
-// instead of merging them (`#@overlay/remove`, which plain YAML parsing would keep). Plain
-// document headers (`#@data/values`), pure matching hints
-// (`#@overlay/match-child-defaults`) and annotations that only describe or constrain a
-// value (`#@schema/validation`, `#@schema/type`, `#@schema/desc`) do not match.
-var hasYttLogicRe = regexp.MustCompile(`#@[ \t]|#@schema/(default|nullable)|#@overlay/(remove|replace|append|insert)`)
+// valuesOf drops the schema half of a per-directory conversion.
+func valuesOf(converted map[string]*convertedFile) map[string]map[string]any {
+	values := make(map[string]map[string]any, len(converted))
+	for name, file := range converted {
+		values[name] = file.values
+	}
+	return values
+}
 
-// convertDataFile parses one data-values file as plain YAML. Files containing ytt logic
-// are skipped (converted=false) and recorded: raw parsing would misread computed values.
-func (m *migrator) convertDataFile(file string) (values map[string]any, converted bool, err error) {
+var (
+	// hasYttLogicRe detects ytt computation in a data file: a directive with code after it
+	// (`#@ load(...)`, `key: #@ expr`), or an overlay directive that rewrites values instead
+	// of merging them (`#@overlay/remove`, which plain YAML parsing would keep). Plain
+	// document headers (`#@data/values`) and pure matching hints
+	// (`#@overlay/match-child-defaults`) do not match. Schema annotations do not either:
+	// a schema document is resolved by ytt itself, which is what they are for.
+	hasYttLogicRe = regexp.MustCompile(`#@[ \t]|#@overlay/(remove|replace|append|insert)`)
+	// schemaDocRe detects a data-values schema document. ytt forbids mixing schema and plain
+	// data-values documents in one file, so one match settles how the whole file is read.
+	schemaDocRe = regexp.MustCompile(`(?m)^#@data/values-schema\b`)
+	// validationKwargRe captures the keyword arguments of a `#@schema/validation` annotation,
+	// whose body is Starlark rather than YAML and so is read as text.
+	validationKwargRe = regexp.MustCompile(`(?m)^\s*#@schema/validation\s+(.*)$`)
+	kwargNameRe       = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_]*)\s*=`)
+	// comparisonRe matches the operators of a custom rule's expression, which would otherwise
+	// read as keyword arguments (`lambda v: v == v.lower()`).
+	comparisonRe = regexp.MustCompile(`[!<>=]=`)
+)
+
+// mappedValidationKwargs are the `#@schema/validation` keyword arguments ytt reports in its
+// OpenAPI output, and so the only ones the generated KCL check block can restate.
+var mappedValidationKwargs = map[string]bool{"min_len": true, "max_len": true, "min": true, "max": true, "one_of": true}
+
+// warnUnmappedValidations reports the validations that do not survive the conversion: ytt's
+// OpenAPI output carries neither custom rules (a lambda or a named function) nor the
+// keyword arguments that have no OpenAPI counterpart.
+func (m *migrator) warnUnmappedValidations(file string, content []byte) {
+	lost := map[string]bool{}
+	for _, match := range validationKwargRe.FindAllSubmatch(content, -1) {
+		body := comparisonRe.ReplaceAllString(string(match[1]), " ")
+		named := false
+		for _, kwarg := range kwargNameRe.FindAllStringSubmatch(body, -1) {
+			named = true
+			if !mappedValidationKwargs[kwarg[1]] {
+				lost[kwarg[1]] = true
+			}
+		}
+		if !named {
+			lost["custom rule"] = true
+		}
+	}
+	if len(lost) > 0 {
+		m.warn("%s: schema validations not carried into the generated KCL schema: %s; restate them in its check block by hand",
+			file, strings.Join(slices.Sorted(maps.Keys(lost)), ", "))
+	}
+}
+
+// mergeInspectedSchemas folds the schema documents of one directory together, later files
+// winning, the way their values are merged.
+func mergeInspectedSchemas(base, next *inspectedSchema) *inspectedSchema {
+	if base == nil {
+		return next
+	}
+	if next == nil {
+		return base
+	}
+	maps.Copy(base.types, next.types)
+	maps.Copy(base.nullable, next.nullable)
+	base.constraints = append(base.constraints, next.constraints...)
+	return base
+}
+
+// convertDataFile converts one data-values file. A schema document is inspected by ytt, so
+// its defaults carry the schema semantics plain YAML cannot see (an array defaults to empty
+// unless annotated, `#@schema/default` wins over the written value, a nullable key defaults
+// to null); a plain data-values document is parsed as YAML, which is what it is. Files
+// containing ytt logic are skipped (nil result) and recorded: their values are computed.
+func (m *migrator) convertDataFile(file string) (*convertedFile, error) {
 	content, err := os.ReadFile(file) // #nosec G304 -- paths come from globbing the repo being migrated
 	if err != nil {
-		return nil, false, fmt.Errorf("reading %s: %w", file, err)
+		return nil, fmt.Errorf("reading %s: %w", file, err)
 	}
 	if hasYttLogicRe.Match(content) {
 		m.skipped = append(m.skipped, file)
-		return nil, false, nil
+		return nil, nil
 	}
 
-	values = map[string]any{}
+	if schemaDocRe.Match(content) {
+		schema, err := m.inspectSchemaFile(file)
+		if err != nil {
+			// The file declares a schema ytt itself cannot resolve standalone; freezing its
+			// values from the legacy-resolved output is the safe answer.
+			log.Debug().Err(err).Msg(m.g.Msg("Falling back to freezing " + file))
+			m.skipped = append(m.skipped, file)
+			return nil, nil
+		}
+		m.warnUnmappedValidations(file, content)
+		return &convertedFile{values: schema.defaults, schema: schema}, nil
+	}
+
+	values := map[string]any{}
 	decoder := yaml.NewDecoder(bytes.NewReader(content))
 	for {
 		var doc map[string]any
@@ -367,11 +469,26 @@ func (m *migrator) convertDataFile(file string) (values map[string]any, converte
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return nil, false, fmt.Errorf("parsing %s: %w", file, err)
+			return nil, fmt.Errorf("parsing %s: %w", file, err)
 		}
 		values = mergeValues(values, doc)
 	}
-	return values, true, nil
+	return &convertedFile{values: values}, nil
+}
+
+// inspectSchemaFile resolves one schema document the way ytt sees it. Only the schema is
+// inspected, so a schema whose defaults would fail its own validations (`min_len=1` on an
+// empty default, which a prototype uses to demand a value) still converts.
+func (m *migrator) inspectSchemaFile(file string) (*inspectedSchema, error) {
+	res, err := runYttWithFilesAndStdin("migrate", []string{file}, nil, func(name string, err error, stderr string, args []string) {
+		if err != nil {
+			log.Debug().Str("stderr", stderr).Msg(m.g.Msg(msgRunCmd("inspect data values schema", name, args)))
+		}
+	}, "--data-values-schema-inspect", "--output=openapi-v3")
+	if err != nil {
+		return nil, fmt.Errorf("inspecting the schema of %s: %w", file, err)
+	}
+	return parseSchemaInspect([]byte(res.Stdout))
 }
 
 // kclGeneratedNames are the identifiers the generated level files already bind; a prototype
@@ -484,6 +601,7 @@ func (m *migrator) prototypeNames() []string {
 // generated tree imports and declares it under the name it now has on disk.
 func (m *migrator) applyPrototypeRename(oldName, newName string) {
 	moveKey(m.protoBase, oldName, newName)
+	moveKey(m.protoInspected, oldName, newName)
 	for _, node := range m.nodes {
 		moveKey(node.protoValues, oldName, newName)
 		for i := range node.rawRoster {
