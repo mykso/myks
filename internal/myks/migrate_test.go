@@ -305,6 +305,47 @@ func TestWriteProtoK(t *testing.T) {
 	assert.Contains(t, string(content), "helm?: {str:any} = {", "without an inspected type the value decides")
 }
 
+// TestWriteProtoKDemandedValue pins how a validation the prototype's own default violates is
+// carried: the default is dropped and the check guarded, so it fires only once a level sets
+// the value — a KCL check runs at every instantiation, ytt validated the final values once.
+func TestWriteProtoKDemandedValue(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	schema := &inspectedSchema{
+		types: map[string]string{"image": "str", "application": "{str:any}"},
+		constraints: []schemaConstraint{
+			{path: []string{"application", "name"}, kind: constraintMinLength, value: 1},
+			{path: []string{"image"}, kind: constraintMinLength, value: 1},
+		},
+	}
+	values := map[string]any{
+		"image":       "",
+		"application": map[string]any{"name": "", "ingress": true},
+	}
+	demanded := pruneDemandedDefaults(values, schema)
+	assert.Equal(t, map[string]bool{"image": true}, demanded, "only a top-level key needs a bare attribute")
+	assert.Equal(t, map[string]any{"application": map[string]any{"ingress": true}}, values,
+		"both unsatisfied defaults are dropped, the satisfied sibling stays")
+
+	m := &migrator{
+		g:              &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}},
+		protoSchemas:   map[string]string{"webapp": "Webapp"},
+		protoBase:      map[string]map[string]any{"webapp": values},
+		protoInspected: map[string]*inspectedSchema{"webapp": schema},
+		protoDemanded:  map[string]map[string]bool{"webapp": demanded},
+	}
+	require.NoError(t, m.writeProtoK("webapp"))
+
+	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "webapp", protoKFileName))
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "\n    image?: str\n", "a demanded value is declared without a default")
+	assert.Contains(t, string(content),
+		`len(application["name"]) >= 1 if "name" in application, "application.name must be at least 1 long"`)
+	assert.Contains(t, string(content),
+		`len(image) >= 1 if image != Undefined, "image must be at least 1 long"`)
+	assert.Empty(t, m.warnings)
+}
+
 func TestSanitizeKclIdentifier(t *testing.T) {
 	t.Parallel()
 	for name, want := range map[string]string{

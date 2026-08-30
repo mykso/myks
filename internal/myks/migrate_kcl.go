@@ -209,7 +209,18 @@ func (m *migrator) writeProtoK(proto string) error {
 	b.WriteString("    [...str]: any\n")
 	b.printf("    proto: str = %s\n", quoteKclString(proto))
 	schema := m.protoInspected[proto]
-	for _, key := range slices.Sorted(maps.Keys(values)) {
+	demanded := m.protoDemanded[proto]
+	keys := slices.Collect(maps.Keys(values))
+	for key := range demanded {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	for _, key := range keys {
+		if demanded[key] {
+			// No default: the prototype validates this value without supplying a valid one.
+			b.printf("    %s?: %s\n", key, attributeType(schema, key, nil))
+			continue
+		}
 		value := values[key]
 		b.printf("    %s?: %s = ", key, attributeType(schema, key, value))
 		writeKclValue(b, value, 4, false)
@@ -254,23 +265,23 @@ func attributeType(schema *inspectedSchema, key string, value any) string {
 // its own null default.
 //
 // A KCL check runs where the schema is instantiated — where the application is declared —
-// while ytt validated the final data values of a render. A validation the prototype's own
-// defaults do not satisfy (`min_len=1` on an empty default, the way a prototype demands a
-// value) would therefore fail on every declaration that fills it in later, so it is reported
-// instead of generated.
+// and again on every override of that instance, while ytt validated the final data values of
+// a render once. A value the prototype validates without supplying a satisfying default
+// (`min_len=1` on an empty default, the way a prototype demands a value) therefore has no
+// default in the generated schema (pruneDemandedDefaults), and its check is guarded against
+// the absence: unset it does not fire, set at any level it is enforced from there on.
 func (m *migrator) kclChecks(proto string, schema *inspectedSchema) []string {
 	if schema == nil {
 		return nil
 	}
 	var checks []string
 	for _, constraint := range schema.constraints {
-		if !constraintHoldsForDefaults(m.protoBase[proto], constraint) {
-			m.warn("%s/%s: validation %s of %s is not carried into the generated KCL schema: the prototype's own default does not satisfy it, so the generated check would fail wherever an application is declared; restate it where the value is set",
-				m.g.PrototypesDir, proto, constraint.kind, strings.Join(constraint.path, "."))
-			continue
-		}
 		access := constraint.path[0]
 		var guards []string
+		if m.protoDemanded[proto][access] {
+			// An optional attribute left unset is Undefined, which only != compares with.
+			guards = append(guards, access+" != Undefined")
+		}
 		for _, key := range constraint.path[1:] {
 			guards = append(guards, fmt.Sprintf("%s in %s", quoteKclString(key), access))
 			access += "[" + quoteKclString(key) + "]"
@@ -291,6 +302,39 @@ func (m *migrator) kclChecks(proto string, schema *inspectedSchema) []string {
 			quoteKclString(strings.Join(constraint.path, ".")+" "+requirement)))
 	}
 	return checks
+}
+
+// pruneDemandedDefaults removes from a prototype's default values every value its own schema
+// validates but its default does not satisfy — `min_len=1` on an empty string, the way a ytt
+// prototype demands a value it cannot supply. Kept, the default would fail the generated check
+// at every declaration; removed, the value is absent until a level sets it, and validated from
+// then on. It returns the top-level keys removed this way: those attributes are generated
+// without a default and their checks guarded against the absence.
+func pruneDemandedDefaults(values map[string]any, schema *inspectedSchema) map[string]bool {
+	demanded := map[string]bool{}
+	for _, constraint := range schema.constraints {
+		if constraintHoldsForDefaults(values, constraint) {
+			continue
+		}
+		scope := values
+		for _, key := range constraint.path[:len(constraint.path)-1] {
+			next, ok := scope[key].(map[string]any)
+			if !ok {
+				scope = nil
+				break
+			}
+			scope = next
+		}
+		if scope == nil {
+			continue
+		}
+		leaf := constraint.path[len(constraint.path)-1]
+		delete(scope, leaf)
+		if len(constraint.path) == 1 {
+			demanded[leaf] = true
+		}
+	}
+	return demanded
 }
 
 // constraintHoldsForDefaults reports whether the prototype's own default values satisfy a

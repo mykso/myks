@@ -79,6 +79,10 @@ type migrator struct {
 	// protoInspected holds, per prototype, what its app-data schema document declares:
 	// attribute types and validations, which the generated base schema restates.
 	protoInspected map[string]*inspectedSchema
+	// protoDemanded holds, per prototype, the top-level values its schema validates but does
+	// not supply a satisfying default for (see pruneDemandedDefaults). Those attributes are
+	// generated without a default, so their check only fires once a level sets them.
+	protoDemanded map[string]map[string]bool
 	// protoSchemas maps a prototype to the KCL schema name generated for it in
 	// prototypes/<proto>/proto.k. A prototype absent here gets no schema; its defaults are
 	// hoisted into every declaration instead.
@@ -258,9 +262,11 @@ func (m *migrator) collectContributions() error {
 	}
 	m.protoBase = valuesOf(prototypes)
 	m.protoInspected = map[string]*inspectedSchema{}
+	m.protoDemanded = map[string]map[string]bool{}
 	for proto, converted := range prototypes {
 		if converted.schema != nil {
 			m.protoInspected[proto] = converted.schema
+			m.protoDemanded[proto] = pruneDemandedDefaults(m.protoBase[proto], converted.schema)
 		}
 	}
 	return nil
@@ -661,7 +667,9 @@ func (m *migrator) planPrototypeSchemas() {
 
 	for _, proto := range slices.Sorted(maps.Keys(m.protoBase)) {
 		values := m.protoBase[proto]
-		if len(values) == 0 {
+		// A prototype whose only values are demanded ones (pruned away, see
+		// pruneDemandedDefaults) still needs a schema: that is where their checks live.
+		if len(values) == 0 && len(m.protoDemanded[proto]) == 0 {
 			continue
 		}
 		if !isKclIdentifier(proto) || kclGeneratedNames[proto] {
@@ -670,7 +678,10 @@ func (m *migrator) planPrototypeSchemas() {
 			continue
 		}
 		var unusable []string
-		for _, key := range slices.Sorted(maps.Keys(values)) {
+		attributes := slices.Collect(maps.Keys(values))
+		attributes = append(attributes, slices.Collect(maps.Keys(m.protoDemanded[proto]))...)
+		slices.Sort(attributes)
+		for _, key := range attributes {
 			// `proto` is set by the generated schema itself, so it cannot also be an attribute.
 			if !isKclIdentifier(key) || key == "proto" {
 				unusable = append(unusable, key)

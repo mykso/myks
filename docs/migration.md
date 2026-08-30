@@ -39,8 +39,7 @@ the written value, and a `#@schema/nullable` key defaults to null. Its `#@schema
 constraints feed the generated prototype schema's type and `check:` block where ytt reports
 them in its OpenAPI output (`min_len`, `max_len`, `min`, `max`, `one_of`; see "Tighten the
 prototype schemas" below) — any other validation, a custom rule or a keyword argument ytt does
-not report, is not carried over, and neither is one the prototype's own defaults do not
-satisfy; the converter warns naming each.
+not report, is not carried over; the converter warns naming each.
 
 A file translates as plain YAML otherwise. It is skipped only when it contains **ytt
 computation**: a directive with code after it (`#@ load(...)`, `key: #@ expr`), an overlay
@@ -171,12 +170,29 @@ the way to it, so a check never fails on an application that replaced the enclos
 wholesale. A custom rule or any other validation keyword argument the migration warned about
 is not in that block; restate it there by hand.
 
-Neither is a validation the prototype's own defaults do not satisfy — `min_len=1` on an empty
-default, which is how a prototype demands a value. A KCL check runs where the schema is
-instantiated, that is where the application is declared, while ytt validated the final data
-values of a render; a check like that would fail on every declaration that only fills the
-value in at a deeper level. Once the declaration carries the value, the check belongs in
-`proto.k` too.
+A KCL check runs where the schema is instantiated, that is where the application is declared,
+and again on every override of that instance, while ytt validated the final data values of a
+render once. So a value the prototype validates without supplying a satisfying default —
+`min_len=1` on an empty string, which is how a ytt prototype demands a value — is generated
+**without a default**:
+
+```kcl
+schema Webapp(m.App):
+    image?: str
+
+    check:
+        len(image) >= 1 if image != Undefined, "image must be at least 1 long"
+```
+
+The value is then absent until some level sets it, and validated from that level down. What
+this does not catch is an application that never sets it at all: KCL cannot express "required
+at the leaf" in a schema whose instances are also the intermediate levels. If a value must be
+present, assert it in the leaf finalizer instead.
+
+One consequence to watch during migration: the value no longer defaults to the empty string,
+so an application that legacy rendering resolved to `""` gets that empty string frozen as a
+leaf patch — and then fails the check. That is a real invalid configuration, surfaced; fix it
+by setting the value.
 
 Without an inspected schema to draw on, the generated `proto.k` is deliberately loose:
 containers keep their kind (`{str:any}`, `[any]`) so a `key: {...}` union merges into the

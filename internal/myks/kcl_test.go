@@ -179,6 +179,40 @@ environments = {
 		assert.Equal(t, "cross-step value", private["shared"])
 	})
 
+	// The shape writeProtoK generates for a value a prototype validates but does not supply:
+	// no default, and the check guarded against the resulting Undefined.
+	t.Run("demanded value is validated only once set", func(t *testing.T) {
+		t.Parallel()
+		module := func(image string) string {
+			return `
+schema Webapp:
+    [...str]: any
+    image?: str
+    check:
+        len(image) >= 1 if image != Undefined, "image must be at least 1 long"
+
+_base = Webapp {}
+myksSchemaVersion = "0.2.0"
+environments = {
+    dev = {
+        id = "kcl-dev"
+        applications.hello = _base | {` + image + `}
+    }
+}
+`
+		}
+		tree, err := evalKclTree(writeModule(t, module("")))
+		require.NoError(t, err, "an unset demanded value does not fail the check")
+		assert.NotContains(t, tree.Environments["dev"].Applications["hello"], "image")
+
+		tree, err = evalKclTree(writeModule(t, module(`image = "nginx"`)))
+		require.NoError(t, err)
+		assert.Equal(t, "nginx", tree.Environments["dev"].Applications["hello"]["image"])
+
+		_, err = evalKclTree(writeModule(t, module(`image = ""`)))
+		assert.ErrorContains(t, err, "image must be at least 1 long")
+	})
+
 	t.Run("missing schema version", func(t *testing.T) {
 		t.Parallel()
 		dir := writeModule(t, `environments = {}`)
