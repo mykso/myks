@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -109,6 +110,13 @@ func TestWriteKclDataFiles(t *testing.T) {
 	schemaContent, err = os.ReadFile(schemaPath) // #nosec G304 -- test-controlled path
 	require.NoError(t, err)
 	assert.NotContains(t, string(schemaContent), "greeting")
+}
+
+// TestCleanKclDiagnostics verifies KCL's colorized multi-line diagnostics are made log-safe.
+func TestCleanKclDiagnostics(t *testing.T) {
+	t.Parallel()
+	err := errors.New("\nerror[E2G22]: TypeError\n \x1b[1;38;5;12m-->\x1b[0m /x/env.k:5:8\n")
+	assert.Equal(t, "error[E2G22]: TypeError\n --> /x/env.k:5:8", cleanKclDiagnostics(err))
 }
 
 // TestCheckKclSchemaVersion verifies the engine's schema-version compatibility rule.

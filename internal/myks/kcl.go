@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -91,7 +92,7 @@ func evalKclTree(rootDir string) (*kclTree, error) {
 	}
 	deps, err := kcl.UpdateDependencies(&kcl.UpdateDependenciesArgs{ManifestPath: absRootDir})
 	if err != nil {
-		return nil, fmt.Errorf("resolving KCL dependencies at %s: %w", rootDir, err)
+		return nil, fmt.Errorf("resolving KCL dependencies at %s:\n%s", rootDir, cleanKclDiagnostics(err))
 	}
 	// KCL hides underscore-prefixed attributes from its output; config values are data, and a
 	// leading underscore is a legitimate key (myks repos use `_` for cross-step private values).
@@ -103,7 +104,7 @@ func evalKclTree(rootDir string) (*kclTree, error) {
 
 	res, err := kcl.Run(rootDir, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("evaluating KCL config at %s: %w", rootDir, err)
+		return nil, fmt.Errorf("evaluating KCL config at %s:\n%s", rootDir, cleanKclDiagnostics(err))
 	}
 
 	tree := &kclTree{}
@@ -133,6 +134,16 @@ func evalKclTree(rootDir string) (*kclTree, error) {
 	}
 
 	return tree, nil
+}
+
+// ansiEscapeRe matches the SGR sequences the KCL compiler colorizes its diagnostics with.
+// They are emitted unconditionally, so they land in log files and CI output as noise.
+var ansiEscapeRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// cleanKclDiagnostics makes a KCL error readable in a log line: the colors are stripped and
+// the leading blank line KCL starts its diagnostics with is trimmed.
+func cleanKclDiagnostics(err error) string {
+	return strings.TrimSpace(ansiEscapeRe.ReplaceAllString(err.Error(), ""))
 }
 
 // checkKclSchemaVersion asserts the tree's schema version is compatible with the engine.
