@@ -10,15 +10,26 @@ import (
 	"strings"
 )
 
-// Generated files of one environment-tree level. A KCL package is a directory, so the three
-// files share one namespace: env.k references the `_applications` and `_patch` variables the
-// other two bind. The split mirrors the legacy data-values layout (env-data / env-data.apps),
-// keeping the roster and the machine-frozen TODO values out of the level's own values.
+// Generated files of one environment-tree level. A KCL package is a directory, so the files
+// of a level share one namespace: env.k folds the `_apps` accumulator that the per-application
+// files unify into, and references the `_patch` bound by patch.k. Everything one level says
+// about an application — its declaration or override plus the machine-frozen TODO values —
+// lives in that application's own file, mirroring the legacy per-application data directories.
 const (
 	envKFileName   = "env.k"
-	appsKFileName  = "apps.k"
 	patchKFileName = "patch.k"
 )
+
+// appKFileName is the level file of one application. A file name is not a package path, so
+// application names need no renaming; the prefix keeps them clear of env.k and patch.k.
+func appKFileName(app string) string {
+	return "app-" + app + ".k"
+}
+
+// appsFoldExpr folds the per-application accumulator into a plain dict. A schema instance on
+// the right of `|` or `:` replaces instead of merging, which would drop everything the parent
+// level said about the application.
+const appsFoldExpr = "{k: v for k, v in _apps}"
 
 // emit writes the seeded KCL tree: kcl.mod, main.k, and the level files of every non-empty
 // environment-tree level.
@@ -31,6 +42,24 @@ func (m *migrator) emit(schemaPackage string) error {
 
 	protos := m.declaredPrototypeSchemas()
 
+	// The level files are rendered up front: the refusal check and the writes need the same set.
+	levelFiles := map[string]string{}
+	for _, dir := range envKDirs {
+		node := m.nodes[dir]
+		parent := node.parent
+		for parent != nil && !emitted[parent.dir] {
+			parent = parent.parent
+		}
+		files, err := m.renderNodeFiles(node, parent)
+		if err != nil {
+			return err
+		}
+		for name, content := range files {
+			levelFiles[filepath.Join(m.g.RootDir, dir, name)] = content
+		}
+	}
+	levelPaths := slices.Sorted(maps.Keys(levelFiles))
+
 	targets := []string{
 		filepath.Join(m.g.RootDir, kclModFileName),
 		filepath.Join(m.g.RootDir, "main.k"),
@@ -38,11 +67,7 @@ func (m *migrator) emit(schemaPackage string) error {
 	for _, proto := range protos {
 		targets = append(targets, m.protoKPath(proto))
 	}
-	for _, dir := range envKDirs {
-		for _, name := range nodeFileNames(m.nodes[dir]) {
-			targets = append(targets, filepath.Join(m.g.RootDir, dir, name))
-		}
-	}
+	targets = append(targets, levelPaths...)
 	if !m.force {
 		if err := refuseExisting(targets); err != nil {
 			return err
@@ -61,55 +86,63 @@ func (m *migrator) emit(schemaPackage string) error {
 		}
 	}
 
-	for _, dir := range envKDirs {
-		node := m.nodes[dir]
-		parent := node.parent
-		for parent != nil && !emitted[parent.dir] {
-			parent = parent.parent
-		}
-		for _, name := range nodeFileNames(node) {
-			content, err := m.renderNodeFile(name, node, parent)
-			if err != nil {
-				return fmt.Errorf("rendering %s/%s: %w", dir, name, err)
-			}
-			if err := writeFile(filepath.Join(m.g.RootDir, dir, name), []byte(content)); err != nil {
-				return fmt.Errorf("writing %s/%s: %w", dir, name, err)
-			}
+	for _, path := range levelPaths {
+		if err := writeFile(path, []byte(levelFiles[path])); err != nil {
+			return fmt.Errorf("writing %s: %w", path, err)
 		}
 	}
 	return nil
 }
 
-// nodeFileNames lists the files a level gets: env.k always, the other two only when they
-// would have content.
-func nodeFileNames(node *migNode) []string {
-	files := []string{envKFileName}
-	if nodeHasApps(node) {
-		files = append(files, appsKFileName)
+// renderNodeFiles renders every file of one level, keyed by file name: env.k always, patch.k
+// when the level has frozen environment values, and one file per application it configures.
+func (m *migrator) renderNodeFiles(node, parent *migNode) (map[string]string, error) {
+	files := map[string]string{}
+	render := func(name string, render func() (string, error)) error {
+		content, err := render()
+		if err != nil {
+			return fmt.Errorf("rendering %s/%s: %w", node.dir, name, err)
+		}
+		files[name] = content
+		return nil
+	}
+
+	if err := render(envKFileName, func() (string, error) { return m.renderEnvK(node, parent) }); err != nil {
+		return nil, err
 	}
 	if nodeHasPatch(node) {
-		files = append(files, patchKFileName)
+		if err := render(patchKFileName, func() (string, error) { return m.renderPatchK(node) }); err != nil {
+			return nil, err
+		}
 	}
-	return files
+	for _, name := range nodeAppNames(node) {
+		if err := render(appKFileName(name), func() (string, error) { return m.renderAppK(node, name) }); err != nil {
+			return nil, err
+		}
+	}
+	return files, nil
+}
+
+// nodeAppNames lists, sorted, every application this level says something about.
+func nodeAppNames(node *migNode) []string {
+	names := map[string]bool{}
+	for _, values := range []map[string]map[string]any{node.overrides, node.appPatches} {
+		for name := range values {
+			names[name] = true
+		}
+	}
+	for name := range node.declared {
+		names[name] = true
+	}
+	return slices.Sorted(maps.Keys(names))
 }
 
 func nodeHasApps(node *migNode) bool {
-	return len(node.declared)+len(node.overrides) > 0
+	return len(nodeAppNames(node)) > 0
 }
 
 func nodeHasPatch(node *migNode) bool {
-	return len(node.envPatch)+len(node.appPatches) > 0
-}
-
-func (m *migrator) renderNodeFile(name string, node, parent *migNode) (string, error) {
-	switch name {
-	case appsKFileName:
-		return m.renderAppsK(node)
-	case patchKFileName:
-		return m.renderPatchK(node)
-	default:
-		return m.renderEnvK(node, parent)
-	}
+	return len(node.envPatch) > 0
 }
 
 // refuseExisting keeps the migration from clobbering hand-written KCL: it is all-or-nothing,
@@ -280,28 +313,31 @@ func writeGeneratedHeader(b *kclWriter) {
 
 // renderEnvK renders one level's env.k: the level's own values plus the wiring. The root
 // instantiates the base schema; every other level imports its nearest emitted ancestor and
-// patches it with a dict union. The roster and the frozen patch live in the sibling files of
-// the same KCL package, referenced here as `_applications` and `_patch`.
+// patches it with a dict union. The applications live in the per-application files of the
+// same KCL package, folded in here from the `_apps` accumulator they unify into; the frozen
+// environment values live in patch.k, referenced as `_patch`.
 func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 	b := &kclWriter{}
 	writeGeneratedHeader(b)
 
 	if node == m.root {
 		b.WriteString("import myks as m\n\n")
+		writeAppsBase(b, node)
 		b.WriteString("env = m.Environment {\n")
 		writeKclEntries(b, node.envValues, 4, false)
 		if nodeHasApps(node) {
-			b.WriteString("    applications = _applications\n")
+			b.printf("    applications = %s\n", appsFoldExpr)
 		}
 		b.WriteString("}\n")
 		return b.String(), b.err
 	}
 
-	if node.env != nil {
-		// Only a leaf needs the schema package here, for finalize.
+	if node.env != nil || nodeHasApps(node) {
+		// The schema package is needed for finalize on a leaf and for the `_apps` accumulator.
 		b.WriteString("import myks as m\n")
 	}
 	b.printf("import %s as parent\n\n", packagePath(parent.dir))
+	writeAppsBase(b, node)
 
 	hasPatch := nodeHasPatch(node)
 	levelVar := "env"
@@ -316,7 +352,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 	}
 	writeKclEntries(b, node.envValues, 4, true)
 	if nodeHasApps(node) {
-		b.WriteString("    applications: _applications\n")
+		b.printf("    applications: %s\n", appsFoldExpr)
 	}
 	b.WriteString("}\n")
 
@@ -332,95 +368,104 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 	return b.String(), b.err
 }
 
-// renderAppsK renders one level's apps.k: `_applications`, holding the declarations of the
-// applications rostered at this level and dict-union overrides for inherited ones.
-func (m *migrator) renderAppsK(node *migNode) (string, error) {
+// writeAppsBase declares the empty accumulator the level's per-application files unify into,
+// so the level keeps resolving when the last of those files is deleted by hand.
+func writeAppsBase(b *kclWriter, node *migNode) {
+	if nodeHasApps(node) {
+		b.WriteString("_apps: m.Apps {}\n\n")
+	}
+}
+
+// renderAppK renders one level's file for one application: everything this level says about
+// it — the declaration or the dict-union override of a declaration above, plus the values
+// frozen from the legacy-resolved output. The blocks unify into `_apps` in file order, so the
+// frozen values win over the declaration above them.
+func (m *migrator) renderAppK(node *migNode, name string) (string, error) {
 	b := &kclWriter{}
 	writeGeneratedHeader(b)
-	if m.usesAppSchema(node) {
-		b.WriteString("import myks as m\n")
-	}
-	for _, proto := range m.nodePrototypeImports(node) {
-		b.printf("import %s\n", packagePath(filepath.Join(m.g.PrototypesDir, proto)))
-	}
-	b.WriteString("\n_applications = {\n")
+	b.WriteString("import myks as m\n")
 
-	for _, name := range slices.Sorted(maps.Keys(node.declared)) {
-		app := node.declared[name]
-		// A prototype with a generated base schema is instantiated instead of m.App: its
-		// defaults come from the schema, so the declaration's values are a union on top.
-		schema := m.protoSchemas[app.proto]
+	app, declared := node.declared[name]
+	// A prototype with a generated base schema is instantiated instead of m.App: its defaults
+	// come from the schema, so the declaration's values are a union on top.
+	schema := ""
+	if declared {
+		schema = m.protoSchemas[app.proto]
+		if schema != "" {
+			b.printf("import %s\n", packagePath(filepath.Join(m.g.PrototypesDir, app.proto)))
+		}
+	}
+
+	b.WriteString("\n")
+	blocks := 0
+	separate := func() {
+		if blocks > 0 {
+			b.WriteString("\n")
+		}
+		blocks++
+	}
+	openBlock := func() {
+		b.printf("_apps: m.Apps {\n    %s", kclKey(name))
+	}
+
+	if declared {
 		constructor, declMerge := "m.App", false
 		if schema != "" {
 			constructor, declMerge = app.proto+"."+schema, true
 		}
-		b.printf("    %s = %s {", kclKey(name), constructor)
+		separate()
+		openBlock()
+		b.printf(" = %s {", constructor)
 		if len(app.values) == 0 && (schema != "" || app.proto == name) {
 			b.WriteString("}\n")
-			continue
+		} else {
+			b.WriteString("\n")
+			if schema == "" && app.proto != name {
+				b.printf("        proto = %s\n", quoteKclString(app.proto))
+			}
+			writeKclEntries(b, app.values, 8, declMerge)
+			b.WriteString("    }\n")
 		}
-		b.WriteString("\n")
-		if schema == "" && app.proto != name {
-			b.printf("        proto = %s\n", quoteKclString(app.proto))
-		}
-		writeKclEntries(b, app.values, 8, declMerge)
-		b.WriteString("    }\n")
+		b.WriteString("}\n")
 	}
 
-	for _, name := range slices.Sorted(maps.Keys(node.overrides)) {
-		b.printf("    %s: ", kclKey(name))
-		writeKclValue(b, node.overrides[name], 4, true)
-		b.WriteString("\n")
+	if override, ok := node.overrides[name]; ok {
+		separate()
+		openBlock()
+		b.WriteString(": ")
+		writeKclValue(b, override, 4, true)
+		b.WriteString("\n}\n")
 	}
 
-	b.WriteString("}\n")
+	if patch, ok := node.appPatches[name]; ok {
+		separate()
+		writeFrozenValuesComment(b)
+		openBlock()
+		b.WriteString(": ")
+		writeKclValue(b, patch, 4, true)
+		b.WriteString("\n}\n")
+	}
 	return b.String(), b.err
 }
 
-// renderPatchK renders one level's patch.k: the values the raw conversion could not
-// reproduce, frozen as literals for hand-finishing.
+// renderPatchK renders one level's patch.k: the environment values the raw conversion could
+// not reproduce, frozen as literals for hand-finishing. Frozen application values live in the
+// per-application files instead.
 func (m *migrator) renderPatchK(node *migNode) (string, error) {
 	b := &kclWriter{}
 	writeGeneratedHeader(b)
 	b.WriteString("#\n")
-	b.WriteString("# TODO(myks migrate): the values below were computed by ytt logic that the converter\n")
-	b.WriteString("# cannot translate to KCL; they are frozen here as literals from the legacy-resolved\n")
-	b.WriteString("# output. Replace them with KCL derivations (see docs/migration.md).\n")
+	writeFrozenValuesComment(b)
 	b.WriteString("_patch = {\n")
 	writeKclEntries(b, node.envPatch, 4, true)
-	if len(node.appPatches) > 0 {
-		b.WriteString("    applications: {\n")
-		for _, name := range slices.Sorted(maps.Keys(node.appPatches)) {
-			b.printf("        %s: ", kclKey(name))
-			writeKclValue(b, node.appPatches[name], 8, true)
-			b.WriteString("\n")
-		}
-		b.WriteString("    }\n")
-	}
 	b.WriteString("}\n")
 	return b.String(), b.err
 }
 
-// usesAppSchema reports whether a level still declares an application through m.App, i.e.
-// one whose prototype has no generated base schema.
-func (m *migrator) usesAppSchema(node *migNode) bool {
-	for _, app := range node.declared {
-		if m.protoSchemas[app.proto] == "" {
-			return true
-		}
-	}
-	return false
-}
-
-// nodePrototypeImports lists, sorted, the prototype packages a level's declarations need.
-func (m *migrator) nodePrototypeImports(node *migNode) []string {
-	protos := map[string]bool{}
-	for _, app := range node.declared {
-		if m.protoSchemas[app.proto] != "" {
-			protos[app.proto] = true
-		}
-	}
-	return slices.Sorted(maps.Keys(protos))
+func writeFrozenValuesComment(b *kclWriter) {
+	b.WriteString("# TODO(myks migrate): the values below were computed by ytt logic that the converter\n")
+	b.WriteString("# cannot translate to KCL; they are frozen here as literals from the legacy-resolved\n")
+	b.WriteString("# output. Replace them with KCL derivations (see docs/migration.md).\n")
 }
 
 // writeKclEntries renders a map's entries, one per line, keys sorted. In merge style

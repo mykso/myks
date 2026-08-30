@@ -30,3 +30,18 @@ schema App:
     proto?: str
     argocd?: {str:any}
     [...str]: any
+
+schema Apps:
+    """Accumulator for the per-application files of one environment level.
+
+    A KCL package is a directory, so every `.k` file of a level shares one
+    namespace and a schema-typed declaration of the same name unifies across
+    them. Each application file declares `_apps: Apps { <name> = ... }`, and
+    the level's `env.k` folds the unified result into `applications` — so
+    everything one level says about an application lives in one file.
+
+    The fold is a dict comprehension (`{k: v for k, v in _apps}`): a schema
+    instance on the right of `|` or `:` replaces instead of merging, which
+    would drop the values inherited from the parent level.
+    """
+    [...str]: App

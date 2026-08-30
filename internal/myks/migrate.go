@@ -150,7 +150,7 @@ var nonIdentifierCharRe = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 // sanitizeKclIdentifier turns a directory name into the snake_case identifier myks uses for
 // KCL package names: cert-manager -> cert_manager. It returns "" when no rename can help —
-// a leading digit, a KCL keyword, or a name a generated env.k already binds.
+// a leading digit, a KCL keyword, or a name the generated level files already bind.
 func sanitizeKclIdentifier(name string) string {
 	sanitized := nonIdentifierCharRe.ReplaceAllString(name, "_")
 	if !isKclIdentifier(sanitized) || kclGeneratedNames[sanitized] {
@@ -372,9 +372,9 @@ func (m *migrator) convertDataFile(file string) (values map[string]any, converte
 	return values, true, nil
 }
 
-// kclGeneratedNames are the identifiers a generated env.k already binds; a prototype
+// kclGeneratedNames are the identifiers the generated level files already bind; a prototype
 // package importing under one of them would shadow it.
-var kclGeneratedNames = map[string]bool{"m": true, "parent": true}
+var kclGeneratedNames = map[string]bool{"m": true, "parent": true, "_apps": true}
 
 // renamePrototypes gives every prototype directory a name usable as a KCL package name, so
 // it can own a base schema: cert-manager becomes cert_manager. Every directory keyed by the

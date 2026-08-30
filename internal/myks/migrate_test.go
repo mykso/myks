@@ -1,9 +1,11 @@
 package myks
 
 import (
+	"maps"
 	"math"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -220,8 +222,9 @@ func TestSanitizeKclIdentifier(t *testing.T) {
 		"dots.and spaces":            "dots_and_spaces",
 		"2fa":                        "", // a leading digit cannot be repaired
 		"map":                        "", // a KCL builtin type name
-		"m":                          "", // shadows the myks import a generated env.k binds
+		"m":                          "", // shadows the myks import the level files bind
 		"parent":                     "", // shadows the parent-level import
+		"_apps":                      "", // shadows the per-application accumulator
 	} {
 		assert.Equal(t, want, sanitizeKclIdentifier(name), name)
 	}
@@ -253,8 +256,8 @@ func TestPlanPrototypeSchemas(t *testing.T) {
 }
 
 // TestRenderLevelFiles pins the split level layout: env.k carries the level's own values and
-// references the roster and the frozen patch bound by its sibling files, which are emitted
-// only when they have content.
+// folds the accumulator the per-application files unify into, patch.k the frozen environment
+// values, and each application file everything the level says about that application.
 func TestRenderLevelFiles(t *testing.T) {
 	t.Parallel()
 	m := &migrator{
@@ -266,21 +269,30 @@ func TestRenderLevelFiles(t *testing.T) {
 	leaf := m.newNode(filepath.Join("envs", "dev"), m.root)
 	leaf.env = &Environment{ID: "dev"}
 	leaf.declared["web"] = migApp{name: "web", proto: "web", values: map[string]any{"replicas": 3}}
-	leaf.envPatch = map[string]any{"computed": "x"}
+	leaf.overrides["cache"] = map[string]any{"replicas": 1}
+	leaf.appPatches["web"] = map[string]any{"computed": "x"}
+	leaf.envPatch = map[string]any{"computed": "y"}
 
-	assert.Equal(t, []string{envKFileName}, nodeFileNames(m.root))
-	assert.Equal(t, []string{envKFileName, appsKFileName, patchKFileName}, nodeFileNames(leaf))
-
-	envK, err := m.renderEnvK(leaf, m.root)
+	rootFiles, err := m.renderNodeFiles(m.root, nil)
 	require.NoError(t, err)
-	assert.Contains(t, envK, "_lvl = parent.env | {\n    id = \"dev\"\n    applications: _applications\n}\n")
-	assert.Contains(t, envK, "env = m.finalize(_lvl | _patch)\n")
+	assert.Equal(t, []string{envKFileName}, slices.Sorted(maps.Keys(rootFiles)))
 
-	appsK, err := m.renderAppsK(leaf)
+	files, err := m.renderNodeFiles(leaf, m.root)
 	require.NoError(t, err)
-	assert.Contains(t, appsK, "_applications = {\n    web = m.App {\n        replicas = 3\n    }\n}\n")
+	assert.Equal(t,
+		[]string{"app-cache.k", "app-web.k", envKFileName, patchKFileName},
+		slices.Sorted(maps.Keys(files)))
 
-	patchK, err := m.renderPatchK(leaf)
-	require.NoError(t, err)
-	assert.Contains(t, patchK, "_patch = {\n    computed = \"x\"\n}\n")
+	assert.Contains(t, files[envKFileName], "_apps: m.Apps {}\n")
+	assert.Contains(t, files[envKFileName],
+		"_lvl = parent.env | {\n    id = \"dev\"\n    applications: {k: v for k, v in _apps}\n}\n")
+	assert.Contains(t, files[envKFileName], "env = m.finalize(_lvl | _patch)\n")
+
+	// Declaration and frozen values of one application, in that order: the later block wins.
+	assert.Contains(t, files["app-web.k"],
+		"_apps: m.Apps {\n    web = m.App {\n        replicas = 3\n    }\n}\n")
+	assert.Contains(t, files["app-web.k"], "_apps: m.Apps {\n    web: {\n        computed = \"x\"\n    }\n}\n")
+	assert.Contains(t, files["app-cache.k"], "_apps: m.Apps {\n    cache: {\n        replicas = 1\n    }\n}\n")
+
+	assert.Contains(t, files[patchKFileName], "_patch = {\n    computed = \"y\"\n}\n")
 }

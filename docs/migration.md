@@ -18,26 +18,45 @@ Running `myks migrate` in a legacy repository writes:
   instead of repeating those values ([ADR 0004](adr/0004-pure-language-config-surface.md)).
   A prototype directory whose name is not a valid KCL identifier is renamed to make it one;
   see below.
-- `envs/**/*.k` — the files of each environment-tree level, mirroring the legacy split of
-  `env-data.yaml` / `env-data.apps.yaml`. A KCL package is a directory, so the files of one
-  level share a namespace and cross-reference each other directly:
+- `envs/**/*.k` — the files of each environment-tree level, mirroring the legacy layout of
+  `env-data.yaml` plus one directory per application. A KCL package is a directory, so the
+  files of one level share a namespace and cross-reference each other directly:
   - `env.k` — the level's converted `env-data.*.yaml` values, the import of the parent
     level, and the wiring (`id`, `myks.finalize` on a leaf). Always written.
-  - `apps.k` — `_applications`: the applications rostered at this level (with the values
-    from `_proto/` and `_apps/` files, and from `prototypes/*/app-data*` when the prototype
-    has no base schema, merged in), plus overrides of applications declared above it.
-    Written only when the level has any.
-  - `patch.k` — `_patch`: values frozen from the legacy-resolved output, see below. Written
-    only when the level needs one.
+  - `app-<name>.k` — everything this level says about one application: its declaration
+    (with the values from `_proto/` and `_apps/` files, and from `prototypes/*/app-data*`
+    when the prototype has no base schema, merged in) or its override of a declaration
+    above, plus the values frozen from the legacy-resolved output. One file per application
+    per level, the KCL counterpart of the legacy `_apps/<name>/` directory.
+  - `patch.k` — `_patch`: environment values frozen from the legacy-resolved output, see
+    below. Written only when the level needs one.
 
 Data-values files containing **ytt logic** (`#@ load(...)`, inline `#@` expressions,
 `#@schema/default` annotations) cannot be translated. The converter skips them and instead
-freezes their *resolved* values as literals in a leaf-level `patch.k` marked with a
-`TODO(myks migrate)` comment. The result still renders identically; the literals are yours
-to replace with real KCL derivations.
+freezes their *resolved* values as literals at the leaf, marked with a `TODO(myks migrate)`
+comment: application values in that application's file, environment values in `patch.k`. The
+result still renders identically; the literals are yours to replace with real KCL
+derivations.
 
-Splitting a level further is free: any `.k` file you add next to `env.k` joins the same
-package, so a level's own schemas or a large roster can live in a file of their own.
+The application files unify into one accumulator, `_apps`, which `env.k` folds into
+`applications`:
+
+```kcl
+# envs/shop/prod/app-forwarder.k
+import myks as m
+import prototypes.forwarder
+
+_apps: m.Apps {
+    forwarder = forwarder.Forwarder {
+        application: {logLevel = "debug"}
+    }
+}
+```
+
+Adding an application is adding a file — nothing to register elsewhere. Within a level the
+later block wins, which is how the frozen values override the declaration above them in the
+same file. Splitting a level further is free the same way: any `.k` file you add next to
+`env.k` joins the package, so a level's own schemas can live in a file of their own.
 
 The legacy files are left in place so the conversion is easy to inspect and revert
 (`git checkout` / delete `kcl.mod`, `main.k` and the generated level files).
@@ -99,25 +118,35 @@ The legacy files are left in place so the conversion is easy to inspect and reve
 
 ### Replace frozen literals with derivations
 
-Every `_patch` block is a value that used to be computed by ytt. Move it to where it
-belongs and express the computation in KCL. Typical example — an app value derived from the
+Every frozen block is a value that used to be computed by ytt. Move it to where it belongs
+and express the computation in KCL. Typical example — an app value derived from the
 environment id:
 
 ```kcl
-# seed (frozen literal in _patch):
-"argocd-tests": {application: {envId = "mykso-dev"}}
+# seed (frozen literal in envs/dev/app-argocd-tests.k):
+_apps: m.Apps {
+    "argocd-tests": {application: {envId = "mykso-dev"}}
+}
+```
 
-# hand-finished (derivation at the leaf):
+The files of a level share a namespace, so the application file reads the id bound by its
+`env.k` — the derivation stays next to the value it feeds:
+
+```kcl
+# envs/dev/env.k
 _id = "mykso-dev"
 env = m.finalize(envs.env | {
     id = _id
-    applications: {
-        "argocd-tests": {application: {envId = _id}}
-    }
+    applications: {k: v for k, v in _apps}
 })
+
+# envs/dev/app-argocd-tests.k — one block, no frozen literal left
+_apps: m.Apps {
+    "argocd-tests": {application: {envId = _id}}
+}
 ```
 
-Delete the `_patch` block when it is empty.
+Delete the frozen block, and `patch.k` once its `_patch` is empty.
 
 ### Tighten the prototype schemas
 
@@ -145,11 +174,13 @@ A prototype the converter skipped (no base schema) has its values inlined into e
 application declaration using it — that duplication is the signal to rename the directory
 and write the schema by hand.
 
-### Per-app opt-in layout
+### Collapse the per-application files you do not need
 
-Flat declarations in `apps.k` are the default. Move an application with substantial
-configuration into its own package (`envs/<...>/<app_name>/app.k`) and import it — both
-styles coexist ([design](redesign/design.md#tree-layout)).
+One file per application per level is the seed's default, and the layout to keep for
+anything with real configuration. A level whose applications are one-liners reads better
+collapsed: any `.k` file of the level may declare several of them, so merge them into a
+single `apps.k` and delete the rest — the accumulator is what the level folds in, not the
+file names ([design](redesign/design.md#tree-layout)).
 
 ## Known limitations
 
