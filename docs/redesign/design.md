@@ -23,23 +23,35 @@ to discover environments or applications; the user's in-language imports (ADR 00
 
 ```
 envs/
-  env.k                      root level: base schema instance, global defaults, root apps
+  env.k                      root level: base schema instance, global defaults
+  app-<name>.k               root-level application: declaration, unified into `_apps`
   <group>/
-    env.k                    cluster-group level: imports parent, overrides, apps += [...]
+    env.k                    cluster-group level: imports parent, overrides, folds `_apps`
+    app-<name>.k             group-level application or override of one declared above
     <tier>/
       env.k                  tier level: same pattern
       <region>/
         env.k                leaf: identity values (region, octet, …) + finalize
-        <big_app>/app.k      optional per-app opt-in for apps with substantial config
+        app-<name>.k         leaf-level application
+prototypes/
+  <name>/
+    proto.k                  prototype base schema: subclasses App with the prototype's defaults
 lib/                         user-local shared logic (importable)
 kcl.mod                      KCL module manifest; pins the myks schema package
 ```
 
-- **Flat is the default; per-app directories are a per-app opt-in** (bake-off addendum). Both
-  styles coexist in one tree.
-- Directory names must be KCL identifiers (`central_forwarder/`, not `central-forwarder/`);
+- **One file per application per level is the default; collapsing several into one file is
+  free.** A KCL package is a directory, so every `.k` file of a level shares its namespace and
+  a schema-typed declaration of the same name unifies across them: each file adds to the
+  level's `_apps: myks.Apps` accumulator, which `env.k` folds into `applications`. Nothing
+  registers a file anywhere, and file names are not package paths — `app-cert-manager.k`
+  needs no renaming.
+- The fold is a dict comprehension (`{k: v for k, v in _apps}`): a schema instance on the
+  right of `|` or `:` replaces instead of merging, dropping the parent level's values.
+- Directory names must be KCL identifiers (`central_forwarder/`, not `central-forwarder/`) —
+  under `prototypes/` too, for a prototype that owns a base schema;
   display names live in the config body (`name = "central-forwarder"`).
-- No `_apps/` convention: imports disambiguate sub-environments from applications (ADR 0004).
+- No `_apps/` directory convention: imports disambiguate sub-environments from applications (ADR 0004).
 - Variable-depth trees work: intermediate directories need no `.k` files; a child package can
   import its ancestor.
 
@@ -58,7 +70,7 @@ env = f.finalize(parent.env {
 })
 ```
 
-Per-cluster override of one inherited app (flat style):
+Per-cluster override of one inherited app:
 
 ```kcl
 _lvl = parent.env {
@@ -88,8 +100,10 @@ are computed in KCL and merged by the engine over the static YAML.
 
 ## myks schema package
 
-myks ships its KCL schemas (`Environment`, `App`, prototype bases, the `finalize` helper) as a
-**KCL package on an OCI registry** (ADR 0006). User repos depend on it via `kcl.mod`
+myks ships its KCL schemas (`Environment`, `App`, `Apps`, the `finalize` helper) as a
+**KCL package on an OCI registry** (ADR 0006). Prototype bases are not shipped: each repo owns
+them, one package per prototype (`prototypes/<name>/proto.k`, subclassing `App` — see
+[ADR 0007](../adr/0007-prototype-bases-as-packages.md)). User repos depend on it via `kcl.mod`
 (`kcl mod add …`), pinned by version; the LSP resolves it like any dependency. The evaluated tree
 carries the schema version; the engine asserts compatibility at eval time and fails fast on
 mismatch.

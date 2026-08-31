@@ -27,13 +27,15 @@ import (
 // docs/migration.md.
 //
 // schemaPackage selects the myks KCL schema package dependency: an oci:// reference or a
-// local path.
-func Migrate(g *Globe, schemaPackage string) error {
+// local path. force re-runs the conversion over an already converted repo: the legacy sources
+// are read again even with kcl.mod present, and the generated files are overwritten.
+func Migrate(g *Globe, schemaPackage string, force bool) error {
 	if kclMode, err := g.isKclMode(); err != nil {
 		return err
-	} else if kclMode {
-		return fmt.Errorf("%s already exists: this repo is already in KCL mode", kclModFileName)
+	} else if kclMode && !force {
+		return fmt.Errorf("%s already exists: this repo is already in KCL mode; re-run with --force to overwrite the generated files", kclModFileName)
 	}
+	g.forceLegacyMode = force
 	if err := g.ValidateRootDir(); err != nil {
 		return err
 	}
@@ -44,13 +46,17 @@ func Migrate(g *Globe, schemaPackage string) error {
 		return errors.New("no environments found, nothing to migrate")
 	}
 
-	m := &migrator{g: g, nodes: map[string]*migNode{}, protoBase: map[string]map[string]any{}}
+	m := &migrator{g: g, nodes: map[string]*migNode{}, protoBase: map[string]map[string]any{}, force: force}
 	if err := m.buildTree(); err != nil {
 		return err
 	}
 	if err := m.collectContributions(); err != nil {
 		return err
 	}
+	if err := m.renamePrototypes(); err != nil {
+		return err
+	}
+	m.planPrototypeSchemas()
 	m.placeApplications()
 	if err := m.computePatches(); err != nil {
 		return err
@@ -70,12 +76,21 @@ type migrator struct {
 	root  *migNode
 	// protoBase holds the converted prototypes/<proto>/app-data values (root-level contributions).
 	protoBase map[string]map[string]any
+	// protoInspected holds, per prototype, what its app-data schema document declares:
+	// attribute types and validations, which the generated base schema restates.
+	protoInspected map[string]*inspectedSchema
+	// protoSchemas maps a prototype to the KCL schema name generated for it in
+	// prototypes/<proto>/proto.k. A prototype absent here gets no schema; its defaults are
+	// hoisted into every declaration instead.
+	protoSchemas map[string]string
 	// skipped lists data files containing ytt logic; their values are frozen into leaf patches.
 	skipped []string
 	// warnings lists conditions the user must resolve by hand.
 	warnings []string
 	// patched counts leaf-level patched value paths.
 	patched int
+	// force allows overwriting the generated files of a previous run.
+	force bool
 }
 
 // migNode is one level of the environment tree under conversion.
@@ -131,6 +146,20 @@ var kclReservedWords = map[string]bool{
 
 func isKclIdentifier(s string) bool {
 	return kclIdentifierRe.MatchString(s) && !kclReservedWords[s]
+}
+
+// nonIdentifierCharRe matches every character that cannot appear in a KCL identifier.
+var nonIdentifierCharRe = regexp.MustCompile(`[^a-zA-Z0-9_]`)
+
+// sanitizeKclIdentifier turns a directory name into the snake_case identifier myks uses for
+// KCL package names: cert-manager -> cert_manager. It returns "" when no rename can help —
+// a leading digit, a KCL keyword, or a name the generated level files already bind.
+func sanitizeKclIdentifier(name string) string {
+	sanitized := nonIdentifierCharRe.ReplaceAllString(name, "_")
+	if !isKclIdentifier(sanitized) || kclGeneratedNames[sanitized] {
+		return ""
+	}
+	return sanitized
 }
 
 // buildTree creates a migNode for every directory on the path from the environments base
@@ -204,31 +233,44 @@ func (m *migrator) collectContributions() error {
 	cfg := &m.g.Config
 	for _, dir := range slices.Sorted(maps.Keys(m.nodes)) {
 		node := m.nodes[dir]
-		envValues, err := m.convertFileGlob(filepath.Join(node.dir, cfg.EnvironmentDataFileName))
+		envData, err := m.convertFileGlob(filepath.Join(node.dir, cfg.EnvironmentDataFileName))
 		if err != nil {
 			return err
 		}
-		node.envValues = envValues
+		node.envValues = envData.values
 		m.extractEnvironmentScope(node)
 
-		if node.protoValues, err = m.convertPerDirGlobs(filepath.Join(node.dir, cfg.PrototypeOverrideDir), cfg.ApplicationDataFileName); err != nil {
+		protoOverrides, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.PrototypeOverrideDir), cfg.ApplicationDataFileName)
+		if err != nil {
 			return err
 		}
-		if node.appValues, err = m.convertPerDirGlobs(filepath.Join(node.dir, cfg.AppsDir), cfg.ApplicationDataFileName); err != nil {
+		node.protoValues = valuesOf(protoOverrides)
+		apps, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.AppsDir), cfg.ApplicationDataFileName)
+		if err != nil {
 			return err
 		}
+		node.appValues = valuesOf(apps)
 	}
 
-	var err error
-	if m.protoBase, err = m.convertPerDirGlobs(filepath.Join(m.g.RootDir, cfg.PrototypesDir), cfg.ApplicationDataFileName); err != nil {
+	prototypes, err := m.convertPerDirGlobs(filepath.Join(m.g.RootDir, cfg.PrototypesDir), cfg.ApplicationDataFileName)
+	if err != nil {
 		return err
+	}
+	m.protoBase = valuesOf(prototypes)
+	m.protoInspected = map[string]*inspectedSchema{}
+	for proto, converted := range prototypes {
+		if converted.schema != nil {
+			m.protoInspected[proto] = converted.schema
+			pruneDemandedDefaults(m.protoBase[proto], converted.schema)
+		}
 	}
 	return nil
 }
 
-// extractEnvironmentScope removes the engine-owned environment scope from a node's env
-// values: the roster feeds application placement, the id comes from the discovered
-// environment, and any other key cannot be represented (the engine regenerates the scope).
+// extractEnvironmentScope removes the engine-owned keys of the environment scope from a
+// node's env values: the roster feeds application placement and the id comes from the
+// discovered environment, both regenerated by the engine. Any other key of the scope is
+// ordinary user data and stays in place.
 func (m *migrator) extractEnvironmentScope(node *migNode) {
 	envScope, ok := node.envValues["environment"].(map[string]any)
 	if !ok {
@@ -236,6 +278,7 @@ func (m *migrator) extractEnvironmentScope(node *migNode) {
 	}
 	delete(node.envValues, "environment")
 
+	extras := map[string]any{}
 	for key, value := range envScope {
 		switch key {
 		case "id":
@@ -257,76 +300,168 @@ func (m *migrator) extractEnvironmentScope(node *migNode) {
 				node.rawRoster = append(node.rawRoster, migApp{name: name, proto: proto})
 			}
 		default:
-			m.warn("%s: environment.%s cannot be migrated (the engine owns the environment scope); move it elsewhere by hand", node.dir, key)
+			extras[key] = value
 		}
+	}
+	if len(extras) > 0 {
+		node.envValues["environment"] = extras
 	}
 }
 
-// convertFileGlob raw-converts all files matching the glob into one merged value map.
-func (m *migrator) convertFileGlob(pattern string) (map[string]any, error) {
+// convertedFile is the conversion of one or more data-values files: the values, plus what
+// the schema documents among them declare (nil when none did).
+type convertedFile struct {
+	values map[string]any
+	schema *inspectedSchema
+}
+
+// convertFileGlob converts all files matching the glob into one merged result.
+func (m *migrator) convertFileGlob(pattern string) (*convertedFile, error) {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, fmt.Errorf("globbing %s: %w", pattern, err)
 	}
-	values := map[string]any{}
+	merged := &convertedFile{values: map[string]any{}}
 	for _, file := range files {
-		fileValues, converted, err := m.convertDataFile(file)
+		converted, err := m.convertDataFile(file)
 		if err != nil {
 			return nil, err
 		}
-		if converted {
-			values = mergeValues(values, fileValues)
+		if converted == nil {
+			continue
 		}
+		merged.values = mergeValues(merged.values, converted.values)
+		merged.schema = mergeInspectedSchemas(merged.schema, converted.schema)
 	}
-	return values, nil
+	return merged, nil
 }
 
-// convertPerDirGlobs raw-converts <base>/<name>/<filePattern> for every subdirectory of base,
+// convertPerDirGlobs converts <base>/<name>/<filePattern> for every subdirectory of base,
 // returning a map keyed by subdirectory name.
-func (m *migrator) convertPerDirGlobs(base, filePattern string) (map[string]map[string]any, error) {
+func (m *migrator) convertPerDirGlobs(base, filePattern string) (map[string]*convertedFile, error) {
 	entries, err := os.ReadDir(base)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return map[string]map[string]any{}, nil
+			return map[string]*convertedFile{}, nil
 		}
 		return nil, fmt.Errorf("reading %s: %w", base, err)
 	}
-	result := map[string]map[string]any{}
+	result := map[string]*convertedFile{}
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
-		values, err := m.convertFileGlob(filepath.Join(base, entry.Name(), filePattern))
+		converted, err := m.convertFileGlob(filepath.Join(base, entry.Name(), filePattern))
 		if err != nil {
 			return nil, err
 		}
-		if len(values) > 0 {
-			result[entry.Name()] = values
+		if len(converted.values) > 0 {
+			result[entry.Name()] = converted
 		}
 	}
 	return result, nil
 }
 
-// hasYttLogicRe detects ytt computation in a data file: a directive with code after it
-// (`#@ load(...)`, `key: #@ expr`), a schema annotation that changes values
-// (`#@schema/default`), or an overlay directive that rewrites values instead of merging
-// them (`#@overlay/remove`, which plain YAML parsing would keep). Plain document headers
-// (`#@data/values`) and pure matching hints (`#@overlay/match-child-defaults`) do not match.
-var hasYttLogicRe = regexp.MustCompile(`#@[ \t]|#@schema/|#@overlay/(remove|replace|append|insert)`)
+// valuesOf drops the schema half of a per-directory conversion.
+func valuesOf(converted map[string]*convertedFile) map[string]map[string]any {
+	values := make(map[string]map[string]any, len(converted))
+	for name, file := range converted {
+		values[name] = file.values
+	}
+	return values
+}
 
-// convertDataFile parses one data-values file as plain YAML. Files containing ytt logic
-// are skipped (converted=false) and recorded: raw parsing would misread computed values.
-func (m *migrator) convertDataFile(file string) (values map[string]any, converted bool, err error) {
+var (
+	// hasYttLogicRe detects ytt computation in a data file: a directive with code after it
+	// (`#@ load(...)`, `key: #@ expr`), or an overlay directive that rewrites values instead
+	// of merging them (`#@overlay/remove`, which plain YAML parsing would keep). Plain
+	// document headers (`#@data/values`) and pure matching hints
+	// (`#@overlay/match-child-defaults`) do not match. Schema annotations do not either:
+	// a schema document is resolved by ytt itself, which is what they are for.
+	hasYttLogicRe = regexp.MustCompile(`#@[ \t]|#@overlay/(remove|replace|append|insert)`)
+	// schemaDocRe detects a data-values schema document. ytt forbids mixing schema and plain
+	// data-values documents in one file, so one match settles how the whole file is read.
+	schemaDocRe = regexp.MustCompile(`(?m)^#@data/values-schema\b`)
+	// validationKwargRe captures the keyword arguments of a `#@schema/validation` annotation,
+	// whose body is Starlark rather than YAML and so is read as text.
+	validationKwargRe = regexp.MustCompile(`(?m)^\s*#@schema/validation\s+(.*)$`)
+	kwargNameRe       = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_]*)\s*=`)
+	// comparisonRe matches the operators of a custom rule's expression, which would otherwise
+	// read as keyword arguments (`lambda v: v == v.lower()`).
+	comparisonRe = regexp.MustCompile(`[!<>=]=`)
+)
+
+// mappedValidationKwargs are the `#@schema/validation` keyword arguments ytt reports in its
+// OpenAPI output, and so the only ones the generated KCL check block can restate.
+var mappedValidationKwargs = map[string]bool{"min_len": true, "max_len": true, "min": true, "max": true, "one_of": true}
+
+// warnUnmappedValidations reports the validations that do not survive the conversion: ytt's
+// OpenAPI output carries neither custom rules (a lambda or a named function) nor the
+// keyword arguments that have no OpenAPI counterpart.
+func (m *migrator) warnUnmappedValidations(file string, content []byte) {
+	lost := map[string]bool{}
+	for _, match := range validationKwargRe.FindAllSubmatch(content, -1) {
+		body := comparisonRe.ReplaceAllString(string(match[1]), " ")
+		named := false
+		for _, kwarg := range kwargNameRe.FindAllStringSubmatch(body, -1) {
+			named = true
+			if !mappedValidationKwargs[kwarg[1]] {
+				lost[kwarg[1]] = true
+			}
+		}
+		if !named {
+			lost["custom rule"] = true
+		}
+	}
+	if len(lost) > 0 {
+		m.warn("%s: schema validations not carried into the generated KCL schema: %s; restate them in its check block by hand",
+			file, strings.Join(slices.Sorted(maps.Keys(lost)), ", "))
+	}
+}
+
+// mergeInspectedSchemas folds the schema documents of one directory together, later files
+// winning, the way their values are merged.
+func mergeInspectedSchemas(base, next *inspectedSchema) *inspectedSchema {
+	if base == nil {
+		return next
+	}
+	if next == nil {
+		return base
+	}
+	base.root = mergeOpenapiNodes(base.root, next.root)
+	base.constraints = append(base.constraints, next.constraints...)
+	return base
+}
+
+// convertDataFile converts one data-values file. A schema document is inspected by ytt, so
+// its defaults carry the schema semantics plain YAML cannot see (an array defaults to empty
+// unless annotated, `#@schema/default` wins over the written value, a nullable key defaults
+// to null); a plain data-values document is parsed as YAML, which is what it is. Files
+// containing ytt logic are skipped (nil result) and recorded: their values are computed.
+func (m *migrator) convertDataFile(file string) (*convertedFile, error) {
 	content, err := os.ReadFile(file) // #nosec G304 -- paths come from globbing the repo being migrated
 	if err != nil {
-		return nil, false, fmt.Errorf("reading %s: %w", file, err)
+		return nil, fmt.Errorf("reading %s: %w", file, err)
 	}
 	if hasYttLogicRe.Match(content) {
 		m.skipped = append(m.skipped, file)
-		return nil, false, nil
+		return nil, nil
 	}
 
-	values = map[string]any{}
+	if schemaDocRe.Match(content) {
+		schema, err := m.inspectSchemaFile(file)
+		if err != nil {
+			// The file declares a schema ytt itself cannot resolve standalone; freezing its
+			// values from the legacy-resolved output is the safe answer.
+			log.Debug().Err(err).Msg(m.g.Msg("Falling back to freezing " + file))
+			m.skipped = append(m.skipped, file)
+			return nil, nil
+		}
+		m.warnUnmappedValidations(file, content)
+		return &convertedFile{values: schema.defaults, schema: schema}, nil
+	}
+
+	values := map[string]any{}
 	decoder := yaml.NewDecoder(bytes.NewReader(content))
 	for {
 		var doc map[string]any
@@ -334,11 +469,247 @@ func (m *migrator) convertDataFile(file string) (values map[string]any, converte
 			if errors.Is(err, io.EOF) {
 				break
 			}
-			return nil, false, fmt.Errorf("parsing %s: %w", file, err)
+			return nil, fmt.Errorf("parsing %s: %w", file, err)
 		}
 		values = mergeValues(values, doc)
 	}
-	return values, true, nil
+	return &convertedFile{values: values}, nil
+}
+
+// inspectSchemaFile resolves one schema document the way ytt sees it. Only the schema is
+// inspected, so a schema whose defaults would fail its own validations (`min_len=1` on an
+// empty default, which a prototype uses to demand a value) still converts.
+func (m *migrator) inspectSchemaFile(file string) (*inspectedSchema, error) {
+	res, err := runYttWithFilesAndStdin("migrate", []string{file}, nil, func(name string, err error, stderr string, args []string) {
+		if err != nil {
+			log.Debug().Str("stderr", stderr).Msg(m.g.Msg(msgRunCmd("inspect data values schema", name, args)))
+		}
+	}, "--data-values-schema-inspect", "--output=openapi-v3")
+	if err != nil {
+		return nil, fmt.Errorf("inspecting the schema of %s: %w", file, err)
+	}
+	return parseSchemaInspect([]byte(res.Stdout))
+}
+
+// kclGeneratedNames are the identifiers the generated level files already bind; a prototype
+// package importing under one of them would shadow it.
+var kclGeneratedNames = map[string]bool{"m": true, "parent": true, "_apps": true}
+
+// renamePrototypes gives every prototype directory a name usable as a KCL package name, so
+// it can own a base schema: cert-manager becomes cert_manager. Every directory keyed by the
+// prototype name moves with it — the prototype itself and the `_proto/<name>` override dirs
+// of each environment level, which the render pipeline resolves by exact name.
+//
+// Each legacy name is kept working as a symlink to the new directory, so the legacy sources
+// still resolve: `myks migrate --force` can re-read them, and the byte-identical gate can
+// still render the legacy tree after the conversion.
+//
+// Application names are untouched: they are the keys of the generated `applications` dict,
+// taken from the legacy roster, so every rendered path stays where it is. What does change
+// is `myks.context.prototype`; ytt templates reading it render differently, which the gate
+// reports.
+func (m *migrator) renamePrototypes() error {
+	for _, proto := range m.prototypeNames() {
+		target := sanitizeKclIdentifier(proto)
+		if target == "" || target == proto {
+			// Nothing to do, or nothing a rename can fix: planPrototypeSchemas explains.
+			continue
+		}
+
+		// Decide over all locations first, so a collision anywhere leaves the prototype whole.
+		var toMove []string
+		renamed, collision := false, false
+		for _, base := range m.prototypeDirBases() {
+			source, err := isRealDir(filepath.Join(base, proto))
+			if err != nil {
+				return err
+			}
+			existing, err := isRealDir(filepath.Join(base, target))
+			if err != nil {
+				return err
+			}
+			switch {
+			case source && existing:
+				m.warn("%s: %s is not renamed to %q for its base schema because that directory already exists; resolve the collision by hand",
+					base, proto, target)
+				collision = true
+			case source:
+				toMove = append(toMove, base)
+			case existing:
+				// Renamed by an earlier run; the legacy sources still name the symlink.
+				renamed = true
+			}
+		}
+		if collision || (len(toMove) == 0 && !renamed) {
+			continue
+		}
+
+		for _, base := range toMove {
+			if err := os.Rename(filepath.Join(base, proto), filepath.Join(base, target)); err != nil {
+				return fmt.Errorf("renaming %s to %s in %s: %w", proto, target, base, err)
+			}
+			// A relative link stays valid wherever the repo is checked out.
+			if err := os.Symlink(target, filepath.Join(base, proto)); err != nil {
+				m.warn("%s: %s was renamed to %q, but the compatibility symlink could not be created (%s); the legacy sources no longer resolve, so `myks migrate --force` and legacy renders need them updated by hand",
+					base, proto, target, err)
+			}
+		}
+		if len(toMove) > 0 {
+			log.Info().Strs("dirs", toMove).Msg(m.g.Msg(fmt.Sprintf(
+				"Renamed prototype %s to %s so it can own a KCL base schema; myks.context.prototype changes with it", proto, target)))
+		}
+		m.applyPrototypeRename(proto, target)
+	}
+	return nil
+}
+
+// prototypeDirBases lists the directories holding one subdirectory per prototype: the
+// prototypes dir itself and the `_proto/` override dir of every environment level.
+func (m *migrator) prototypeDirBases() []string {
+	bases := []string{filepath.Join(m.g.RootDir, m.g.PrototypesDir)}
+	for _, dir := range slices.Sorted(maps.Keys(m.nodes)) {
+		bases = append(bases, filepath.Join(m.g.RootDir, dir, m.g.PrototypeOverrideDir))
+	}
+	return bases
+}
+
+// prototypeNames lists, sorted, every prototype the conversion knows about: the directories
+// under prototypes/ plus the names the legacy rosters reference (which, after an earlier
+// rename, are symlinks rather than directories).
+func (m *migrator) prototypeNames() []string {
+	names := map[string]bool{}
+	entries, err := os.ReadDir(filepath.Join(m.g.RootDir, m.g.PrototypesDir))
+	if err != nil && !os.IsNotExist(err) {
+		// A missing or unreadable prototypes dir is not fatal here: the rosters below still
+		// name every prototype the conversion needs, and collectContributions already ran.
+		log.Debug().Err(err).Msg(m.g.Msg("Unable to list the prototypes directory"))
+	}
+	for _, entry := range entries {
+		if entry.IsDir() && !isInternalDir(entry.Name()) {
+			names[entry.Name()] = true
+		}
+	}
+	for _, env := range m.g.environments {
+		for _, proto := range env.foundApplications {
+			names[proto] = true
+		}
+	}
+	return slices.Sorted(maps.Keys(names))
+}
+
+// applyPrototypeRename points every in-memory reference at the new prototype name, so the
+// generated tree imports and declares it under the name it now has on disk.
+func (m *migrator) applyPrototypeRename(oldName, newName string) {
+	moveKey(m.protoBase, oldName, newName)
+	moveKey(m.protoInspected, oldName, newName)
+	for _, node := range m.nodes {
+		moveKey(node.protoValues, oldName, newName)
+		for i := range node.rawRoster {
+			if node.rawRoster[i].proto == oldName {
+				node.rawRoster[i].proto = newName
+			}
+		}
+	}
+	for _, env := range m.g.environments {
+		for app, proto := range env.foundApplications {
+			if proto == oldName {
+				env.foundApplications[app] = newName
+			}
+		}
+	}
+}
+
+func moveKey[V any](m map[string]V, oldKey, newKey string) {
+	if value, ok := m[oldKey]; ok {
+		m[newKey] = value
+		delete(m, oldKey)
+	}
+}
+
+// isRealDir reports whether path is a directory rather than a symlink to one, which is how a
+// renamed prototype is told apart from the compatibility symlink left under its legacy name.
+func isRealDir(path string) (bool, error) {
+	info, err := os.Lstat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("stat %s: %w", path, err)
+	}
+	return info.IsDir(), nil
+}
+
+// planPrototypeSchemas decides which prototypes get a generated base schema in
+// prototypes/<proto>/proto.k. A prototype qualifies when its directory name is a usable KCL
+// package name and its convertible app-data has top-level keys that can all become schema
+// attributes. A prototype that does not qualify is not an error: its defaults keep being
+// hoisted into every application declaration, as before, and the warning names the fix.
+func (m *migrator) planPrototypeSchemas() {
+	m.protoSchemas = map[string]string{}
+	prototypesDirUsable := true
+	for component := range strings.SplitSeq(filepath.ToSlash(filepath.Clean(m.g.PrototypesDir)), "/") {
+		if !isKclIdentifier(component) {
+			m.warn("%s: path component %q is not a valid KCL identifier, so no prototype base schemas are generated; rename it to get them",
+				m.g.PrototypesDir, component)
+			prototypesDirUsable = false
+			break
+		}
+	}
+	if !prototypesDirUsable {
+		return
+	}
+
+	for _, proto := range slices.Sorted(maps.Keys(m.protoBase)) {
+		values := m.protoBase[proto]
+		var demanded map[string]bool
+		if schema := m.protoInspected[proto]; schema != nil {
+			demanded = schema.demanded
+		}
+		// A prototype whose only values are demanded ones (pruned away, see
+		// pruneDemandedDefaults) still needs a schema: that is where their checks live.
+		if len(values) == 0 && len(demanded) == 0 {
+			continue
+		}
+		if !isKclIdentifier(proto) || kclGeneratedNames[proto] {
+			m.warn("%s/%s: no base schema generated (the converter could not derive a KCL package name for this directory); its defaults are repeated in every application declaration instead — rename it by hand to an identifier that starts with a letter or underscore and is neither a KCL keyword nor one of %q, then migrate again",
+				m.g.PrototypesDir, proto, slices.Sorted(maps.Keys(kclGeneratedNames)))
+			continue
+		}
+		var unusable []string
+		attributes := slices.Collect(maps.Keys(values))
+		for key := range demanded {
+			// Only a top-level demanded value becomes an attribute of the root schema.
+			if !strings.Contains(key, "\x00") {
+				attributes = append(attributes, key)
+			}
+		}
+		slices.Sort(attributes)
+		for _, key := range slices.Compact(attributes) {
+			// `proto` is set by the generated schema itself, so it cannot also be an attribute.
+			if !isKclIdentifier(key) || key == "proto" {
+				unusable = append(unusable, key)
+			}
+		}
+		if len(unusable) > 0 {
+			m.warn("%s/%s: no base schema generated (data keys unusable as KCL attributes: %s); its defaults are repeated in every application declaration instead",
+				m.g.PrototypesDir, proto, strings.Join(unusable, ", "))
+			continue
+		}
+		m.protoSchemas[proto] = kclSchemaName(proto)
+	}
+}
+
+// kclSchemaName turns a prototype directory name into its schema name: web_app -> WebApp.
+// The directory is a validated KCL identifier, so the result is one too.
+func kclSchemaName(dir string) string {
+	b := &strings.Builder{}
+	for part := range strings.SplitSeq(dir, "_") {
+		if part == "" {
+			continue
+		}
+		b.WriteString(strings.ToUpper(part[:1]) + part[1:])
+	}
+	return b.String()
 }
 
 // placeApplications turns raw contributions into per-node declarations and overrides.
@@ -354,6 +725,24 @@ func (m *migrator) convertDataFile(file string) (values map[string]any, converte
 // ancestors. Nodes below D contribute overrides. The legacy order interleaves _proto and
 // _apps across levels differently; any resulting value difference is corrected by the leaf
 // patches.
+// declarationValues merges the values a declaration at node decl carries, in legacy file
+// order. With a generated base schema the prototype's own defaults stay in it
+// (prototypes/<proto>/proto.k) and only what the environment tree adds on top is carried;
+// without one they are hoisted into the declaration.
+func (m *migrator) declarationValues(decl *migNode, name, proto string) map[string]any {
+	var values map[string]any
+	if m.protoSchemas[proto] == "" {
+		values = m.protoBase[proto]
+	}
+	for _, node := range decl.chain() {
+		values = mergeValues(values, node.protoValues[proto])
+	}
+	for _, node := range decl.chain() {
+		values = mergeValues(values, node.appValues[name])
+	}
+	return values
+}
+
 func (m *migrator) placeApplications() {
 	for _, leafDir := range slices.Sorted(maps.Keys(m.g.environments)) {
 		leaf := m.nodes[leafDir]
@@ -370,14 +759,7 @@ func (m *migrator) placeApplications() {
 			}
 
 			if _, ok := decl.declared[name]; !ok {
-				values := m.protoBase[proto]
-				for _, node := range decl.chain() {
-					values = mergeValues(values, node.protoValues[proto])
-				}
-				for _, node := range decl.chain() {
-					values = mergeValues(values, node.appValues[name])
-				}
-				decl.declared[name] = migApp{name: name, proto: proto, values: values}
+				decl.declared[name] = migApp{name: name, proto: proto, values: m.declarationValues(decl, name, proto)}
 			}
 
 			afterDecl := false
@@ -447,8 +829,6 @@ func (m *migrator) computePatches() error {
 		if err := yaml.Unmarshal(legacyEnvYaml, &legacyEnv); err != nil {
 			return fmt.Errorf("parsing legacy env data of %s: %w", leafDir, err)
 		}
-		m.checkEnvironmentScope(leafDir, legacyEnv)
-
 		simEnv, err := m.simulateBridge(leafDir, "env", treeEnv, nil)
 		if err != nil {
 			return err
@@ -466,7 +846,9 @@ func (m *migrator) computePatches() error {
 			for _, node := range chain {
 				if !afterDecl {
 					if decl, ok := node.declared[app.Name]; ok {
-						treeApp = mergeValues(treeApp, decl.values)
+						// The generated declaration instantiates the prototype's schema, so the
+						// simulated values start from that schema's defaults.
+						treeApp = mergeValues(m.protoBase[decl.proto], decl.values)
 						afterDecl = true
 					}
 					continue
@@ -520,16 +902,6 @@ func (m *migrator) simulateBridge(leafDir, unit string, values map[string]any, e
 	return resolved, nil
 }
 
-// checkEnvironmentScope warns about legacy environment.* keys the frozen tree cannot carry.
-func (m *migrator) checkEnvironmentScope(dir string, legacyEnv map[string]any) {
-	envScope, _ := legacyEnv["environment"].(map[string]any)
-	for _, key := range slices.Sorted(maps.Keys(envScope)) {
-		if key != "id" && key != "applications" {
-			m.warn("%s: resolved environment.%s is lost in KCL mode (the engine owns the environment scope); move it elsewhere by hand", dir, key)
-		}
-	}
-}
-
 // inspectDataValues resolves data values the way the legacy engine does: ytt
 // --data-values-inspect over the global extra paths plus the given files.
 func (m *migrator) inspectDataValues(dataFiles []string) (map[string]any, error) {
@@ -553,10 +925,8 @@ func (m *migrator) inspectDataValues(dataFiles []string) (map[string]any, error)
 // engine-owned environment scope. Keys present in got but absent from want cannot be
 // removed by merging and are reported as warnings.
 func (m *migrator) diffValues(context string, got, want map[string]any) map[string]any {
-	got = maps.Clone(got)
-	want = maps.Clone(want)
-	delete(got, "environment")
-	delete(want, "environment")
+	got = withoutEngineEnvKeys(got)
+	want = withoutEngineEnvKeys(want)
 
 	var extra, lists []string
 	patch := diffValueMaps(got, want, "", &extra, &lists)
@@ -568,6 +938,23 @@ func (m *migrator) diffValues(context string, got, want map[string]any) map[stri
 	}
 	m.patched += countLeaves(patch)
 	return patch
+}
+
+// withoutEngineEnvKeys drops the engine-owned keys of the environment scope: the id and the
+// application roster are regenerated by the engine and must never end up in a patch. The rest
+// of the scope is ordinary user data and is diffed like any other value.
+func withoutEngineEnvKeys(values map[string]any) map[string]any {
+	values = maps.Clone(values)
+	scope, _ := values["environment"].(map[string]any)
+	scope = maps.Clone(scope)
+	delete(scope, "id")
+	delete(scope, "applications")
+	if len(scope) == 0 {
+		delete(values, "environment")
+	} else {
+		values["environment"] = scope
+	}
+	return values
 }
 
 func diffValueMaps(got, want map[string]any, path string, extra, lists *[]string) map[string]any {

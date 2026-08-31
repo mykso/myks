@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -53,7 +54,10 @@ func TestKclEnvironmentDataValues(t *testing.T) {
 			"hello": {"proto": "hello-proto"},
 			"world": {},
 		},
-		Extra: map[string]any{"myks": map[string]any{"gitRepoBranch": "main"}},
+		Extra: map[string]any{
+			"myks":        map[string]any{"gitRepoBranch": "main"},
+			"environment": map[string]any{"baseDomain": "example.com", "id": "overridden"},
+		},
 	}
 	values := envData.dataValues()
 
@@ -62,7 +66,8 @@ func TestKclEnvironmentDataValues(t *testing.T) {
 
 	environment, ok := values["environment"].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "kcl-dev", environment["id"])
+	assert.Equal(t, "example.com", environment["baseDomain"], "user keys of the environment scope survive")
+	assert.Equal(t, "kcl-dev", environment["id"], "the engine owns environment.id")
 	apps, ok := environment["applications"].([]map[string]any)
 	require.True(t, ok)
 	require.Len(t, apps, 2)
@@ -107,12 +112,19 @@ func TestWriteKclDataFiles(t *testing.T) {
 	assert.NotContains(t, string(schemaContent), "greeting")
 }
 
+// TestCleanKclDiagnostics verifies KCL's colorized multi-line diagnostics are made log-safe.
+func TestCleanKclDiagnostics(t *testing.T) {
+	t.Parallel()
+	err := errors.New("\nerror[E2G22]: TypeError\n \x1b[1;38;5;12m-->\x1b[0m /x/env.k:5:8\n")
+	assert.Equal(t, "error[E2G22]: TypeError\n --> /x/env.k:5:8", cleanKclDiagnostics(err))
+}
+
 // TestCheckKclSchemaVersion verifies the engine's schema-version compatibility rule.
 func TestCheckKclSchemaVersion(t *testing.T) {
 	t.Parallel()
 	assert.NoError(t, checkKclSchemaVersion(supportedKclSchemaVersion))
-	assert.NoError(t, checkKclSchemaVersion("0.1.99"), "patch versions may differ")
-	assert.ErrorContains(t, checkKclSchemaVersion("0.2.0"), "unsupported myksSchemaVersion")
+	assert.NoError(t, checkKclSchemaVersion("0.2.99"), "patch versions may differ")
+	assert.ErrorContains(t, checkKclSchemaVersion("0.3.0"), "unsupported myksSchemaVersion")
 	assert.ErrorContains(t, checkKclSchemaVersion("1.1.0"), "unsupported myksSchemaVersion")
 	assert.ErrorContains(t, checkKclSchemaVersion("nonsense"), "malformed myksSchemaVersion")
 	assert.ErrorContains(t, checkKclSchemaVersion("0.1"), "malformed myksSchemaVersion")
@@ -133,7 +145,7 @@ func TestEvalKclTree(t *testing.T) {
 	t.Run("valid tree", func(t *testing.T) {
 		t.Parallel()
 		dir := writeModule(t, `
-myksSchemaVersion = "0.1.0"
+myksSchemaVersion = "0.2.0"
 environments = {
     dev = {
         id = "kcl-dev"
@@ -143,10 +155,73 @@ environments = {
 `)
 		tree, err := evalKclTree(dir)
 		require.NoError(t, err)
-		assert.Equal(t, "0.1.0", tree.MyksSchemaVersion)
+		assert.Equal(t, "0.2.0", tree.MyksSchemaVersion)
 		require.Contains(t, tree.Environments, "dev")
 		assert.Equal(t, "kcl-dev", tree.Environments["dev"].ID)
 		assert.Equal(t, "hello", tree.Environments["dev"].Applications["hello"]["proto"])
+	})
+
+	t.Run("underscore-prefixed keys survive", func(t *testing.T) {
+		t.Parallel()
+		dir := writeModule(t, `
+myksSchemaVersion = "0.2.0"
+environments = {
+    dev = {
+        id = "kcl-dev"
+        applications.hello._.shared = "cross-step value"
+    }
+}
+`)
+		tree, err := evalKclTree(dir)
+		require.NoError(t, err)
+		private, ok := tree.Environments["dev"].Applications["hello"]["_"].(map[string]any)
+		require.True(t, ok, "KCL hides underscore-prefixed attributes unless show-hidden is set")
+		assert.Equal(t, "cross-step value", private["shared"])
+	})
+
+	// The shape writeProtoK generates for a value a prototype validates but does not supply:
+	// no default, and the check guarded against the resulting Undefined.
+	t.Run("demanded value is validated only once set", func(t *testing.T) {
+		t.Parallel()
+		module := func(override string) string {
+			return `
+schema Webapp:
+    [...str]: any
+    application?: WebappApplication = WebappApplication {}
+
+schema WebappApplication:
+    [...str]: any
+    ingress?: bool = True
+    image?: str
+    check:
+        len(image) >= 1 if image != Undefined, "application.image must be at least 1 long"
+
+_base = Webapp {}
+myksSchemaVersion = "0.2.0"
+environments = {
+    dev = {
+        id = "kcl-dev"
+        applications.hello = _base | {` + override + `}
+    }
+}
+`
+		}
+		application := func(tree *kclTree) map[string]any {
+			values, _ := tree.Environments["dev"].Applications["hello"]["application"].(map[string]any)
+			return values
+		}
+
+		tree, err := evalKclTree(writeModule(t, module("")))
+		require.NoError(t, err, "an unset demanded value does not fail the check")
+		assert.Equal(t, map[string]any{"ingress": true}, application(tree),
+			"the nested schema contributes its defaults and nothing for the unset value")
+
+		tree, err = evalKclTree(writeModule(t, module(`application: {image = "nginx"}`)))
+		require.NoError(t, err)
+		assert.Equal(t, "nginx", application(tree)["image"])
+
+		_, err = evalKclTree(writeModule(t, module(`application: {image = ""}`)))
+		assert.ErrorContains(t, err, "application.image must be at least 1 long")
 	})
 
 	t.Run("missing schema version", func(t *testing.T) {
@@ -158,7 +233,7 @@ environments = {
 
 	t.Run("missing environments", func(t *testing.T) {
 		t.Parallel()
-		dir := writeModule(t, `myksSchemaVersion = "0.1.0"`)
+		dir := writeModule(t, `myksSchemaVersion = "0.2.0"`)
 		_, err := evalKclTree(dir)
 		assert.ErrorContains(t, err, "missing environments")
 	})
@@ -166,7 +241,7 @@ environments = {
 	t.Run("empty environments are valid", func(t *testing.T) {
 		t.Parallel()
 		dir := writeModule(t, `
-myksSchemaVersion = "0.1.0"
+myksSchemaVersion = "0.2.0"
 environments = {}
 `)
 		tree, err := evalKclTree(dir)
@@ -192,7 +267,7 @@ environments = {}
 		require.NoError(t, os.WriteFile(filepath.Join(depDir, "kcl.mod"),
 			[]byte("[package]\nname = \"dep\"\nversion = \"0.1.0\"\n"), 0o600))
 		require.NoError(t, os.WriteFile(filepath.Join(depDir, "main.k"),
-			[]byte(`VERSION = "0.1.0"`), 0o600))
+			[]byte(`VERSION = "0.2.0"`), 0o600))
 
 		modDir := filepath.Join(dir, "config")
 		require.NoError(t, os.MkdirAll(modDir, 0o700))
@@ -207,13 +282,13 @@ environments = {}
 
 		tree, err := evalKclTree(modDir)
 		require.NoError(t, err)
-		assert.Equal(t, "0.1.0", tree.MyksSchemaVersion)
+		assert.Equal(t, "0.2.0", tree.MyksSchemaVersion)
 	})
 
 	t.Run("duplicate environment ids", func(t *testing.T) {
 		t.Parallel()
 		dir := writeModule(t, `
-myksSchemaVersion = "0.1.0"
+myksSchemaVersion = "0.2.0"
 environments = {
     dev = {id = "same"}
     prod = {id = "same"}
@@ -222,4 +297,30 @@ environments = {
 		_, err := evalKclTree(dir)
 		assert.ErrorContains(t, err, `duplicate environment id "same"`)
 	})
+}
+
+// TestWriteKclDataFilesUndeclaredKeys verifies that keys the embedded data schema does not
+// declare survive the bridge: nested inside a declared scope, and holding an array.
+func TestWriteKclDataFilesUndeclaredKeys(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	schemaPath := filepath.Join(dir, "schema.ytt.yaml")
+	valuesPath := filepath.Join(dir, "values.ytt.yaml")
+	values := map[string]any{
+		// helm is declared, helm.removeLabels is not
+		"helm":  map[string]any{"namespace": "ns", "removeLabels": true},
+		"myapp": map[string]any{"hosts": []any{"a", "b"}},
+	}
+	require.NoError(t, writeKclDataFiles(schemaPath, valuesPath, values))
+
+	rendered, err := testApp.renderDataYaml([]string{"./assets/data-schema.ytt.yaml", schemaPath, valuesPath})
+	require.NoError(t, err)
+	var resolved map[string]any
+	require.NoError(t, yaml.Unmarshal(rendered, &resolved))
+	assert.Equal(t, map[string]any{"hosts": []any{"a", "b"}}, resolved["myapp"], "arrays must not be flattened to the empty schema default")
+	helm, ok := resolved["helm"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, true, helm["removeLabels"])
+	assert.Equal(t, "ns", helm["namespace"])
+	assert.Equal(t, true, helm["includeCRDs"], "declared defaults stay intact")
 }
