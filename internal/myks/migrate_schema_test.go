@@ -54,8 +54,9 @@ components:
 						"env":           []any{},
 					},
 				}, got.defaults)
-				assert.Equal(t, "{str:any}", got.types["application"])
-				assert.False(t, got.nullable["application"])
+				assert.Equal(t, "{str:any}", kclType(got.nodeAt([]string{"application"})))
+				assert.False(t, got.nodeAt([]string{"application"}).Nullable)
+				assert.Equal(t, "str", kclType(got.nodeAt([]string{"application", "image"})), "the schema types every depth")
 			},
 		},
 		{
@@ -90,8 +91,8 @@ components:
 `,
 			check: func(t *testing.T, got *inspectedSchema) {
 				assert.Equal(t, map[string]any{"foo": nil}, got.defaults)
-				assert.True(t, got.nullable["foo"])
-				assert.Equal(t, "str", got.types["foo"])
+				assert.True(t, got.nodeAt([]string{"foo"}).Nullable)
+				assert.Equal(t, "str", kclType(got.nodeAt([]string{"foo"})))
 			},
 		},
 		{
@@ -107,8 +108,8 @@ components:
           default: {foo: bar}
 `,
 			check: func(t *testing.T, got *inspectedSchema) {
-				assert.Equal(t, "any", got.types["foo"])
-				assert.True(t, got.nullable["foo"])
+				assert.Equal(t, "any", kclType(got.nodeAt([]string{"foo"})))
+				assert.True(t, got.nodeAt([]string{"foo"}).Nullable)
 				assert.Equal(t, map[string]any{"foo": map[string]any{"foo": "bar"}}, got.defaults)
 			},
 		},
@@ -176,7 +177,7 @@ components:
 `,
 			check: func(t *testing.T, got *inspectedSchema) {
 				assert.Equal(t, map[string]any{"false": "x"}, got.defaults)
-				assert.Equal(t, "str", got.types["false"])
+				assert.Equal(t, "str", kclType(got.nodeAt([]string{"false"})))
 			},
 		},
 		{

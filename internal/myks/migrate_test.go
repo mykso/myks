@@ -237,7 +237,7 @@ application:
 		assert.Empty(t, app["env"], "a schema array defaults to empty, whatever its item says")
 		assert.Equal(t, 2, app["replicas"], "#@schema/default wins over the written value")
 		require.NotNil(t, converted.schema)
-		assert.Equal(t, "{str:any}", converted.schema.types["application"])
+		assert.Equal(t, "{str:any}", kclType(converted.schema.nodeAt([]string{"application"})))
 		require.Len(t, converted.schema.constraints, 1)
 		assert.Equal(t, []string{"application", "image"}, converted.schema.constraints[0].path)
 	})
@@ -283,6 +283,15 @@ c: 'x'
 func TestWriteProtoK(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
+	schema, err := parseSchemaInspect([]byte(`
+components:
+  schemas:
+    dataValues:
+      type: object
+      properties:
+        image: {type: string, default: "kb-mcp:1.0.0", minLength: 1}
+`))
+	require.NoError(t, err)
 	m := &migrator{
 		g:            &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}},
 		protoSchemas: map[string]string{"kb_mcp": "KbMcp"},
@@ -290,10 +299,7 @@ func TestWriteProtoK(t *testing.T) {
 			"helm":  map[string]any{"removeLabels": true},
 			"image": "kb-mcp:1.0.0",
 		}},
-		protoInspected: map[string]*inspectedSchema{"kb_mcp": {
-			types:       map[string]string{"image": "str"},
-			constraints: []schemaConstraint{{path: []string{"image"}, kind: constraintMinLength, value: 1}},
-		}},
+		protoInspected: map[string]*inspectedSchema{"kb_mcp": schema},
 	}
 	require.NoError(t, m.writeProtoK("kb_mcp"))
 
@@ -302,47 +308,52 @@ func TestWriteProtoK(t *testing.T) {
 	assert.Contains(t, string(content), "schema KbMcp(m.App):\n    [...str]: any\n    proto: str = \"kb_mcp\"\n")
 	assert.Contains(t, string(content), "image?: str = \"kb-mcp:1.0.0\"", "the inspected schema types the attribute")
 	assert.Contains(t, string(content), "\n    check:\n        len(image) >= 1, \"image must be at least 1 long\"\n")
-	assert.Contains(t, string(content), "helm?: {str:any} = {", "without an inspected type the value decides")
+	assert.Contains(t, string(content), "helm?: {str:any} = {", "a value the schema does not describe stays a literal")
 }
 
-// TestWriteProtoKDemandedValue pins how a validation the prototype's own default violates is
-// carried: the default is dropped and the check guarded, so it fires only once a level sets
-// the value — a KCL check runs at every instantiation, ytt validated the final values once.
-func TestWriteProtoKDemandedValue(t *testing.T) {
+// TestWriteProtoKNested pins the two things a structured object value buys: its fields stay
+// visible and typed in a schema of their own, and a validation the prototype's default
+// violates keeps the field — declared without a default, its check guarded against the
+// absence, so it fires only once a level sets the value.
+func TestWriteProtoKNested(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
-	schema := &inspectedSchema{
-		types: map[string]string{"image": "str", "application": "{str:any}"},
-		constraints: []schemaConstraint{
-			{path: []string{"application", "name"}, kind: constraintMinLength, value: 1},
-			{path: []string{"image"}, kind: constraintMinLength, value: 1},
-		},
-	}
-	values := map[string]any{
-		"image":       "",
-		"application": map[string]any{"name": "", "ingress": true},
-	}
-	demanded := pruneDemandedDefaults(values, schema)
-	assert.Equal(t, map[string]bool{"image": true}, demanded, "only a top-level key needs a bare attribute")
-	assert.Equal(t, map[string]any{"application": map[string]any{"ingress": true}}, values,
-		"both unsatisfied defaults are dropped, the satisfied sibling stays")
+	schema, err := parseSchemaInspect([]byte(`
+components:
+  schemas:
+    dataValues:
+      type: object
+      properties:
+        image: {type: string, default: "", minLength: 1}
+        application:
+          type: object
+          properties:
+            name: {type: string, default: "", minLength: 1}
+            containerPort: {type: integer, default: 80}
+            ingress: {type: boolean, default: true}
+`))
+	require.NoError(t, err)
+	values := schema.defaults
+	pruneDemandedDefaults(values, schema)
+	assert.Equal(t, map[string]bool{"image": true, pathKey([]string{"application", "name"}): true}, schema.demanded)
 
 	m := &migrator{
 		g:              &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}},
 		protoSchemas:   map[string]string{"webapp": "Webapp"},
 		protoBase:      map[string]map[string]any{"webapp": values},
 		protoInspected: map[string]*inspectedSchema{"webapp": schema},
-		protoDemanded:  map[string]map[string]bool{"webapp": demanded},
 	}
 	require.NoError(t, m.writeProtoK("webapp"))
 
 	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "webapp", protoKFileName))
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "\n    image?: str\n", "a demanded value is declared without a default")
+	assert.Contains(t, string(content), "    application?: WebappApplication = WebappApplication {}\n")
+	assert.Contains(t, string(content), "    image?: str\n", "a demanded value is declared without a default")
 	assert.Contains(t, string(content),
-		`len(application["name"]) >= 1 if "name" in application, "application.name must be at least 1 long"`)
-	assert.Contains(t, string(content),
-		`len(image) >= 1 if image != Undefined, "image must be at least 1 long"`)
+		"schema WebappApplication:\n    [...str]: any\n    containerPort?: int = 80\n    ingress?: bool = True\n    name?: str\n")
+	assert.Contains(t, string(content), `len(name) >= 1 if name != Undefined, "application.name must be at least 1 long"`,
+		"a nested check lives in the schema that owns the field")
+	assert.Contains(t, string(content), `len(image) >= 1 if image != Undefined, "image must be at least 1 long"`)
 	assert.Empty(t, m.warnings)
 }
 

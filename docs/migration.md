@@ -163,30 +163,44 @@ Delete the frozen block, and `patch.k` once its `_patch` is empty.
 ### Tighten the prototype schemas
 
 When a prototype's `app-data*` file is a schema document ytt could inspect, `proto.k` already
-carries what that schema said: attribute types come from it (`str`, `int`, `float`, `bool`,
-`{str:any}`, `[any]`, or `any` for `#@schema/type any=True`), and its `#@schema/validation`
-bounds become `check:` items — a nested value reached by indexing and guarded by the keys on
-the way to it, so a check never fails on an application that replaced the enclosing scope
-wholesale. A custom rule or any other validation keyword argument the migration warned about
-is not in that block; restate it there by hand.
+carries what that schema said. A structured object value — one the ytt schema describes with
+properties — becomes a KCL schema of its own, so every field keeps its name, its type (`str`,
+`int`, `float`, `bool`, `{str:any}`, `[any]`, or `any` for `#@schema/type any=True`) and its
+default, at any depth:
+
+```kcl
+schema Webapp(m.App):
+    [...str]: any
+    proto: str = "webapp"
+    application?: WebappApplication = WebappApplication {}
+
+schema WebappApplication:
+    [...str]: any
+    containerPort?: int = 80
+    image?: str
+    ingress?: bool = True
+
+    check:
+        len(image) >= 1 if image != Undefined, "application.image must be at least 1 long"
+```
+
+Every generated schema keeps an index signature, so an application may still set keys the
+prototype never declared, exactly as ytt data values allowed. A value the ytt schema left
+free-form stays a `{str:any}` literal default.
+
+`#@schema/validation` bounds become `check:` items in the schema that owns the field. Reaching
+into a free-form bag they are guarded by the keys on the way, so a check never fails on an
+application that replaced the enclosing scope wholesale. A custom rule or any other validation
+keyword argument the migration warned about is not in that block; restate it there by hand.
 
 A KCL check runs where the schema is instantiated, that is where the application is declared,
 and again on every override of that instance, while ytt validated the final data values of a
 render once. So a value the prototype validates without supplying a satisfying default —
-`min_len=1` on an empty string, which is how a ytt prototype demands a value — is generated
-**without a default**:
-
-```kcl
-schema Webapp(m.App):
-    image?: str
-
-    check:
-        len(image) >= 1 if image != Undefined, "image must be at least 1 long"
-```
-
-The value is then absent until some level sets it, and validated from that level down. What
-this does not catch is an application that never sets it at all: KCL cannot express "required
-at the leaf" in a schema whose instances are also the intermediate levels. If a value must be
+`min_len=1` on an empty string, which is how a ytt prototype demands a value — is declared
+**without a default** (`image?: str` above) and its check guarded against the absence. The
+value is then absent until some level sets it, and validated from that level down. What this
+does not catch is an application that never sets it at all: KCL cannot express "required at
+the leaf" in a schema whose instances are also the intermediate levels. If a value must be
 present, assert it in the leaf finalizer instead.
 
 One consequence to watch during migration: the value no longer defaults to the empty string,
@@ -194,11 +208,11 @@ so an application that legacy rendering resolved to `""` gets that empty string 
 leaf patch — and then fails the check. That is a real invalid configuration, surfaced; fix it
 by setting the value.
 
-Without an inspected schema to draw on, the generated `proto.k` is deliberately loose:
+Without an inspected schema to draw on, the generated `proto.k` is a single loose schema:
 containers keep their kind (`{str:any}`, `[any]`) so a `key: {...}` union merges into the
 default instead of replacing it, and scalars are `any` so an application may override with a
-different type, as ytt data values allowed. Typing the fields is where the schema starts
-catching mistakes:
+different type, as plain ytt data values allowed. Splitting the bags out by hand is where the
+schema starts catching mistakes:
 
 ```kcl
 # seed:
@@ -209,9 +223,9 @@ schema Forwarder(m.App):
 # hand-finished:
 schema Forwarder(m.App):
     proto: str = "forwarder"
-    application: Application = Application {}
+    application: ForwarderApplication = ForwarderApplication {}
 
-schema Application:
+schema ForwarderApplication:
     logLevel: str = "info"
 ```
 

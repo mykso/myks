@@ -183,34 +183,45 @@ environments = {
 	// no default, and the check guarded against the resulting Undefined.
 	t.Run("demanded value is validated only once set", func(t *testing.T) {
 		t.Parallel()
-		module := func(image string) string {
+		module := func(override string) string {
 			return `
 schema Webapp:
     [...str]: any
+    application?: WebappApplication = WebappApplication {}
+
+schema WebappApplication:
+    [...str]: any
+    ingress?: bool = True
     image?: str
     check:
-        len(image) >= 1 if image != Undefined, "image must be at least 1 long"
+        len(image) >= 1 if image != Undefined, "application.image must be at least 1 long"
 
 _base = Webapp {}
 myksSchemaVersion = "0.2.0"
 environments = {
     dev = {
         id = "kcl-dev"
-        applications.hello = _base | {` + image + `}
+        applications.hello = _base | {` + override + `}
     }
 }
 `
 		}
+		application := func(tree *kclTree) map[string]any {
+			values, _ := tree.Environments["dev"].Applications["hello"]["application"].(map[string]any)
+			return values
+		}
+
 		tree, err := evalKclTree(writeModule(t, module("")))
 		require.NoError(t, err, "an unset demanded value does not fail the check")
-		assert.NotContains(t, tree.Environments["dev"].Applications["hello"], "image")
+		assert.Equal(t, map[string]any{"ingress": true}, application(tree),
+			"the nested schema contributes its defaults and nothing for the unset value")
 
-		tree, err = evalKclTree(writeModule(t, module(`image = "nginx"`)))
+		tree, err = evalKclTree(writeModule(t, module(`application: {image = "nginx"}`)))
 		require.NoError(t, err)
-		assert.Equal(t, "nginx", tree.Environments["dev"].Applications["hello"]["image"])
+		assert.Equal(t, "nginx", application(tree)["image"])
 
-		_, err = evalKclTree(writeModule(t, module(`image = ""`)))
-		assert.ErrorContains(t, err, "image must be at least 1 long")
+		_, err = evalKclTree(writeModule(t, module(`application: {image = ""}`)))
+		assert.ErrorContains(t, err, "application.image must be at least 1 long")
 	})
 
 	t.Run("missing schema version", func(t *testing.T) {

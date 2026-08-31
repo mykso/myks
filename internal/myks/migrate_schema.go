@@ -15,12 +15,27 @@ var errNotASchemaDoc = errors.New("not a data-values schema document")
 type inspectedSchema struct {
 	// defaults are the resolved default values of the schema, shaped like the data values.
 	defaults map[string]any
-	// types maps a top-level key to the KCL type expression for it.
-	types map[string]string
-	// nullable marks the top-level keys whose schema allows null.
-	nullable map[string]bool
+	// root is the schema of the data values document, kept so that the generated KCL schemas
+	// can be typed at every depth, not only at the top level.
+	root *openapiNode
 	// constraints are the validations the schema carries, at every depth.
 	constraints []schemaConstraint
+	// demanded holds the paths pruned from the defaults by pruneDemandedDefaults: values the
+	// schema validates but supplies no satisfying default for.
+	demanded map[string]bool
+}
+
+// nodeAt returns the schema node describing the value at path, or nil when the schema says
+// nothing about it (a key that only a merged plain data-values file contributed).
+func (s *inspectedSchema) nodeAt(path []string) *openapiNode {
+	node := s.root
+	for _, key := range path {
+		if node == nil {
+			return nil
+		}
+		node = node.Properties[key]
+	}
+	return node
 }
 
 // schemaConstraint is one validation, anchored at its path from the document root.
@@ -91,13 +106,6 @@ func parseSchemaInspect(openapiYAML []byte) (*inspectedSchema, error) {
 
 	defaults := schemaDefaults(root)
 
-	types := map[string]string{}
-	nullable := map[string]bool{}
-	for name, prop := range root.Properties {
-		types[name] = kclType(prop)
-		nullable[name] = prop.Nullable
-	}
-
 	var constraints []schemaConstraint
 	collectConstraints(root, nil, &constraints)
 	sort.Slice(constraints, func(i, j int) bool {
@@ -106,10 +114,24 @@ func parseSchemaInspect(openapiYAML []byte) (*inspectedSchema, error) {
 
 	return &inspectedSchema{
 		defaults:    defaults,
-		types:       types,
-		nullable:    nullable,
+		root:        root,
 		constraints: constraints,
 	}, nil
+}
+
+// mergeOpenapiNodes folds two schema nodes together, the later one winning: two nodes that
+// both describe properties merge property by property, anything else is replaced wholesale.
+func mergeOpenapiNodes(base, next *openapiNode) *openapiNode {
+	if base == nil || next == nil || base.Properties == nil || next.Properties == nil {
+		if next == nil {
+			return base
+		}
+		return next
+	}
+	for name, prop := range next.Properties {
+		base.Properties[name] = mergeOpenapiNodes(base.Properties[name], prop)
+	}
+	return base
 }
 
 // schemaDefaults walks a schema node into its resolved default value: an object property
@@ -129,7 +151,7 @@ func schemaDefaults(node *openapiNode) map[string]any {
 	return out
 }
 
-// kclType maps a top-level property's OpenAPI type to its KCL type expression.
+// kclType maps a property's OpenAPI type to its KCL type expression.
 func kclType(node *openapiNode) string {
 	if t, ok := kclScalarTypes[node.Type]; ok {
 		return t
@@ -140,6 +162,13 @@ func kclType(node *openapiNode) string {
 // collectConstraints appends every validation found at node and below (excluding items, which
 // constrain an element rather than a path in the document) to out.
 func collectConstraints(node *openapiNode, path []string, out *[]schemaConstraint) {
+	// A validation on the document root constrains no attribute, so there is nowhere to put it.
+	if len(path) == 0 {
+		for name, prop := range node.Properties {
+			collectConstraints(prop, []string{name}, out)
+		}
+		return
+	}
 	if node.MinLength != nil {
 		*out = append(*out, schemaConstraint{path: path, kind: constraintMinLength, value: *node.MinLength})
 	}
