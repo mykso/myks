@@ -2,4 +2,7 @@
 #@overlay/match-child-defaults missing_ok=True
 ---
 application:
+  #! Covers the schema-inspecting conversion: the annotation reaches the generated KCL
+  #! schema as a check, and constrains nothing the fixture does not already satisfy.
+  #@schema/validation one_of=[True]
   baseValue: true

@@ -53,6 +53,10 @@ type Globe struct {
 
 	// Cached frozen resolved tree (KCL mode only); evaluated at most once per Globe.
 	kclTreeCache *kclTree
+
+	// Forces the legacy path even with kcl.mod present, so `myks migrate --force` can
+	// re-read the legacy sources of an already converted repo.
+	forceLegacyMode bool
 }
 
 // YttGlobeData controls runtime data available to ytt templates

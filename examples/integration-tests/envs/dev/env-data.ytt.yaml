@@ -9,11 +9,16 @@ environment:
       name: argocd-tests
     - proto: helm-render-test
       name: helm-installation
+    #! A dashed prototype dir: `myks migrate` renames it to per_chart_override so it can own
+    #! a base schema, and keeps this application name (and its rendered paths) unchanged.
     - proto: per-chart-override
     - proto: multiple-sources
     - proto: multiple-contents-sources
     - proto: ytt-render-test
       name: ytt-installation
     - proto: static-test
-    - proto: helm-myks-context
+    #! An identifier prototype dir the converter leaves alone; the explicit name keeps the
+    #! application name independent of it.
+    - proto: helm_myks_context
+      name: helm-myks-context
     - proto: lib-test
