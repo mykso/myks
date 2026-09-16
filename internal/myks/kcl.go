@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"maps"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
+	"sync"
 
 	version "github.com/hashicorp/go-version"
 	"github.com/rs/zerolog/log"
@@ -16,33 +18,22 @@ import (
 const (
 	// kclModFileName is the KCL module manifest; its presence at the config root selects KCL mode.
 	kclModFileName = "kcl.mod"
+	// protoKFileName holds a prototype's base schema, subclassing myks.App with the
+	// prototype's default values; applications instantiate it.
+	protoKFileName = "proto.k"
 	// Generated ytt bridge files (per environment and per application). Each config unit is
 	// split in two because ytt forbids mixing schema and plain data-values documents in one file:
-	// the schema part extends the embedded data schema with keys unknown to it, the values part
-	// sets values of the engine-owned scopes (plain data values, unlike schema docs, can carry
-	// array values).
+	// the schema part declares the keys the embedded data schema does not, the values part sets
+	// the values of the keys it does.
 	kclEnvSchemaFileName = "env-data.kcl-schema.ytt.yaml"
 	kclEnvValuesFileName = "env-data.kcl-values.ytt.yaml"
 	kclAppSchemaFileName = "app-data.kcl-schema.ytt.yaml"
 	kclAppValuesFileName = "app-data.kcl-values.ytt.yaml"
 )
 
-// kclEmbeddedScopes are the engine-owned top-level data-values scopes with a fixed schema
-// (assets/data-schema.ytt.yaml). Their resolved values go into the generated plain data-values
-// file; all other keys extend the schema, exactly like legacy app-data schema documents do.
-var kclEmbeddedScopes = map[string]bool{
-	"argocd":      true,
-	"environment": true,
-	"helm":        true,
-	"kbld":        true,
-	"myks":        true,
-	"render":      true,
-	"yttPkg":      true,
-}
-
 // supportedKclSchemaVersion is the myks schema version the engine understands.
 // Kept in lockstep with kcl/myks/version.k; compatibility is same major.minor.
-const supportedKclSchemaVersion = "0.1.0"
+const supportedKclSchemaVersion = "0.2.0"
 
 // kclTree is the frozen resolved tree produced by evaluating the KCL config root.
 // It is the sole discovery mechanism for environments and applications in KCL mode.
@@ -69,6 +60,9 @@ type kclEnvironmentData struct {
 // isKclMode reports whether the repo opts into the KCL config layer (kcl.mod at the config root).
 // A stat error is propagated: silently falling back to legacy mode on a KCL repo would render wrong output.
 func (g *Globe) isKclMode() (bool, error) {
+	if g.forceLegacyMode {
+		return false, nil
+	}
 	ok, err := isExist(filepath.Join(g.RootDir, kclModFileName))
 	if err != nil {
 		return false, fmt.Errorf("checking for %s: %w", kclModFileName, err)
@@ -98,16 +92,19 @@ func evalKclTree(rootDir string) (*kclTree, error) {
 	}
 	deps, err := kcl.UpdateDependencies(&kcl.UpdateDependenciesArgs{ManifestPath: absRootDir})
 	if err != nil {
-		return nil, fmt.Errorf("resolving KCL dependencies at %s: %w", rootDir, err)
+		return nil, fmt.Errorf("resolving KCL dependencies at %s:\n%s", rootDir, cleanKclDiagnostics(err))
 	}
-	opts := make([]kcl.Option, 0, len(deps.ExternalPkgs))
+	// KCL hides underscore-prefixed attributes from its output; config values are data, and a
+	// leading underscore is a legitimate key (myks repos use `_` for cross-step private values).
+	opts := make([]kcl.Option, 0, len(deps.ExternalPkgs)+1)
+	opts = append(opts, kcl.WithShowHidden(true))
 	for _, pkg := range deps.ExternalPkgs {
 		opts = append(opts, kcl.WithExternalPkgAndPath(pkg.PkgName, pkg.PkgPath))
 	}
 
 	res, err := kcl.Run(rootDir, opts...)
 	if err != nil {
-		return nil, fmt.Errorf("evaluating KCL config at %s: %w", rootDir, err)
+		return nil, fmt.Errorf("evaluating KCL config at %s:\n%s", rootDir, cleanKclDiagnostics(err))
 	}
 
 	tree := &kclTree{}
@@ -137,6 +134,16 @@ func evalKclTree(rootDir string) (*kclTree, error) {
 	}
 
 	return tree, nil
+}
+
+// ansiEscapeRe matches the SGR sequences the KCL compiler colorizes its diagnostics with.
+// They are emitted unconditionally, so they land in log files and CI output as noise.
+var ansiEscapeRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+
+// cleanKclDiagnostics makes a KCL error readable in a log line: the colors are stripped and
+// the leading blank line KCL starts its diagnostics with is trimmed.
+func cleanKclDiagnostics(err error) string {
+	return strings.TrimSpace(ansiEscapeRe.ReplaceAllString(err.Error(), ""))
 }
 
 // checkKclSchemaVersion asserts the tree's schema version is compatible with the engine.
@@ -281,7 +288,9 @@ func (g *Globe) initKclEnvironment(dir string, envData kclEnvironmentData, appNa
 }
 
 // dataValues shapes the environment entry as ytt data values: extras stay top-level scopes,
-// id and the application roster go under the engine-owned environment scope.
+// id and the application roster go under the environment scope. The engine owns only those
+// two keys there; an `environment` extra carrying further keys is merged underneath them,
+// so a level can publish shared values under the scope its templates already read.
 func (d kclEnvironmentData) dataValues() map[string]any {
 	values := map[string]any{}
 	maps.Copy(values, d.Extra)
@@ -297,36 +306,142 @@ func (d kclEnvironmentData) dataValues() map[string]any {
 		}
 		apps = append(apps, map[string]any{"name": name, "proto": proto})
 	}
-	values["environment"] = map[string]any{"id": d.ID, "applications": apps}
+	envScope := map[string]any{}
+	if extra, ok := values["environment"].(map[string]any); ok {
+		maps.Copy(envScope, extra)
+	}
+	envScope["id"] = d.ID
+	envScope["applications"] = apps
+	values["environment"] = envScope
 
 	return values
 }
 
+// declaredDataSchema is the embedded data schema parsed as plain YAML. ytt's `#@`/`#!`
+// annotations are YAML comments, so the parse yields exactly the set of declared keys.
+var declaredDataSchema = sync.OnceValues(func() (map[string]any, error) {
+	declared := map[string]any{}
+	if err := yaml.Unmarshal(dataSchema, &declared); err != nil {
+		return nil, fmt.Errorf("parsing embedded data schema: %w", err)
+	}
+	return declared, nil
+})
+
 // writeKclDataFiles writes one resolved config unit as a pair of generated ytt files:
-// keys unknown to the embedded data schema become a schema-extension document, engine-owned
-// scopes become a plain data-values document. Both files are always written (with an empty
+// keys unknown to the embedded data schema become a schema-extension document, keys it
+// declares become a plain data-values document. Both files are always written (with an empty
 // body when there is nothing to say) so no stale content survives a re-run.
 func writeKclDataFiles(schemaPath, valuesPath string, values map[string]any) error {
-	schemaValues := map[string]any{}
-	plainValues := map[string]any{}
-	for key, value := range values {
-		if kclEmbeddedScopes[key] {
-			plainValues[key] = value
-		} else {
-			schemaValues[key] = value
-		}
-	}
-
-	write := func(path, header string, values map[string]any) error {
-		yamlBytes, err := yaml.Marshal(values)
-		if err != nil {
-			return fmt.Errorf("marshalling generated data values: %w", err)
-		}
-		return writeFile(path, append([]byte(header), yamlBytes...))
-	}
-
-	if err := write(schemaPath, "#@data/values-schema\n#@overlay/match-child-defaults missing_ok=True\n---\n", schemaValues); err != nil {
+	schema, err := declaredDataSchema()
+	if err != nil {
 		return err
 	}
-	return write(valuesPath, "#@data/values\n---\n", plainValues)
+	declared, unknown := splitDeclared(values, schema)
+
+	body := &strings.Builder{}
+	if err := renderSchemaExtension(body, unknown, schema, 0); err != nil {
+		return err
+	}
+	if body.Len() == 0 {
+		body.WriteString("{}\n")
+	}
+	header := "#@data/values-schema\n#@overlay/match-child-defaults missing_ok=True\n---\n"
+	if err := writeFile(schemaPath, []byte(header+body.String())); err != nil {
+		return err
+	}
+
+	yamlBytes, err := yaml.Marshal(declared)
+	if err != nil {
+		return fmt.Errorf("marshalling generated data values: %w", err)
+	}
+	return writeFile(valuesPath, append([]byte("#@data/values\n---\n"), yamlBytes...))
+}
+
+// splitDeclared splits resolved values against the shape of the embedded data schema. Only
+// maps are walked in parallel: a key the schema does not declare is unknown together with
+// everything below it, anything else is declared.
+func splitDeclared(values, schema map[string]any) (declared, unknown map[string]any) {
+	declared, unknown = map[string]any{}, map[string]any{}
+	for key, value := range values {
+		sub, ok := schema[key]
+		if !ok {
+			unknown[key] = value
+			continue
+		}
+		subSchema, schemaIsMap := sub.(map[string]any)
+		valueMap, valueIsMap := value.(map[string]any)
+		if !schemaIsMap || !valueIsMap || len(valueMap) == 0 {
+			declared[key] = value
+			continue
+		}
+		subDeclared, subUnknown := splitDeclared(valueMap, subSchema)
+		if len(subDeclared) > 0 {
+			declared[key] = subDeclared
+		}
+		if len(subUnknown) > 0 {
+			unknown[key] = subUnknown
+		}
+	}
+	return declared, unknown
+}
+
+// renderSchemaExtension renders the body of the schema-extension document. Keys the embedded
+// schema declares are walked through as parents so that undeclared keys nest inside their
+// declared scope; every undeclared key is emitted as its own schema definition. A definition
+// holding an array anywhere is typed `any`, because a ytt schema array declares only the type
+// of its single item and always defaults to an empty list, which would drop the value.
+func renderSchemaExtension(b *strings.Builder, values, schema map[string]any, indent int) error {
+	pad := strings.Repeat(" ", indent)
+	for _, key := range slices.Sorted(maps.Keys(values)) {
+		value := values[key]
+		subSchema, isDeclaredScope := schema[key].(map[string]any)
+		valueMap, isMap := value.(map[string]any)
+		if isDeclaredScope && isMap {
+			head, err := marshalMapItem(key, nil)
+			if err != nil {
+				return err
+			}
+			// The placeholder value is dropped so the children nest under the bare key.
+			b.WriteString(pad + strings.TrimSuffix(head, " null") + "\n")
+			if err := renderSchemaExtension(b, valueMap, subSchema, indent+2); err != nil {
+				return err
+			}
+			continue
+		}
+		if containsArray(value) {
+			b.WriteString(pad + "#@schema/type any=True\n")
+		}
+		item, err := marshalMapItem(key, value)
+		if err != nil {
+			return err
+		}
+		for line := range strings.SplitSeq(item, "\n") {
+			b.WriteString(pad + line + "\n")
+		}
+	}
+	return nil
+}
+
+// marshalMapItem renders a single map item as YAML (without trailing newline), leaving key
+// quoting to the YAML marshaller.
+func marshalMapItem(key string, value any) (string, error) {
+	yamlBytes, err := yaml.Marshal(map[string]any{key: value})
+	if err != nil {
+		return "", fmt.Errorf("marshalling generated data values: %w", err)
+	}
+	return strings.TrimRight(string(yamlBytes), "\n"), nil
+}
+
+func containsArray(value any) bool {
+	switch typed := value.(type) {
+	case []any:
+		return true
+	case map[string]any:
+		for _, nested := range typed {
+			if containsArray(nested) {
+				return true
+			}
+		}
+	}
+	return false
 }
