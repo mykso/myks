@@ -3,6 +3,7 @@ package cmd
 import (
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 const cleanupCmdLongHelp = `Cleanup obsolete manifests and cache entries.
@@ -52,18 +53,24 @@ func newCleanupCmd() *cobra.Command {
 				log.Fatal().Err(err).Msg("Root directory is not suitable for myks")
 			}
 
-			if err := g.Init(asyncLevel, envAppMap); err != nil {
+			if err := g.InitForCleanup(asyncLevel, envAppMap); err != nil {
 				log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 			}
 
-			if modeManifests {
+			switch {
+			case modeManifests && modeCache:
+				eg := errgroup.Group{}
+				eg.Go(func() error { return g.CleanupRenderedManifests(dryRun) })
+				eg.Go(func() error { return g.CleanupObsoleteCacheEntries(asyncLevel, dryRun) })
+				if err := eg.Wait(); err != nil {
+					log.Fatal().Err(err).Msg("Cleanup failed")
+				}
+			case modeManifests:
 				if err := g.CleanupRenderedManifests(dryRun); err != nil {
 					log.Fatal().Err(err).Msg("Unable to cleanup rendered manifests")
 				}
-			}
-
-			if modeCache {
-				if err := g.CleanupObsoleteCacheEntries(dryRun); err != nil {
+			case modeCache:
+				if err := g.CleanupObsoleteCacheEntries(asyncLevel, dryRun); err != nil {
 					log.Fatal().Err(err).Msg("Unable to cleanup cache entries")
 				}
 			}
