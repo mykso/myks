@@ -19,6 +19,10 @@ const (
 	globalYttStepName = "global-ytt"
 	sliceStepName     = "slice"
 	initStepName      = "init"
+
+	helmToolName = "helm"
+	yttToolName  = "ytt"
+	kbldToolName = "kbld"
 )
 
 // Application represents a deployable unit within an environment, linked to a prototype.

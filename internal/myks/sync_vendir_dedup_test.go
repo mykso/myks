@@ -20,9 +20,9 @@ func jn(parts ...string) string { return filepath.Join(parts...) }
 // newDedupTestApp creates a minimal Application suitable for dedup tests.
 func newDedupTestApp(cfg *Config) *Application {
 	return &Application{
-		Name: "test-app",
+		Name: testAppName,
 		cfg:  cfg,
-		e:    &Environment{ID: "test-env"},
+		e:    &Environment{ID: testEnvID},
 	}
 }
 
@@ -31,9 +31,9 @@ func TestIsCachePopulated(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName:     ".myks",
-		VendirCache:        "vendir-cache",
-		VendirLockFileName: "vendir.lock.yaml",
+		ServiceDirName:     testServiceDir,
+		VendirCache:        testVendirCache,
+		VendirLockFileName: testVendirLock,
 		RootDir:            tmpDir,
 	}
 
@@ -103,10 +103,10 @@ func TestSyncCacheEntryWithinRunDedup(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName:       ".myks",
-		VendirCache:          "vendir-cache",
-		VendirLockFileName:   "vendir.lock.yaml",
-		VendirConfigFileName: "vendir.yaml",
+		ServiceDirName:       testServiceDir,
+		VendirCache:          testVendirCache,
+		VendirLockFileName:   testVendirLock,
+		VendirConfigFileName: testVendirConfig,
 		RootDir:              tmpDir,
 	}
 
@@ -130,10 +130,10 @@ func TestSyncCacheEntryWithinRunDedupPropagatesError(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName:       ".myks",
-		VendirCache:          "vendir-cache",
-		VendirLockFileName:   "vendir.lock.yaml",
-		VendirConfigFileName: "vendir.yaml",
+		ServiceDirName:       testServiceDir,
+		VendirCache:          testVendirCache,
+		VendirLockFileName:   testVendirLock,
+		VendirConfigFileName: testVendirConfig,
 		RootDir:              tmpDir,
 	}
 
@@ -160,10 +160,10 @@ func TestSyncCacheEntryCrossRunDedup(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName:       ".myks",
-		VendirCache:          "vendir-cache",
-		VendirLockFileName:   "vendir.lock.yaml",
-		VendirConfigFileName: "vendir.yaml",
+		ServiceDirName:       testServiceDir,
+		VendirCache:          testVendirCache,
+		VendirLockFileName:   testVendirLock,
+		VendirConfigFileName: testVendirConfig,
 		RootDir:              tmpDir,
 	}
 
@@ -190,10 +190,10 @@ func TestSyncCacheEntryNoSkipWhenNotLazy(t *testing.T) {
 	// Not parallel: uses t.Setenv which requires sequential execution.
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName:       ".myks",
-		VendirCache:          "vendir-cache",
-		VendirLockFileName:   "vendir.lock.yaml",
-		VendirConfigFileName: "vendir.yaml",
+		ServiceDirName:       testServiceDir,
+		VendirCache:          testVendirCache,
+		VendirLockFileName:   testVendirLock,
+		VendirConfigFileName: testVendirConfig,
 		RootDir:              tmpDir,
 	}
 
@@ -226,10 +226,10 @@ func TestSyncCacheEntryConcurrentDedup(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName:       ".myks",
-		VendirCache:          "vendir-cache",
-		VendirLockFileName:   "vendir.lock.yaml",
-		VendirConfigFileName: "vendir.yaml",
+		ServiceDirName:       testServiceDir,
+		VendirCache:          testVendirCache,
+		VendirLockFileName:   testVendirLock,
+		VendirConfigFileName: testVendirConfig,
 		RootDir:              tmpDir,
 	}
 
@@ -311,9 +311,9 @@ func TestEnsureCacheConfigDedup(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName:       ".myks",
-		VendirCache:          "vendir-cache",
-		VendirConfigFileName: "vendir.yaml",
+		ServiceDirName:       testServiceDir,
+		VendirCache:          testVendirCache,
+		VendirConfigFileName: testVendirConfig,
 		RootDir:              tmpDir,
 	}
 
@@ -341,9 +341,9 @@ func TestEnsureCacheConfigConcurrent(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName:       ".myks",
-		VendirCache:          "vendir-cache",
-		VendirConfigFileName: "vendir.yaml",
+		ServiceDirName:       testServiceDir,
+		VendirCache:          testVendirCache,
+		VendirConfigFileName: testVendirConfig,
 		RootDir:              tmpDir,
 	}
 
@@ -352,11 +352,11 @@ func TestEnsureCacheConfigConcurrent(t *testing.T) {
 	cacheName := "concurrent-config-cache"
 	config := vendirconf.Config{
 		APIVersion: "vendir.k14s.io/v1alpha1",
-		Kind:       "Config",
+		Kind:       vendirConfigKindConfig,
 	}
 
 	// Pre-create the cache directory so ensureCacheConfig can write the vendir config into it.
-	cacheDir := (&Application{cfg: cfg, e: &Environment{ID: "test-env"}}).expandVendirCache(cacheName)
+	cacheDir := (&Application{cfg: cfg, e: &Environment{ID: testEnvID}}).expandVendirCache(cacheName)
 	require.NoError(t, os.MkdirAll(cacheDir, 0o700))
 
 	const numGoroutines = 20
@@ -385,9 +385,9 @@ func TestEnsureCacheConfigMismatchDetected(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName:       ".myks",
-		VendirCache:          "vendir-cache",
-		VendirConfigFileName: "vendir.yaml",
+		ServiceDirName:       testServiceDir,
+		VendirCache:          testVendirCache,
+		VendirConfigFileName: testVendirConfig,
 		RootDir:              tmpDir,
 	}
 

@@ -25,6 +25,8 @@ const (
 	kclEnvValuesFileName = "env-data.kcl-values.ytt.yaml"
 	kclAppSchemaFileName = "app-data.kcl-schema.ytt.yaml"
 	kclAppValuesFileName = "app-data.kcl-values.ytt.yaml"
+	// envApplicationsKey is the application roster key inside the engine-owned environment scope.
+	envApplicationsKey = "applications"
 )
 
 // kclEmbeddedScopes are the engine-owned top-level data-values scopes with a fixed schema
@@ -297,7 +299,7 @@ func (d kclEnvironmentData) dataValues() map[string]any {
 		}
 		apps = append(apps, map[string]any{"name": name, "proto": proto})
 	}
-	values["environment"] = map[string]any{"id": d.ID, "applications": apps}
+	values["environment"] = map[string]any{"id": d.ID, envApplicationsKey: apps}
 
 	return values
 }

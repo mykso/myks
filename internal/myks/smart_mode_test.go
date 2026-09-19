@@ -480,18 +480,18 @@ func Test_squashEnvPaths(t *testing.T) {
 	}{
 		{
 			"ancestor dominates descendant",
-			[]string{"envs/prod", "envs/prod/eu"},
-			[]string{"envs/prod"},
+			[]string{envProdPath, envProdEUPath},
+			[]string{envProdPath},
 		},
 		{
 			"siblings are kept",
-			[]string{"envs/prod/eu", "envs/prod/us", "envs/staging"},
-			[]string{"envs/prod/eu", "envs/prod/us", "envs/staging"},
+			[]string{envProdEUPath, envProdUSPath, envStagingPath},
+			[]string{envProdEUPath, envProdUSPath, envStagingPath},
 		},
 		{
 			"dedup and squash",
-			[]string{"envs/prod", "envs/prod", "envs/prod/eu/a"},
-			[]string{"envs/prod"},
+			[]string{envProdPath, envProdPath, envProdEUPath + "/a"},
+			[]string{envProdPath},
 		},
 		{
 			"empty input",
@@ -500,8 +500,8 @@ func Test_squashEnvPaths(t *testing.T) {
 		},
 		{
 			"single path",
-			[]string{"envs/prod"},
-			[]string{"envs/prod"},
+			[]string{envProdPath},
+			[]string{envProdPath},
 		},
 	}
 	for _, tt := range tests {
@@ -522,33 +522,33 @@ func Test_pruneNestedEnvAppMap(t *testing.T) {
 	}{
 		{
 			"descendant with apps pruned under wildcard ancestor",
-			EnvAppMap{"envs/prod": nil, "envs/prod/eu": {"app1"}},
-			EnvAppMap{"envs/prod": nil},
+			EnvAppMap{envProdPath: nil, envProdEUPath: {"app1"}},
+			EnvAppMap{envProdPath: nil},
 		},
 		{
 			"no wildcard — nothing pruned",
-			EnvAppMap{"envs/prod": {"app1"}, "envs/prod/eu": {"app2"}},
-			EnvAppMap{"envs/prod": {"app1"}, "envs/prod/eu": {"app2"}},
+			EnvAppMap{envProdPath: {"app1"}, envProdEUPath: {"app2"}},
+			EnvAppMap{envProdPath: {"app1"}, envProdEUPath: {"app2"}},
 		},
 		{
 			"unrelated env not pruned",
-			EnvAppMap{"envs/prod": nil, "envs/staging/eu": {"app1"}},
-			EnvAppMap{"envs/prod": nil, "envs/staging/eu": {"app1"}},
+			EnvAppMap{envProdPath: nil, envStagingPath + "/eu": {"app1"}},
+			EnvAppMap{envProdPath: nil, envStagingPath + "/eu": {"app1"}},
 		},
 		{
 			"wildcard itself not pruned",
-			EnvAppMap{"envs/prod": nil},
-			EnvAppMap{"envs/prod": nil},
+			EnvAppMap{envProdPath: nil},
+			EnvAppMap{envProdPath: nil},
 		},
 		{
 			"multiple wildcards",
 			EnvAppMap{
-				"envs/prod":    nil,
-				"envs/staging": nil,
-				"envs/prod/eu": {"app1"},
+				envProdPath:    nil,
+				envStagingPath: nil,
+				envProdEUPath:  {"app1"},
 				"envs/qa":      {"app2"},
 			},
-			EnvAppMap{"envs/prod": nil, "envs/staging": nil, "envs/qa": {"app2"}},
+			EnvAppMap{envProdPath: nil, envStagingPath: nil, "envs/qa": {"app2"}},
 		},
 	}
 	for _, tt := range tests {

@@ -52,6 +52,9 @@ linters:
     goconst:
       min-len: 3
       min-occurrences: 3
+      # Test fixtures repeat short literals by nature; counting them drags production
+      # code over the threshold too.
+      ignore-tests: true
 
     gocritic:
       enabled-tags:
@@ -90,6 +93,7 @@ linters:
           - wrapcheck
           - cyclop
           - gocognit
+          - gosec
       # Exclude embedded tool runners (vendir/kbld/ytt) from exitAfterDefer gocritic check
       # since those are intentional pass-through CLIs.
       - path: 'cmd/embedded/'

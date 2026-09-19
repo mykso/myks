@@ -34,7 +34,7 @@ func NewKbldRenderer(app *Application, lock *locker.Locker) *Kbld {
 	return &Kbld{
 		additive: false,
 		app:      app,
-		ident:    "kbld",
+		ident:    kbldToolName,
 		locker:   lock,
 	}
 }
@@ -73,7 +73,7 @@ func (k *Kbld) Render(previousStepFile string) (string, error) {
 	}
 
 	cmdArgs := []string{
-		"kbld",
+		kbldToolName,
 		"--file=" + previousStepFile,
 		fmt.Sprintf("--images-annotation=%t", config.ImagesAnnotation),
 	}
@@ -159,7 +159,7 @@ func (k *Kbld) getKbldConfig() (KbldConfig, error) {
 // and generates a kbld config file with image overrides based on the provided KbldConfig.
 func (k *Kbld) generateOverridesConfig(inputFile string, config KbldConfig) (string, error) {
 	cmdArgs := []string{
-		"kbld",
+		kbldToolName,
 		"--file=" + inputFile,
 		"--unresolved-inspect",
 	}

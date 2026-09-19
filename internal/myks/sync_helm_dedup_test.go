@@ -18,8 +18,8 @@ func TestBuildChartOnceWithinRunDedup(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName: ".myks",
-		VendirCache:    "vendir-cache",
+		ServiceDirName: testServiceDir,
+		VendirCache:    testVendirCache,
 		RootDir:        tmpDir,
 	}
 
@@ -44,8 +44,8 @@ func TestBuildChartOnceWithinRunDedupPropagatesError(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName: ".myks",
-		VendirCache:    "vendir-cache",
+		ServiceDirName: testServiceDir,
+		VendirCache:    testVendirCache,
 		RootDir:        tmpDir,
 	}
 
@@ -72,8 +72,8 @@ func TestBuildChartOnceFallbackKey(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName: ".myks",
-		VendirCache:    "vendir-cache",
+		ServiceDirName: testServiceDir,
+		VendirCache:    testVendirCache,
 		RootDir:        tmpDir,
 	}
 
@@ -99,8 +99,8 @@ func TestBuildChartOnceConcurrentDedup(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName: ".myks",
-		VendirCache:    "vendir-cache",
+		ServiceDirName: testServiceDir,
+		VendirCache:    testVendirCache,
 		RootDir:        tmpDir,
 	}
 
@@ -143,8 +143,8 @@ func TestBuildChartOnceConcurrentDedupWithError(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	cfg := &Config{
-		ServiceDirName: ".myks",
-		VendirCache:    "vendir-cache",
+		ServiceDirName: testServiceDir,
+		VendirCache:    testVendirCache,
 		RootDir:        tmpDir,
 	}
 
