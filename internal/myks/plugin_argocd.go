@@ -36,7 +36,7 @@ argocd:
 // Used by both ArgoCD env render and inspect.
 func (e *Environment) argoCDEnvSourceFiles() []string {
 	files := []string{e.getYttLibAPIDir()}
-	files = append(files, e.collectBySubpath(e.cfg.EnvironmentDataFileName)...)
+	files = append(files, e.envDataFiles()...)
 	files = append(files, e.collectBySubpath(filepath.Join(e.cfg.EnvsDir, e.cfg.ArgoCDDataDirName))...)
 	return files
 }

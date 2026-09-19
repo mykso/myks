@@ -1,0 +1,4 @@
+#! Helm values computed from the resolved app config (frozen KCL tree).
+#@ load("@ytt:data", "data")
+---
+greeting: #@ data.values.application.greeting

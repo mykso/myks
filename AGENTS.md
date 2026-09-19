@@ -110,3 +110,17 @@ Test fixtures are in `testData/`. Integration test fixtures are in
 Use Serena tools for code research and editing tasks if Serena MCP is available.
 Check which code introspection and editing tools are available and use them
 appropriately to reduce context usage.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live as GitHub issues in `mykso/myks`, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default five-role vocabulary, label string equals role name. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` + `docs/adr/`. See `docs/agents/domain.md`.

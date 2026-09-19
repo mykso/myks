@@ -1,0 +1,2 @@
+# Slack deep links 403 for anonymous requests; membership is required to view a channel.
+https://kubernetes\.slack\.com/.*

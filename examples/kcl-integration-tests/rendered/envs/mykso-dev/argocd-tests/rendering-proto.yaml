@@ -1,0 +1,6 @@
+kind: rendering
+metadata:
+  name: proto
+outputYaml:
+  fromPrototypeOverride: true
+  fromPrototypeOverrideFromAppData: true

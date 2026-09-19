@@ -1,5 +1,17 @@
 # Changelog
 
+## [5.13.3](https://github.com/mykso/myks/compare/v5.13.2...v5.13.3) (2026-08-13)
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#844](https://github.com/mykso/myks/issues/844)) ([ed17353](https://github.com/mykso/myks/commit/ed1735389e642584bd87bbbd584e9fc2b7e5032b))
+* **deps:** update golang dependencies (non-major) ([#846](https://github.com/mykso/myks/issues/846)) ([50b7b45](https://github.com/mykso/myks/commit/50b7b45edfc901ff09effe7f6b9eb0321bd7913f))
+* **deps:** update module github.com/google/go-containerregistry to v0.21.8 ([#865](https://github.com/mykso/myks/issues/865)) ([cd4e93e](https://github.com/mykso/myks/commit/cd4e93e0b6c093b0d750b78c03632e1830482a7d))
+* **deps:** update module github.com/google/go-containerregistry to v0.21.9 ([#868](https://github.com/mykso/myks/issues/868)) ([3f57a3d](https://github.com/mykso/myks/commit/3f57a3de237d36f29af13017d713b4c299dbbe47))
+* **deps:** update module golang.org/x/sys to v0.47.0 ([#854](https://github.com/mykso/myks/issues/854)) ([1b9ba0f](https://github.com/mykso/myks/commit/1b9ba0fea625fdda137b5deb74c310cf4d38c259))
+* **deps:** update module golang.org/x/term to v0.45.0 ([#858](https://github.com/mykso/myks/issues/858)) ([c5b7916](https://github.com/mykso/myks/commit/c5b79166931cad7c661b1ce08df2acc84fa077b2))
+
 ## [5.13.2](https://github.com/mykso/myks/compare/v5.13.1...v5.13.2) (2026-06-20)
 
 

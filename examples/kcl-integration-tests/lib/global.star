@@ -1,0 +1,1 @@
+globalVar = "defined in global"

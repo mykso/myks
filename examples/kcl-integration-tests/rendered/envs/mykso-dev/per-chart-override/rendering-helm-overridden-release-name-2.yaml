@@ -1,0 +1,5 @@
+kind: rendering
+metadata:
+  name: helm-overridden-release-name-2
+outputYaml:
+  fromChartDefaultValues: true

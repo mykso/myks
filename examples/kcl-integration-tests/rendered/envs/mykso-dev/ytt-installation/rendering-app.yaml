@@ -1,0 +1,6 @@
+kind: rendering
+metadata:
+  name: app
+outputYaml:
+  fromAppConfig: true
+  fromAppConfigAppData: true

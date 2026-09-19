@@ -1,0 +1,4 @@
+outputYaml:
+  fromAppGlobal: true
+  appSpecificChart: appGlobal
+  appGlobal: appGlobal

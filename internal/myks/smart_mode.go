@@ -15,6 +15,15 @@ func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error)
 		return nil, errors.New("git is unavailable")
 	}
 
+	// Smart Mode maps changed env-data/app files to environments discovered on the filesystem.
+	// In KCL mode discovery is the frozen tree and changes live in *.k files it cannot attribute;
+	// erroring here makes the caller fall back to a full render instead of a false "no changes".
+	if kclMode, err := g.isKclMode(); err != nil {
+		return nil, err
+	} else if kclMode {
+		return nil, errors.New("smart mode is not supported in KCL mode")
+	}
+
 	// envAppMap is built later by calling g.runSmartMode
 	_ = g.collectEnvironments(nil)
 
