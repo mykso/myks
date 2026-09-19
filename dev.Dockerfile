@@ -1,5 +1,5 @@
 # Stage 1 Build myks
-FROM --platform=$BUILDPLATFORM golang:1.27.1@sha256:f44f6e88636cfb311f9ebace870ded69d943f227bb3cb27d32ffd84ea18c43ea AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27.1@sha256:3680233e3204827fbdc66088528ae6d4b3d034f51d03a99d454f6de034888244 AS builder
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /app
@@ -14,7 +14,7 @@ RUN CGO_ENABLED=0 \
 
 
 # Stage 2 Download tools
-FROM --platform=$BUILDPLATFORM debian:13@sha256:f324c7ff54321e8d9c588493a20244965938ce0aa50bbd1022d38010e9ffc4b1 AS download-tools
+FROM --platform=$BUILDPLATFORM debian:13@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c AS download-tools
 
 ARG TARGETOS
 ARG TARGETARCH
@@ -38,7 +38,7 @@ RUN chmod +x *
 
 
 # Stage 3: Bring it all together
-FROM --platform=$BUILDPLATFORM debian:13@sha256:f324c7ff54321e8d9c588493a20244965938ce0aa50bbd1022d38010e9ffc4b1
+FROM --platform=$BUILDPLATFORM debian:13@sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
 
 WORKDIR /app
 
