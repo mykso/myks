@@ -240,7 +240,7 @@ func (m *migrator) extractEnvironmentScope(node *migNode) {
 		switch key {
 		case "id":
 			// The leaf id is taken from the discovered environment.
-		case "applications":
+		case envApplicationsKey:
 			entries, _ := value.([]any)
 			for _, raw := range entries {
 				entry, _ := raw.(map[string]any)
@@ -524,7 +524,7 @@ func (m *migrator) simulateBridge(leafDir, unit string, values map[string]any, e
 func (m *migrator) checkEnvironmentScope(dir string, legacyEnv map[string]any) {
 	envScope, _ := legacyEnv["environment"].(map[string]any)
 	for _, key := range slices.Sorted(maps.Keys(envScope)) {
-		if key != "id" && key != "applications" {
+		if key != "id" && key != envApplicationsKey {
 			m.warn("%s: resolved environment.%s is lost in KCL mode (the engine owns the environment scope); move it elsewhere by hand", dir, key)
 		}
 	}
