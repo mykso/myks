@@ -377,10 +377,10 @@ components:
 
 	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "webapp", protoKFileName))
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "    application?: WebappApplication = WebappApplication {}\n")
+	assert.Contains(t, string(content), "    application?: Application = Application {}\n")
 	assert.Contains(t, string(content), "    image?: str\n", "a demanded value is declared without a default")
 	assert.Contains(t, string(content),
-		"schema WebappApplication:\n    [...str]: any\n    containerPort?: int = 80\n    ingress?: bool = True\n    name?: str\n")
+		"schema Application:\n    [...str]: any\n    containerPort?: int = 80\n    ingress?: bool = True\n    name?: str\n")
 	assert.Contains(t, string(content), `len(name) >= 1 if name != Undefined, "application.name must be at least 1 long"`,
 		"a nested check lives in the schema that owns the field")
 	assert.Contains(t, string(content), `len(image) >= 1 if image != Undefined, "image must be at least 1 long"`)
@@ -526,9 +526,9 @@ components:
 
 	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "csi", protoKFileName))
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "    clients?: [CsiApplicationClients] = []\n")
+	assert.Contains(t, string(content), "    clients?: [Clients] = []\n")
 	assert.Contains(t, string(content),
-		"schema CsiApplicationClients:\n    [...str]: any\n    host?: str = \"\"\n    insecureSkipVerify?: bool = False\n    port?: int = 5001\n")
+		"schema Clients:\n    [...str]: any\n    host?: str = \"\"\n    insecureSkipVerify?: bool = False\n    port?: int = 5001\n")
 	assert.Contains(t, string(content), "    registries?: any\n", "not_null prunes the null default")
 	assert.Contains(t, string(content),
 		`registries != None if registries != Undefined, "application.registries must not be null"`)
@@ -540,4 +540,90 @@ components:
 	}, nil)
 	assert.Equal(t, []any{map[string]any{"host": "h", "port": 5001, "insecureSkipVerify": false}},
 		completed["application"].(map[string]any)["clients"])
+}
+
+func TestWriteProtoKNestedArrayElements(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	schema, err := parseSchemaInspect([]byte(`
+components:
+  schemas:
+    dataValues:
+      type: object
+      additionalProperties: false
+      properties:
+        application:
+          type: object
+          additionalProperties: false
+          properties:
+            builder:
+              type: object
+              additionalProperties: false
+              properties:
+                config:
+                  type: array
+                  default: []
+                  items:
+                    type: object
+                    additionalProperties: false
+                    properties:
+                      category: {type: string, default: Category}
+                      services:
+                        type: array
+                        default: []
+                        items:
+                          type: object
+                          additionalProperties: false
+                          properties:
+                            name: {type: string, default: Arch}
+                            iconBubble: {type: boolean, default: true}
+`))
+	require.NoError(t, err)
+
+	m := &migrator{g: &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}}}
+	values := schema.defaults
+	m.protoSchemas = map[string]string{"home": "Home"}
+	m.protoBase = map[string]map[string]any{"home": values}
+	m.protoInspected = map[string]*inspectedSchema{"home": schema}
+	m.protoPlans = map[string]*protoSchemaPlan{"home": newProtoSchemaPlan("Home", values, schema)}
+	require.NoError(t, m.writeProtoK("home"))
+
+	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "home", protoKFileName))
+	require.NoError(t, err)
+	// The element of an array inside an array element is typed too, down to the last field.
+	assert.Contains(t, string(content), "    config?: [Config] = []\n")
+	assert.Contains(t, string(content),
+		"schema Config:\n    category?: str = \"Category\"\n    services?: [Services] = []\n")
+	assert.Contains(t, string(content),
+		"schema Services:\n    iconBubble?: bool = True\n    name?: str = \"Arch\"\n")
+	// The ytt schema closed every scope, so nothing needs an index signature.
+	assert.NotContains(t, string(content), "[...str]: any")
+
+	// The patch simulation expects what KCL fills in, at every depth.
+	completed := m.protoPlans["home"].withElementDefaults(map[string]any{
+		"application": map[string]any{"builder": map[string]any{"config": []any{
+			map[string]any{"services": []any{map[string]any{"name": "ArgoCD"}}},
+		}}},
+	}, nil)
+	builder, _ := completed["application"].(map[string]any)["builder"].(map[string]any)
+	assert.Equal(t, []any{map[string]any{
+		"category": "Category",
+		"services": []any{map[string]any{"name": "ArgoCD", "iconBubble": true}},
+	}}, builder["config"])
+}
+
+func TestClaimName(t *testing.T) {
+	t.Parallel()
+	p := newProtoSchemaPlan("Webapp", nil, nil)
+	// The last segment names a schema; a collision lengthens the name towards the root.
+	assert.Equal(t, "Tls", p.claimName([]string{"application", "tls"}))
+	assert.Equal(t, "ServerTls", p.claimName([]string{"server", "tls"}))
+	assert.Equal(t, "IngressServerTls", p.claimName([]string{"ingress", "server", "tls"}))
+	// Nothing above the root is left to lengthen with, so the last resort numbers the name.
+	assert.Equal(t, "IngressServerTls2", p.claimName([]string{"ingress", "server", "tls"}))
+	// An element schema is named after its array, and never takes a KCL literal's name.
+	assert.Equal(t, "Clients", p.claimName([]string{"clients", itemsKey}))
+	assert.Equal(t, "ApplicationUndefined", p.claimName([]string{"application", "undefined"}))
+	// The root schema's own name is taken.
+	assert.Equal(t, "ApplicationWebapp", p.claimName([]string{"application", "webapp"}))
 }

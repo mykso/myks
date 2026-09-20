@@ -25,6 +25,11 @@ type inspectedSchema struct {
 	demanded map[string]bool
 }
 
+// itemsKey is the path segment addressing the element of the array at the path so far, the
+// way a key addresses a property. It is no possible data key, so a path element never reads
+// as one.
+const itemsKey = "\x01"
+
 // nodeAt returns the schema node describing the value at path, or nil when the schema says
 // nothing about it (a key that only a merged plain data-values file contributed).
 func (s *inspectedSchema) nodeAt(path []string) *openapiNode {
@@ -32,6 +37,10 @@ func (s *inspectedSchema) nodeAt(path []string) *openapiNode {
 	for _, key := range path {
 		if node == nil {
 			return nil
+		}
+		if key == itemsKey {
+			node = node.Items
+			continue
 		}
 		node = node.Properties[key]
 	}

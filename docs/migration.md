@@ -95,6 +95,22 @@ later block wins, which is how the frozen values override the declaration above 
 same file. Splitting a level further is free the same way: any `.k` file you add next to
 `env.k` joins the package, so a level's own schemas can live in a file of their own.
 
+### Comments
+
+What a data-values file wrote above one of its values travels with that value: the note
+explaining why it is what it is, a tool's annotation such as Renovate's. A ytt comment marker
+(`#!`) means nothing outside a ytt template, so only its `#` is kept — a pattern matching such
+a comment in the generated files has to look for `# ` and for KCL's `key?: type = value`
+rather than YAML's `key: value`. Update those patterns before deleting the legacy files.
+
+A `#@` directive is not a comment but code, and is never carried: what it did is stated in
+KCL's own terms, or reported as not carried over.
+
+Two comments are left behind, both of them in the legacy file the conversion does not touch:
+one inside a sequence or after a value, which has no attribute of its own to sit above, and
+one the file ends with, which belongs to no value at all — the converter warns naming the file
+for that one, so a marker tracking a version the file does not state is not lost with it.
+
 The legacy files are left in place so the conversion is easy to inspect and revert
 (`git checkout` / delete `kcl.mod`, `main.k` and the generated level files).
 
@@ -231,8 +247,10 @@ _apps: m.Apps {
 Delete the frozen block, and `patch.k` once its `_patch` is empty.
 
 An array is frozen whole even where the converter translated the values inside it: ytt
-resolved the array as one value, and its elements are literals the source stated. Shortening
-such a block to what the level actually changes is a hand-finish step the gate will check.
+resolved the array as one value, and its elements are literals the source stated. Its elements
+state only what differs from their element schema, which KCL instantiates them against.
+Shortening such a block further, to what the level actually changes, is a hand-finish step the
+gate will check.
 
 ### Tighten the prototype schemas
 
@@ -244,12 +262,10 @@ default, at any depth:
 
 ```kcl
 schema Webapp(m.App):
-    [...str]: any
     proto: str = "webapp"
-    application?: WebappApplication = WebappApplication {}
+    application?: Application = Application {}
 
-schema WebappApplication:
-    [...str]: any
+schema Application:
     containerPort?: int = 80
     image?: str
     ingress?: bool = True
@@ -258,27 +274,41 @@ schema WebappApplication:
         len(image) >= 1 if image != Undefined, "application.image must be at least 1 long"
 ```
 
-An array whose ytt schema describes its element gets an element schema the same way, and the
-attribute is typed `[Element]`:
+A schema is named after the last segment of the path to it — `Application`, not
+`WebappApplication` — and lengthened with the segments above only where that name is already
+taken (`ServerTls` next to `Tls`). Every prototype is a KCL package of its own, so the short
+name is what call sites read: `webapp.Application`.
+
+An array whose ytt schema describes its element gets an element schema the same way, named
+after the array, and the attribute is typed `[Element]`:
 
 ```kcl
-schema WebappApplication:
-    [...str]: any
-    clients?: [WebappApplicationClients] = []
+schema Application:
+    clients?: [Clients] = []
 
-schema WebappApplicationClients:
-    [...str]: any
+schema Clients:
     host?: str = ""
     port?: int = 5001
-    tls?: bool = True
+    routes?: [Routes] = []
+
+schema Routes:
+    path?: str = "/"
 ```
 
 KCL instantiates every element of such a list, so an application writing
-`clients = [{host = "h"}]` still gets `port` and `tls` — which is what ytt did by overlaying
-the stated array onto the schema's.
+`clients = [{host = "h"}]` still gets `port` and `routes` — which is what ytt did by
+overlaying the stated array onto the schema's. This reaches as deep as the ytt schema
+describes: an object or an array inside an element is typed too, and its defaults are filled
+into what an application writes there.
 
-Every generated schema keeps an index signature, so an application may still set keys the
-prototype never declared, exactly as ytt data values allowed. A value the ytt schema left
+A generated schema keeps an index signature (`[...str]: any`) only where the ytt schema did
+not close the scope. A data-values schema is strict — it rejects a key it does not declare,
+whichever file states it — so a scope it governed needs none, and the generated schema catches
+the misspelled key ytt used to catch. The signature stays wherever that is not certain: a
+prototype with no schema document, a scope the schema left open, a key that reached the values
+from outside the schema, or a prototype whose application scope another schema document
+governs from the environment tree (a `_proto/<proto>/` or `_apps/<app>/` file) — what that one
+declares is not in `proto.k`, so nothing can be closed against it. A value the ytt schema left
 free-form stays a `{str:any}` literal default.
 
 `#@schema/validation` bounds become `check:` items in the schema that owns the field. Reaching

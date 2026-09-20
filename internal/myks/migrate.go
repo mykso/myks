@@ -79,9 +79,16 @@ type migrator struct {
 	protoBase map[string]map[string]any
 	// protoDerived mirrors protoBase with the KCL translation of what ytt computed in it.
 	protoDerived map[string]*derivations
+	// protoComments holds what the prototype's app-data files wrote above their values.
+	protoComments map[string]map[string][]string
 	// protoInspected holds, per prototype, what its app-data schema document declares:
 	// attribute types and validations, which the generated base schema restates.
 	protoInspected map[string]*inspectedSchema
+	// protoSchemaOutside names the prototypes whose application scope a schema document
+	// outside the prototype directory also governs — one in a `_proto/<proto>/` or
+	// `_apps/<app>/` directory of the environment tree. What such a document declares is not
+	// in protoInspected, so the prototype's schemas cannot be closed against it.
+	protoSchemaOutside map[string]bool
 	// protoSchemas maps a prototype to the KCL schema name generated for it in
 	// prototypes/<proto>/proto.k. A prototype absent here gets no schema; its defaults are
 	// hoisted into every declaration instead.
@@ -144,6 +151,11 @@ type migNode struct {
 	envDerived   *derivations
 	protoDerived map[string]*derivations
 	appDerived   map[string]*derivations
+	// envComments, protoComments and appComments mirror them with what those files wrote
+	// above their values.
+	envComments   map[string][]string
+	protoComments map[string]map[string][]string
+	appComments   map[string]map[string][]string
 	// protoContextual and appContextual hold the candidate translations of what those files
 	// compute from the environment's data values; appPatchDerived holds, per application, the
 	// ones proven at this leaf, which the frozen block states instead of the literal.
@@ -282,6 +294,8 @@ func (m *migrator) newNode(dir string, parent *migNode) *migNode {
 // frozen into leaf patches later.
 func (m *migrator) collectContributions() error {
 	cfg := &m.g.Config
+	m.protoSchemaOutside = map[string]bool{}
+	appSchemas := map[string]bool{}
 	for _, dir := range slices.Sorted(maps.Keys(m.nodes)) {
 		node := m.nodes[dir]
 		envData, err := m.convertFileGlob(filepath.Join(node.dir, cfg.EnvironmentDataFileName))
@@ -290,22 +304,45 @@ func (m *migrator) collectContributions() error {
 		}
 		node.envValues = envData.values
 		node.envDerived = envData.derived
+		node.envComments = envData.comments
 		m.extractEnvironmentScope(node)
 
 		protoOverrides, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.PrototypeOverrideDir), cfg.ApplicationDataFileName)
 		if err != nil {
 			return err
 		}
+		for proto, converted := range protoOverrides {
+			if converted.schema != nil {
+				m.protoSchemaOutside[proto] = true
+			}
+		}
 		node.protoValues = valuesOf(protoOverrides)
 		node.protoDerived = derivedOf(protoOverrides)
+		node.protoComments = commentsOf(protoOverrides)
 		node.protoContextual = contextualOf(protoOverrides)
 		apps, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.AppsDir), cfg.ApplicationDataFileName)
 		if err != nil {
 			return err
 		}
+		for app, converted := range apps {
+			if converted.schema != nil {
+				appSchemas[app] = true
+			}
+		}
 		node.appValues = valuesOf(apps)
 		node.appDerived = derivedOf(apps)
+		node.appComments = commentsOf(apps)
 		node.appContextual = contextualOf(apps)
+	}
+
+	// An `_apps/<app>/` schema document governs the scope of whatever prototype that
+	// application uses, so the rosters are what resolves it to a prototype.
+	for _, node := range m.nodes {
+		for _, entry := range node.rawRoster {
+			if appSchemas[entry.name] {
+				m.protoSchemaOutside[entry.proto] = true
+			}
+		}
 	}
 
 	prototypes, err := m.convertPerDirGlobs(filepath.Join(m.g.RootDir, cfg.PrototypesDir), cfg.ApplicationDataFileName)
@@ -314,6 +351,7 @@ func (m *migrator) collectContributions() error {
 	}
 	m.protoBase = valuesOf(prototypes)
 	m.protoDerived = derivedOf(prototypes)
+	m.protoComments = commentsOf(prototypes)
 	m.protoInspected = map[string]*inspectedSchema{}
 	for proto, converted := range prototypes {
 		if converted.schema != nil {
@@ -378,6 +416,18 @@ type convertedFile struct {
 	// it is kept at a leaf where KCL evaluates it to exactly the value frozen there
 	// (proveContextual), and dropped at every other.
 	contextual *derivations
+	// comments holds what the file wrote above its values, keyed by dotted value path, so the
+	// generated file can write it above the same value.
+	comments map[string][]string
+}
+
+// mergeComments folds comment blocks together, the later file winning a path both state.
+func mergeComments(parts ...map[string][]string) map[string][]string {
+	merged := map[string][]string{}
+	for _, part := range parts {
+		maps.Copy(merged, part)
+	}
+	return merged
 }
 
 // convertFileGlob converts all files matching the glob into one merged result. A schema
@@ -407,6 +457,7 @@ func (m *migrator) convertFileGlob(pattern string) (*convertedFile, error) {
 				continue
 			}
 			merged.values = mergeValues(merged.values, file.values)
+			merged.comments = mergeComments(merged.comments, file.comments)
 			merged.schema = mergeInspectedSchemas(merged.schema, file.schema)
 			parts = append(parts, file.derived)
 			contextual = append(contextual, file.contextual)
@@ -463,6 +514,17 @@ func derivedOf(converted map[string]*convertedFile) map[string]*derivations {
 		}
 	}
 	return derived
+}
+
+// commentsOf keeps the comments of a per-directory conversion.
+func commentsOf(converted map[string]*convertedFile) map[string]map[string][]string {
+	comments := make(map[string]map[string][]string, len(converted))
+	for name, file := range converted {
+		if len(file.comments) > 0 {
+			comments[name] = file.comments
+		}
+	}
+	return comments
 }
 
 // valuesOf drops the schema half of a per-directory conversion.
@@ -551,10 +613,38 @@ func (m *migrator) convertDataFile(file string) (*convertedFile, error) {
 		return nil, fmt.Errorf("reading %s: %w", file, err)
 	}
 	isSchema := schemaDocRe.Match(content)
+	var converted *convertedFile
 	if fileComputes(content) {
-		return m.convertComputedFile(file, content, isSchema)
+		converted, err = m.convertComputedFile(file, content, isSchema)
+	} else {
+		converted, err = m.convertPlainFile(file, content, isSchema)
 	}
-	return m.convertPlainFile(file, content, isSchema)
+	if err != nil || converted == nil {
+		return converted, err
+	}
+	converted.comments = m.readComments(file, content)
+	return converted, nil
+}
+
+// readComments reads what a data-values file wrote above its values. A file the parser cannot
+// read yields none: the conversion of its values has its own error path, and a missing comment
+// is not worth failing one over.
+func (m *migrator) readComments(file string, content []byte) map[string][]string {
+	comments, err := yttComments(content)
+	if err != nil {
+		log.Debug().Err(err).Msg(m.g.Msg("Reading the comments of " + file))
+		return nil
+	}
+	out := make(map[string][]string, len(comments))
+	for _, comment := range comments {
+		if len(comment.path) == 0 {
+			m.warn("%s: the comment block the file ends with sits above no value, so it is not carried into the generated KCL; move it by hand: %s",
+				file, strings.Join(comment.lines, " "))
+			continue
+		}
+		out["."+strings.Join(comment.path, ".")] = comment.lines
+	}
+	return out
 }
 
 // convertPlainFile converts content that ytt computes nothing in: a schema document through
@@ -914,10 +1004,13 @@ func (m *migrator) prototypeNames() []string {
 func (m *migrator) applyPrototypeRename(oldName, newName string) {
 	moveKey(m.protoBase, oldName, newName)
 	moveKey(m.protoDerived, oldName, newName)
+	moveKey(m.protoComments, oldName, newName)
 	moveKey(m.protoInspected, oldName, newName)
+	moveKey(m.protoSchemaOutside, oldName, newName)
 	for _, node := range m.nodes {
 		moveKey(node.protoValues, oldName, newName)
 		moveKey(node.protoDerived, oldName, newName)
+		moveKey(node.protoComments, oldName, newName)
 		moveKey(node.protoContextual, oldName, newName)
 		for i := range node.rawRoster {
 			if node.rawRoster[i].proto == oldName {
@@ -1012,7 +1105,9 @@ func (m *migrator) planPrototypeSchemas() {
 			continue
 		}
 		m.protoSchemas[proto] = kclSchemaName(proto)
-		m.protoPlans[proto] = newProtoSchemaPlan(m.protoSchemas[proto], values, m.protoInspected[proto])
+		plan := newProtoSchemaPlan(m.protoSchemas[proto], values, m.protoInspected[proto])
+		plan.externalSchema = m.protoSchemaOutside[proto]
+		m.protoPlans[proto] = plan
 	}
 }
 
@@ -1058,6 +1153,23 @@ func (m *migrator) declarationValues(decl *migNode, name, proto string) map[stri
 		values = mergeValues(values, node.appValues[name])
 	}
 	return values
+}
+
+// declarationComments merges the comments a declaration carries, in the same order as its
+// values. With a generated base schema the prototype's own comments stay in proto.k next to
+// the defaults they belong to; without one they are hoisted along with those defaults.
+func (m *migrator) declarationComments(decl *migNode, name, proto string) map[string][]string {
+	var parts []map[string][]string
+	if m.protoSchemas[proto] == "" {
+		parts = append(parts, m.protoComments[proto])
+	}
+	for _, node := range decl.chain() {
+		parts = append(parts, node.protoComments[proto])
+	}
+	for _, node := range decl.chain() {
+		parts = append(parts, node.appComments[name])
+	}
+	return mergeComments(parts...)
 }
 
 // declarationDerived collects the KCL translations behind the values a declaration carries,
@@ -1187,7 +1299,7 @@ func (m *migrator) computePatches() error {
 		if err != nil {
 			return err
 		}
-		leaf.envPatch = m.diffValues(leafDir, simEnv, legacyEnv)
+		leaf.envPatch = m.diffValues(leafDir, simEnv, legacyEnv, nil)
 		treeEnv = mergeValues(treeEnv, leaf.envPatch)
 		envBridgeFiles, err := m.writeBridgeFiles(leafDir, "env", treeEnv)
 		if err != nil {
@@ -1219,7 +1331,8 @@ func (m *migrator) computePatches() error {
 			if err != nil {
 				return err
 			}
-			patch := m.diffValues(leafDir+"/"+app.Name, simApp, legacyApp)
+			patch := m.diffValues(leafDir+"/"+app.Name, simApp, legacyApp,
+				m.protoPlans[leaf.env.foundApplications[app.Name]])
 			if len(patch) > 0 {
 				candidates := appContextual(chain, app.Name, leaf.env.foundApplications[app.Name])
 				if proven := m.proveContextual(leafDir, app.Name, candidates, patch, legacyEnv); proven.has() {
@@ -1283,14 +1396,18 @@ func (m *migrator) inspectDataValues(dataFiles []string) (map[string]any, error)
 }
 
 // diffValues returns the values of want missing from or different in got, skipping the
-// engine-owned environment scope. Keys present in got but absent from want cannot be
+// engine-owned environment scope. plan is the prototype's generated schemas, which the frozen
+// arrays are pruned against; it is nil for the environment scope, which has none. Keys present in got but absent from want cannot be
 // removed by merging and are reported as warnings.
-func (m *migrator) diffValues(context string, got, want map[string]any) map[string]any {
+func (m *migrator) diffValues(context string, got, want map[string]any, plan *protoSchemaPlan) map[string]any {
 	got = withoutEngineEnvKeys(got)
 	want = withoutEngineEnvKeys(want)
 
 	var extra, lists []string
 	patch := diffValueMaps(got, want, "", &extra, &lists)
+	// A frozen array is stated whole, but its elements are instantiated by the schema that
+	// types them, so the literal drops what that schema already supplies.
+	plan.pruneElementDefaults(patch, nil)
 	for _, path := range extra {
 		m.warn("%s: converted value %s is absent from the legacy-resolved output and cannot be removed by merging; drop it by hand", context, path)
 	}

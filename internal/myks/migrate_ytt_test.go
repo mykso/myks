@@ -123,3 +123,40 @@ func TestDeepestPaths(t *testing.T) {
 		[]string{".a.b.c", ".a.d", ".e"},
 		deepestPaths([]string{".a", ".a.b", ".a.b.c", ".e", ".a.d", ".a"}))
 }
+
+func TestYttComments(t *testing.T) {
+	t.Parallel()
+	comments, err := yttComments([]byte(`#@data/values-schema
+#@overlay/match-child-defaults missing_ok=True
+---
+application:
+  #! renovate: datasource=docker
+  image: nginx:1.31.5
+  #! Two lines,
+  #! both kept.
+  #@schema/validation min_len=1
+  name: ""
+  clients:
+    #! a comment inside a sequence has no attribute to sit above
+    - host: ""
+# plain YAML comments travel too
+port: 8080
+
+#! this block ends the file and belongs to nothing
+`))
+	require.NoError(t, err)
+
+	assert.Equal(t, []yttComment{
+		{path: []string{"application", "image"}, lines: []string{"# renovate: datasource=docker"}},
+		{path: []string{"application", "name"}, lines: []string{"# Two lines,", "# both kept."}},
+		{path: []string{"port"}, lines: []string{"# plain YAML comments travel too"}},
+		{lines: []string{"# this block ends the file and belongs to nothing"}},
+	}, comments)
+}
+
+func TestKclComment(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "# renovate: datasource=docker", kclComment("#! renovate: datasource=docker"))
+	assert.Equal(t, "# no space after the marker", kclComment("#no space after the marker"))
+	assert.Equal(t, "#", kclComment("#"))
+}

@@ -344,3 +344,99 @@ func validationKwargs(args string) []string {
 	}
 	return names
 }
+
+// yttComment is the comment block a data-values file writes above one of its values, ready to
+// be written into the generated KCL.
+type yttComment struct {
+	path  []string
+	lines []string
+}
+
+// yttComments returns the comments a data-values file writes above its mapping keys, each with
+// the path of the value it belongs to. The conversion moves a value out of the file it was
+// written in, and what someone wrote next to it — why the value is what it is, a tool's
+// annotation such as Renovate's — has to travel with it.
+//
+// Only the block above a mapping key is read. A comment inside a sequence or after a value
+// has no attribute of its own to sit above in the generated schema, and is left behind.
+func yttComments(content []byte) ([]yttComment, error) {
+	lines := strings.Split(string(content), "\n")
+	var found []yttComment
+	decoder := yaml.NewDecoder(bytes.NewReader(content))
+	for {
+		var doc yaml.Node
+		if err := decoder.Decode(&doc); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			return nil, fmt.Errorf("parsing: %w", err)
+		}
+		if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
+			continue
+		}
+		collectComments(doc.Content[0], lines, nil, &found)
+	}
+	if trailing := trailingComments(lines); len(trailing) > 0 {
+		found = append(found, yttComment{lines: trailing})
+	}
+	return found, nil
+}
+
+// trailingComments returns the comment block a file ends with, which sits above no value and
+// therefore reaches no attribute of the generated KCL. It is reported so that a note left
+// there — a Renovate marker tracking a version the file does not state, say — is not lost
+// with the legacy file.
+func trailingComments(lines []string) []string {
+	var block []string
+	for i := len(lines) - 1; i >= 0; i-- {
+		line := strings.TrimSpace(lines[i])
+		if line == "" {
+			continue
+		}
+		if !strings.HasPrefix(line, "#") {
+			break
+		}
+		if !strings.HasPrefix(line, "#@") {
+			block = append([]string{kclComment(line)}, block...)
+		}
+	}
+	return block
+}
+
+func collectComments(node *yaml.Node, lines, path []string, out *[]yttComment) {
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		key, value := node.Content[i], node.Content[i+1]
+		childPath := append(slices.Clone(path), key.Value)
+		// The comment block of an entry reaches from the blank line above it to its own line.
+		start, _ := entryRange(lines, key.Line)
+		var block []string
+		for _, line := range lines[start:key.Line] {
+			line = strings.TrimSpace(line)
+			// A `#@` directive is a comment to YAML but code to ytt: it carries no meaning
+			// into KCL, where the value it annotated is stated in KCL's own terms.
+			if !strings.HasPrefix(line, "#") || strings.HasPrefix(line, "#@") {
+				continue
+			}
+			block = append(block, kclComment(line))
+		}
+		if len(block) > 0 {
+			*out = append(*out, yttComment{path: childPath, lines: block})
+		}
+		if value.Kind == yaml.MappingNode {
+			collectComments(value, lines, childPath, out)
+		}
+	}
+}
+
+// kclComment rewrites one comment line as KCL writes comments. ytt's own comment marker
+// (`#!`) means nothing outside a ytt template, so only the `#` of it is kept — which is what
+// a pattern matching such a comment in the generated files has to look for.
+func kclComment(line string) string {
+	if rest, ok := strings.CutPrefix(line, "#!"); ok {
+		line = "#" + rest
+	}
+	if rest, ok := strings.CutPrefix(line, "#"); ok && rest != "" && !strings.HasPrefix(rest, " ") {
+		line = "# " + rest
+	}
+	return line
+}
