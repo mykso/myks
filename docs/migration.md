@@ -32,8 +32,8 @@ Running `myks migrate` in a legacy repository writes:
     below. Written only when the level needs one.
 
 A data-values file that is a schema document (`#@data/values-schema`) is resolved by ytt
-itself (`ytt --data-values-schema-inspect`), so its converted defaults carry the schema
-semantics plain YAML parsing cannot see: a schema array declares only the type of its items
+itself (`ytt --data-values-schema-inspect`, with the repo's ytt library directory on the
+path), so its converted defaults carry the schema semantics plain YAML parsing cannot see: a schema array declares only the type of its items
 and defaults to `[]` unless `#@schema/default` says otherwise, `#@schema/default` wins over
 the written value, and a `#@schema/nullable` key defaults to null. Its `#@schema/validation`
 constraints feed the generated prototype schema's type and `check:` block where ytt reports
@@ -41,14 +41,32 @@ them in its OpenAPI output (`min_len`, `max_len`, `min`, `max`, `one_of`; see "T
 prototype schemas" below) — any other validation, a custom rule or a keyword argument ytt does
 not report, is not carried over; the converter warns naming each.
 
-A file translates as plain YAML otherwise. It is skipped only when it contains **ytt
-computation**: a directive with code after it (`#@ load(...)`, `key: #@ expr`), an overlay
-directive that rewrites values instead of merging them (`#@overlay/remove`,
-`#@overlay/replace`, `#@overlay/append`, `#@overlay/insert`), or a schema document ytt cannot
-inspect standalone. A skipped file's *resolved* values are frozen as literals at the leaf
-instead, marked with a `TODO(myks migrate)` comment: application values in that application's
-file, environment values in `patch.k`. The result still renders identically; the literals are
-yours to replace with real KCL derivations.
+A file translates as plain YAML otherwise. **ytt computation** — a directive with code after
+it (`#@ load(...)`, `key: #@ expr`), an annotation that rewrites values instead of merging
+them (`#@overlay/remove`, `#@overlay/replace`, `#@overlay/append`, `#@overlay/insert`,
+`#@yaml/text-templated-strings`) — is handled in the closest way that still renders
+identically:
+
+- **The file resolves on its own.** Its Starlark reads nothing outside itself (a repo-local
+  helper from the ytt library directory is fine), so ytt is asked for the answer and the
+  computed values are converted as literals *where the file sits* — a prototype's in its
+  `proto.k`, a level's in that level's files. The migration report names the paths so the
+  derivations can be written back by hand.
+- **The file needs the render context.** Its Starlark loads `@ytt:data` or `@myks:...`, so
+  what it would answer standalone is not what it answers at render time. The file is then
+  **split**: the values it states plainly are converted as usual, and only the computed ones
+  are left out. The same happens when a self-contained file fails to resolve.
+- **Nothing is left after the split.** Every value in the file is computed, so the file is
+  skipped whole.
+
+Whatever the split leaves out has its *resolved* value frozen as a literal at the leaf,
+marked with a `TODO(myks migrate)` comment: application values in that application's file,
+environment values in `patch.k`. The result still renders identically; the literals are yours
+to replace with real KCL derivations.
+
+Within one directory the schema documents are merged before the plain data-values documents,
+the way ytt resolves them — a schema's defaults never win over a value file that sorts before
+it.
 
 The application files unify into one accumulator, `_apps`, which `env.k` folds into
 `applications`:

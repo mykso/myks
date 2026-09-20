@@ -83,8 +83,12 @@ type migrator struct {
 	// prototypes/<proto>/proto.k. A prototype absent here gets no schema; its defaults are
 	// hoisted into every declaration instead.
 	protoSchemas map[string]string
-	// skipped lists data files containing ytt logic; their values are frozen into leaf patches.
-	skipped []string
+	// skipped lists the data files the conversion could not carry over in full; their values
+	// are frozen into leaf patches.
+	skipped []skippedFile
+	// resolved lists the data files ytt resolved standalone: their computed values are
+	// converted as literals where the file sits.
+	resolved []skippedFile
 	// warnings lists conditions the user must resolve by hand.
 	warnings []string
 	// patched counts leaf-level patched value paths.
@@ -120,6 +124,13 @@ type migNode struct {
 type migApp struct {
 	name, proto string
 	values      map[string]any
+}
+
+// skippedFile is one data file the conversion could not carry over in full: deferred lists
+// the value paths left to the leaf patches, or is empty when the whole file was.
+type skippedFile struct {
+	file     string
+	deferred []string
 }
 
 func (n *migNode) chain() []*migNode {
@@ -315,23 +326,33 @@ type convertedFile struct {
 	schema *inspectedSchema
 }
 
-// convertFileGlob converts all files matching the glob into one merged result.
+// convertFileGlob converts all files matching the glob into one merged result. A schema
+// document's values are its defaults, which a plain data-values document of the same directory
+// overrides whichever way the two sort — so the schemas merge first, as ytt resolves them.
 func (m *migrator) convertFileGlob(pattern string) (*convertedFile, error) {
 	files, err := filepath.Glob(pattern)
 	if err != nil {
 		return nil, fmt.Errorf("globbing %s: %w", pattern, err)
 	}
-	merged := &convertedFile{values: map[string]any{}}
+	converted := make([]*convertedFile, 0, len(files))
 	for _, file := range files {
-		converted, err := m.convertDataFile(file)
+		file, err := m.convertDataFile(file)
 		if err != nil {
 			return nil, err
 		}
-		if converted == nil {
-			continue
+		if file != nil {
+			converted = append(converted, file)
 		}
-		merged.values = mergeValues(merged.values, converted.values)
-		merged.schema = mergeInspectedSchemas(merged.schema, converted.schema)
+	}
+	merged := &convertedFile{values: map[string]any{}}
+	for _, schemaFirst := range []bool{true, false} {
+		for _, file := range converted {
+			if (file.schema != nil) != schemaFirst {
+				continue
+			}
+			merged.values = mergeValues(merged.values, file.values)
+			merged.schema = mergeInspectedSchemas(merged.schema, file.schema)
+		}
 	}
 	return merged, nil
 }
@@ -372,13 +393,11 @@ func valuesOf(converted map[string]*convertedFile) map[string]map[string]any {
 }
 
 var (
-	// hasYttLogicRe detects ytt computation in a data file: a directive with code after it
-	// (`#@ load(...)`, `key: #@ expr`), or an overlay directive that rewrites values instead
-	// of merging them (`#@overlay/remove`, which plain YAML parsing would keep). Plain
-	// document headers (`#@data/values`) and pure matching hints
-	// (`#@overlay/match-child-defaults`) do not match. Schema annotations do not either:
-	// a schema document is resolved by ytt itself, which is what they are for.
-	hasYttLogicRe = regexp.MustCompile(`#@[ \t]|#@overlay/(remove|replace|append|insert)`)
+	// renderContextRe detects a data file whose computation reads the render context — the
+	// merged data values, or the environment library myks generates per application. Such a
+	// file cannot be resolved on its own: what it would answer standalone is not what it
+	// answers at render time.
+	renderContextRe = regexp.MustCompile(`@ytt:data|@myks:`)
 	// schemaDocRe detects a data-values schema document. ytt forbids mixing schema and plain
 	// data-values documents in one file, so one match settles how the whole file is read.
 	schemaDocRe = regexp.MustCompile(`(?m)^#@data/values-schema\b`)
@@ -433,28 +452,36 @@ func mergeInspectedSchemas(base, next *inspectedSchema) *inspectedSchema {
 	return base
 }
 
-// convertDataFile converts one data-values file. A schema document is inspected by ytt, so
-// its defaults carry the schema semantics plain YAML cannot see (an array defaults to empty
-// unless annotated, `#@schema/default` wins over the written value, a nullable key defaults
-// to null); a plain data-values document is parsed as YAML, which is what it is. Files
-// containing ytt logic are skipped (nil result) and recorded: their values are computed.
+// convertDataFile converts one data-values file.
+//
+// A file with no ytt computation is read for what it says (convertPlainFile). A file that
+// computes values is asked of ytt when it resolves on its own, and split otherwise, so the
+// values it does state plainly are still converted (convertComputedFile).
 func (m *migrator) convertDataFile(file string) (*convertedFile, error) {
 	content, err := os.ReadFile(file) // #nosec G304 -- paths come from globbing the repo being migrated
 	if err != nil {
 		return nil, fmt.Errorf("reading %s: %w", file, err)
 	}
-	if hasYttLogicRe.Match(content) {
-		m.skipped = append(m.skipped, file)
-		return nil, nil
+	isSchema := schemaDocRe.Match(content)
+	if fileComputes(content) {
+		return m.convertComputedFile(file, content, isSchema)
 	}
+	return m.convertPlainFile(file, content, isSchema)
+}
 
-	if schemaDocRe.Match(content) {
-		schema, err := m.inspectSchemaFile(file)
+// convertPlainFile converts content that ytt computes nothing in: a schema document through
+// ytt, so its defaults carry the schema semantics plain YAML parsing cannot see (an array
+// defaults to empty unless annotated, `#@schema/default` wins over the written value, a
+// nullable key defaults to null); a data-values document as the YAML it is.
+//
+// A schema document ytt cannot inspect standalone is skipped (nil result) and recorded: only
+// the legacy-resolved output can settle it.
+func (m *migrator) convertPlainFile(file string, content []byte, isSchema bool) (*convertedFile, error) {
+	if isSchema {
+		schema, err := m.inspectSchema(file, content)
 		if err != nil {
-			// The file declares a schema ytt itself cannot resolve standalone; freezing its
-			// values from the legacy-resolved output is the safe answer.
 			log.Debug().Err(err).Msg(m.g.Msg("Falling back to freezing " + file))
-			m.skipped = append(m.skipped, file)
+			m.skip(file, nil)
 			return nil, nil
 		}
 		m.warnUnmappedValidations(file, content)
@@ -476,11 +503,137 @@ func (m *migrator) convertDataFile(file string) (*convertedFile, error) {
 	return &convertedFile{values: values}, nil
 }
 
-// inspectSchemaFile resolves one schema document the way ytt sees it. Only the schema is
+// convertComputedFile converts a file whose values ytt computes.
+//
+// When the file resolves on its own — its Starlark reads nothing but itself and the repo's
+// ytt library — ytt is asked for the answer, and the computed values are converted as
+// literals where the file sits instead of being frozen, per leaf, at the far end of the tree.
+//
+// Otherwise the file is split (splitYttFile): what it states plainly is converted like any
+// other file, and only the computed values are left to the leaf patches. A file with nothing
+// left after the split is skipped (nil result) and recorded.
+func (m *migrator) convertComputedFile(file string, content []byte, isSchema bool) (*convertedFile, error) {
+	// A file whose computation needs the render context (the merged data values, the
+	// environment library myks generates per application) answers standalone something other
+	// than what it answers at render time, so ytt is not asked.
+	if !renderContextRe.Match(content) {
+		converted, err := m.resolveStandalone(file, content, isSchema)
+		if err == nil {
+			m.resolvedByYtt(file, content)
+			return converted, nil
+		}
+		log.Debug().Err(err).Msg(m.g.Msg("Resolving " + file + " standalone failed; splitting it"))
+	}
+
+	split, err := splitYttFile(content)
+	if err != nil || split.kept == 0 {
+		if err != nil {
+			log.Debug().Err(err).Msg(m.g.Msg("Falling back to freezing " + file))
+		}
+		m.skip(file, nil)
+		return nil, nil
+	}
+	converted, err := m.convertPlainFile(file, split.sanitized, isSchema)
+	if err != nil || converted == nil {
+		// convertPlainFile has recorded the whole-file skip already.
+		return converted, err
+	}
+	if len(split.deferred) > 0 {
+		m.skip(file, split.deferred)
+	}
+	return converted, nil
+}
+
+// resolveStandalone asks ytt for the values of a file that resolves on its own.
+func (m *migrator) resolveStandalone(file string, content []byte, isSchema bool) (*convertedFile, error) {
+	if isSchema {
+		schema, err := m.inspectSchema(file, content)
+		if err != nil {
+			return nil, err
+		}
+		m.warnUnmappedValidations(file, content)
+		return &convertedFile{values: schema.defaults, schema: schema}, nil
+	}
+	values, err := m.resolveDataValues(file, content)
+	if err != nil {
+		return nil, err
+	}
+	return &convertedFile{values: values}, nil
+}
+
+// skip records a file the conversion could not carry over in full: with no paths, the whole
+// file; with paths, the values inside it that only ytt can produce.
+func (m *migrator) skip(file string, deferred []string) {
+	m.skipped = append(m.skipped, skippedFile{file: file, deferred: deferred})
+}
+
+// resolvedByYtt records a file ytt resolved standalone: the values its Starlark computed are
+// converted as literals where the file sits, so the report names them for the hand-finish.
+func (m *migrator) resolvedByYtt(file string, content []byte) {
+	computed := []string{"its computed values"}
+	if split, err := splitYttFile(content); err == nil && len(split.deferred) > 0 {
+		computed = split.deferred
+	}
+	m.resolved = append(m.resolved, skippedFile{file: file, deferred: computed})
+}
+
+// resolveDataValues resolves one plain data-values document the way ytt does, on its own: the
+// repo's ytt library is on the path, nothing else, so the result is the file's own values with
+// its Starlark evaluated — no schema defaults from elsewhere mixed in.
+func (m *migrator) resolveDataValues(file string, content []byte) (map[string]any, error) {
+	paths, err := m.standalonePaths(file, content)
+	if err != nil {
+		return nil, err
+	}
+	res, err := runYttWithFilesAndStdin("migrate", paths, nil, func(name string, err error, stderr string, args []string) {
+		if err != nil {
+			log.Debug().Str("stderr", stderr).Msg(m.g.Msg(msgRunCmd("inspect data values", name, args)))
+		}
+	}, "--data-values-inspect")
+	if err != nil {
+		return nil, fmt.Errorf("resolving %s: %w", file, err)
+	}
+	values := map[string]any{}
+	if err := yaml.Unmarshal([]byte(res.Stdout), &values); err != nil {
+		return nil, fmt.Errorf("parsing the resolved values of %s: %w", file, err)
+	}
+	return values, nil
+}
+
+// standalonePaths is the ytt file set that resolves one data file by itself: the repo's ytt
+// library directory, plus a copy of the content to resolve. A ytt load resolves against the
+// file set rather than the filesystem, so the copy may live anywhere; its name only has to be
+// unique and keep the .yaml extension.
+func (m *migrator) standalonePaths(file string, content []byte) ([]string, error) {
+	paths := []string{}
+	if m.g.YttLibraryDirName != "" {
+		libDir := filepath.Join(m.g.RootDir, m.g.YttLibraryDirName)
+		if ok, err := isExist(libDir); err == nil && ok {
+			paths = append(paths, libDir)
+		}
+	}
+	flat := nonIdentifierCharRe.ReplaceAllString(strings.TrimSuffix(file, filepath.Ext(file)), "_")
+	copied := filepath.Join(m.g.RootDir, m.g.ServiceDirName, m.g.TempDirName, "migrate", "standalone", flat+".yaml")
+	if err := writeFile(copied, content); err != nil {
+		return nil, fmt.Errorf("writing the standalone copy of %s: %w", file, err)
+	}
+	return append(paths, copied), nil
+}
+
+// inspectSchema resolves one schema document the way ytt sees it. Only the schema is
 // inspected, so a schema whose defaults would fail its own validations (`min_len=1` on an
-// empty default, which a prototype uses to demand a value) still converts.
-func (m *migrator) inspectSchemaFile(file string) (*inspectedSchema, error) {
-	res, err := runYttWithFilesAndStdin("migrate", []string{file}, nil, func(name string, err error, stderr string, args []string) {
+// empty default, which a prototype uses to demand a value) still converts. content is what is
+// inspected — the file itself, or what splitYttFile left of it.
+//
+// The repo's ytt library directory is on the path, so a schema loading a repo-local Starlark
+// helper resolves like it does at render time. The engine's own data schema is not: it would
+// merge its defaults into this document's.
+func (m *migrator) inspectSchema(file string, content []byte) (*inspectedSchema, error) {
+	paths, err := m.standalonePaths(file, content)
+	if err != nil {
+		return nil, err
+	}
+	res, err := runYttWithFilesAndStdin("migrate", paths, nil, func(name string, err error, stderr string, args []string) {
 		if err != nil {
 			log.Debug().Str("stderr", stderr).Msg(m.g.Msg(msgRunCmd("inspect data values schema", name, args)))
 		}
@@ -1025,12 +1178,23 @@ func (m *migrator) warn(format string, args ...any) {
 }
 
 func (m *migrator) printReport() {
-	for _, file := range m.skipped {
+	for _, skipped := range m.skipped {
+		if len(skipped.deferred) == 0 {
+			log.Warn().Msg(m.g.Msg(fmt.Sprintf(
+				"Skipped %s: it contains ytt logic; its resolved values are frozen in leaf-level TODO patches", skipped.file)))
+			continue
+		}
 		log.Warn().Msg(m.g.Msg(fmt.Sprintf(
-			"Skipped %s: it contains ytt logic; its resolved values are frozen in leaf-level TODO patches", file)))
+			"Converted %s without %s: computed by ytt logic, frozen in leaf-level TODO patches",
+			skipped.file, strings.Join(skipped.deferred, ", "))))
 	}
 	for _, warning := range m.warnings {
 		log.Warn().Msg(m.g.Msg(warning))
+	}
+	for _, resolved := range m.resolved {
+		log.Warn().Msg(m.g.Msg(fmt.Sprintf(
+			"Resolved %s with ytt: %s are converted as literals; turn them into KCL derivations",
+			resolved.file, strings.Join(resolved.deferred, ", "))))
 	}
 	if m.patched > 0 {
 		log.Info().Msg(m.g.Msg(fmt.Sprintf(

@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHasYttLogicRe(t *testing.T) {
+func TestFileComputes(t *testing.T) {
 	tests := []struct {
 		name    string
 		content string
@@ -30,10 +30,12 @@ func TestHasYttLogicRe(t *testing.T) {
 		{"schema type annotation", "#@data/values-schema\n---\n#@schema/type any=True\nfoo: bar\n", false},
 		{"schema doc with a load directive", "#@ load(\"@ytt:data\", \"data\")\n#@data/values-schema\n---\nfoo: bar\n", true},
 		{"plain comment", "#! just a comment\n#@data/values\n---\nfoo: bar\n", false},
+		{"templated string", "#@data/values\n---\n#@yaml/text-templated-strings\nfoo: |\n  (@= x @)\n", true},
+		{"overlay match", "#@data/values\n---\n#@overlay/match by=\"name\"\nfoo: bar\n", true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, hasYttLogicRe.MatchString(tt.content))
+			assert.Equal(t, tt.want, fileComputes([]byte(tt.content)))
 		})
 	}
 }
@@ -252,12 +254,29 @@ application:
 		assert.Nil(t, converted.schema)
 	})
 
-	t.Run("computed document is skipped", func(t *testing.T) {
-		path := write(t, "computed.ytt.yaml", "#@ load(\"@ytt:data\", \"data\")\n#@data/values-schema\n---\nfoo: bar\n")
+	t.Run("computed values are split out, the plain ones are kept", func(t *testing.T) {
+		path := write(t, "computed.ytt.yaml", `#@ load("@myks:data.lib.yaml", "env_data")
+
+#@data/values-schema
+---
+application:
+  baseValue: true
+  envId: #@ env_data.environment.id
+`)
+		converted, err := m.convertDataFile(path)
+		require.NoError(t, err)
+		require.NotNil(t, converted)
+		app := converted.values["application"].(map[string]any)
+		assert.Equal(t, map[string]any{"baseValue": true}, app, "only the computed value is left to the leaf patch")
+		assert.Contains(t, m.skipped, skippedFile{file: path, deferred: []string{".application.envId"}})
+	})
+
+	t.Run("a document that cannot be split is skipped whole", func(t *testing.T) {
+		path := write(t, "all-computed.ytt.yaml", "#@ load(\"@myks:data.lib.yaml\", \"env_data\")\n#@data/values-schema\n---\nfoo: #@ env_data.environment.id\n")
 		converted, err := m.convertDataFile(path)
 		require.NoError(t, err)
 		assert.Nil(t, converted)
-		assert.Contains(t, m.skipped, path)
+		assert.Contains(t, m.skipped, skippedFile{file: path})
 	})
 }
 
