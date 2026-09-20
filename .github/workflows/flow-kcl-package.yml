@@ -3,6 +3,7 @@ name: flow-kcl-package
 # Publishes the myks KCL schema package (kcl/myks) to the OCI registry.
 # The tag is the version in kcl/myks/kcl.mod. Bump it for every package change.
 'on':
+  workflow_dispatch:
   push:
     branches:
       - main
