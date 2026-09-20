@@ -52,6 +52,9 @@ const (
 	constraintMinimum   = "minimum"
 	constraintMaximum   = "maximum"
 	constraintEnum      = "enum"
+	// constraintNotNull has no OpenAPI counterpart: it is read from the `#@schema/validation`
+	// annotation itself (yttValidations).
+	constraintNotNull = "notNull"
 )
 
 // openapiDoc is the top-level shape ytt prints for `--data-values-schema-inspect -o openapi-v3`.
@@ -108,9 +111,7 @@ func parseSchemaInspect(openapiYAML []byte) (*inspectedSchema, error) {
 
 	var constraints []schemaConstraint
 	collectConstraints(root, nil, &constraints)
-	sort.Slice(constraints, func(i, j int) bool {
-		return constraintLess(constraints[i], constraints[j])
-	})
+	sortConstraints(constraints)
 
 	return &inspectedSchema{
 		defaults:    defaults,
@@ -187,6 +188,14 @@ func collectConstraints(node *openapiNode, path []string, out *[]schemaConstrain
 	for name, prop := range node.Properties {
 		collectConstraints(prop, append(append([]string{}, path...), name), out)
 	}
+}
+
+// sortConstraints puts constraints in a deterministic order, whatever the map iteration order
+// that produced them.
+func sortConstraints(constraints []schemaConstraint) {
+	sort.Slice(constraints, func(i, j int) bool {
+		return constraintLess(constraints[i], constraints[j])
+	})
 }
 
 // constraintLess orders constraints by path element by element, then by kind, so the result is

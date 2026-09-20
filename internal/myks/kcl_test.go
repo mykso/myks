@@ -104,6 +104,8 @@ func TestWriteKclDataFiles(t *testing.T) {
 	require.NoError(t, yaml.Unmarshal(valuesContent, &plainValues))
 	assert.Contains(t, plainValues, "helm")
 	assert.NotContains(t, plainValues, "application")
+	assert.Contains(t, string(valuesContent), "#@overlay/replace\n    charts:",
+		"an array replaces the one below it instead of merging element by element")
 
 	// re-running with an emptied unit leaves no stale content behind
 	require.NoError(t, writeKclDataFiles(schemaPath, valuesPath, nil))

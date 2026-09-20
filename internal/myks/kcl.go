@@ -350,11 +350,55 @@ func writeKclDataFiles(schemaPath, valuesPath string, values map[string]any) err
 		return err
 	}
 
-	yamlBytes, err := yaml.Marshal(declared)
+	yamlBytes, err := marshalReplacingArrays(declared)
 	if err != nil {
-		return fmt.Errorf("marshalling generated data values: %w", err)
+		return err
 	}
 	return writeFile(valuesPath, append([]byte("#@data/values\n---\n"), yamlBytes...))
+}
+
+// yttOverlayReplace makes a ytt overlay replace the node it annotates instead of merging into
+// it. yaml.v3 emits a comment whose text already starts with `#` verbatim, which is what keeps
+// the annotation marker free of the space a plain comment's hash gets.
+const yttOverlayReplace = "#@overlay/replace"
+
+// marshalReplacingArrays marshals generated values as YAML, annotating every array-valued key
+// with `#@overlay/replace`.
+//
+// ytt overlays an array element by element and appends what is left over, so without the
+// annotation an array stated by one bridge file merges into the array of the file before it:
+// an application clearing `kbld.overrides` would keep the environment's entries, and a
+// shorter list would keep the tail of the longer one below it. The KCL tree is the resolved
+// truth — every array it states is the whole array — so each one replaces rather than merges.
+func marshalReplacingArrays(values map[string]any) ([]byte, error) {
+	var node yaml.Node
+	if err := node.Encode(values); err != nil {
+		return nil, fmt.Errorf("marshalling generated data values: %w", err)
+	}
+	annotateArrayKeys(&node)
+	yamlBytes, err := yaml.Marshal(&node)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling generated data values: %w", err)
+	}
+	return yamlBytes, nil
+}
+
+// annotateArrayKeys marks every array-valued key at or below node with `#@overlay/replace`.
+func annotateArrayKeys(node *yaml.Node) {
+	switch node.Kind {
+	case yaml.DocumentNode, yaml.SequenceNode:
+		for _, child := range node.Content {
+			annotateArrayKeys(child)
+		}
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			key, value := node.Content[i], node.Content[i+1]
+			if value.Kind == yaml.SequenceNode {
+				key.HeadComment = yttOverlayReplace
+			}
+			annotateArrayKeys(value)
+		}
+	}
 }
 
 // splitDeclared splits resolved values against the shape of the embedded data schema. Only
@@ -424,6 +468,12 @@ func renderSchemaExtension(b *strings.Builder, values, schema map[string]any, in
 
 // marshalMapItem renders a single map item as YAML (without trailing newline), leaving key
 // quoting to the YAML marshaller.
+//
+// Unlike the values document, arrays here are not marked `#@overlay/replace`: a schema
+// extension declares keys the base schema does not have, and ytt drops a `replace` that
+// matches nothing rather than adding it. These keys are typed `any`, so two levels declaring
+// the same one still merge their arrays element by element — the converter reports such a
+// value instead (see migrate.go, diffValues).
 func marshalMapItem(key string, value any) (string, error) {
 	yamlBytes, err := yaml.Marshal(map[string]any{key: value})
 	if err != nil {

@@ -76,6 +76,8 @@ type migrator struct {
 	root  *migNode
 	// protoBase holds the converted prototypes/<proto>/app-data values (root-level contributions).
 	protoBase map[string]map[string]any
+	// protoComputed mirrors protoBase with the paths ytt resolved rather than the files stating.
+	protoComputed map[string][]string
 	// protoInspected holds, per prototype, what its app-data schema document declares:
 	// attribute types and validations, which the generated base schema restates.
 	protoInspected map[string]*inspectedSchema
@@ -83,6 +85,10 @@ type migrator struct {
 	// prototypes/<proto>/proto.k. A prototype absent here gets no schema; its defaults are
 	// hoisted into every declaration instead.
 	protoSchemas map[string]string
+	// protoPlans holds the schemas planned for each prototype in protoSchemas. The plan is what
+	// proto.k is rendered from, and what the patch simulation consults for the defaults KCL
+	// supplies on its own.
+	protoPlans map[string]*protoSchemaPlan
 	// skipped lists the data files the conversion could not carry over in full; their values
 	// are frozen into leaf patches.
 	skipped []skippedFile
@@ -119,6 +125,11 @@ type migNode struct {
 	// protoValues and appValues are the raw _proto/ and _apps/ contributions of this level.
 	protoValues map[string]map[string]any
 	appValues   map[string]map[string]any
+	// envComputed, protoComputed and appComputed mirror the value maps above with the paths
+	// ytt computed, so the writer can mark those literals for the hand-finish.
+	envComputed   []string
+	protoComputed map[string][]string
+	appComputed   map[string][]string
 }
 
 type migApp struct {
@@ -232,6 +243,9 @@ func (m *migrator) newNode(dir string, parent *migNode) *migNode {
 		appPatches:  map[string]map[string]any{},
 		protoValues: map[string]map[string]any{},
 		appValues:   map[string]map[string]any{},
+
+		protoComputed: map[string][]string{},
+		appComputed:   map[string][]string{},
 	}
 	m.nodes[dir] = node
 	return node
@@ -249,6 +263,7 @@ func (m *migrator) collectContributions() error {
 			return err
 		}
 		node.envValues = envData.values
+		node.envComputed = envData.computed
 		m.extractEnvironmentScope(node)
 
 		protoOverrides, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.PrototypeOverrideDir), cfg.ApplicationDataFileName)
@@ -256,11 +271,13 @@ func (m *migrator) collectContributions() error {
 			return err
 		}
 		node.protoValues = valuesOf(protoOverrides)
+		node.protoComputed = computedOf(protoOverrides)
 		apps, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.AppsDir), cfg.ApplicationDataFileName)
 		if err != nil {
 			return err
 		}
 		node.appValues = valuesOf(apps)
+		node.appComputed = computedOf(apps)
 	}
 
 	prototypes, err := m.convertPerDirGlobs(filepath.Join(m.g.RootDir, cfg.PrototypesDir), cfg.ApplicationDataFileName)
@@ -268,6 +285,7 @@ func (m *migrator) collectContributions() error {
 		return err
 	}
 	m.protoBase = valuesOf(prototypes)
+	m.protoComputed = computedOf(prototypes)
 	m.protoInspected = map[string]*inspectedSchema{}
 	for proto, converted := range prototypes {
 		if converted.schema != nil {
@@ -324,6 +342,9 @@ func (m *migrator) extractEnvironmentScope(node *migNode) {
 type convertedFile struct {
 	values map[string]any
 	schema *inspectedSchema
+	// computed lists the dotted paths ytt resolved rather than the file stating them, so the
+	// generated file can mark those literals as the derivations they were.
+	computed []string
 }
 
 // convertFileGlob converts all files matching the glob into one merged result. A schema
@@ -352,6 +373,7 @@ func (m *migrator) convertFileGlob(pattern string) (*convertedFile, error) {
 			}
 			merged.values = mergeValues(merged.values, file.values)
 			merged.schema = mergeInspectedSchemas(merged.schema, file.schema)
+			merged.computed = append(merged.computed, file.computed...)
 		}
 	}
 	return merged, nil
@@ -383,6 +405,17 @@ func (m *migrator) convertPerDirGlobs(base, filePattern string) (map[string]*con
 	return result, nil
 }
 
+// computedOf keeps the computed paths of a per-directory conversion.
+func computedOf(converted map[string]*convertedFile) map[string][]string {
+	computed := make(map[string][]string, len(converted))
+	for name, file := range converted {
+		if len(file.computed) > 0 {
+			computed[name] = file.computed
+		}
+	}
+	return computed
+}
+
 // valuesOf drops the schema half of a per-directory conversion.
 func valuesOf(converted map[string]*convertedFile) map[string]map[string]any {
 	values := make(map[string]map[string]any, len(converted))
@@ -401,40 +434,46 @@ var (
 	// schemaDocRe detects a data-values schema document. ytt forbids mixing schema and plain
 	// data-values documents in one file, so one match settles how the whole file is read.
 	schemaDocRe = regexp.MustCompile(`(?m)^#@data/values-schema\b`)
-	// validationKwargRe captures the keyword arguments of a `#@schema/validation` annotation,
-	// whose body is Starlark rather than YAML and so is read as text.
-	validationKwargRe = regexp.MustCompile(`(?m)^\s*#@schema/validation\s+(.*)$`)
-	kwargNameRe       = regexp.MustCompile(`([a-zA-Z_][a-zA-Z0-9_]*)\s*=`)
-	// comparisonRe matches the operators of a custom rule's expression, which would otherwise
-	// read as keyword arguments (`lambda v: v == v.lower()`).
-	comparisonRe = regexp.MustCompile(`[!<>=]=`)
 )
 
-// mappedValidationKwargs are the `#@schema/validation` keyword arguments ytt reports in its
-// OpenAPI output, and so the only ones the generated KCL check block can restate.
-var mappedValidationKwargs = map[string]bool{"min_len": true, "max_len": true, "min": true, "max": true, "one_of": true}
+// mappedValidationKwargs are the `#@schema/validation` keyword arguments the generated KCL
+// schema restates: those ytt reports in its OpenAPI output, plus `not_null`, which the
+// converter reads from the annotation itself (yttValidations).
+var mappedValidationKwargs = map[string]bool{
+	"min_len": true, "max_len": true, "min": true, "max": true, "one_of": true, "not_null": true,
+}
 
-// warnUnmappedValidations reports the validations that do not survive the conversion: ytt's
-// OpenAPI output carries neither custom rules (a lambda or a named function) nor the
-// keyword arguments that have no OpenAPI counterpart.
-func (m *migrator) warnUnmappedValidations(file string, content []byte) {
-	lost := map[string]bool{}
-	for _, match := range validationKwargRe.FindAllSubmatch(content, -1) {
-		body := comparisonRe.ReplaceAllString(string(match[1]), " ")
-		named := false
-		for _, kwarg := range kwargNameRe.FindAllStringSubmatch(body, -1) {
-			named = true
-			if !mappedValidationKwargs[kwarg[1]] {
-				lost[kwarg[1]] = true
+// carryValidations completes the inspected schema with the validations ytt's OpenAPI output
+// drops, and reports the ones that reach no KCL expression.
+//
+// `not_null` becomes a constraint like any other; a custom rule (a lambda or a named function)
+// and a keyword argument with no counterpart cannot be translated, so the warning names the
+// path of each, which is where the check has to be written by hand.
+func (m *migrator) carryValidations(file string, content []byte, schema *inspectedSchema) {
+	validations, err := yttValidations(content)
+	if err != nil {
+		log.Debug().Err(err).Msg(m.g.Msg("Reading the schema validations of " + file))
+		return
+	}
+	var lost []string
+	for _, validation := range validations {
+		for _, kwarg := range validation.kwargs {
+			switch {
+			case kwarg == "not_null":
+				schema.constraints = append(schema.constraints,
+					schemaConstraint{path: validation.path, kind: constraintNotNull})
+			case mappedValidationKwargs[kwarg]:
+			case kwarg == "":
+				lost = append(lost, strings.Join(validation.path, ".")+" (custom rule)")
+			default:
+				lost = append(lost, strings.Join(validation.path, ".")+" ("+kwarg+")")
 			}
 		}
-		if !named {
-			lost["custom rule"] = true
-		}
 	}
+	sortConstraints(schema.constraints)
 	if len(lost) > 0 {
 		m.warn("%s: schema validations not carried into the generated KCL schema: %s; restate them in its check block by hand",
-			file, strings.Join(slices.Sorted(maps.Keys(lost)), ", "))
+			file, strings.Join(unique(lost), ", "))
 	}
 }
 
@@ -484,7 +523,7 @@ func (m *migrator) convertPlainFile(file string, content []byte, isSchema bool) 
 			m.skip(file, nil)
 			return nil, nil
 		}
-		m.warnUnmappedValidations(file, content)
+		m.carryValidations(file, content, schema)
 		return &convertedFile{values: schema.defaults, schema: schema}, nil
 	}
 
@@ -519,7 +558,7 @@ func (m *migrator) convertComputedFile(file string, content []byte, isSchema boo
 	if !renderContextRe.Match(content) {
 		converted, err := m.resolveStandalone(file, content, isSchema)
 		if err == nil {
-			m.resolvedByYtt(file, content)
+			converted.computed = m.resolvedByYtt(file, content)
 			return converted, nil
 		}
 		log.Debug().Err(err).Msg(m.g.Msg("Resolving " + file + " standalone failed; splitting it"))
@@ -551,7 +590,7 @@ func (m *migrator) resolveStandalone(file string, content []byte, isSchema bool)
 		if err != nil {
 			return nil, err
 		}
-		m.warnUnmappedValidations(file, content)
+		m.carryValidations(file, content, schema)
 		return &convertedFile{values: schema.defaults, schema: schema}, nil
 	}
 	values, err := m.resolveDataValues(file, content)
@@ -568,13 +607,20 @@ func (m *migrator) skip(file string, deferred []string) {
 }
 
 // resolvedByYtt records a file ytt resolved standalone: the values its Starlark computed are
-// converted as literals where the file sits, so the report names them for the hand-finish.
-func (m *migrator) resolvedByYtt(file string, content []byte) {
-	computed := []string{"its computed values"}
-	if split, err := splitYttFile(content); err == nil && len(split.deferred) > 0 {
-		computed = split.deferred
+// converted as literals where the file sits, so the report names them for the hand-finish. The
+// paths it returns are the ones the generated file marks with a TODO; a file whose computed
+// paths cannot be pinned down is reported without any, and its literals go unmarked.
+func (m *migrator) resolvedByYtt(file string, content []byte) []string {
+	var paths []string
+	if split, err := splitYttFile(content); err == nil {
+		paths = split.deferred
 	}
-	m.resolved = append(m.resolved, skippedFile{file: file, deferred: computed})
+	reported := paths
+	if len(reported) == 0 {
+		reported = []string{"its computed values"}
+	}
+	m.resolved = append(m.resolved, skippedFile{file: file, deferred: reported})
+	return paths
 }
 
 // resolveDataValues resolves one plain data-values document the way ytt does, on its own: the
@@ -754,9 +800,11 @@ func (m *migrator) prototypeNames() []string {
 // generated tree imports and declares it under the name it now has on disk.
 func (m *migrator) applyPrototypeRename(oldName, newName string) {
 	moveKey(m.protoBase, oldName, newName)
+	moveKey(m.protoComputed, oldName, newName)
 	moveKey(m.protoInspected, oldName, newName)
 	for _, node := range m.nodes {
 		moveKey(node.protoValues, oldName, newName)
+		moveKey(node.protoComputed, oldName, newName)
 		for i := range node.rawRoster {
 			if node.rawRoster[i].proto == oldName {
 				node.rawRoster[i].proto = newName
@@ -799,6 +847,7 @@ func isRealDir(path string) (bool, error) {
 // hoisted into every application declaration, as before, and the warning names the fix.
 func (m *migrator) planPrototypeSchemas() {
 	m.protoSchemas = map[string]string{}
+	m.protoPlans = map[string]*protoSchemaPlan{}
 	prototypesDirUsable := true
 	for component := range strings.SplitSeq(filepath.ToSlash(filepath.Clean(m.g.PrototypesDir)), "/") {
 		if !isKclIdentifier(component) {
@@ -849,6 +898,7 @@ func (m *migrator) planPrototypeSchemas() {
 			continue
 		}
 		m.protoSchemas[proto] = kclSchemaName(proto)
+		m.protoPlans[proto] = newProtoSchemaPlan(m.protoSchemas[proto], values, m.protoInspected[proto])
 	}
 }
 
@@ -894,6 +944,33 @@ func (m *migrator) declarationValues(decl *migNode, name, proto string) map[stri
 		values = mergeValues(values, node.appValues[name])
 	}
 	return values
+}
+
+// declarationComputed lists the paths ytt computed among the values a declaration carries,
+// mirroring declarationValues source for source.
+func (m *migrator) declarationComputed(decl *migNode, name, proto string) []string {
+	var paths []string
+	if m.protoSchemas[proto] == "" {
+		paths = append(paths, m.protoComputed[proto]...)
+	}
+	for _, node := range decl.chain() {
+		paths = append(paths, node.protoComputed[proto]...)
+	}
+	for _, node := range decl.chain() {
+		paths = append(paths, node.appComputed[name]...)
+	}
+	return paths
+}
+
+// protoOf names the prototype an application runs at or below a level. An override level has
+// no roster of its own, so the answer comes from the environments underneath it.
+func protoOf(node *migNode, name string) string {
+	for _, leaf := range node.leaves {
+		if proto, ok := leaf.env.foundApplications[name]; ok {
+			return proto
+		}
+	}
+	return ""
 }
 
 func (m *migrator) placeApplications() {
@@ -1001,7 +1078,8 @@ func (m *migrator) computePatches() error {
 					if decl, ok := node.declared[app.Name]; ok {
 						// The generated declaration instantiates the prototype's schema, so the
 						// simulated values start from that schema's defaults.
-						treeApp = mergeValues(m.protoBase[decl.proto], decl.values)
+						treeApp = m.protoPlans[decl.proto].withElementDefaults(
+							mergeValues(m.protoBase[decl.proto], decl.values), nil)
 						afterDecl = true
 					}
 					continue

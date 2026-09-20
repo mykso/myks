@@ -36,10 +36,11 @@ itself (`ytt --data-values-schema-inspect`, with the repo's ytt library director
 path), so its converted defaults carry the schema semantics plain YAML parsing cannot see: a schema array declares only the type of its items
 and defaults to `[]` unless `#@schema/default` says otherwise, `#@schema/default` wins over
 the written value, and a `#@schema/nullable` key defaults to null. Its `#@schema/validation`
-constraints feed the generated prototype schema's type and `check:` block where ytt reports
-them in its OpenAPI output (`min_len`, `max_len`, `min`, `max`, `one_of`; see "Tighten the
-prototype schemas" below) — any other validation, a custom rule or a keyword argument ytt does
-not report, is not carried over; the converter warns naming each.
+constraints feed the generated prototype schema's type and `check:` block: those ytt reports
+in its OpenAPI output (`min_len`, `max_len`, `min`, `max`, `one_of`), plus `not_null`, which it
+does not report and the converter reads from the annotation text (see "Tighten the prototype
+schemas" below). Any other validation — a custom rule, or a keyword argument with no KCL
+counterpart — is not carried over; the converter warns naming each with its path.
 
 A file translates as plain YAML otherwise. **ytt computation** — a directive with code after
 it (`#@ load(...)`, `key: #@ expr`), an annotation that rewrites values instead of merging
@@ -61,8 +62,10 @@ identically:
 
 Whatever the split leaves out has its *resolved* value frozen as a literal at the leaf,
 marked with a `TODO(myks migrate)` comment: application values in that application's file,
-environment values in `patch.k`. The result still renders identically; the literals are yours
-to replace with real KCL derivations.
+environment values in `patch.k`. A value ytt resolved standalone is converted where its file
+sits and carries the same comment on the line above it, so every literal that used to be a
+derivation is findable in the generated tree. The result still renders identically; the
+literals are yours to replace with real KCL derivations.
 
 Within one directory the schema documents are merged before the plain data-values documents,
 the way ytt resolves them — a schema's defaults never win over a value file that sorts before
@@ -202,14 +205,35 @@ schema WebappApplication:
         len(image) >= 1 if image != Undefined, "application.image must be at least 1 long"
 ```
 
+An array whose ytt schema describes its element gets an element schema the same way, and the
+attribute is typed `[Element]`:
+
+```kcl
+schema WebappApplication:
+    [...str]: any
+    clients?: [WebappApplicationClients] = []
+
+schema WebappApplicationClients:
+    [...str]: any
+    host?: str = ""
+    port?: int = 5001
+    tls?: bool = True
+```
+
+KCL instantiates every element of such a list, so an application writing
+`clients = [{host = "h"}]` still gets `port` and `tls` — which is what ytt did by overlaying
+the stated array onto the schema's.
+
 Every generated schema keeps an index signature, so an application may still set keys the
 prototype never declared, exactly as ytt data values allowed. A value the ytt schema left
 free-form stays a `{str:any}` literal default.
 
 `#@schema/validation` bounds become `check:` items in the schema that owns the field. Reaching
 into a free-form bag they are guarded by the keys on the way, so a check never fails on an
-application that replaced the enclosing scope wholesale. A custom rule or any other validation
-keyword argument the migration warned about is not in that block; restate it there by hand.
+application that replaced the enclosing scope wholesale. `not_null=True` becomes
+`<value> != None`, read from the annotation itself — ytt's OpenAPI output does not carry it. A
+custom rule, or a keyword argument with no KCL counterpart, is not in that block: the
+migration warns naming the path of each, which is where to restate it by hand.
 
 A KCL check runs where the schema is instantiated, that is where the application is declared,
 and again on every override of that instance, while ytt validated the final data values of a
@@ -271,10 +295,13 @@ The converter warns about each of these when it detects them:
   unchanged, but a template that dumps a whole data-values subtree (`yaml.encode`, a Helm
   values file, a ConfigMap body) renders its keys in a different order — and anything hashing
   that text (a `checksum/config` annotation) changes with it.
-- **Array semantics.** ytt *appends* data-values arrays onto schema defaults, while KCL
-  dict union *replaces* lists. The converter simulates the real engine seam, so seeded
-  trees are faithful — but a frozen array literal in a `_patch` can double up after
-  hand-edits. Trust the gate.
+- **Array semantics.** ytt overlays an array element by element and appends what is left
+  over, while KCL dict union *replaces* lists. The generated bridge files state KCL's
+  meaning — every array they carry is annotated `#@overlay/replace` — so a level that
+  shortens or clears a list gets what it wrote. One case is out of reach: a key the engine's
+  data schema does not declare is carried in the generated *schema* document, where ytt drops
+  a `replace` that matches nothing, so two levels stating the same undeclared array still
+  merge element by element. The converter reports such a value; trust the gate.
 - **Merge-order skew.** Legacy merges all `_proto` files (all levels) before all `_apps`
   files; the converted tree merges both per level. Values differing because of this are
   corrected by the leaf patches.

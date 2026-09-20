@@ -122,7 +122,7 @@ func TestWriteKclEntries(t *testing.T) {
 	}
 
 	assign := &kclWriter{}
-	writeKclEntries(assign, values, 0, false)
+	writeKclEntries(assign, values, 0, false, "")
 	assert.Equal(t, `emptyDict = {}
 emptyList = []
 floatValue = 2.0
@@ -141,7 +141,7 @@ plain = "v"
 `, assign.String())
 
 	merge := &kclWriter{}
-	writeKclEntries(merge, map[string]any{"nested": map[string]any{"inner": 1}, "scalar": "v"}, 0, true)
+	writeKclEntries(merge, map[string]any{"nested": map[string]any{"inner": 1}, "scalar": "v"}, 0, true, "")
 	assert.Equal(t, `nested: {
     inner = 1
 }
@@ -280,23 +280,31 @@ application:
 	})
 }
 
-// TestWarnUnmappedValidations verifies the validations ytt's OpenAPI output cannot carry are
-// reported instead of silently dropped.
-func TestWarnUnmappedValidations(t *testing.T) {
+// TestCarryValidations verifies that `not_null` reaches the schema as a constraint and that
+// the validations no KCL expression can state are reported, by path, instead of silently
+// dropped.
+func TestCarryValidations(t *testing.T) {
 	t.Parallel()
 	m := &migrator{}
-	m.warnUnmappedValidations("app-data.ytt.yaml", []byte(`#@data/values-schema
+	schema := &inspectedSchema{}
+	m.carryValidations("app-data.ytt.yaml", []byte(`#@data/values-schema
 ---
 #@schema/validation min_len=1, not_null=True
 a: ''
 #@schema/validation ("must be lowercase", lambda v: v == v.lower())
 b: ''
-#@schema/validation one_of=["x"]
-c: 'x'
-`))
+application:
+  #@schema/validation one_of=["x"]
+  c: 'x'
+  #@schema/validation when=lambda v: True, min_len=1
+  d: 'y'
+`), schema)
+	assert.Equal(t, []schemaConstraint{{path: []string{"a"}, kind: constraintNotNull}}, schema.constraints)
 	require.Len(t, m.warnings, 1)
-	assert.Contains(t, m.warnings[0], "custom rule, not_null")
+	assert.Contains(t, m.warnings[0], "b (custom rule)")
+	assert.Contains(t, m.warnings[0], "application.d (when)")
 	assert.NotContains(t, m.warnings[0], "min_len")
+	assert.NotContains(t, m.warnings[0], "application.c")
 }
 
 func TestWriteProtoK(t *testing.T) {
@@ -311,14 +319,16 @@ components:
         image: {type: string, default: "kb-mcp:1.0.0", minLength: 1}
 `))
 	require.NoError(t, err)
+	values := map[string]any{
+		"helm":  map[string]any{"removeLabels": true},
+		"image": "kb-mcp:1.0.0",
+	}
 	m := &migrator{
-		g:            &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}},
-		protoSchemas: map[string]string{"kb_mcp": "KbMcp"},
-		protoBase: map[string]map[string]any{"kb_mcp": {
-			"helm":  map[string]any{"removeLabels": true},
-			"image": "kb-mcp:1.0.0",
-		}},
+		g:              &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}},
+		protoSchemas:   map[string]string{"kb_mcp": "KbMcp"},
+		protoBase:      map[string]map[string]any{"kb_mcp": values},
 		protoInspected: map[string]*inspectedSchema{"kb_mcp": schema},
+		protoPlans:     map[string]*protoSchemaPlan{"kb_mcp": newProtoSchemaPlan("KbMcp", values, schema)},
 	}
 	require.NoError(t, m.writeProtoK("kb_mcp"))
 
@@ -361,6 +371,7 @@ components:
 		protoSchemas:   map[string]string{"webapp": "Webapp"},
 		protoBase:      map[string]map[string]any{"webapp": values},
 		protoInspected: map[string]*inspectedSchema{"webapp": schema},
+		protoPlans:     map[string]*protoSchemaPlan{"webapp": newProtoSchemaPlan("Webapp", values, schema)},
 	}
 	require.NoError(t, m.writeProtoK("webapp"))
 
@@ -458,4 +469,73 @@ func TestRenderLevelFiles(t *testing.T) {
 	assert.Contains(t, files["app-cache.k"], "_apps: m.Apps {\n    cache: {\n        replicas = 1\n    }\n}\n")
 
 	assert.Contains(t, files[patchKFileName], "_patch = {\n    computed = \"y\"\n}\n")
+}
+
+// TestWriteProtoKArrayElements pins what an array whose ytt schema describes its element
+// buys: the element becomes a schema of its own, so KCL fills in the fields an application's
+// array leaves out — what ytt did by overlaying that array onto the schema's. It also pins
+// `not_null`, which ytt's OpenAPI output drops and the converter reads from the annotation.
+func TestWriteProtoKArrayElements(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	source := []byte(`#@data/values-schema
+---
+application:
+  clients:
+    - host: ""
+      port: 5001
+      insecureSkipVerify: false
+  #@schema/type any=True
+  #@schema/nullable
+  #@schema/validation not_null=True
+  registries:
+`)
+	schema, err := parseSchemaInspect([]byte(`
+components:
+  schemas:
+    dataValues:
+      type: object
+      properties:
+        application:
+          type: object
+          properties:
+            clients:
+              type: array
+              default: []
+              items:
+                type: object
+                properties:
+                  host: {type: string, default: ""}
+                  port: {type: integer, default: 5001}
+                  insecureSkipVerify: {type: boolean, default: false}
+            registries: {type: "null", nullable: true, default: null}
+`))
+	require.NoError(t, err)
+
+	m := &migrator{g: &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}}}
+	m.carryValidations("app-data.ytt.yaml", source, schema)
+	values := schema.defaults
+	pruneDemandedDefaults(values, schema)
+	m.protoSchemas = map[string]string{"csi": "Csi"}
+	m.protoBase = map[string]map[string]any{"csi": values}
+	m.protoInspected = map[string]*inspectedSchema{"csi": schema}
+	m.protoPlans = map[string]*protoSchemaPlan{"csi": newProtoSchemaPlan("Csi", values, schema)}
+	require.NoError(t, m.writeProtoK("csi"))
+
+	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "csi", protoKFileName))
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "    clients?: [CsiApplicationClients] = []\n")
+	assert.Contains(t, string(content),
+		"schema CsiApplicationClients:\n    [...str]: any\n    host?: str = \"\"\n    insecureSkipVerify?: bool = False\n    port?: int = 5001\n")
+	assert.Contains(t, string(content), "    registries?: any\n", "not_null prunes the null default")
+	assert.Contains(t, string(content),
+		`registries != None if registries != Undefined, "application.registries must not be null"`)
+	assert.Empty(t, m.warnings)
+
+	// The element defaults the patch simulation expects are the ones KCL will fill in.
+	completed := m.protoPlans["csi"].withElementDefaults(map[string]any{
+		"application": map[string]any{"clients": []any{map[string]any{"host": "h"}}},
+	}, nil)
+	assert.Equal(t, []any{map[string]any{"host": "h", "port": 5001, "insecureSkipVerify": false}},
+		completed["application"].(map[string]any)["clients"])
 }

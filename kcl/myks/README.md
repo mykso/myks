@@ -23,6 +23,10 @@ env = myks.finalize(parent.env | {
 })
 ```
 
+A list in the tree is the whole list: the engine hands it to ytt annotated
+`#@overlay/replace`, so a level that shortens or empties one gets exactly what it wrote,
+rather than the entries of the level below it.
+
 Published to `oci://ghcr.io/mykso/myks` by CI on changes to this directory
 (`.github/workflows/flow-kcl-package.yml`). Bump `version` in `kcl.mod` together with
 `SCHEMA_VERSION` in `version.k` and `supportedKclSchemaVersion` in the engine.

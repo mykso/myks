@@ -10,9 +10,6 @@ env = m.Environment {
         namespace = "system-argocd"
         app = {
             prefix = "app-"
-            # Kept for parity with the legacy fixture; ytt ignores an empty array in a
-            # data-values document, so the default finalizer stays in the rendered output.
-            finalizers = []
             source = {
                 plugin = {name = "argocd-vault-plugin-v1.0.0"}
                 # Fixed config to run tests successfully in pipeline
