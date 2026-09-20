@@ -1,5 +1,18 @@
+#@ load("global.star", "prefixed")
+
+#@ replicas = 1
+
 #@data/values-schema
 #@overlay/match-child-defaults missing_ok=True
 ---
 application:
+  #! Covers the schema-inspecting conversion: the annotation reaches the generated KCL
+  #! schema as a check, and constrains nothing the fixture does not already satisfy.
+  #@schema/validation one_of=[True]
   baseValue: true
+  #! Cover the derivation converter: a prelude constant, a constant expression and a library
+  #! call reach the generated KCL as the derivations they are, not as the values ytt resolved.
+  #! No template reads them, so the rendered output stays what the legacy tree produced.
+  replicas: #@ replicas
+  maxReplicas: #@ replicas * 3
+  releaseName: #@ prefixed("render-test")

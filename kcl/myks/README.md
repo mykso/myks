@@ -4,6 +4,7 @@ Schemas for the myks KCL configuration layer ([design](../../docs/redesign/desig
 
 - `Environment` — one node of the environment inheritance tree
 - `App` — resolved application configuration; the base for prototype schemas
+- `Apps` — accumulator the per-application files of one level unify into
 - `finalize` — leaf finalizer; validates leaf invariants (non-empty `id`)
 - `SCHEMA_VERSION` — stamped into the frozen tree as `myksSchemaVersion`; the myks engine
   asserts compatibility (same major.minor) at eval time
@@ -21,6 +22,10 @@ env = myks.finalize(parent.env | {
     id = "shop-prod-east"
 })
 ```
+
+A list in the tree is the whole list: the engine hands it to ytt annotated
+`#@overlay/replace`, so a level that shortens or empties one gets exactly what it wrote,
+rather than the entries of the level below it.
 
 Published to `oci://ghcr.io/mykso/myks` by CI on changes to this directory
 (`.github/workflows/flow-kcl-package.yml`). Bump `version` in `kcl.mod` together with

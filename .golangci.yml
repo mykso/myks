@@ -99,6 +99,11 @@ linters:
       - path: 'cmd/embedded/'
         linters:
           - gocritic
+      # The migrate converters emit KCL/Starlark source; repeated literals there are
+      # that language's keywords and type names, not magic strings.
+      - path: 'internal/myks/migrate'
+        linters:
+          - goconst
       # Known issues to address incrementally — nolint these at the source instead.
       - linters:
           - wrapcheck
