@@ -72,13 +72,16 @@ type yttSplit struct {
 	computes, dropped []bool
 	// kept counts the top-level document entries that survived.
 	kept int
+	// exprs maps the dotted path of a dropped entry to the ytt expression that computed it,
+	// where the source states it inline (`key: #@ expr`).
+	exprs map[string]string
 }
 
 // splitYttFile removes from content every value ytt computes, together with the Starlark that
 // computes it, and returns what remains. An error means the file cannot be split — the caller
 // falls back to skipping it whole.
 func splitYttFile(content []byte) (*yttSplit, error) {
-	s := &yttSplit{lines: strings.Split(string(content), "\n")}
+	s := &yttSplit{lines: strings.Split(string(content), "\n"), exprs: map[string]string{}}
 	s.computes = make([]bool, len(s.lines))
 	s.dropped = make([]bool, len(s.lines))
 	for i, line := range s.lines {
@@ -136,20 +139,20 @@ func (s *yttSplit) pruneMapping(node *yaml.Node, path []string) int {
 		// The entry's own annotations reach from the comment block above it to its own line,
 		// which is where `key: #@ expr` puts the computation.
 		if s.computesIn(start, key.Line-1) {
-			s.drop(childPath, start, end)
+			s.drop(childPath, key.Line, start, end)
 			continue
 		}
 		switch {
 		case value.Kind == yaml.MappingNode && len(value.Content) > 0:
 			if s.pruneMapping(value, childPath) == 0 {
-				s.drop(childPath, start, end)
+				s.drop(childPath, key.Line, start, end)
 				continue
 			}
 		default:
 			// A sequence and a block scalar are converted whole, so any computation inside
 			// them takes the entry with it.
 			if s.computesIn(start, end) {
-				s.drop(childPath, start, end)
+				s.drop(childPath, key.Line, start, end)
 				continue
 			}
 		}
@@ -174,11 +177,30 @@ func deepestPaths(paths []string) []string {
 	return deepest
 }
 
-func (s *yttSplit) drop(path []string, start, end int) {
+func (s *yttSplit) drop(path []string, keyLine, start, end int) {
 	for i := start; i <= end && i < len(s.dropped); i++ {
 		s.dropped[i] = true
 	}
-	s.deferred = append(s.deferred, "."+strings.Join(path, "."))
+	dotted := "." + strings.Join(path, ".")
+	s.deferred = append(s.deferred, dotted)
+	if expr, ok := inlineYttExpr(s.lines[keyLine-1]); ok {
+		s.exprs[dotted] = expr
+	}
+}
+
+// inlineYttExpr returns the ytt expression a mapping entry states on its own line, as in
+// `port: #@ 8080`. An entry whose value is computed anywhere else — a templated block, an
+// annotation above it — states none.
+func inlineYttExpr(line string) (string, bool) {
+	marker := strings.Index(line, "#@")
+	if marker < 0 || !strings.HasSuffix(strings.TrimSpace(line[:marker]), ":") {
+		return "", false
+	}
+	expr := strings.TrimSpace(line[marker+2:])
+	if expr == "" {
+		return "", false
+	}
+	return expr, true
 }
 
 func (s *yttSplit) computesIn(start, end int) bool {

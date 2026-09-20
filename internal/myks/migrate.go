@@ -50,6 +50,7 @@ func Migrate(g *Globe, schemaPackage string, force bool) error {
 	if err := m.buildTree(); err != nil {
 		return err
 	}
+	m.translateYttLibrary()
 	if err := m.collectContributions(); err != nil {
 		return err
 	}
@@ -76,8 +77,8 @@ type migrator struct {
 	root  *migNode
 	// protoBase holds the converted prototypes/<proto>/app-data values (root-level contributions).
 	protoBase map[string]map[string]any
-	// protoComputed mirrors protoBase with the paths ytt resolved rather than the files stating.
-	protoComputed map[string][]string
+	// protoDerived mirrors protoBase with the KCL translation of what ytt computed in it.
+	protoDerived map[string]*derivations
 	// protoInspected holds, per prototype, what its app-data schema document declares:
 	// attribute types and validations, which the generated base schema restates.
 	protoInspected map[string]*inspectedSchema
@@ -92,13 +93,23 @@ type migrator struct {
 	// skipped lists the data files the conversion could not carry over in full; their values
 	// are frozen into leaf patches.
 	skipped []skippedFile
-	// resolved lists the data files ytt resolved standalone: their computed values are
-	// converted as literals where the file sits.
+	// resolved lists the data files ytt resolved standalone, with the values its Starlark
+	// computed that no KCL derivation was found for: they are converted as the literals ytt
+	// produced, which is the whole of their meaning — such a file reads nothing outside
+	// itself, so a literal cannot go stale.
 	resolved []skippedFile
+	// libs holds the KCL translation of the repo's ytt library, keyed by file stem, and
+	// libPackage is the KCL package path it is imported under. libImported records whether
+	// any derivation calls into it, which is what decides that the translation is written out.
+	libs        map[string]*yttLib
+	libPackage  string
+	libImported bool
 	// warnings lists conditions the user must resolve by hand.
 	warnings []string
 	// patched counts leaf-level patched value paths.
 	patched int
+	// derivedCount counts the ytt-computed values carried over as KCL derivations.
+	derivedCount int
 	// force allows overwriting the generated files of a previous run.
 	force bool
 }
@@ -125,11 +136,11 @@ type migNode struct {
 	// protoValues and appValues are the raw _proto/ and _apps/ contributions of this level.
 	protoValues map[string]map[string]any
 	appValues   map[string]map[string]any
-	// envComputed, protoComputed and appComputed mirror the value maps above with the paths
-	// ytt computed, so the writer can mark those literals for the hand-finish.
-	envComputed   []string
-	protoComputed map[string][]string
-	appComputed   map[string][]string
+	// envDerived, protoDerived and appDerived mirror the value maps above with the KCL
+	// translation of the ytt computation behind them.
+	envDerived   *derivations
+	protoDerived map[string]*derivations
+	appDerived   map[string]*derivations
 }
 
 type migApp struct {
@@ -244,8 +255,8 @@ func (m *migrator) newNode(dir string, parent *migNode) *migNode {
 		protoValues: map[string]map[string]any{},
 		appValues:   map[string]map[string]any{},
 
-		protoComputed: map[string][]string{},
-		appComputed:   map[string][]string{},
+		protoDerived: map[string]*derivations{},
+		appDerived:   map[string]*derivations{},
 	}
 	m.nodes[dir] = node
 	return node
@@ -263,7 +274,7 @@ func (m *migrator) collectContributions() error {
 			return err
 		}
 		node.envValues = envData.values
-		node.envComputed = envData.computed
+		node.envDerived = envData.derived
 		m.extractEnvironmentScope(node)
 
 		protoOverrides, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.PrototypeOverrideDir), cfg.ApplicationDataFileName)
@@ -271,13 +282,13 @@ func (m *migrator) collectContributions() error {
 			return err
 		}
 		node.protoValues = valuesOf(protoOverrides)
-		node.protoComputed = computedOf(protoOverrides)
+		node.protoDerived = derivedOf(protoOverrides)
 		apps, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.AppsDir), cfg.ApplicationDataFileName)
 		if err != nil {
 			return err
 		}
 		node.appValues = valuesOf(apps)
-		node.appComputed = computedOf(apps)
+		node.appDerived = derivedOf(apps)
 	}
 
 	prototypes, err := m.convertPerDirGlobs(filepath.Join(m.g.RootDir, cfg.PrototypesDir), cfg.ApplicationDataFileName)
@@ -285,7 +296,7 @@ func (m *migrator) collectContributions() error {
 		return err
 	}
 	m.protoBase = valuesOf(prototypes)
-	m.protoComputed = computedOf(prototypes)
+	m.protoDerived = derivedOf(prototypes)
 	m.protoInspected = map[string]*inspectedSchema{}
 	for proto, converted := range prototypes {
 		if converted.schema != nil {
@@ -342,9 +353,9 @@ func (m *migrator) extractEnvironmentScope(node *migNode) {
 type convertedFile struct {
 	values map[string]any
 	schema *inspectedSchema
-	// computed lists the dotted paths ytt resolved rather than the file stating them, so the
-	// generated file can mark those literals as the derivations they were.
-	computed []string
+	// derived holds the KCL translation of the ytt computation of the file, so the generated
+	// file states the derivation instead of the value it produced.
+	derived *derivations
 }
 
 // convertFileGlob converts all files matching the glob into one merged result. A schema
@@ -366,6 +377,7 @@ func (m *migrator) convertFileGlob(pattern string) (*convertedFile, error) {
 		}
 	}
 	merged := &convertedFile{values: map[string]any{}}
+	parts := make([]*derivations, 0, len(converted))
 	for _, schemaFirst := range []bool{true, false} {
 		for _, file := range converted {
 			if (file.schema != nil) != schemaFirst {
@@ -373,9 +385,10 @@ func (m *migrator) convertFileGlob(pattern string) (*convertedFile, error) {
 			}
 			merged.values = mergeValues(merged.values, file.values)
 			merged.schema = mergeInspectedSchemas(merged.schema, file.schema)
-			merged.computed = append(merged.computed, file.computed...)
+			parts = append(parts, file.derived)
 		}
 	}
+	merged.derived = mergeDerivations(parts...)
 	return merged, nil
 }
 
@@ -405,15 +418,15 @@ func (m *migrator) convertPerDirGlobs(base, filePattern string) (map[string]*con
 	return result, nil
 }
 
-// computedOf keeps the computed paths of a per-directory conversion.
-func computedOf(converted map[string]*convertedFile) map[string][]string {
-	computed := make(map[string][]string, len(converted))
+// derivedOf keeps the KCL translations of a per-directory conversion.
+func derivedOf(converted map[string]*convertedFile) map[string]*derivations {
+	derived := make(map[string]*derivations, len(converted))
 	for name, file := range converted {
-		if len(file.computed) > 0 {
-			computed[name] = file.computed
+		if file.derived.has() {
+			derived[name] = file.derived
 		}
 	}
-	return computed
+	return derived
 }
 
 // valuesOf drops the schema half of a per-directory conversion.
@@ -558,7 +571,7 @@ func (m *migrator) convertComputedFile(file string, content []byte, isSchema boo
 	if !renderContextRe.Match(content) {
 		converted, err := m.resolveStandalone(file, content, isSchema)
 		if err == nil {
-			converted.computed = m.resolvedByYtt(file, content)
+			m.deriveStandalone(file, content, converted)
 			return converted, nil
 		}
 		log.Debug().Err(err).Msg(m.g.Msg("Resolving " + file + " standalone failed; splitting it"))
@@ -606,21 +619,82 @@ func (m *migrator) skip(file string, deferred []string) {
 	m.skipped = append(m.skipped, skippedFile{file: file, deferred: deferred})
 }
 
-// resolvedByYtt records a file ytt resolved standalone: the values its Starlark computed are
-// converted as literals where the file sits, so the report names them for the hand-finish. The
-// paths it returns are the ones the generated file marks with a TODO; a file whose computed
-// paths cannot be pinned down is reported without any, and its literals go unmarked.
-func (m *migrator) resolvedByYtt(file string, content []byte) []string {
-	var paths []string
-	if split, err := splitYttFile(content); err == nil {
-		paths = split.deferred
+// translateYttLibrary translates the repo's ytt library to KCL, so a data file calling one of
+// its functions keeps calling it instead of freezing what it returned. A function two library
+// files export under one name is dropped from both: the translation is one KCL package, which
+// cannot hold the name twice.
+func (m *migrator) translateYttLibrary() {
+	m.libs = map[string]*yttLib{}
+	if m.g.YttLibraryDirName == "" {
+		return
 	}
-	reported := paths
-	if len(reported) == 0 {
-		reported = []string{"its computed values"}
+	m.libPackage = packagePath(m.g.YttLibraryDirName)
+	files, err := filepath.Glob(filepath.Join(m.g.RootDir, m.g.YttLibraryDirName, "*.star"))
+	if err != nil {
+		return
 	}
-	m.resolved = append(m.resolved, skippedFile{file: file, deferred: reported})
-	return paths
+	exported := map[string]string{}
+	for _, file := range files {
+		content, err := os.ReadFile(file) // #nosec G304 -- paths come from globbing the repo being migrated
+		if err != nil {
+			continue
+		}
+		lib := translateYttLib(file, content)
+		if lib == nil {
+			continue
+		}
+		for name := range lib.funcs {
+			if owner, taken := exported[name]; taken {
+				log.Debug().Msg(m.g.Msg(fmt.Sprintf("%s and %s both define %s; neither is translated", owner, file, name)))
+				delete(m.libs, filepath.Base(owner))
+				lib = nil
+				break
+			}
+			exported[name] = file
+		}
+		if lib != nil {
+			m.libs[lib.name] = lib
+		}
+	}
+}
+
+// emittedLibs lists the translated library files to write, sorted. The translation is one KCL
+// package, so it is written whole as soon as anything imports it.
+func (m *migrator) emittedLibs() []*yttLib {
+	if !m.libImported {
+		return nil
+	}
+	libs := make([]*yttLib, 0, len(m.libs))
+	for _, name := range slices.Sorted(maps.Keys(m.libs)) {
+		libs = append(libs, m.libs[name])
+	}
+	return libs
+}
+
+// deriveStandalone translates the ytt computation of a file ytt resolved standalone into KCL
+// and keeps what KCL reproduces (verifyDerivations). What it does not translate is converted
+// as the literal ytt resolved and reported: the file reads nothing outside itself, so the
+// literal says everything the computation did, but the derivation behind it is lost.
+func (m *migrator) deriveStandalone(file string, content []byte, converted *convertedFile) {
+	derived := yttDerivations(file, content, m.libs, m.libPackage)
+	m.verifyDerivations(file, derived, converted.values)
+	if derived.has() {
+		converted.derived = derived
+		m.derivedCount += len(derived.exprs)
+		m.libImported = m.libImported || len(derived.imports) > 0
+	}
+
+	split, err := splitYttFile(content)
+	if err != nil {
+		m.resolved = append(m.resolved, skippedFile{file: file, deferred: []string{"its computed values"}})
+		return
+	}
+	literal := slices.DeleteFunc(slices.Clone(split.deferred), func(path string) bool {
+		return converted.derived.hasPath(path)
+	})
+	if len(literal) > 0 {
+		m.resolved = append(m.resolved, skippedFile{file: file, deferred: literal})
+	}
 }
 
 // resolveDataValues resolves one plain data-values document the way ytt does, on its own: the
@@ -800,11 +874,11 @@ func (m *migrator) prototypeNames() []string {
 // generated tree imports and declares it under the name it now has on disk.
 func (m *migrator) applyPrototypeRename(oldName, newName string) {
 	moveKey(m.protoBase, oldName, newName)
-	moveKey(m.protoComputed, oldName, newName)
+	moveKey(m.protoDerived, oldName, newName)
 	moveKey(m.protoInspected, oldName, newName)
 	for _, node := range m.nodes {
 		moveKey(node.protoValues, oldName, newName)
-		moveKey(node.protoComputed, oldName, newName)
+		moveKey(node.protoDerived, oldName, newName)
 		for i := range node.rawRoster {
 			if node.rawRoster[i].proto == oldName {
 				node.rawRoster[i].proto = newName
@@ -946,20 +1020,20 @@ func (m *migrator) declarationValues(decl *migNode, name, proto string) map[stri
 	return values
 }
 
-// declarationComputed lists the paths ytt computed among the values a declaration carries,
+// declarationDerived collects the KCL translations behind the values a declaration carries,
 // mirroring declarationValues source for source.
-func (m *migrator) declarationComputed(decl *migNode, name, proto string) []string {
-	var paths []string
+func (m *migrator) declarationDerived(decl *migNode, name, proto string) *derivations {
+	var parts []*derivations
 	if m.protoSchemas[proto] == "" {
-		paths = append(paths, m.protoComputed[proto]...)
+		parts = append(parts, m.protoDerived[proto])
 	}
 	for _, node := range decl.chain() {
-		paths = append(paths, node.protoComputed[proto]...)
+		parts = append(parts, node.protoDerived[proto])
 	}
 	for _, node := range decl.chain() {
-		paths = append(paths, node.appComputed[name]...)
+		parts = append(parts, node.appDerived[name])
 	}
-	return paths
+	return mergeDerivations(parts...)
 }
 
 // protoOf names the prototype an application runs at or below a level. An override level has
@@ -1270,9 +1344,15 @@ func (m *migrator) printReport() {
 		log.Warn().Msg(m.g.Msg(warning))
 	}
 	for _, resolved := range m.resolved {
-		log.Warn().Msg(m.g.Msg(fmt.Sprintf(
-			"Resolved %s with ytt: %s are converted as literals; turn them into KCL derivations",
+		// Such a file reads nothing outside itself, so the literal ytt resolved says
+		// everything its computation did: this is a note about readability, not a task.
+		log.Info().Msg(m.g.Msg(fmt.Sprintf(
+			"Resolved %s with ytt: %s are converted as literals, their ytt logic having no KCL translation",
 			resolved.file, strings.Join(resolved.deferred, ", "))))
+	}
+	if m.derivedCount > 0 {
+		log.Info().Msg(m.g.Msg(fmt.Sprintf(
+			"Translated %d ytt-computed value(s) into KCL derivations", m.derivedCount)))
 	}
 	if m.patched > 0 {
 		log.Info().Msg(m.g.Msg(fmt.Sprintf(

@@ -47,12 +47,40 @@ func TestMigrateGate(t *testing.T) {
 	if err := myks.Migrate(myks.New("."), schemaPath, true); err != nil {
 		t.Fatalf("Migrate --force failed: %s", err)
 	}
+	assertDerivations(t, migratedRoot)
 	if err := cmd.RenderCmd(myks.New("."), true, true); err != nil {
 		t.Fatalf("Render of the migrated repo failed: %s", err)
 	}
 	chgDir(t, baseFolder, "")
 
 	diffRenderedTrees(t, legacyRoot, migratedRoot, map[string]string{}, normalizeMigratedArgoCDSourcePath)
+}
+
+// assertDerivations checks that the fixture's ytt computation reached the generated tree as
+// the KCL derivations it is, rather than as the values ytt resolved. Byte-identical rendering
+// alone would not notice: a frozen literal renders the same as the derivation behind it.
+func assertDerivations(t *testing.T, root string) {
+	t.Helper()
+	for path, wants := range map[string][]string{
+		filepath.Join("lib", "global.k"): {"prefixed = lambda name {", `"myks-{}".format(name)`},
+		filepath.Join("prototypes", "helm_render_test", "proto.k"): {
+			"import lib",
+			"_replicas = 1",
+			"replicas?: int = _replicas",
+			"maxReplicas?: int = _replicas * 3",
+			`releaseName?: str = lib.prefixed("render-test")`,
+		},
+	} {
+		content, err := os.ReadFile(filepath.Join(root, path))
+		if err != nil {
+			t.Fatalf("reading the generated %s: %s", path, err)
+		}
+		for _, want := range wants {
+			if !strings.Contains(string(content), want) {
+				t.Errorf("the generated %s does not state %q:\n%s", path, want, content)
+			}
+		}
+	}
 }
 
 // copyFixture copies the legacy fixture, skipping the service dir and the rendered output

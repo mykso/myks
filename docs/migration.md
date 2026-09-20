@@ -50,9 +50,9 @@ identically:
 
 - **The file resolves on its own.** Its Starlark reads nothing outside itself (a repo-local
   helper from the ytt library directory is fine), so ytt is asked for the answer and the
-  computed values are converted as literals *where the file sits* — a prototype's in its
-  `proto.k`, a level's in that level's files. The migration report names the paths so the
-  derivations can be written back by hand.
+  computation is translated to KCL *where the file sits* — a prototype's into its `proto.k`,
+  a level's into that level's files (see "Translated ytt computation" below). What has no
+  translation is converted as the literal ytt resolved, and the report names those paths.
 - **The file needs the render context.** Its Starlark loads `@ytt:data` or `@myks:...`, so
   what it would answer standalone is not what it answers at render time. The file is then
   **split**: the values it states plainly are converted as usual, and only the computed ones
@@ -62,10 +62,12 @@ identically:
 
 Whatever the split leaves out has its *resolved* value frozen as a literal at the leaf,
 marked with a `TODO(myks migrate)` comment: application values in that application's file,
-environment values in `patch.k`. A value ytt resolved standalone is converted where its file
-sits and carries the same comment on the line above it, so every literal that used to be a
-derivation is findable in the generated tree. The result still renders identically; the
-literals are yours to replace with real KCL derivations.
+environment values in `patch.k`. The result still renders identically; those literals are
+yours to replace with real KCL derivations.
+
+A value ytt resolved standalone carries no such comment, translated or not: the file it came
+from reads nothing outside itself, so the literal states everything its computation stated.
+The report names the untranslated ones as a readability note, not as a task.
 
 Within one directory the schema documents are merged before the plain data-values documents,
 the way ytt resolves them — a schema's defaults never win over a value file that sorts before
@@ -93,6 +95,34 @@ same file. Splitting a level further is free the same way: any `.k` file you add
 
 The legacy files are left in place so the conversion is easy to inspect and revert
 (`git checkout` / delete `kcl.mod`, `main.k` and the generated level files).
+
+### Translated ytt computation
+
+Starlark and KCL share their literals, operators and comprehensions, so a file ytt resolves
+standalone is carried over as the derivation it was rather than the value it produced:
+
+| ytt | generated KCL |
+| --- | --- |
+| `#@ port = 8080` … `port: #@ port` | `_port = 8080` … `port?: int = _port` |
+| `purge_files_after: #@ 60 * 60 * 24` | `purge_files_after?: int = 60 * 60 * 24` |
+| `#@ for n in nodes:` `#@   hosts.append(n + "." + domain)` `#@ end` | `_hosts = _hosts + [n + "." + _domain for n in _nodes]` |
+| `#@ load("secrets.star", "sops")` … `token: #@ sops("0", "api")` | `import lib` … `token?: str = lib.sops("0", "api")` |
+
+The prelude's top-level assignments become module-level `_`-prefixed variables of the
+generated file, pruned to the ones a derivation reads. A loop whose body only appends to
+lists becomes a comprehension over the same iterable.
+
+Every function of the repo's ytt library whose body is a single `return` is translated to a
+KCL lambda in `<ytt-library-dir>/<file>.k`, imported as one package by the files that call
+it. The `.star` sources stay where they are: ytt templates still load them.
+
+**Nothing is taken on trust.** Each file's derivations are evaluated by KCL — its prelude,
+its imports, one variable per derived value — and compared against what ytt resolved. A
+derivation KCL does not reproduce, or a file that does not evaluate at all, falls back to the
+literal. What has no translation at all: a ytt template function (a `def` with a YAML body),
+`#@ for`/`#@ end` inside the YAML body, a computed value inside a sequence, a keyword
+argument, Starlark's `%` string formatting, and anything reading `@ytt:data` or `@myks:`,
+which never resolves standalone in the first place.
 
 ## Step by step
 
