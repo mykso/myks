@@ -378,7 +378,7 @@ func (m *migrator) extractEnvironmentScope(node *migNode) {
 		switch key {
 		case "id":
 			// The leaf id is taken from the discovered environment.
-		case "applications":
+		case envApplicationsKey:
 			entries, _ := value.([]any)
 			for _, raw := range entries {
 				entry, _ := raw.(map[string]any)

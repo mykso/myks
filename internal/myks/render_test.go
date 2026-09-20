@@ -5,9 +5,19 @@ import (
 	"testing"
 )
 
-var prototypeDir = "prototypes"
-
-var appName = "test-app"
+const (
+	prototypeDir     = "prototypes"
+	testAppName      = "test-app"
+	testEnvID        = "test-env"
+	testServiceDir   = ".myks"
+	testVendirCache  = "vendir-cache"
+	testVendirConfig = "vendir.yaml"
+	testVendirLock   = "vendir.lock.yaml"
+	envProdPath      = "envs/prod"
+	envProdEUPath    = "envs/prod/eu"
+	envProdUSPath    = "envs/prod/us"
+	envStagingPath   = "envs/staging"
+)
 
 var testGlobe = &Globe{
 	Config: Config{
@@ -18,10 +28,10 @@ var testGlobe = &Globe{
 }
 
 var testApp = &Application{
-	Name:      appName,
-	Prototype: prototypeDir + "/" + appName,
+	Name:      testAppName,
+	Prototype: prototypeDir + "/" + testAppName,
 	e: &Environment{
-		ID:  "test-env",
+		ID:  testEnvID,
 		g:   testGlobe,
 		cfg: &testGlobe.Config,
 		Dir: "/tmp",
@@ -84,7 +94,7 @@ func TestApplication_Render(t *testing.T) {
 					renderedYaml: "step: Two",
 				},
 			},
-			want:     "/tmp/_apps/" + appName + "/steps/01-test-template-2.yaml",
+			want:     "/tmp/_apps/" + testAppName + "/steps/01-test-template-2.yaml",
 			wantYaml: "step: One\n---\nstep: Two",
 			wantErr:  false,
 		},
@@ -104,7 +114,7 @@ func TestApplication_Render(t *testing.T) {
 					renderedYaml: "step: Two",
 				},
 			},
-			want:     "/tmp/_apps/" + appName + "/steps/01-test-template-2.yaml",
+			want:     "/tmp/_apps/" + testAppName + "/steps/01-test-template-2.yaml",
 			wantYaml: "step: Two",
 			wantErr:  false,
 		},

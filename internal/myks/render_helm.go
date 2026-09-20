@@ -23,7 +23,7 @@ func NewHelmRenderer(app *Application, lock *locker.Locker) *Helm {
 	return &Helm{
 		additive: true,
 		app:      app,
-		ident:    "helm",
+		ident:    helmToolName,
 		locker:   lock,
 	}
 }
@@ -103,7 +103,7 @@ func (h *Helm) Render(_ string) (string, error) {
 			helmArgs = append(helmArgs, "--values", helmValuesFile)
 		}
 
-		res, err := h.app.runCmd(h.getStepName(), "helm template chart", "helm", nil, append(helmArgs, commonHelmArgs...))
+		res, err := h.app.runCmd(h.getStepName(), "helm template chart", helmToolName, nil, append(helmArgs, commonHelmArgs...))
 		if err != nil {
 			return "", err
 		}

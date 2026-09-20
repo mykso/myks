@@ -29,6 +29,8 @@ const (
 	kclEnvValuesFileName = "env-data.kcl-values.ytt.yaml"
 	kclAppSchemaFileName = "app-data.kcl-schema.ytt.yaml"
 	kclAppValuesFileName = "app-data.kcl-values.ytt.yaml"
+	// envApplicationsKey is the application roster key inside the engine-owned environment scope.
+	envApplicationsKey = "applications"
 )
 
 // supportedKclSchemaVersion is the myks schema version the engine understands.
@@ -311,7 +313,7 @@ func (d kclEnvironmentData) dataValues() map[string]any {
 		maps.Copy(envScope, extra)
 	}
 	envScope["id"] = d.ID
-	envScope["applications"] = apps
+	envScope[envApplicationsKey] = apps
 	values["environment"] = envScope
 
 	return values

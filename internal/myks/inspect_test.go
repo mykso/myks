@@ -18,13 +18,13 @@ func newTestApp(t *testing.T) *Application {
 	cfg.RootDir = t.TempDir()
 
 	env := &Environment{
-		Dir: "envs/test-env",
-		ID:  "test-env",
+		Dir: "envs/" + testEnvID,
+		ID:  testEnvID,
 		cfg: cfg,
 	}
 
 	return &Application{
-		Name:      "test-app",
+		Name:      testAppName,
 		Prototype: filepath.Join(cfg.RootDir, cfg.PrototypesDir, "test-proto"),
 		e:         env,
 		cfg:       cfg,
@@ -95,7 +95,7 @@ func Test_isInternalDir(t *testing.T) {
 		{name: "underscore only is internal", dir: "_", want: true},
 		{name: "normal name is not internal", dir: "prototypes", want: false},
 		{name: "empty string is not internal", dir: "", want: false},
-		{name: "leading dot is not internal", dir: ".myks", want: false},
+		{name: "leading dot is not internal", dir: testServiceDir, want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -54,14 +54,14 @@ func TestStatsMultipleAcquires(t *testing.T) {
 
 	lk := locker.NewLocker()
 	for range 3 {
-		unlock := lk.Acquire([]locker.LockReq{{Name: "shared", ForWrite: true}})
+		unlock := lk.Acquire([]locker.LockReq{{Name: sharedLockName, ForWrite: true}})
 		unlock()
 	}
 
 	snap := lk.GetStats().Snapshot()
-	require.Contains(t, snap, "shared")
-	assert.Equal(t, 3, snap["shared"].AcquireCount)
-	assert.Equal(t, 3, snap["shared"].WriteCount)
+	require.Contains(t, snap, sharedLockName)
+	assert.Equal(t, 3, snap[sharedLockName].AcquireCount)
+	assert.Equal(t, 3, snap[sharedLockName].WriteCount)
 }
 
 // TestStatsContentionProducesWaitTime verifies that a goroutine waiting for a

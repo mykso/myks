@@ -30,7 +30,7 @@ type HelmSyncer struct {
 // NewHelmSyncer creates a new HelmSyncer with the given locker.
 func NewHelmSyncer(lock *locker.Locker) *HelmSyncer {
 	return &HelmSyncer{
-		ident:  "helm",
+		ident:  helmToolName,
 		locker: lock,
 	}
 }

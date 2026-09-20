@@ -52,6 +52,9 @@ linters:
     goconst:
       min-len: 3
       min-occurrences: 3
+      # Test fixtures repeat short literals by nature; counting them drags production
+      # code over the threshold too.
+      ignore-tests: true
 
     gocritic:
       enabled-tags:
@@ -90,11 +93,17 @@ linters:
           - wrapcheck
           - cyclop
           - gocognit
+          - gosec
       # Exclude embedded tool runners (vendir/kbld/ytt) from exitAfterDefer gocritic check
       # since those are intentional pass-through CLIs.
       - path: 'cmd/embedded/'
         linters:
           - gocritic
+      # The migrate converters emit KCL/Starlark source; repeated literals there are
+      # that language's keywords and type names, not magic strings.
+      - path: 'internal/myks/migrate'
+        linters:
+          - goconst
       # Known issues to address incrementally — nolint these at the source instead.
       - linters:
           - wrapcheck
