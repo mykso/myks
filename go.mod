@@ -8,7 +8,7 @@ require (
 	carvel.dev/ytt v0.55.2
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
-	github.com/creasty/defaults v1.9.0
+	github.com/creasty/defaults v1.10.0
 	github.com/google/go-containerregistry v0.22.1
 	github.com/hashicorp/go-version v1.9.0
 	github.com/logrusorgru/aurora/v4 v4.0.0
