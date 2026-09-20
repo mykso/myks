@@ -36,6 +36,16 @@
       automerge: true,
       addLabels: ["docker", "dependencies"],
     },
+    // Keep the KCL CLI in the publish workflow on the same version as kcl-go
+    {
+      description: "Bump kcl-go and KCL_CLI_VERSION together",
+      matchDepNames: ["kcl-lang.io/kcl-go"],
+      groupName: "kcl",
+      groupSlug: "kcl",
+      addLabels: ["dependencies"],
+      // Same gate as the gomod group, so both deps become eligible at once
+      minimumReleaseAge: "7 days",
+    },
     // Group PRs for GitHub Action updates into a single PR
     {
       description: "Group GitHub Action updates into a single PR",

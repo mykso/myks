@@ -28,7 +28,10 @@ jobs:
 
       - name: Publish KCL package
         env:
-          KCL_CLI_VERSION: v0.12.4 # keep in lockstep with kcl-lang.io/kcl-go in go.mod
+          # The CLI is released in lockstep with kcl-lang.io/kcl-go, so renovate
+          # tracks that module and bumps both in one PR.
+          # renovate: datasource=go depName=kcl-lang.io/kcl-go
+          KCL_CLI_VERSION: v0.12.5
         run: |
           go install kcl-lang.io/cli/cmd/kcl@$KCL_CLI_VERSION
           echo '${{ secrets.GITHUB_TOKEN }}' \
