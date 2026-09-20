@@ -110,6 +110,9 @@ type migrator struct {
 	patched int
 	// derivedCount counts the ytt-computed values carried over as KCL derivations.
 	derivedCount int
+	// frozenLists collects the array values a patch freezes, reported once it is known which
+	// of them a derivation replaced.
+	frozenLists []frozenList
 	// force allows overwriting the generated files of a previous run.
 	force bool
 }
@@ -141,12 +144,21 @@ type migNode struct {
 	envDerived   *derivations
 	protoDerived map[string]*derivations
 	appDerived   map[string]*derivations
+	// protoContextual and appContextual hold the candidate translations of what those files
+	// compute from the environment's data values; appPatchDerived holds, per application, the
+	// ones proven at this leaf, which the frozen block states instead of the literal.
+	protoContextual map[string]*derivations
+	appContextual   map[string]*derivations
+	appPatchDerived map[string]*derivations
 }
 
 type migApp struct {
 	name, proto string
 	values      map[string]any
 }
+
+// frozenList is one array value a leaf patch froze, with the context to report it under.
+type frozenList struct{ context, path string }
 
 // skippedFile is one data file the conversion could not carry over in full: deferred lists
 // the value paths left to the leaf patches, or is empty when the whole file was.
@@ -255,8 +267,11 @@ func (m *migrator) newNode(dir string, parent *migNode) *migNode {
 		protoValues: map[string]map[string]any{},
 		appValues:   map[string]map[string]any{},
 
-		protoDerived: map[string]*derivations{},
-		appDerived:   map[string]*derivations{},
+		protoDerived:    map[string]*derivations{},
+		appDerived:      map[string]*derivations{},
+		protoContextual: map[string]*derivations{},
+		appContextual:   map[string]*derivations{},
+		appPatchDerived: map[string]*derivations{},
 	}
 	m.nodes[dir] = node
 	return node
@@ -283,12 +298,14 @@ func (m *migrator) collectContributions() error {
 		}
 		node.protoValues = valuesOf(protoOverrides)
 		node.protoDerived = derivedOf(protoOverrides)
+		node.protoContextual = contextualOf(protoOverrides)
 		apps, err := m.convertPerDirGlobs(filepath.Join(node.dir, cfg.AppsDir), cfg.ApplicationDataFileName)
 		if err != nil {
 			return err
 		}
 		node.appValues = valuesOf(apps)
 		node.appDerived = derivedOf(apps)
+		node.appContextual = contextualOf(apps)
 	}
 
 	prototypes, err := m.convertPerDirGlobs(filepath.Join(m.g.RootDir, cfg.PrototypesDir), cfg.ApplicationDataFileName)
@@ -356,6 +373,11 @@ type convertedFile struct {
 	// derived holds the KCL translation of the ytt computation of the file, so the generated
 	// file states the derivation instead of the value it produced.
 	derived *derivations
+	// contextual holds the translation of what the file computes from the data values of its
+	// environment. Those values are frozen per leaf, so the translation is a candidate only:
+	// it is kept at a leaf where KCL evaluates it to exactly the value frozen there
+	// (proveContextual), and dropped at every other.
+	contextual *derivations
 }
 
 // convertFileGlob converts all files matching the glob into one merged result. A schema
@@ -378,6 +400,7 @@ func (m *migrator) convertFileGlob(pattern string) (*convertedFile, error) {
 	}
 	merged := &convertedFile{values: map[string]any{}}
 	parts := make([]*derivations, 0, len(converted))
+	contextual := make([]*derivations, 0, len(converted))
 	for _, schemaFirst := range []bool{true, false} {
 		for _, file := range converted {
 			if (file.schema != nil) != schemaFirst {
@@ -386,9 +409,11 @@ func (m *migrator) convertFileGlob(pattern string) (*convertedFile, error) {
 			merged.values = mergeValues(merged.values, file.values)
 			merged.schema = mergeInspectedSchemas(merged.schema, file.schema)
 			parts = append(parts, file.derived)
+			contextual = append(contextual, file.contextual)
 		}
 	}
 	merged.derived = mergeDerivations(parts...)
+	merged.contextual = mergeDerivations(contextual...)
 	return merged, nil
 }
 
@@ -416,6 +441,17 @@ func (m *migrator) convertPerDirGlobs(base, filePattern string) (map[string]*con
 		}
 	}
 	return result, nil
+}
+
+// contextualOf keeps the candidate translations of a per-directory conversion.
+func contextualOf(converted map[string]*convertedFile) map[string]*derivations {
+	contextual := make(map[string]*derivations, len(converted))
+	for name, file := range converted {
+		if file.contextual.has() {
+			contextual[name] = file.contextual
+		}
+	}
+	return contextual
 }
 
 // derivedOf keeps the KCL translations of a per-directory conversion.
@@ -592,6 +628,9 @@ func (m *migrator) convertComputedFile(file string, content []byte, isSchema boo
 	}
 	if len(split.deferred) > 0 {
 		m.skip(file, split.deferred)
+		// The values left out are computed from the environment's data values, which only a
+		// leaf has. The translation is proven leaf by leaf, against what was frozen there.
+		converted.contextual = yttDerivations(file, content, m.libs, m.libPackage, levelVarName)
 	}
 	return converted, nil
 }
@@ -676,7 +715,7 @@ func (m *migrator) emittedLibs() []*yttLib {
 // as the literal ytt resolved and reported: the file reads nothing outside itself, so the
 // literal says everything the computation did, but the derivation behind it is lost.
 func (m *migrator) deriveStandalone(file string, content []byte, converted *convertedFile) {
-	derived := yttDerivations(file, content, m.libs, m.libPackage)
+	derived := yttDerivations(file, content, m.libs, m.libPackage, "")
 	m.verifyDerivations(file, derived, converted.values)
 	if derived.has() {
 		converted.derived = derived
@@ -879,6 +918,7 @@ func (m *migrator) applyPrototypeRename(oldName, newName string) {
 	for _, node := range m.nodes {
 		moveKey(node.protoValues, oldName, newName)
 		moveKey(node.protoDerived, oldName, newName)
+		moveKey(node.protoContextual, oldName, newName)
 		for i := range node.rawRoster {
 			if node.rawRoster[i].proto == oldName {
 				node.rawRoster[i].proto = newName
@@ -1036,6 +1076,16 @@ func (m *migrator) declarationDerived(decl *migNode, name, proto string) *deriva
 	return mergeDerivations(parts...)
 }
 
+// appContextual collects the candidate translations of what an application's level files
+// compute from the data values of their environment.
+func appContextual(chain []*migNode, name, proto string) *derivations {
+	var parts []*derivations
+	for _, node := range chain {
+		parts = append(parts, node.protoContextual[proto], node.appContextual[name])
+	}
+	return mergeDerivations(parts...)
+}
+
 // protoOf names the prototype an application runs at or below a level. An override level has
 // no roster of its own, so the answer comes from the environments underneath it.
 func protoOf(node *migNode, name string) string {
@@ -1171,6 +1221,12 @@ func (m *migrator) computePatches() error {
 			}
 			patch := m.diffValues(leafDir+"/"+app.Name, simApp, legacyApp)
 			if len(patch) > 0 {
+				candidates := appContextual(chain, app.Name, leaf.env.foundApplications[app.Name])
+				if proven := m.proveContextual(leafDir, app.Name, candidates, patch, legacyEnv); proven.has() {
+					leaf.appPatchDerived[app.Name] = proven
+					m.patched -= len(proven.exprs)
+					m.derivedCount += len(proven.exprs)
+				}
 				leaf.appPatches[app.Name] = patch
 			}
 		}
@@ -1239,7 +1295,8 @@ func (m *migrator) diffValues(context string, got, want map[string]any) map[stri
 		m.warn("%s: converted value %s is absent from the legacy-resolved output and cannot be removed by merging; drop it by hand", context, path)
 	}
 	for _, path := range lists {
-		m.warn("%s: array value %s is frozen in a patch, but ytt appends arrays over schema defaults; if the gate reports a difference here, fix it by hand", context, path)
+		// Reported only if it is still a literal once the derivations are proven.
+		m.frozenLists = append(m.frozenLists, frozenList{context: context, path: path})
 	}
 	m.patched += countLeaves(patch)
 	return patch
@@ -1325,6 +1382,28 @@ func mergeValues(values ...map[string]any) map[string]any {
 	return out
 }
 
+// stillFrozen reports whether any leaf still states this value path as a literal, rather than
+// as the derivation the converter found for it. A value whose every leaf is a derivation is
+// no longer frozen, even where the path itself carries none — an array states its elements.
+func (m *migrator) stillFrozen(path string) bool {
+	for _, node := range m.nodes {
+		if value, found := valueAtPath(node.envPatch, path); found && patchHasLiterals(value, nil, path) {
+			return true
+		}
+		for name, patch := range node.appPatches {
+			if value, found := valueAtPath(patch, path); found && patchHasLiterals(value, node.appPatchDerived[name], path) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// warnNow prints one warning the report decided to keep.
+func (m *migrator) warnNow(format string, args ...any) {
+	log.Warn().Msg(m.g.Msg(fmt.Sprintf(format, args...)))
+}
+
 func (m *migrator) warn(format string, args ...any) {
 	m.warnings = append(m.warnings, fmt.Sprintf(format, args...))
 }
@@ -1336,12 +1415,23 @@ func (m *migrator) printReport() {
 				"Skipped %s: it contains ytt logic; its resolved values are frozen in leaf-level TODO patches", skipped.file)))
 			continue
 		}
+		frozen := slices.DeleteFunc(slices.Clone(skipped.deferred), func(path string) bool { return !m.stillFrozen(path) })
+		if len(frozen) == 0 {
+			// Every value taken out of the file reached the generated tree as a derivation.
+			continue
+		}
 		log.Warn().Msg(m.g.Msg(fmt.Sprintf(
 			"Converted %s without %s: computed by ytt logic, frozen in leaf-level TODO patches",
-			skipped.file, strings.Join(skipped.deferred, ", "))))
+			skipped.file, strings.Join(frozen, ", "))))
 	}
 	for _, warning := range m.warnings {
 		log.Warn().Msg(m.g.Msg(warning))
+	}
+	for _, frozen := range m.frozenLists {
+		if !m.stillFrozen(frozen.path) {
+			continue
+		}
+		m.warnNow("%s: array value %s is frozen in a patch, but ytt appends arrays over schema defaults; if the gate reports a difference here, fix it by hand", frozen.context, frozen.path)
 	}
 	for _, resolved := range m.resolved {
 		// Such a file reads nothing outside itself, so the literal ytt resolved says

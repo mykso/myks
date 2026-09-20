@@ -142,7 +142,7 @@ application:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			d := yttDerivations("test.yaml", []byte(tt.content), libs, "lib")
+			d := yttDerivations("test.yaml", []byte(tt.content), libs, "lib", "")
 			require.NotNil(t, d)
 			assert.Equal(t, tt.exprs, d.exprs)
 			assert.Equal(t, tt.prelude, d.prelude)
@@ -161,7 +161,7 @@ func translateStarExpr(scope *starScope, src string) (string, error) {
 }
 
 func TestStarScopeExprPrecedence(t *testing.T) {
-	scope := newStarScope(nil, "lib")
+	scope := newStarScope(nil, "lib", "")
 	scope.names["a"] = "_a"
 	for expr, want := range map[string]string{
 		"60 * 60 * 24":            "60 * 60 * 24",
@@ -241,7 +241,7 @@ func TestYttDerivationsWithFunctions(t *testing.T) {
 ---
 application:
   home: #@ uri("home")
-`), nil, "lib")
+`), nil, "lib", "")
 		require.NotNil(t, d)
 		assert.Equal(t, map[string]string{".application.home": `_uri("home")`}, d.exprs)
 		assert.Equal(t, []string{"_uri = lambda service {\n    \"https://{}.example.com\".format(service)\n}"}, d.prelude)
@@ -262,9 +262,54 @@ application:
   #@schema/default default_env()
   env:
     - name: ""
-`), nil, "lib")
+`), nil, "lib", "")
 		require.NotNil(t, d)
 		assert.Equal(t, map[string]string{".application.containerPort": "_port"}, d.exprs)
 		assert.Equal(t, []string{"_port = 8080"}, d.prelude)
 	})
+}
+
+func TestYttDerivationsFromEnvironment(t *testing.T) {
+	d := yttDerivations("test.yaml", []byte(`#@ load("@myks:data.lib.yaml", "env_data")
+
+#@ def uri(service):
+#@   return "https://{}.{}".format(service, env_data.environment.baseDomain)
+#@ end
+
+#@data/values
+---
+application:
+  tls:
+    baseDomains: #@ env_data.environment.hosts
+  links:
+    - name: home
+      uri: #@ uri("home")
+    - name: docs
+      uri: #@ uri("docs")
+`), nil, "lib", levelVarName)
+	require.NotNil(t, d)
+	assert.Equal(t, map[string]string{
+		".application.tls.baseDomains": "_lvl.environment.hosts",
+		".application.links[0].uri":    `_uri("home")`,
+		".application.links[1].uri":    `_uri("docs")`,
+	}, d.exprs)
+	assert.Equal(t, []string{"_uri = lambda service {\n    \"https://{}.{}\".format(service, _lvl.environment.baseDomain)\n}"}, d.prelude)
+}
+
+func TestValueAtPath(t *testing.T) {
+	values := map[string]any{"a": map[string]any{
+		"list": []any{map[string]any{"k": "v"}, map[string]any{"k": "w"}},
+	}}
+	for path, want := range map[string]any{
+		".a.list[1].k": "w",
+		".a.list[0].k": "v",
+	} {
+		got, found := valueAtPath(values, path)
+		require.True(t, found, path)
+		assert.Equal(t, want, got, path)
+	}
+	for _, path := range []string{".a.list[2].k", ".a.list.k", ".a.missing", ".a.list[x].k"} {
+		_, found := valueAtPath(values, path)
+		assert.False(t, found, path)
+	}
 }

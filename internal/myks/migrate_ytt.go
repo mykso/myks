@@ -150,9 +150,11 @@ func (s *yttSplit) pruneMapping(node *yaml.Node, path []string) int {
 			}
 		default:
 			// A sequence and a block scalar are converted whole, so any computation inside
-			// them takes the entry with it.
+			// them takes the entry with it. What that computation states is still recorded,
+			// addressed by index, so a derivation can replace the frozen element.
 			if s.computesIn(start, end) {
 				s.drop(childPath, key.Line, start, end)
+				s.recordExprs(value, "."+strings.Join(childPath, "."))
 				continue
 			}
 		}
@@ -185,6 +187,26 @@ func (s *yttSplit) drop(path []string, keyLine, start, end int) {
 	s.deferred = append(s.deferred, dotted)
 	if expr, ok := inlineYttExpr(s.lines[keyLine-1]); ok {
 		s.exprs[dotted] = expr
+	}
+}
+
+// recordExprs records the ytt expressions inside a dropped value, addressing a sequence
+// element by its index: `.config[0].services[1].uri`.
+func (s *yttSplit) recordExprs(node *yaml.Node, path string) {
+	switch node.Kind {
+	case yaml.SequenceNode:
+		for i, item := range node.Content {
+			s.recordExprs(item, fmt.Sprintf("%s[%d]", path, i))
+		}
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			key, value := node.Content[i], node.Content[i+1]
+			childPath := path + "." + key.Value
+			if expr, ok := inlineYttExpr(s.lines[key.Line-1]); ok {
+				s.exprs[childPath] = expr
+			}
+			s.recordExprs(value, childPath)
+		}
 	}
 }
 

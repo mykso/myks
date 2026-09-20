@@ -48,6 +48,10 @@ kcl.mod                      KCL module manifest; pins the myks schema package
   needs no renaming.
 - The fold is a dict comprehension (`{k: v for k, v in _apps}`): a schema instance on the
   right of `|` or `:` replaces instead of merging, dropping the parent level's values.
+- **The fold belongs in the `env =` line, never in `_lvl`.** The level's application files
+  read `_lvl` to derive their values from the environment — which is what the legacy
+  `@myks:data.lib.yaml` did — and they are what `_apps` is built from, so a `_lvl` carrying
+  the fold is undefined for the very files that feed it.
 - Directory names must be KCL identifiers (`central_forwarder/`, not `central-forwarder/`) —
   under `prototypes/` too, for a prototype that owns a base schema;
   display names live in the config body (`name = "central-forwarder"`).

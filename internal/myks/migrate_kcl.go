@@ -32,6 +32,11 @@ func appKFileName(app string) string {
 // level said about the application.
 const appsFoldExpr = "{k: v for k, v in _apps}"
 
+// levelVarName is the level's environment data before its applications are folded in: what
+// the level inherits, what it states itself, and its frozen patch. The application files of
+// the level read it, so it must not depend on the `_apps` they feed.
+const levelVarName = "_lvl"
+
 // emit writes the seeded KCL tree: kcl.mod, main.k, and the level files of every non-empty
 // environment-tree level.
 func (m *migrator) emit(schemaPackage string) error {
@@ -840,25 +845,37 @@ func writeGeneratedHeader(b *kclWriter) {
 // patches it with a dict union. The applications live in the per-application files of the
 // same KCL package, folded in here from the `_apps` accumulator they unify into; the frozen
 // environment values live in patch.k, referenced as `_patch`.
+//
+// The level's environment data is bound to `_lvl` — inherited values, this level's own, and
+// its frozen patch — and the applications are folded in only where `env` is built from it.
+// That keeps `_lvl` free of `_apps`, so the level's application files can read it: an
+// application deriving a value from its environment is what `@myks:data.lib.yaml` did for
+// the legacy ytt files, and `_lvl` is where that derivation reads it now. Folding the
+// applications into `_lvl` instead would make it undefined for the very files that feed it.
 func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 	b := &kclWriter{derived: node.envDerived}
 	writeGeneratedHeader(b)
 
+	hasApps := nodeHasApps(node)
 	if node == m.root {
 		b.WriteString("import myks as m\n")
 		writeDerivationHeader(b, b.derived)
 		b.WriteString("\n")
 		writeAppsBase(b, node)
-		b.WriteString("env = m.Environment {\n")
-		writeKclEntries(b, node.envValues, 4, false, "")
-		if nodeHasApps(node) {
-			b.printf("    applications = %s\n", appsFoldExpr)
+		rootVar := "env"
+		if hasApps {
+			rootVar = levelVarName
 		}
+		b.printf("%s = m.Environment {\n", rootVar)
+		writeKclEntries(b, node.envValues, 4, false, "")
 		b.WriteString("}\n")
+		if hasApps {
+			b.printf("env = %s | {applications = %s}\n", levelVarName, appsFoldExpr)
+		}
 		return b.String(), b.err
 	}
 
-	if node.env != nil || nodeHasApps(node) {
+	if node.env != nil || hasApps {
 		// The schema package is needed for finalize on a leaf and for the `_apps` accumulator.
 		b.WriteString("import myks as m\n")
 	}
@@ -869,9 +886,10 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 
 	hasPatch := nodeHasPatch(node)
 	levelVar := "env"
-	if hasPatch || node.env != nil {
-		// A leaf wraps the level in finalize, so the union needs its own name.
-		levelVar = "_lvl"
+	if hasPatch || hasApps || node.env != nil {
+		// A leaf wraps the level in finalize, the applications are folded onto it, and the
+		// application files read it: all three need the level under a name of its own.
+		levelVar = levelVarName
 	}
 
 	b.printf("%s = parent.env | {\n", levelVar)
@@ -879,18 +897,19 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 		b.printf("    id = %s\n", quoteKclString(node.env.ID))
 	}
 	writeKclEntries(b, node.envValues, 4, true, "")
-	if nodeHasApps(node) {
-		b.printf("    applications: %s\n", appsFoldExpr)
+	b.WriteString("}")
+	if hasPatch {
+		b.WriteString(" | _patch")
 	}
-	b.WriteString("}\n")
+	b.WriteString("\n")
 
 	expr := levelVar
-	if hasPatch {
-		expr = levelVar + " | _patch"
+	if hasApps {
+		expr = fmt.Sprintf("%s | {applications: %s}", levelVar, appsFoldExpr)
 	}
 	if node.env != nil {
 		b.printf("env = m.finalize(%s)\n", expr)
-	} else if hasPatch {
+	} else if levelVar != "env" {
 		b.printf("env = %s\n", expr)
 	}
 	return b.String(), b.err
@@ -920,6 +939,9 @@ func (m *migrator) renderAppK(node *migNode, name string) (string, error) {
 		proto := protoOf(node, name)
 		b.derived = mergeDerivations(node.protoDerived[proto], node.appDerived[name])
 	}
+	// The frozen block states its own derivations, which read the level variable; their
+	// prelude and imports belong in the same header.
+	patchDerived := node.appPatchDerived[name]
 	// A prototype with a generated base schema is instantiated instead of m.App: its defaults
 	// come from the schema, so the declaration's values are a union on top.
 	schema := ""
@@ -929,7 +951,7 @@ func (m *migrator) renderAppK(node *migNode, name string) (string, error) {
 			b.printf("import %s\n", packagePath(filepath.Join(m.g.PrototypesDir, app.proto)))
 		}
 	}
-	writeDerivationHeader(b, b.derived)
+	writeDerivationHeader(b, mergeDerivations(b.derived, patchDerived))
 
 	b.WriteString("\n")
 	blocks := 0
@@ -974,11 +996,16 @@ func (m *migrator) renderAppK(node *migNode, name string) (string, error) {
 
 	if patch, ok := node.appPatches[name]; ok {
 		separate()
-		writeFrozenValuesComment(b)
+		if patchHasLiterals(patch, patchDerived, "") {
+			writeFrozenValuesComment(b)
+		}
+		declDerived := b.derived
+		b.derived = patchDerived
 		openBlock()
 		b.WriteString(": ")
 		writeKclValue(b, patch, 4, true, "")
 		b.WriteString("\n}\n")
+		b.derived = declDerived
 	}
 	return b.String(), b.err
 }
@@ -998,9 +1025,10 @@ func (m *migrator) renderPatchK(node *migNode) (string, error) {
 }
 
 func writeFrozenValuesComment(b *kclWriter) {
-	b.WriteString("# TODO(myks migrate): the values below were computed by ytt logic that the converter\n")
-	b.WriteString("# cannot translate to KCL; they are frozen here as literals from the legacy-resolved\n")
-	b.WriteString("# output. Replace them with KCL derivations (see docs/migration.md).\n")
+	b.WriteString("# TODO(myks migrate): the block below is frozen from the legacy-resolved output. What it\n")
+	b.WriteString("# still states as a literal was computed by ytt logic the converter could not translate,\n")
+	b.WriteString("# or belongs to an array ytt resolved whole. Replace it with KCL derivations\n")
+	b.WriteString("# (see docs/migration.md).\n")
 }
 
 // writeKclEntries renders a map's entries, one per line, keys sorted. In merge style
@@ -1044,11 +1072,12 @@ func writeKclValue(b *kclWriter, value any, indent int, merge bool, path string)
 			return
 		}
 		b.WriteString("[\n")
-		for _, element := range typed {
+		for i, element := range typed {
 			b.WriteString(pad)
 			b.WriteString("    ")
-			// A list element is a fresh value, not a union, and has no path of its own.
-			writeKclValue(b, element, indent+4, false, "")
+			// A list element is a fresh value, not a union; its path is its index, which is
+			// how a derivation inside a frozen list is addressed.
+			writeKclValue(b, element, indent+4, false, elementPath(path, i))
 			b.WriteString("\n")
 		}
 		b.WriteString(pad)
@@ -1059,6 +1088,47 @@ func writeKclValue(b *kclWriter, value any, indent int, merge bool, path string)
 			b.fail(err)
 		}
 		b.WriteString(scalar)
+	}
+}
+
+// kclLiteral renders a value map as a KCL dict literal.
+func kclLiteral(values map[string]any) (string, error) {
+	b := &kclWriter{}
+	writeKclValue(b, values, 0, false, "")
+	return b.String(), b.err
+}
+
+// elementPath addresses one element of a list. A list rendered without a path of its own —
+// a value nested inside another list element — keeps its elements unaddressed.
+func elementPath(path string, i int) string {
+	if path == "" {
+		return ""
+	}
+	return fmt.Sprintf("%s[%d]", path, i)
+}
+
+// patchHasLiterals reports whether a frozen block still states a value no derivation replaces.
+func patchHasLiterals(value any, derived *derivations, path string) bool {
+	if derived.hasPath(path) {
+		return false
+	}
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			if patchHasLiterals(child, derived, path+"."+key) {
+				return true
+			}
+		}
+		return false
+	case []any:
+		for i, child := range typed {
+			if patchHasLiterals(child, derived, elementPath(path, i)) {
+				return true
+			}
+		}
+		return false
+	default:
+		return true
 	}
 }
 

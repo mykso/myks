@@ -458,9 +458,11 @@ func TestRenderLevelFiles(t *testing.T) {
 		slices.Sorted(maps.Keys(files)))
 
 	assert.Contains(t, files[envKFileName], "_apps: m.Apps {}\n")
+	// The level variable carries what the level inherits, states and freezes — and no
+	// applications: the level's application files read it, and they are what feeds `_apps`.
+	assert.Contains(t, files[envKFileName], "_lvl = parent.env | {\n    id = \"dev\"\n} | _patch\n")
 	assert.Contains(t, files[envKFileName],
-		"_lvl = parent.env | {\n    id = \"dev\"\n    applications: {k: v for k, v in _apps}\n}\n")
-	assert.Contains(t, files[envKFileName], "env = m.finalize(_lvl | _patch)\n")
+		"env = m.finalize(_lvl | {applications: {k: v for k, v in _apps}})\n")
 
 	// Declaration and frozen values of one application, in that order: the later block wins.
 	assert.Contains(t, files["app-web.k"],

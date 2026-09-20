@@ -6,6 +6,7 @@ import (
 	"maps"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -39,6 +40,71 @@ func (m *migrator) verifyDerivations(file string, d *derivations, values map[str
 		}
 	}
 	d.prelude = prunePrelude(d.prelude, d.exprs)
+}
+
+// proveContextual keeps the candidate derivations of one application that KCL evaluates, at
+// this leaf, to exactly the value frozen for it here. The level variable is bound to the
+// leaf's resolved environment data — what `@myks:data.lib.yaml` handed the legacy file — so a
+// derivation survives only where reading the environment reproduces what ytt computed from
+// it. At a leaf where it does not, the literal stays frozen.
+func (m *migrator) proveContextual(leafDir, unit string, candidates *derivations, frozen, levelValues map[string]any) *derivations {
+	if !candidates.has() {
+		return nil
+	}
+	var paths []string
+	for _, path := range slices.Sorted(maps.Keys(candidates.exprs)) {
+		if _, found := valueAtPath(frozen, path); found {
+			paths = append(paths, path)
+		}
+	}
+	if len(paths) == 0 {
+		return nil
+	}
+	level, err := kclLiteral(levelValues)
+	if err != nil {
+		return nil
+	}
+
+	unitPath := filepath.Join(leafDir, unit)
+	trial := &derivations{
+		exprs:   candidates.exprs,
+		prelude: append([]string{levelVarName + " = " + level}, candidates.prelude...),
+		imports: candidates.imports,
+	}
+	got, err := m.evalDerivations(unitPath, trial, paths)
+	if err != nil {
+		log.Debug().Err(err).Msg(m.g.Msg("Evaluating the environment-derived values of " + unitPath))
+		return nil
+	}
+
+	proven := &derivations{exprs: map[string]string{}}
+	for i, path := range paths {
+		want, _ := valueAtPath(frozen, path)
+		if sameValue(got[verifiedVar(i)], want) {
+			proven.exprs[path] = candidates.exprs[path]
+		}
+	}
+	if len(proven.exprs) == 0 {
+		return nil
+	}
+	proven.prelude = prunePrelude(candidates.prelude, proven.exprs)
+	proven.imports = usedImports(candidates.imports, proven)
+	return proven
+}
+
+// usedImports keeps the imports the surviving statements still read.
+func usedImports(imports []string, d *derivations) []string {
+	var kept []string
+	for _, statement := range imports {
+		pkg := statement[strings.LastIndex(statement, " ")+1:]
+		reads := slices.ContainsFunc(slices.Collect(maps.Values(d.exprs)), func(expr string) bool {
+			return readsName(expr, pkg)
+		}) || slices.ContainsFunc(d.prelude, func(stmt string) bool { return readsName(stmt, pkg) })
+		if reads {
+			kept = append(kept, statement)
+		}
+	}
+	return kept
 }
 
 // evalDerivations evaluates one file's derivations in a throwaway KCL package.
@@ -78,21 +144,47 @@ func (m *migrator) evalDerivations(file string, d *derivations, paths []string) 
 
 func verifiedVar(i int) string { return fmt.Sprintf("derived%d", i) }
 
-// valueAtPath reads the value one dotted path addresses. A key containing a dot cannot be
-// addressed, and is reported as absent.
+// valueAtPath reads the value one path addresses: `.a.b[0].c`. A key containing a dot or a
+// bracket cannot be addressed, and is reported as absent.
 func valueAtPath(values map[string]any, path string) (any, bool) {
-	keys := strings.Split(strings.TrimPrefix(path, "."), ".")
 	var current any = values
-	for _, key := range keys {
+	for _, token := range pathTokens(path) {
+		if index, isIndex := strings.CutPrefix(token, "["); isIndex {
+			list, ok := current.([]any)
+			if !ok {
+				return nil, false
+			}
+			i, err := strconv.Atoi(strings.TrimSuffix(index, "]"))
+			if err != nil || i < 0 || i >= len(list) {
+				return nil, false
+			}
+			current = list[i]
+			continue
+		}
 		mapping, ok := current.(map[string]any)
 		if !ok {
 			return nil, false
 		}
-		if current, ok = mapping[key]; !ok {
+		if current, ok = mapping[token]; !ok {
 			return nil, false
 		}
 	}
 	return current, true
+}
+
+// pathTokens splits a value path into its keys and its `[i]` indexes.
+func pathTokens(path string) []string {
+	var tokens []string
+	for _, segment := range strings.Split(strings.TrimPrefix(path, "."), ".") {
+		key, rest, found := strings.Cut(segment, "[")
+		tokens = append(tokens, key)
+		for found {
+			var index string
+			index, rest, found = strings.Cut(rest, "[")
+			tokens = append(tokens, "["+index)
+		}
+	}
+	return tokens
 }
 
 // sameValue compares a value KCL evaluated with one ytt resolved. Both come from YAML, so

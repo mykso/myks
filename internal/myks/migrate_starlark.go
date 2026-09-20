@@ -135,7 +135,7 @@ func translateYttLib(path string, content []byte) *yttLib {
 		if !ok || ret.Result == nil {
 			continue
 		}
-		lambda, ok := newStarScope(nil, "").lambda(def, ret)
+		lambda, ok := newStarScope(nil, "", "").lambda(def, ret)
 		if !ok {
 			continue
 		}
@@ -160,6 +160,10 @@ type starScope struct {
 	libs    map[string]*yttLib
 	// libPackage is the KCL package path of the translated ytt library ("lib").
 	libPackage string
+	// levelVar is the KCL variable holding the environment data of the level a file belongs
+	// to, which `@myks:data.lib.yaml`'s `env_data` reads. Empty where no such variable is in
+	// scope, which leaves every value computed from the environment untranslated.
+	levelVar string
 	// taken holds the module-level variable names already claimed.
 	taken map[string]bool
 }
@@ -167,12 +171,13 @@ type starScope struct {
 // kclReservedVars are the module-level names the generated level files bind themselves.
 var kclReservedVars = map[string]bool{"_apps": true, "_lvl": true, "_patch": true}
 
-func newStarScope(libs map[string]*yttLib, libPackage string) *starScope {
+func newStarScope(libs map[string]*yttLib, libPackage, levelVar string) *starScope {
 	return &starScope{
 		names:      map[string]string{},
 		imports:    map[string]bool{},
 		libs:       libs,
 		libPackage: libPackage,
+		levelVar:   levelVar,
 		taken:      map[string]bool{},
 	}
 }
@@ -227,9 +232,10 @@ func (s *starScope) run(stmts []syntax.Stmt) {
 	}
 }
 
-// load binds the functions a data file loads from the repo's ytt library to their KCL
-// translation. A load of anything else (a ytt builtin, an untranslated function) binds
-// nothing.
+// load binds what a data file loads to its KCL translation: a function of the repo's ytt
+// library, or the environment data myks generates for the file's environment, which is the
+// level variable of its KCL package. A load of anything else (a ytt builtin, an untranslated
+// function) binds nothing.
 func (s *starScope) load(stmt *syntax.LoadStmt) {
 	module, ok := stmt.Module.Value.(string)
 	if !ok {
@@ -238,6 +244,10 @@ func (s *starScope) load(stmt *syntax.LoadStmt) {
 	lib := s.libs[strings.TrimSuffix(filepath.Base(module), filepath.Ext(module))]
 	for i, from := range stmt.From {
 		to := stmt.To[i].Name
+		if module == myksDataLibrary && from.Name == "env_data" && s.levelVar != "" {
+			s.names[to] = s.levelVar
+			continue
+		}
 		if lib == nil || !lib.funcs[from.Name] || strings.HasPrefix(module, "@") {
 			delete(s.names, to)
 			continue
@@ -365,6 +375,8 @@ func (s *starScope) expr(e syntax.Expr) (string, error) {
 		return s.slice(typed)
 	case *syntax.CondExpr:
 		return s.cond(typed)
+	case *syntax.DotExpr:
+		return s.dot(typed)
 	case *syntax.CallExpr:
 		return s.call(typed)
 	case *syntax.Comprehension:
@@ -438,6 +450,19 @@ func (s *starScope) dictEntry(entry *syntax.DictEntry) (string, error) {
 		return "", err
 	}
 	return key + ": " + value, nil
+}
+
+// dot translates attribute access. A key that is no KCL identifier is read by subscript,
+// which is how KCL reads any other key of a dict.
+func (s *starScope) dot(d *syntax.DotExpr) (string, error) {
+	receiver, err := s.operand(d.X, precPrimary, false)
+	if err != nil {
+		return "", err
+	}
+	if isKclIdentifier(d.Name.Name) {
+		return receiver + "." + d.Name.Name, nil
+	}
+	return receiver + "[" + quoteKclString(d.Name.Name) + "]", nil
 }
 
 func (s *starScope) index(idx *syntax.IndexExpr) (string, error) {
@@ -753,17 +778,21 @@ func (s *starScope) call(call *syntax.CallExpr) (string, error) {
 	}
 }
 
+// myksDataLibrary is the ytt library myks generates per application, through which a legacy
+// data file reads the data values of its environment.
+const myksDataLibrary = "@myks:data.lib.yaml"
+
 // yttDerivations translates the ytt computation of one data file into KCL: the prelude into
 // module-level variables, and every `key: #@ expr` the file states into an expression for
 // that value's path. A value whose expression does not translate is left out, to be written
 // as the literal ytt resolved.
-func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPackage string) *derivations {
+func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPackage, levelVar string) *derivations {
 	split, err := splitYttFile(content)
 	if err != nil || len(split.exprs) == 0 {
 		return nil
 	}
 
-	scope := newStarScope(libs, libPackage)
+	scope := newStarScope(libs, libPackage, levelVar)
 	prelude, err := starSyntax.Parse(file, yttPreludeSource(split.lines, false), 0)
 	if err != nil {
 		// A ytt template function — a `def` whose body is YAML rather than Starlark — is no

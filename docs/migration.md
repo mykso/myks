@@ -56,7 +56,9 @@ identically:
 - **The file needs the render context.** Its Starlark loads `@ytt:data` or `@myks:...`, so
   what it would answer standalone is not what it answers at render time. The file is then
   **split**: the values it states plainly are converted as usual, and only the computed ones
-  are left out. The same happens when a self-contained file fails to resolve.
+  are left out, to be frozen per leaf — or, where the computation reads the environment and
+  KCL reproduces it at that leaf, translated there (see below). The same happens when a
+  self-contained file fails to resolve.
 - **Nothing is left after the split.** Every value in the file is computed, so the file is
   skipped whole.
 
@@ -120,9 +122,32 @@ it. The `.star` sources stay where they are: ytt templates still load them.
 its imports, one variable per derived value — and compared against what ytt resolved. A
 derivation KCL does not reproduce, or a file that does not evaluate at all, falls back to the
 literal. What has no translation at all: a ytt template function (a `def` with a YAML body),
-`#@ for`/`#@ end` inside the YAML body, a computed value inside a sequence, a keyword
-argument, Starlark's `%` string formatting, and anything reading `@ytt:data` or `@myks:`,
-which never resolves standalone in the first place.
+`#@ for`/`#@ end` inside the YAML body, a keyword argument, Starlark's `%` string formatting,
+and `@ytt:data`'s `data.values`.
+
+#### Values an application derives from its environment
+
+A file loading `@myks:data.lib.yaml` reads the data values of its environment, which only a
+leaf has — it never resolves standalone, and its computed values are frozen per leaf. Those
+values are translated too: `env_data` becomes `_lvl`, the level's environment data, which
+`env.k` binds before folding the applications in, so the level's application files can read
+it.
+
+```kcl
+# envs/alpha/app-traefik.k
+_apps: m.Apps {
+    traefik: {application: {tls: {baseDomains = _lvl.environment.hosts}}}
+}
+```
+
+The proof is per leaf, and so is the result: the translation is evaluated against the
+environment data resolved for that leaf and compared with the value frozen there. Where it
+reproduces it, the leaf states the derivation; where it does not — the value differs below
+the level the file sits at — that leaf keeps the literal. Nothing is hoisted above the leaf
+that proved it.
+
+An **environment** value is never translated this way: `patch.k` is what `_lvl` is built
+from, so a derivation reading `_lvl` inside it would be circular.
 
 ## Step by step
 
@@ -181,9 +206,10 @@ which never resolves standalone in the first place.
 
 ### Replace frozen literals with derivations
 
-Every frozen block is a value that used to be computed by ytt. Move it to where it belongs
-and express the computation in KCL. Typical example — an app value derived from the
-environment id:
+Every frozen block is a value that used to be computed by ytt and that the converter could
+not carry over. Move it to where it belongs and express the computation in KCL. Typical
+example — an app value derived from the environment id, which the engine regenerates and
+`_lvl` therefore carries under `id` rather than under `environment.id`:
 
 ```kcl
 # seed (frozen literal in envs/dev/app-argocd-tests.k):
@@ -192,24 +218,21 @@ _apps: m.Apps {
 }
 ```
 
-The files of a level share a namespace, so the application file reads the id bound by its
-`env.k` — the derivation stays next to the value it feeds:
+The files of a level share a namespace, so the application file reads the level's own
+environment data — the derivation stays next to the value it feeds:
 
 ```kcl
-# envs/dev/env.k
-_id = "mykso-dev"
-env = m.finalize(envs.env | {
-    id = _id
-    applications: {k: v for k, v in _apps}
-})
-
 # envs/dev/app-argocd-tests.k — one block, no frozen literal left
 _apps: m.Apps {
-    "argocd-tests": {application: {envId = _id}}
+    "argocd-tests": {application: {envId = _lvl.id}}
 }
 ```
 
 Delete the frozen block, and `patch.k` once its `_patch` is empty.
+
+An array is frozen whole even where the converter translated the values inside it: ytt
+resolved the array as one value, and its elements are literals the source stated. Shortening
+such a block to what the level actually changes is a hand-finish step the gate will check.
 
 ### Tighten the prototype schemas
 
