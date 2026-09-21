@@ -1,5 +1,25 @@
 # Changelog
 
+## [5.14.0](https://github.com/mykso/myks/compare/v5.13.3...v5.14.0) (2026-09-21)
+
+
+### Features
+
+* full KCL pipeline on a real fixture + byte-identical gate harness ([#886](https://github.com/mykso/myks/issues/886)) ([612d420](https://github.com/mykso/myks/commit/612d4201d565f06bdf51daaa250e94fe4a5dfbea))
+* KCL config-layer walking skeleton ([#884](https://github.com/mykso/myks/issues/884)) ([47b6fb2](https://github.com/mykso/myks/commit/47b6fb26f46e2fdea9d7127e55ae3e0e8d0955f2))
+* myks KCL schema package with eval-time version assert ([#885](https://github.com/mykso/myks/issues/885)) ([ff6fa41](https://github.com/mykso/myks/commit/ff6fa41e87e9553c33e76d01a3a35d50f764bb4a))
+* myks migrate converter and migration guide ([#887](https://github.com/mykso/myks/issues/887)) ([b3f8ca4](https://github.com/mykso/myks/commit/b3f8ca453cf9bd0fc4526b0fc5a9188b6c28f362))
+
+
+### Bug Fixes
+
+* **deps:** update golang dependencies (non-major) ([#892](https://github.com/mykso/myks/issues/892)) ([f4bd660](https://github.com/mykso/myks/commit/f4bd660a3feb539e0f8164abf0d0ecdcac48d005))
+* **deps:** update module carvel.dev/ytt to v0.55.2 ([#876](https://github.com/mykso/myks/issues/876)) ([51f4afa](https://github.com/mykso/myks/commit/51f4afad100400af012a192e67d87a7fb4fd938e))
+* **deps:** update module github.com/creasty/defaults to v1.10.0 ([#897](https://github.com/mykso/myks/issues/897)) ([ed1ef5a](https://github.com/mykso/myks/commit/ed1ef5ab92080e03e874ea08da6cf7f4c172a04c))
+* **deps:** update module github.com/stretchr/testify to v1.12.0 ([#873](https://github.com/mykso/myks/issues/873)) ([1687c11](https://github.com/mykso/myks/commit/1687c11915c7ba2311dd2e6c7005fe8cb40b0fc9))
+* **deps:** update module github.com/stretchr/testify to v1.12.1 ([#890](https://github.com/mykso/myks/issues/890)) ([7d717a7](https://github.com/mykso/myks/commit/7d717a7da9d79f1f06fb5b0d9f46fed2e6326745))
+* improve migration command ([#891](https://github.com/mykso/myks/issues/891)) ([9473756](https://github.com/mykso/myks/commit/9473756a0a28e0366fea18f17ac78c7c86b11c7e))
+
 ## [5.13.3](https://github.com/mykso/myks/compare/v5.13.2...v5.13.3) (2026-08-13)
 
 
