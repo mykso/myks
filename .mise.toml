@@ -1,2 +1,2 @@
 [tools]
-golangci-lint = "2.13.2"
+golangci-lint = "2.14.0"
