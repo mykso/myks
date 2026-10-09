@@ -52,7 +52,7 @@ func newCleanupCmd() *cobra.Command {
 				log.Fatal().Err(err).Msg("Root directory is not suitable for myks")
 			}
 
-			if err := g.Init(asyncLevel, envAppMap); err != nil {
+			if err := g.InitRoster(asyncLevel, envAppMap); err != nil {
 				log.Fatal().Err(err).Msg("Unable to initialize myks's globe")
 			}
 

@@ -57,6 +57,10 @@ type Globe struct {
 	// Forces the legacy path even with kcl.mod present, so `myks migrate --force` can
 	// re-read the legacy sources of an already converted repo.
 	forceLegacyMode bool
+
+	// Skips rendering application data values (one ytt run per application) during Init.
+	// Applications then carry only names and paths, which is all cleanup needs.
+	skipAppData bool
 }
 
 // YttGlobeData controls runtime data available to ytt templates
@@ -184,6 +188,13 @@ func (g *Globe) Init(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
 		}
 		return env.Init(appNames)
 	})
+}
+
+// InitRoster initializes environments and their application rosters without rendering
+// application data values. The applications are not usable for sync or render.
+func (g *Globe) InitRoster(asyncLevel int, envSearchPathToAppMap EnvAppMap) error {
+	g.skipAppData = true
+	return g.Init(asyncLevel, envSearchPathToAppMap)
 }
 
 // Run executes the sync and render operations based on the provided flags.
