@@ -14,12 +14,6 @@ builds:
       - darwin_amd64
       - darwin_arm64
       - windows_amd64
-upx:
-  - enabled: true
-    goos:
-      - linux
-      - windows
-    lzma: true
 archives:
   - format_overrides:
       - goos: windows
