@@ -11,7 +11,6 @@ pkgs.mkShell {
     lefthook
     mise
     nix-update
-    upx
   ];
   shellHook = ''
     mise install
