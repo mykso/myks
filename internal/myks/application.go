@@ -70,6 +70,10 @@ func NewApplication(e *Environment, name, prototypeName string) (*Application, e
 		return app, errors.New("application prototype does not exist")
 	}
 
+	if e.g != nil && e.g.skipAppData {
+		return app, nil
+	}
+
 	err := app.Init()
 	return app, err
 }

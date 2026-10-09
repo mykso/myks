@@ -1,6 +1,8 @@
 package myks
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -29,6 +31,24 @@ func TestApplication_renderDataYaml(t *testing.T) {
 				t.Errorf("renderDataYaml() does not include expected string. got = %v, want %v", string(got), tt.want)
 			}
 		})
+	}
+}
+
+func TestNewApplication_skipAppData(t *testing.T) {
+	g := NewWithDefaults()
+	g.RootDir = t.TempDir()
+	if err := os.MkdirAll(filepath.Join(g.RootDir, g.PrototypesDir, "proto"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	env := &Environment{g: g, cfg: &g.Config}
+
+	// Without data files, rendering application data values fails; the roster init must not attempt it.
+	if _, err := NewApplication(env, "app", "proto"); err == nil {
+		t.Fatal("NewApplication() expected an error from rendering data values")
+	}
+	g.skipAppData = true
+	if _, err := NewApplication(env, "app", "proto"); err != nil {
+		t.Fatalf("NewApplication() with skipAppData error = %v", err)
 	}
 }
 
