@@ -27,7 +27,6 @@ archives:
           - zip
     files:
       - LICENSE
-      - docs/*
 checksum:
   name_template: 'checksums.txt'
 signs:
