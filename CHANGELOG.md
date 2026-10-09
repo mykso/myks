@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.14.1](https://github.com/mykso/myks/compare/v5.14.0...v5.14.1) (2026-10-09)
+
+
+### Performance Improvements
+
+* **release:** drop UPX compression ([#907](https://github.com/mykso/myks/issues/907)) ([c2ed7cf](https://github.com/mykso/myks/commit/c2ed7cfcaf7fe1ae4192dd830cb62d0f92cc1bbb))
+
 ## [5.14.0](https://github.com/mykso/myks/compare/v5.13.3...v5.14.0) (2026-10-09)
 
 
