@@ -1076,3 +1076,14 @@ func TestCarriedCommentChecks(t *testing.T) {
 	assert.Contains(t, m.warnings[0], "prototypes/synology-csi (now synology_csi)")
 	assert.Equal(t, []string{"prototypes/web/app-data.yaml"}, m.renovateMarked())
 }
+
+func TestDerivedShape(t *testing.T) {
+	t.Parallel()
+	shape := derivedShape(&derivations{
+		exprs:    map[string]string{".app.config[0].services[1].uri": "_uri"},
+		literals: map[string]any{".app.config[0].services[1].name": "Paperless", ".app.config[0].category": "Apps"},
+	}, nil)
+	assert.Equal(t, map[string]any{"app": map[string]any{"config": []any{
+		map[string]any{"category": true, "services": []any{nil, map[string]any{"uri": true, "name": true}}},
+	}}}, shape)
+}

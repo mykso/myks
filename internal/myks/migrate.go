@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -1194,12 +1195,14 @@ func (m *migrator) planPrototypeSchemas() {
 
 // statedValues lists every value set the sources state for applications of one prototype:
 // the prototype's own, every level's `_proto/` contribution, and the `_apps/` contribution of
-// every application a roster declares with it.
+// every application a roster declares with it. What a file states inside a value ytt computed
+// is not among its converted values; the shape its derivations address stands in for it.
 func (m *migrator) statedValues(proto string) []map[string]any {
-	stated := []map[string]any{m.protoBase[proto]}
+	stated := []map[string]any{m.protoBase[proto], derivedShape(m.protoDerived[proto])}
 	apps := map[string]bool{}
 	for _, node := range m.nodes {
-		stated = append(stated, node.protoValues[proto])
+		stated = append(stated, node.protoValues[proto],
+			derivedShape(node.protoDerived[proto], node.protoContextual[proto]))
 		for _, entry := range node.rawRoster {
 			if entry.proto == proto {
 				apps[entry.name] = true
@@ -1208,10 +1211,78 @@ func (m *migrator) statedValues(proto string) []map[string]any {
 	}
 	for _, node := range m.nodes {
 		for app := range apps {
-			stated = append(stated, node.appValues[app])
+			stated = append(stated, node.appValues[app],
+				derivedShape(node.appDerived[app], node.appContextual[app]))
 		}
 	}
 	return stated
+}
+
+// derivedShape rebuilds the shape of what a file states inside the values ytt resolved whole:
+// every path its derivations compute or state plainly next to them, set to true. Two
+// translations of one file address the same values, so they make one shape.
+func derivedShape(parts ...*derivations) map[string]any {
+	root := map[string]any{}
+	for _, d := range parts {
+		if d == nil {
+			continue
+		}
+		for _, path := range slices.Concat(slices.Collect(maps.Keys(d.exprs)), slices.Collect(maps.Keys(d.literals))) {
+			if steps, ok := valuePathSteps(path); ok {
+				root, _ = withShape(root, steps).(map[string]any)
+			}
+		}
+	}
+	return root
+}
+
+// valuePathSteps splits a dotted value path (".a.b[0].c") into its keys and indexes.
+func valuePathSteps(path string) ([]any, bool) {
+	var steps []any
+	for _, segment := range strings.Split(strings.TrimPrefix(path, "."), ".") {
+		key, rest, _ := strings.Cut(segment, "[")
+		if key == "" {
+			return nil, false
+		}
+		steps = append(steps, key)
+		for rest != "" {
+			index, after, found := strings.Cut(rest, "]")
+			i, err := strconv.Atoi(index)
+			if !found || err != nil {
+				return nil, false
+			}
+			steps = append(steps, i)
+			rest = strings.TrimPrefix(after, "[")
+		}
+	}
+	return steps, true
+}
+
+// withShape returns node with the path of steps set, creating the maps and lists on the way.
+func withShape(node any, steps []any) any {
+	if len(steps) == 0 {
+		if node != nil {
+			return node
+		}
+		return true
+	}
+	switch step := steps[0].(type) {
+	case string:
+		m, _ := node.(map[string]any)
+		if m == nil {
+			m = map[string]any{}
+		}
+		m[step] = withShape(m[step], steps[1:])
+		return m
+	case int:
+		l, _ := node.([]any)
+		for len(l) <= step {
+			l = append(l, nil)
+		}
+		l[step] = withShape(l[step], steps[1:])
+		return l
+	}
+	return node
 }
 
 // kclSchemaName turns a prototype directory name into its schema name: web_app -> WebApp.
