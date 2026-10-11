@@ -774,3 +774,44 @@ components:
 		"schema App:\n    app_id?: int = 0\n    name?: str = \"\"\n\n    check:\n        len(name) >= 1, \"application.apps[].name must not be empty\"\n")
 	assert.Empty(t, m.warnings)
 }
+
+func TestLevelRenames(t *testing.T) {
+	t.Parallel()
+	m := &migrator{
+		g:            &Globe{Config: Config{PrototypesDir: "prototypes"}},
+		nodes:        map[string]*migNode{},
+		protoSchemas: map[string]string{},
+	}
+	m.root = m.newNode("envs", nil)
+	m.root.envDerived = &derivations{
+		exprs:   map[string]string{".environment.port": "_port"},
+		prelude: []string{"_port = 80"},
+	}
+	for _, name := range []string{"api", "web"} {
+		m.root.overrides[name] = map[string]any{"port": 0, "url": ""}
+	}
+	// `api` binds `_port` differently from env.k, so its own is renamed. Its `_url` claims
+	// the name first; web's, which reads another `_port`, then differs and is renamed.
+	m.root.appDerived["api"] = &derivations{
+		exprs:   map[string]string{".port": "_port", ".url": "_url"},
+		prelude: []string{"_port = 8080", `_url = "http://x:{}".format(_port)`},
+	}
+	m.root.appDerived["web"] = &derivations{
+		exprs:   map[string]string{".port": "_port", ".url": "_url"},
+		prelude: []string{"_port = 80", `_url = "http://x:{}".format(_port)`},
+	}
+
+	files, err := m.renderNodeFiles(m.root, nil)
+	require.NoError(t, err)
+	assert.Contains(t, files["app-api.k"], "_api_port = 8080\n"+`_url = "http://x:{}".format(_api_port)`+"\n")
+	assert.Contains(t, files["app-api.k"], "port = _api_port\n")
+	assert.Contains(t, files["app-web.k"], "_port = 80\n"+`_web_url = "http://x:{}".format(_port)`+"\n")
+	assert.Contains(t, files["app-web.k"], "url = _web_url\n")
+}
+
+func TestRenameIdents(t *testing.T) {
+	t.Parallel()
+	renames := map[string]string{"_a": "_x_a"}
+	assert.Equal(t, `_x_a + f(_x_a) + "_a" + '_a' + y._a + _ab`, renameIdents(`_a + f(_a) + "_a" + '_a' + y._a + _ab`, renames))
+	assert.Equal(t, `"esc \" _a" + _x_a`, renameIdents(`"esc \" _a" + _a`, renames))
+}

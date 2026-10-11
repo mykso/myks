@@ -133,12 +133,71 @@ func (m *migrator) renderNodeFiles(node, parent *migNode) (map[string]string, er
 			return nil, err
 		}
 	}
+	renames := m.levelRenames(node)
 	for _, name := range nodeAppNames(node) {
-		if err := render(appKFileName(name), func() (string, error) { return m.renderAppK(node, name) }); err != nil {
+		if err := render(appKFileName(name), func() (string, error) { return m.renderAppK(node, name, renames[name]) }); err != nil {
 			return nil, err
 		}
 	}
 	return files, nil
+}
+
+// levelRenames renames the module-level variables an application file binds that another file
+// of its level binds differently. The files of a level are one KCL package, so a name bound in
+// two of them is one variable, which every reader sees with the value bound last — silently.
+// env.k keeps its names; an application file's variable takes the application's name as a
+// prefix (`_get_uri` becomes `_web_get_uri`).
+func (m *migrator) levelRenames(node *migNode) map[string]map[string]string {
+	taken := map[string][]string{}
+	if node.envDerived.has() {
+		taken = preludeVars(node.envDerived.prelude)
+	}
+	renames := map[string]map[string]string{}
+	for _, name := range nodeAppNames(node) {
+		decl, patch := m.appFileDerived(node, name)
+		file := mergeDerivations(decl, patch)
+		if !file.has() {
+			continue
+		}
+		own := map[string]string{}
+		// A variable read by a renamed one has to be compared after the rename, so the
+		// renaming runs until nothing more collides.
+		for changed := true; changed; {
+			changed = false
+			vars := preludeVars(file.renamed(own).prelude)
+			for _, v := range slices.Sorted(maps.Keys(vars)) {
+				if existing, ok := taken[v]; !ok || slices.Equal(existing, vars[v]) || slices.Contains(slices.Collect(maps.Values(own)), v) {
+					continue
+				}
+				renamed := "_" + sanitizeKclIdentifier(name) + v
+				for _, clash := taken[renamed]; clash || kclReservedVars[renamed]; _, clash = taken[renamed] {
+					renamed += "_"
+				}
+				own[v] = renamed
+				changed = true
+				break
+			}
+		}
+		for v, stmts := range preludeVars(file.renamed(own).prelude) {
+			taken[v] = stmts
+		}
+		if len(own) > 0 {
+			renames[name] = own
+		}
+	}
+	return renames
+}
+
+// appFileDerived returns the derivations an application's level file states: those behind
+// its declaration or override, and those of its frozen block.
+func (m *migrator) appFileDerived(node *migNode, name string) (decl, patch *derivations) {
+	if app, declared := node.declared[name]; declared {
+		decl = m.declarationDerived(node, name, app.proto)
+	} else {
+		proto := protoOf(node, name)
+		decl = mergeDerivations(node.protoDerived[proto], node.appDerived[name])
+	}
+	return decl, node.appPatchDerived[name]
 }
 
 // nodeAppNames lists, sorted, every application this level says something about.
@@ -1184,7 +1243,7 @@ func writeAppsBase(b *kclWriter, node *migNode) {
 // it — the declaration or the dict-union override of a declaration above, plus the values
 // frozen from the legacy-resolved output. The blocks unify into `_apps` in file order, so the
 // frozen values win over the declaration above them.
-func (m *migrator) renderAppK(node *migNode, name string) (string, error) {
+func (m *migrator) renderAppK(node *migNode, name string, renames map[string]string) (string, error) {
 	b := &kclWriter{}
 	app, declared := node.declared[name]
 	// Inside the `_apps` block the application's name is a key, which shadows a package of
@@ -1198,16 +1257,16 @@ func (m *migrator) renderAppK(node *migNode, name string) (string, error) {
 		b.WriteString("import myks\n")
 	}
 	if declared {
-		b.derived = m.declarationDerived(node, name, app.proto)
 		b.comments = m.declarationComments(node, name, app.proto)
 	} else {
 		proto := protoOf(node, name)
-		b.derived = mergeDerivations(node.protoDerived[proto], node.appDerived[name])
 		b.comments = mergeComments(node.protoComments[proto], node.appComments[name])
 	}
 	// The frozen block states its own derivations, which read the level variable; their
 	// prelude and imports belong in the same header.
-	patchDerived := node.appPatchDerived[name]
+	declDerived, patchDerived := m.appFileDerived(node, name)
+	b.derived = declDerived.renamed(renames)
+	patchDerived = patchDerived.renamed(renames)
 	// A prototype with a generated base schema is instantiated instead of myks.App: its defaults
 	// come from the schema, so the declaration's values are a union on top.
 	schema := ""

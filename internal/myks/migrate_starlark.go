@@ -124,6 +124,62 @@ func starComments(stmt syntax.Stmt) []string {
 	return lines
 }
 
+// renamed returns the derivations with module-level variables renamed, wherever they are read
+// or bound.
+func (d *derivations) renamed(renames map[string]string) *derivations {
+	if d == nil || len(renames) == 0 {
+		return d
+	}
+	out := &derivations{exprs: make(map[string]string, len(d.exprs)), imports: d.imports}
+	for path, expr := range d.exprs {
+		out.exprs[path] = renameIdents(expr, renames)
+	}
+	for _, stmt := range d.prelude {
+		out.prelude = append(out.prelude, renameIdents(stmt, renames))
+	}
+	for stmt, lines := range d.notes {
+		out.addNotes(map[string][]string{renameIdents(stmt, renames): lines})
+	}
+	return out
+}
+
+// renameIdents renames the identifiers of KCL text, leaving string literals and attribute
+// names (`x._a`) alone.
+func renameIdents(text string, renames map[string]string) string {
+	var out strings.Builder
+	for i := 0; i < len(text); {
+		c := text[i]
+		switch {
+		case c == '"' || c == '\'':
+			end := i + 1
+			for end < len(text) && text[end] != c {
+				if text[end] == '\\' {
+					end++
+				}
+				end++
+			}
+			end = min(end+1, len(text))
+			out.WriteString(text[i:end])
+			i = end
+		case isIdentifierChar(c):
+			end := i
+			for end < len(text) && isIdentifierChar(text[end]) {
+				end++
+			}
+			word := text[i:end]
+			if renamed, ok := renames[word]; ok && (i == 0 || text[i-1] != '.') {
+				word = renamed
+			}
+			out.WriteString(word)
+			i = end
+		default:
+			out.WriteByte(c)
+			i++
+		}
+	}
+	return out.String()
+}
+
 // preludeVars groups prelude statements by the variable they assign. A variable assigned more
 // than once (the loop rewrite appends to a list) keeps all of its statements.
 func preludeVars(prelude []string) map[string][]string {
