@@ -910,6 +910,9 @@ func checkCondition(access string, constraint schemaConstraint) (condition, requ
 	}
 	switch constraint.kind {
 	case constraintMinLength:
+		if bound == "1" {
+			return fmt.Sprintf("len(%s) >= 1", access), "must not be empty", nil
+		}
 		return fmt.Sprintf("len(%s) >= %s", access, bound), "must be at least " + bound + " long", nil
 	case constraintMaxLength:
 		return fmt.Sprintf("len(%s) <= %s", access, bound), "must be at most " + bound + " long", nil

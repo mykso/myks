@@ -344,7 +344,7 @@ components:
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "schema KbMcp(myks.App):\n    [...str]: any\n    proto: str = \"kb_mcp\"\n")
 	assert.Contains(t, string(content), "image?: str = \"kb-mcp:1.0.0\"", "the inspected schema types the attribute")
-	assert.Contains(t, string(content), "\n    check:\n        len(image) >= 1, \"image must be at least 1 long\"\n")
+	assert.Contains(t, string(content), "\n    check:\n        len(image) >= 1, \"image must not be empty\"\n")
 	assert.Contains(t, string(content), "helm?: {str:any} = {", "a value the schema does not describe stays a literal")
 }
 
@@ -389,9 +389,9 @@ components:
 	assert.Contains(t, string(content), "    image?: str\n", "a demanded value is declared without a default")
 	assert.Contains(t, string(content),
 		"schema Application:\n    [...str]: any\n    containerPort?: int = 80\n    ingress?: bool = True\n    name?: str\n")
-	assert.Contains(t, string(content), `len(name) >= 1 if name != Undefined, "application.name must be at least 1 long"`,
+	assert.Contains(t, string(content), `len(name) >= 1 if name != Undefined, "application.name must not be empty"`,
 		"a nested check lives in the schema that owns the field")
-	assert.Contains(t, string(content), `len(image) >= 1 if image != Undefined, "image must be at least 1 long"`)
+	assert.Contains(t, string(content), `len(image) >= 1 if image != Undefined, "image must not be empty"`)
 	assert.Empty(t, m.warnings)
 }
 
