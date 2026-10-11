@@ -21,7 +21,9 @@ schema App:
     `proto` selects the prototype (sync/render sources); it defaults to the
     application's key in `applications` when unset. All other keys are the
     app's resolved values, passed to the render pipeline as ytt data values.
-    Prototype packages subclass this to type their own values.
+    Prototype packages subclass this to type their own values. KCL does not
+    inherit the index signature, so a subclass takes only the keys it declares
+    plus the engine scopes declared here, which every application may set.
 
     Every key reaches the data values, underscore-prefixed ones included: the
     engine evaluates with `show_hidden`, so KCL's private-member convention
@@ -29,6 +31,10 @@ schema App:
     """
     proto?: str
     argocd?: {str:any}
+    helm?: {str:any}
+    kbld?: {str:any}
+    render?: {str:any}
+    yttPkg?: {str:any}
     [...str]: any
 
 schema Apps:

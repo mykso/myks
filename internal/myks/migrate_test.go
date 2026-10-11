@@ -462,13 +462,14 @@ func TestRenderLevelFiles(t *testing.T) {
 	m := &migrator{
 		g:            &Globe{Config: Config{PrototypesDir: "prototypes"}},
 		nodes:        map[string]*migNode{},
-		protoSchemas: map[string]string{},
+		protoSchemas: map[string]string{"arc": "Arc"},
 	}
 	m.root = m.newNode("envs", nil)
 	leaf := m.newNode(filepath.Join("envs", "dev"), m.root)
 	leaf.env = &Environment{ID: "dev"}
 	leaf.declared["web"] = migApp{name: "web", proto: "web", values: map[string]any{"replicas": 3}}
 	leaf.declared["arc"] = migApp{name: "arc", proto: "arc"}
+	leaf.declared["arc2"] = migApp{name: "arc2", proto: "arc"}
 	leaf.declared["argocd"] = migApp{name: "argocd", proto: "argo"}
 	leaf.overrides["cache"] = map[string]any{"replicas": 1}
 	leaf.appPatches["web"] = map[string]any{"computed": "x"}
@@ -484,14 +485,17 @@ func TestRenderLevelFiles(t *testing.T) {
 		[]string{"app-cache.k", "app-web.k", appsKFileName, envKFileName, patchKFileName},
 		slices.Sorted(maps.Keys(files)))
 
-	// Applications the level only declares share one file, a block each.
+	// Applications the level only declares share one file and one block, except where a key
+	// would shadow the package a later declaration reads.
 	assert.Equal(t, `import myks
+import prototypes.arc
 
 _apps: myks.Apps {
-    arc = myks.App {}
+    arc = arc.Arc {}
 }
 
 _apps: myks.Apps {
+    arc2 = arc.Arc {}
     argocd = myks.App {proto = "argo"}
 }
 `, files[appsKFileName])
@@ -619,6 +623,8 @@ components:
 
 	m := &migrator{g: &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}}}
 	values := schema.defaults
+	// An engine scope the prototype sets is declared on myks.App, not by the prototype schema.
+	values["kbld"] = map[string]any{"cache": false}
 	m.protoSchemas = map[string]string{"home": "Home"}
 	m.protoBase = map[string]map[string]any{"home": values}
 	m.protoInspected = map[string]*inspectedSchema{"home": schema}
@@ -631,8 +637,10 @@ components:
 		"schema ConfigItem:\n    category: str = \"Category\"\n    services: [Service] = []\n")
 	assert.Contains(t, string(content),
 		"schema Service:\n    iconBubble: bool = True\n    name: str = \"Arch\"\n")
-	// The ytt schema closed every scope, so nothing needs an index signature.
+	// The ytt schema closed every scope and myks.App declares kbld, so nothing needs an index
+	// signature.
 	assert.NotContains(t, string(content), "[...str]: any")
+	assert.Contains(t, string(content), "    kbld?: {str:any} = {cache = False}\n")
 
 	// The patch simulation expects what KCL fills in, at every depth.
 	completed := m.protoPlans["home"].withElementDefaults(map[string]any{
@@ -650,6 +658,29 @@ components:
 // TestRequireStatedFields pins that an element field every stated element sets loses the
 // ytt default that was only an example of the element's shape, and that the simulation no
 // longer fills it in.
+// TestRequireDemanded pins when a value the ytt schema demands becomes a required attribute:
+// only when every declaration states it on its own level, a frozen block there included.
+func TestRequireDemanded(t *testing.T) {
+	t.Parallel()
+	image, tag := pathKey([]string{"application", "image"}), pathKey([]string{"application", "tag"})
+	plan := &protoSchemaPlan{demanded: map[string]bool{image: true, tag: true}, required: map[string]bool{}}
+	app := func(values map[string]any) migApp { return migApp{proto: "web", values: values} }
+	m := &migrator{
+		protoPlans: map[string]*protoSchemaPlan{"web": plan},
+		nodes: map[string]*migNode{
+			"envs/a": {declared: map[string]migApp{"a": app(map[string]any{
+				"application": map[string]any{"image": "x", "tag": "1"},
+			})}},
+			"envs/b": {
+				declared:   map[string]migApp{"b": app(nil)},
+				appPatches: map[string]map[string]any{"b": {"application": map[string]any{"image": "y"}}},
+			},
+		},
+	}
+	m.requireDemanded()
+	assert.Equal(t, map[string]bool{image: true}, plan.required)
+}
+
 func TestRequireStatedFields(t *testing.T) {
 	t.Parallel()
 	schema, err := parseSchemaInspect([]byte(`

@@ -63,6 +63,7 @@ func Migrate(g *Globe, schemaPackage string, force bool) error {
 	if err := m.computePatches(); err != nil {
 		return err
 	}
+	m.requireDemanded()
 	if err := m.emit(schemaPackage); err != nil {
 		return err
 	}
@@ -1218,6 +1219,44 @@ func (m *migrator) statedValues(proto string) []map[string]any {
 	return stated
 }
 
+// requireDemanded generates a demanded value as a required attribute wherever every
+// declaration of the prototype's applications states it on its own level: the value then has
+// to be given, as the ytt validation demanded. KCL checks a required attribute once the
+// declaring level's `_apps` is complete, so a value only a lower level gives would come too
+// late; such a value stays optional, validated once set.
+func (m *migrator) requireDemanded() {
+	for proto, plan := range m.protoPlans {
+		if len(plan.demanded) == 0 {
+			continue
+		}
+		var stated []map[string]any
+		for _, node := range m.nodes {
+			for name, app := range node.declared {
+				if app.proto != proto {
+					continue
+				}
+				decl, patch := m.appFileDerived(node, name)
+				stated = append(stated, mergeValues(mergeValues(app.values, derivedShape(decl)),
+					mergeValues(node.appPatches[name], derivedShape(patch))))
+			}
+		}
+		for key := range plan.demanded {
+			if len(stated) > 0 && !strings.Contains(key, itemsKey) && allStated(stated, dottedPath(strings.Split(key, "\x00"))) {
+				plan.required[key] = true
+			}
+		}
+	}
+}
+
+func allStated(values []map[string]any, path string) bool {
+	for _, v := range values {
+		if value, ok := valueAtPath(v, path); !ok || value == nil {
+			return false
+		}
+	}
+	return true
+}
+
 // derivedShape rebuilds the shape of what a file states inside the values ytt resolved whole:
 // every path its derivations compute or state plainly next to them, set to true. Two
 // translations of one file address the same values, so they make one shape.
@@ -1754,6 +1793,16 @@ func (m *migrator) printReport() {
 		log.Info().Msg(m.g.Msg(fmt.Sprintf(
 			"Froze %d resolved value(s) in leaf-level TODO patches; turn them into KCL derivations (see %s)",
 			m.patched, migrationDocsURL)))
+	}
+	if len(m.renamedProtos) > 0 {
+		var renames []string
+		for _, old := range slices.Sorted(maps.Keys(m.renamedProtos)) {
+			renames = append(renames, old+" -> "+m.renamedProtos[old])
+		}
+		log.Info().Strs("prototypes", renames).Msg(m.g.Msg(fmt.Sprintf(
+			"Renamed prototypes keep a compatibility symlink under the legacy name in %s and every _proto directory, "+
+				"so the legacy sources still resolve; delete the symlinks together with the legacy data-values files",
+			m.g.PrototypesDir)))
 	}
 	log.Info().Msg(m.g.Msg(
 		"Migration seed complete. Verify with the byte-identical gate (render and diff rendered/), " +

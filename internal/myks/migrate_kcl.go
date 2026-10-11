@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	kcl "kcl-lang.io/kcl-go"
 )
 
 // Generated files of one environment-tree level. A KCL package is a directory, so the files
@@ -19,8 +21,7 @@ import (
 const (
 	envKFileName   = "env.k"
 	patchKFileName = "patch.k"
-	// appsKFileName gathers the applications a level only declares, each in a block of its
-	// own: a key of a block shadows a package of the same name for the rest of that block.
+	// appsKFileName gathers the applications a level only declares.
 	appsKFileName = "apps.k"
 )
 
@@ -99,6 +100,11 @@ func (m *migrator) emit(schemaPackage string) error {
 		if err := writeFile(path, []byte(files[path])); err != nil {
 			return fmt.Errorf("writing %s: %w", path, err)
 		}
+		// The KCL formatter has the last word, so a format-on-save leaves the seed unchanged.
+		// It resolves the imports, so it runs on the written file, beside kcl.mod.
+		if _, err := kcl.FormatPath(path); err != nil {
+			m.warn("%s: not formatted: %v", path, err)
+		}
 	}
 	return nil
 }
@@ -138,15 +144,19 @@ func (m *migrator) renderNodeFiles(node, parent *migNode) (map[string]string, er
 		}
 	}
 	if len(declarations) > 0 {
-		files[appsKFileName] = joinKclFiles(declarations)
+		files[appsKFileName] = joinDeclarations(declarations)
 	}
 	return files, nil
 }
 
-// joinKclFiles joins rendered files into one: their imports, deduplicated and sorted, then
-// their bodies apart by a blank line.
-func joinKclFiles(contents []string) string {
-	var imports, bodies []string
+// joinDeclarations joins the files of the applications a level only declares into one: their
+// imports, deduplicated and sorted, then their declarations in one `_apps` block. A key
+// shadows a package of the same name for the rest of its block, so a declaration reading a
+// package an earlier key names opens a block of its own.
+func joinDeclarations(contents []string) string {
+	var imports []string
+	var blocks [][]string
+	keys := map[string]bool{}
 	for _, content := range contents {
 		head, body, _ := strings.Cut(content, "\n\n")
 		for _, line := range strings.Split(head, "\n") {
@@ -154,10 +164,23 @@ func joinKclFiles(contents []string) string {
 				imports = append(imports, line)
 			}
 		}
-		bodies = append(bodies, body)
+		// A bare file's block holds its one declaration on one line.
+		entry := strings.Split(body, "\n")[1]
+		key, constructor, _ := strings.Cut(strings.TrimSpace(entry), " = ")
+		pkg, _, _ := strings.Cut(constructor, ".")
+		if len(blocks) == 0 || keys[pkg] {
+			blocks = append(blocks, nil)
+			clear(keys)
+		}
+		keys[key] = true
+		blocks[len(blocks)-1] = append(blocks[len(blocks)-1], entry)
 	}
 	slices.Sort(imports)
-	return strings.Join(imports, "\n") + "\n\n" + strings.Join(bodies, "\n")
+	b := strings.Join(imports, "\n") + "\n"
+	for _, block := range blocks {
+		b += "\n_apps: myks.Apps {\n" + strings.Join(block, "\n") + "\n}\n"
+	}
+	return b
 }
 
 // levelRenames renames the module-level variables an application file binds that another file
@@ -819,13 +842,13 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 			b.printf("    %s%s: %s = %s {}\n", key, p.optionalMark(child, values[key]), nested, nested)
 			continue
 		}
+		if p.required[pathKey(child)] {
+			b.printf("    %s: %s\n", key, p.attributeType(child, nil))
+			continue
+		}
 		if p.demanded[pathKey(child)] {
 			// No default: the prototype validates this value without supplying a valid one.
 			b.printf("    %s?: %s\n", key, p.attributeType(child, nil))
-			continue
-		}
-		if p.required[pathKey(child)] {
-			b.printf("    %s: %s\n", key, p.attributeType(child, nil))
 			continue
 		}
 		value := values[key]
@@ -862,7 +885,7 @@ func (p *protoSchemaPlan) optionalMark(path []string, value any) string {
 // misspelled key that ytt used to catch. The signature stays wherever that is not certain:
 // no inspected schema at all, another schema document governing the same scope from the
 // environment tree, a scope the schema left open, or an attribute that reached the values
-// from outside the schema.
+// from outside the schema. The engine scopes myks.App declares count as declared on the root.
 func (p *protoSchemaPlan) openScope(path, names []string) bool {
 	if p.schema == nil || p.externalSchema {
 		return true
@@ -875,12 +898,16 @@ func (p *protoSchemaPlan) openScope(path, names []string) bool {
 		return true
 	}
 	for _, name := range names {
-		if node.Properties[name] == nil {
+		if node.Properties[name] == nil && (len(path) > 0 || !slices.Contains(appEngineScopes, name)) {
 			return true
 		}
 	}
 	return false
 }
+
+// appEngineScopes are the data-values scopes myks.App declares itself, so a prototype root
+// that sets one stays closed: every application may set them, whatever its prototype says.
+var appEngineScopes = []string{"argocd", "helm", "kbld", "render", "yttPkg"}
 
 // attributeType types a generated attribute from the inspected schema, which is what ytt
 // enforced on the legacy data values. Where the schema says nothing (a plain data-values
@@ -965,7 +992,9 @@ func (p *protoSchemaPlan) locate(path []string, guardNull bool) (owner []string,
 	depth := len(owner)
 	access = path[depth]
 	if p.demanded[pathKey(path[:depth+1])] {
-		// An optional attribute left unset is Undefined, which only != compares with.
+		// The value is Undefined while unset: an optional attribute until a level sets it, a
+		// required one in the nested default KCL instantiates before the declaration merges in.
+		// Only != compares with Undefined.
 		guards = append(guards, access+" != Undefined")
 	}
 	for i := depth; i < len(path); i++ {

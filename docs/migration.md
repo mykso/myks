@@ -354,7 +354,9 @@ into what an application writes there.
 A generated schema keeps an index signature (`[...str]: any`) only where the ytt schema did
 not close the scope. A data-values schema is strict — it rejects a key it does not declare,
 whichever file states it — so a scope it governed needs none, and the generated schema catches
-the misspelled key ytt used to catch. The signature stays wherever that is not certain: a
+the misspelled key ytt used to catch. The engine scopes `argocd`, `helm`, `kbld`, `render` and
+`yttPkg` are declared on `myks.App` itself, so every application may set them whatever its
+prototype schema says. The signature stays wherever that is not certain: a
 prototype with no schema document, a scope the schema left open, a key that reached the values
 from outside the schema, or a prototype whose application scope another schema document
 governs from the environment tree (a `_proto/<proto>/` or `_apps/<app>/` file) — what that one
@@ -372,11 +374,13 @@ A KCL check runs where the schema is instantiated, that is where the application
 and again on every override of that instance, while ytt validated the final data values of a
 render once. So a value the prototype validates without supplying a satisfying default —
 `min_len=1` on an empty string, which is how a ytt prototype demands a value — is declared
-**without a default** (`image?: str` above) and its check guarded against the absence. The
-value is then absent until some level sets it, and validated from that level down. What this
-does not catch is an application that never sets it at all: KCL cannot express "required at
-the leaf" in a schema whose instances are also the intermediate levels. If a value must be
-present, assert it in the leaf finalizer instead.
+**without a default** and its check guarded against the absence. Where every declaration of
+the prototype's applications states the value on its own level, it is a required attribute
+(`image: str`): an application that leaves it out fails to evaluate, as it failed to render
+before. KCL checks a required attribute once the declaring level is complete, so a value that
+only a lower level sets stays optional (`image?: str` above): absent until some level sets
+it, and validated from that level down. What this does not catch is an application that
+never sets it at all. If such a value must be present, assert it in the leaf finalizer.
 
 One consequence to watch during migration: the value no longer defaults to the empty string,
 so an application that legacy rendering resolved to `""` gets that empty string frozen as a
@@ -414,9 +418,12 @@ The seed writes one file per application that the level configures, and gathers 
 declarations into `apps.k`. Any `.k` file of the level may declare applications, since the
 accumulator is what the level folds in, not the file names
 ([design](redesign/design.md#tree-layout)): move an application out of `apps.k` once it gains
-values, or group related ones as you see fit. Keep one `_apps` block per application in a
-shared file — an application's key shadows a package of the same name for the rest of its
-block.
+values, or group related ones as you see fit. Within one `_apps` block an application's key
+shadows a package of the same name for the rest of the block: a declaration that reads such a
+package goes before that key, or into a block of its own. Keep an application's declaration
+and the overrides its own level states in one file: KCL unifies the files of a level in file
+name order, and an `x: {...}` override in a file sorting before the one declaring
+`x = X {...}` is dropped.
 
 ### Renovate
 
