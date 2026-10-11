@@ -1446,10 +1446,31 @@ func kclScalar(value any) (string, error) {
 	}
 }
 
-// quoteKclString renders a Go string as a KCL string literal. KCL interpolates `${...}`
-// inside string literals, so the sequence is escaped to keep the value literal.
+// quoteKclString renders a Go string as a KCL string literal, in single quotes when that saves
+// escaping its double quotes. KCL interpolates `${...}` inside string literals, so the
+// sequence is escaped to keep the value literal.
 func quoteKclString(s string) string {
-	return strings.ReplaceAll(strconv.Quote(s), "${", `\${`)
+	quoted := strconv.Quote(s)
+	if strings.Contains(s, `"`) && !strings.Contains(s, "'") {
+		quoted = "'" + unescapeDoubleQuotes(quoted[1:len(quoted)-1]) + "'"
+	}
+	return strings.ReplaceAll(quoted, "${", `\${`)
+}
+
+// unescapeDoubleQuotes drops the escape from every `\"` of a Go-quoted string's body, leaving
+// every other escape sequence as it is.
+func unescapeDoubleQuotes(body string) string {
+	var out strings.Builder
+	for i := 0; i < len(body); i++ {
+		if body[i] == '\\' && i+1 < len(body) {
+			if body[i+1] != '"' {
+				out.WriteByte('\\')
+			}
+			i++
+		}
+		out.WriteByte(body[i])
+	}
+	return out.String()
 }
 
 func kclKey(key string) string {

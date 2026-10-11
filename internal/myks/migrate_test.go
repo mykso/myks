@@ -91,7 +91,9 @@ func TestKclScalar(t *testing.T) {
 		{true, "True"},
 		{false, "False"},
 		{"text", `"text"`},
-		{"with \"quotes\"", `"with \"quotes\""`},
+		{"with \"quotes\"", `'with "quotes"'`}, // single quotes save escaping double ones
+		{`both "kinds" 'of' quotes`, `"both \"kinds\" 'of' quotes"`},
+		{`back\slash "and" quote`, `'back\\slash "and" quote'`},
 		{42, "42"},
 		{int64(-7), "-7"},
 		{1.5, "1.5"},
