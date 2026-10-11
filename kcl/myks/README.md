@@ -5,6 +5,7 @@ Schemas for the myks KCL configuration layer ([design](../../docs/redesign/desig
 - `Environment` — one node of the environment inheritance tree
 - `App` — resolved application configuration; the base for prototype schemas
 - `Apps` — accumulator the per-application files of one level unify into
+- `with_apps` — folds a level's `Apps` accumulator into its environment
 - `finalize` — leaf finalizer; validates leaf invariants (non-empty `id`)
 - `SCHEMA_VERSION` — stamped into the frozen tree as `myksSchemaVersion`; the myks engine
   asserts compatibility (same major.minor) at eval time

@@ -215,6 +215,24 @@ type yttLib struct {
 	name   string          // the file stem, which is also the name of the generated .k file
 	funcs  map[string]bool // the functions the translation exports
 	source string          // the content of the generated lib file
+	defs   []yttLibDef     // the parts of source, one per function
+}
+
+// yttLibDef is one translated function: its KCL name and the lines that define it.
+type yttLibDef struct {
+	name, source string
+}
+
+// sourceReadBy returns the part of the library that text calls: a function nothing reads is not
+// worth a reader's time in the generated tree. Empty when text reads none of it.
+func (l *yttLib) sourceReadBy(text, libPackage string) string {
+	var b strings.Builder
+	for _, def := range l.defs {
+		if readsName(text, libPackage+"."+def.name) {
+			b.WriteString(def.source)
+		}
+	}
+	return b.String()
 }
 
 // translateYttLib translates the single-expression functions of one ytt library file. A
@@ -226,7 +244,6 @@ func translateYttLib(path string, content []byte) *yttLib {
 		return nil
 	}
 	lib := &yttLib{name: strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)), funcs: map[string]bool{}}
-	var b strings.Builder
 	for _, stmt := range file.Stmts {
 		def, ok := stmt.(*syntax.DefStmt)
 		if !ok || len(def.Body) != 1 {
@@ -241,16 +258,19 @@ func translateYttLib(path string, content []byte) *yttLib {
 			continue
 		}
 		lib.funcs[def.Name.Name] = true
+		var b strings.Builder
 		b.WriteString("\n")
 		for _, line := range starComments(def) {
 			b.WriteString(line + "\n")
 		}
-		fmt.Fprintf(&b, "%s = %s\n", sanitizeKclIdentifier(def.Name.Name), lambda)
+		name := sanitizeKclIdentifier(def.Name.Name)
+		fmt.Fprintf(&b, "%s = %s\n", name, lambda)
+		lib.defs = append(lib.defs, yttLibDef{name: name, source: b.String()})
+		lib.source += b.String()
 	}
 	if len(lib.funcs) == 0 {
 		return nil
 	}
-	lib.source = b.String()
 	return lib
 }
 

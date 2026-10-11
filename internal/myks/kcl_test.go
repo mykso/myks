@@ -181,7 +181,7 @@ environments = {
 		assert.Equal(t, "cross-step value", private["shared"])
 	})
 
-	// The shape writeProtoK generates for a value a prototype validates but does not supply:
+	// The shape renderProtoK generates for a value a prototype validates but does not supply:
 	// no default, and the check guarded against the resulting Undefined.
 	t.Run("demanded value is validated only once set", func(t *testing.T) {
 		t.Parallel()
@@ -189,11 +189,11 @@ environments = {
 			return `
 schema Webapp:
     [...str]: any
-    application?: WebappApplication = WebappApplication {}
+    application: WebappApplication = WebappApplication {}
 
 schema WebappApplication:
     [...str]: any
-    ingress?: bool = True
+    ingress: bool = True
     image?: str
     check:
         len(image) >= 1 if image != Undefined, "application.image must be at least 1 long"

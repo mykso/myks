@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -113,6 +114,10 @@ type migrator struct {
 	libImported bool
 	// warnings lists conditions the user must resolve by hand.
 	warnings []string
+	// carried maps each data file to the comment lines it carries into the generated tree.
+	carried map[string][]string
+	// renamedProtos maps each prototype renamed for its base schema to its new directory name.
+	renamedProtos map[string]string
 	// patched counts leaf-level patched value paths.
 	patched int
 	// derivedCount counts the ytt-computed values carried over as KCL derivations.
@@ -664,9 +669,19 @@ func (m *migrator) readComments(file string, content []byte, isSchema bool) map[
 		if strings.HasPrefix(comment.path, keyOrderPath("")) {
 			continue
 		}
-		stale = append(stale, slices.DeleteFunc(slices.Clone(comment.lines), func(line string) bool {
-			return !legacyFileRefRe.MatchString(line)
-		})...)
+		for _, line := range comment.lines {
+			// A schema document's first array item is read twice: as itself and as the element.
+			if slices.Contains(m.carried[file], line) {
+				continue
+			}
+			if m.carried == nil {
+				m.carried = map[string][]string{}
+			}
+			m.carried[file] = append(m.carried[file], line)
+			if legacyFileRefRe.MatchString(line) {
+				stale = append(stale, line)
+			}
+		}
 	}
 	if len(stale) > 0 {
 		m.warn("%s: carried comments name legacy ytt files, which the KCL tree replaces; update them: %s",
@@ -989,8 +1004,46 @@ func (m *migrator) renamePrototypes() error {
 				"Renamed prototype %s to %s so it can own a KCL base schema; myks.context.prototype changes with it", proto, target)))
 		}
 		m.applyPrototypeRename(proto, target)
+		if m.renamedProtos == nil {
+			m.renamedProtos = map[string]string{}
+		}
+		m.renamedProtos[proto] = target
 	}
+	m.warnRenamedPrototypeRefs()
 	return nil
+}
+
+// warnRenamedPrototypeRefs reports the carried comments that name a prototype directory by
+// its old name, which resolves only while the compatibility symlink exists.
+func (m *migrator) warnRenamedPrototypeRefs() {
+	refs := map[string]*regexp.Regexp{}
+	for old := range m.renamedProtos {
+		refs[old] = regexp.MustCompile(`(^|[^\w-])` + regexp.QuoteMeta(m.g.PrototypesDir+"/"+old) + `([^\w-]|$)`)
+	}
+	for _, file := range slices.Sorted(maps.Keys(m.carried)) {
+		var found []string
+		for _, old := range slices.Sorted(maps.Keys(refs)) {
+			if slices.ContainsFunc(m.carried[file], refs[old].MatchString) {
+				found = append(found, fmt.Sprintf("%s/%s (now %s)", m.g.PrototypesDir, old, m.renamedProtos[old]))
+			}
+		}
+		if len(found) > 0 {
+			m.warn("%s: carried comments name renamed prototype directories, which resolve only through the compatibility symlinks; update them: %s",
+				file, strings.Join(found, ", "))
+		}
+	}
+}
+
+// renovateMarked lists, sorted, the data files whose carried comments hold a Renovate marker.
+func (m *migrator) renovateMarked() []string {
+	var files []string
+	for file, lines := range m.carried {
+		if slices.ContainsFunc(lines, func(line string) bool { return strings.Contains(line, "renovate:") }) {
+			files = append(files, file)
+		}
+	}
+	slices.Sort(files)
+	return files
 }
 
 // prototypeDirBases lists the directories holding one subdirectory per prototype: the
@@ -1135,8 +1188,101 @@ func (m *migrator) planPrototypeSchemas() {
 		m.protoSchemas[proto] = kclSchemaName(proto)
 		plan := newProtoSchemaPlan(m.protoSchemas[proto], values, m.protoInspected[proto])
 		plan.externalSchema = m.protoSchemaOutside[proto]
+		plan.requireStatedFields(m.statedValues(proto))
 		m.protoPlans[proto] = plan
 	}
+}
+
+// statedValues lists every value set the sources state for applications of one prototype:
+// the prototype's own, every level's `_proto/` contribution, and the `_apps/` contribution of
+// every application a roster declares with it. What a file states inside a value ytt computed
+// is not among its converted values; the shape its derivations address stands in for it.
+func (m *migrator) statedValues(proto string) []map[string]any {
+	stated := []map[string]any{m.protoBase[proto], derivedShape(m.protoDerived[proto])}
+	apps := map[string]bool{}
+	for _, node := range m.nodes {
+		stated = append(stated, node.protoValues[proto],
+			derivedShape(node.protoDerived[proto], node.protoContextual[proto]))
+		for _, entry := range node.rawRoster {
+			if entry.proto == proto {
+				apps[entry.name] = true
+			}
+		}
+	}
+	for _, node := range m.nodes {
+		for app := range apps {
+			stated = append(stated, node.appValues[app],
+				derivedShape(node.appDerived[app], node.appContextual[app]))
+		}
+	}
+	return stated
+}
+
+// derivedShape rebuilds the shape of what a file states inside the values ytt resolved whole:
+// every path its derivations compute or state plainly next to them, set to true. Two
+// translations of one file address the same values, so they make one shape.
+func derivedShape(parts ...*derivations) map[string]any {
+	root := map[string]any{}
+	for _, d := range parts {
+		if d == nil {
+			continue
+		}
+		for _, path := range slices.Concat(slices.Collect(maps.Keys(d.exprs)), slices.Collect(maps.Keys(d.literals))) {
+			if steps, ok := valuePathSteps(path); ok {
+				root, _ = withShape(root, steps).(map[string]any)
+			}
+		}
+	}
+	return root
+}
+
+// valuePathSteps splits a dotted value path (".a.b[0].c") into its keys and indexes.
+func valuePathSteps(path string) ([]any, bool) {
+	var steps []any
+	for _, segment := range strings.Split(strings.TrimPrefix(path, "."), ".") {
+		key, rest, _ := strings.Cut(segment, "[")
+		if key == "" {
+			return nil, false
+		}
+		steps = append(steps, key)
+		for rest != "" {
+			index, after, found := strings.Cut(rest, "]")
+			i, err := strconv.Atoi(index)
+			if !found || err != nil {
+				return nil, false
+			}
+			steps = append(steps, i)
+			rest = strings.TrimPrefix(after, "[")
+		}
+	}
+	return steps, true
+}
+
+// withShape returns node with the path of steps set, creating the maps and lists on the way.
+func withShape(node any, steps []any) any {
+	if len(steps) == 0 {
+		if node != nil {
+			return node
+		}
+		return true
+	}
+	switch step := steps[0].(type) {
+	case string:
+		m, _ := node.(map[string]any)
+		if m == nil {
+			m = map[string]any{}
+		}
+		m[step] = withShape(m[step], steps[1:])
+		return m
+	case int:
+		l, _ := node.([]any)
+		for len(l) <= step {
+			l = append(l, nil)
+		}
+		l[step] = withShape(l[step], steps[1:])
+		return l
+	}
+	return node
 }
 
 // kclSchemaName turns a prototype directory name into its schema name: web_app -> WebApp.
@@ -1578,6 +1724,14 @@ func (m *migrator) printReport() {
 	for _, warning := range m.warnings {
 		log.Warn().Msg(m.g.Msg(warning))
 	}
+	if marked := m.renovateMarked(); len(marked) > 0 {
+		// Renovate keeps bumping the legacy files, which no longer render, while the versions
+		// in the generated KCL never move.
+		log.Warn().Strs("files", marked).Msg(m.g.Msg(fmt.Sprintf(
+			"%d converted file(s) carry Renovate markers into the KCL tree. Patterns written for ytt YAML "+
+				"(`#! renovate:` above `image: x:1`) do not match the generated `# renovate:` above `image: str = \"x:1\"`: "+
+				"update the custom managers before deleting the legacy files (see %s#renovate)", len(marked), migrationDocsURL)))
+	}
 	for _, frozen := range m.frozenLists {
 		// Plain literals do not help here: the array replaces the schema default's either way.
 		if !m.stillFrozen(frozen.path, false) {
@@ -1598,9 +1752,10 @@ func (m *migrator) printReport() {
 	}
 	if m.patched > 0 {
 		log.Info().Msg(m.g.Msg(fmt.Sprintf(
-			"Froze %d resolved value(s) in leaf-level TODO patches; turn them into KCL derivations (see docs/migration.md)", m.patched)))
+			"Froze %d resolved value(s) in leaf-level TODO patches; turn them into KCL derivations (see %s)",
+			m.patched, migrationDocsURL)))
 	}
 	log.Info().Msg(m.g.Msg(
 		"Migration seed complete. Verify with the byte-identical gate (render and diff rendered/), " +
-			"then hand-finish following docs/migration.md"))
+			"then hand-finish following " + migrationDocsURL))
 }

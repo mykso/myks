@@ -139,18 +139,14 @@ func TestWriteKclEntries(t *testing.T) {
 emptyList = []
 floatValue = 2.0
 list = [
-    {
-        name = "a"
-    }
+    {name = "a"}
     2
 ]
 long = [
     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
 ]
-nested = {
-    inner = 1
-}
+nested = {inner = 1}
 nullValue = None
 plain = "v"
 scalars = ["a", 1, True]
@@ -159,11 +155,27 @@ scalars = ["a", 1, True]
 
 	merge := &kclWriter{}
 	writeKclEntries(merge, map[string]any{"nested": map[string]any{"inner": 1}, "scalar": "v"}, 0, true, "")
-	assert.Equal(t, `nested: {
-    inner = 1
-}
+	assert.Equal(t, `nested.inner = 1
 scalar = "v"
 `, merge.String())
+
+	chains := &kclWriter{comments: map[string][]string{".noted.media": {"# why"}}}
+	writeKclEntries(chains, map[string]any{
+		"storage": map[string]any{"media": map[string]any{"size": "1Gi", "path": "/m", "class": map[string]any{"name": "x"}}},
+		"noted":   map[string]any{"media": map[string]any{"size": "2Gi"}},
+		"web-ui":  map[string]any{"port": 80},
+	}, 0, true, "")
+	assert.Equal(t, `noted: {
+    # why
+    media.size = "2Gi"
+}
+storage.media: {
+    class.name = "x"
+    path = "/m"
+    size = "1Gi"
+}
+"web-ui": {port = 80}
+`, chains.String(), "a chain stops above a commented link, at a map of several entries, and at a key that is no identifier")
 }
 
 func TestExtractEnvironmentScope(t *testing.T) {
@@ -347,12 +359,10 @@ components:
 		protoInspected: map[string]*inspectedSchema{"kb_mcp": schema},
 		protoPlans:     map[string]*protoSchemaPlan{"kb_mcp": newProtoSchemaPlan("KbMcp", values, schema)},
 	}
-	require.NoError(t, m.writeProtoK("kb_mcp"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "kb_mcp", protoKFileName))
+	content, err := m.renderProtoK("kb_mcp")
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "schema KbMcp(myks.App):\n    [...str]: any\n    proto: str = \"kb_mcp\"\n")
-	assert.Contains(t, string(content), "image?: str = \"kb-mcp:1.0.0\"", "the inspected schema types the attribute")
+	assert.Contains(t, string(content), "image: str = \"kb-mcp:1.0.0\"", "the inspected schema types the attribute")
 	assert.Contains(t, string(content), "\n    check:\n        len(image) >= 1, \"image must not be empty\"\n")
 	assert.Contains(t, string(content), "helm?: {str:any} = {", "a value the schema does not describe stays a literal")
 }
@@ -390,14 +400,12 @@ components:
 		protoInspected: map[string]*inspectedSchema{"webapp": schema},
 		protoPlans:     map[string]*protoSchemaPlan{"webapp": newProtoSchemaPlan("Webapp", values, schema)},
 	}
-	require.NoError(t, m.writeProtoK("webapp"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "webapp", protoKFileName))
+	content, err := m.renderProtoK("webapp")
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "    application?: Application = Application {}\n")
+	assert.Contains(t, string(content), "    application: Application = Application {}\n")
 	assert.Contains(t, string(content), "    image?: str\n", "a demanded value is declared without a default")
 	assert.Contains(t, string(content),
-		"schema Application:\n    [...str]: any\n    containerPort?: int = 80\n    ingress?: bool = True\n    name?: str\n")
+		"schema Application:\n    [...str]: any\n    containerPort: int = 80\n    ingress: bool = True\n    name?: str\n")
 	assert.Contains(t, string(content), `len(name) >= 1 if name != Undefined, "application.name must not be empty"`,
 		"a nested check lives in the schema that owns the field")
 	assert.Contains(t, string(content), `len(image) >= 1 if image != Undefined, "image must not be empty"`)
@@ -460,6 +468,8 @@ func TestRenderLevelFiles(t *testing.T) {
 	leaf := m.newNode(filepath.Join("envs", "dev"), m.root)
 	leaf.env = &Environment{ID: "dev"}
 	leaf.declared["web"] = migApp{name: "web", proto: "web", values: map[string]any{"replicas": 3}}
+	leaf.declared["arc"] = migApp{name: "arc", proto: "arc"}
+	leaf.declared["argocd"] = migApp{name: "argocd", proto: "argo"}
 	leaf.overrides["cache"] = map[string]any{"replicas": 1}
 	leaf.appPatches["web"] = map[string]any{"computed": "x"}
 	leaf.envPatch = map[string]any{"computed": "y"}
@@ -471,21 +481,33 @@ func TestRenderLevelFiles(t *testing.T) {
 	files, err := m.renderNodeFiles(leaf, m.root)
 	require.NoError(t, err)
 	assert.Equal(t,
-		[]string{"app-cache.k", "app-web.k", envKFileName, patchKFileName},
+		[]string{"app-cache.k", "app-web.k", appsKFileName, envKFileName, patchKFileName},
 		slices.Sorted(maps.Keys(files)))
+
+	// Applications the level only declares share one file, a block each.
+	assert.Equal(t, `import myks
+
+_apps: myks.Apps {
+    arc = myks.App {}
+}
+
+_apps: myks.Apps {
+    argocd = myks.App {proto = "argo"}
+}
+`, files[appsKFileName])
 
 	assert.Contains(t, files[envKFileName], "_apps: myks.Apps {}\n")
 	// The level variable carries what the level inherits, states and freezes — and no
 	// applications: the level's application files read it, and they are what feeds `_apps`.
 	assert.Contains(t, files[envKFileName], "_level = parent.env | {\n    id = \"dev\"\n} | _patch\n")
 	assert.Contains(t, files[envKFileName],
-		"env = myks.finalize(_level | {applications: {k: v for k, v in _apps}})\n")
+		"\nenv = myks.finalize(myks.with_apps(_level, _apps))\n")
 
 	// Declaration and frozen values of one application, in that order: the later block wins.
 	assert.Contains(t, files["app-web.k"],
 		"_apps: myks.Apps {\n    web = myks.App {\n        replicas = 3\n    }\n}\n")
-	assert.Contains(t, files["app-web.k"], "_apps: myks.Apps {\n    web: {\n        computed = \"x\"\n    }\n}\n")
-	assert.Contains(t, files["app-cache.k"], "_apps: myks.Apps {\n    cache: {\n        replicas = 1\n    }\n}\n")
+	assert.Contains(t, files["app-web.k"], "_apps: myks.Apps {\n    web: {computed = \"x\"}\n}\n")
+	assert.Contains(t, files["app-cache.k"], "_apps: myks.Apps {\n    cache: {replicas = 1}\n}\n")
 
 	assert.Contains(t, files[patchKFileName], "_patch = {\n    computed = \"y\"\n}\n")
 }
@@ -539,13 +561,11 @@ components:
 	m.protoBase = map[string]map[string]any{"csi": values}
 	m.protoInspected = map[string]*inspectedSchema{"csi": schema}
 	m.protoPlans = map[string]*protoSchemaPlan{"csi": newProtoSchemaPlan("Csi", values, schema)}
-	require.NoError(t, m.writeProtoK("csi"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "csi", protoKFileName))
+	content, err := m.renderProtoK("csi")
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "    clients?: [Client] = []\n")
+	assert.Contains(t, string(content), "    clients: [Client] = []\n")
 	assert.Contains(t, string(content),
-		"schema Client:\n    [...str]: any\n    host?: str = \"\"\n    insecureSkipVerify?: bool = False\n    port?: int = 5001\n")
+		"schema Client:\n    [...str]: any\n    host: str = \"\"\n    insecureSkipVerify: bool = False\n    port: int = 5001\n")
 	assert.Contains(t, string(content), "    registries?: any\n", "not_null prunes the null default")
 	assert.Contains(t, string(content),
 		`registries != None if registries != Undefined, "application.registries must not be null"`)
@@ -603,16 +623,14 @@ components:
 	m.protoBase = map[string]map[string]any{"home": values}
 	m.protoInspected = map[string]*inspectedSchema{"home": schema}
 	m.protoPlans = map[string]*protoSchemaPlan{"home": newProtoSchemaPlan("Home", values, schema)}
-	require.NoError(t, m.writeProtoK("home"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "home", protoKFileName))
+	content, err := m.renderProtoK("home")
 	require.NoError(t, err)
 	// The element of an array inside an array element is typed too, down to the last field.
-	assert.Contains(t, string(content), "    config?: [ConfigItem] = []\n")
+	assert.Contains(t, string(content), "    config: [ConfigItem] = []\n")
 	assert.Contains(t, string(content),
-		"schema ConfigItem:\n    category?: str = \"Category\"\n    services?: [Service] = []\n")
+		"schema ConfigItem:\n    category: str = \"Category\"\n    services: [Service] = []\n")
 	assert.Contains(t, string(content),
-		"schema Service:\n    iconBubble?: bool = True\n    name?: str = \"Arch\"\n")
+		"schema Service:\n    iconBubble: bool = True\n    name: str = \"Arch\"\n")
 	// The ytt schema closed every scope, so nothing needs an index signature.
 	assert.NotContains(t, string(content), "[...str]: any")
 
@@ -627,6 +645,69 @@ components:
 		"category": "Category",
 		"services": []any{map[string]any{"name": "ArgoCD", "iconBubble": true}},
 	}}, builder["config"])
+}
+
+// TestRequireStatedFields pins that an element field every stated element sets loses the
+// ytt default that was only an example of the element's shape, and that the simulation no
+// longer fills it in.
+func TestRequireStatedFields(t *testing.T) {
+	t.Parallel()
+	schema, err := parseSchemaInspect([]byte(`
+components:
+  schemas:
+    dataValues:
+      type: object
+      additionalProperties: false
+      properties:
+        application:
+          type: object
+          additionalProperties: false
+          properties:
+            config:
+              type: array
+              default: []
+              items:
+                type: object
+                additionalProperties: false
+                properties:
+                  category: {type: string, default: Category}
+                  note: {type: string, default: "", nullable: true}
+                  services:
+                    type: array
+                    default: []
+                    items:
+                      type: object
+                      additionalProperties: false
+                      properties:
+                        name: {type: string, default: Arch}
+                        iconBubble: {type: boolean, default: true}
+`))
+	require.NoError(t, err)
+	plan := newProtoSchemaPlan("Home", schema.defaults, schema)
+	plan.requireStatedFields([]map[string]any{
+		{"application": map[string]any{"config": []any{
+			map[string]any{"category": "Apps", "note": "x", "services": []any{map[string]any{"name": "ArgoCD"}}},
+		}}},
+		{"application": map[string]any{"config": []any{
+			map[string]any{"category": "Media", "note": "y", "services": []any{map[string]any{"name": "Jellyfin", "iconBubble": false}}},
+		}}},
+	})
+	b := &kclWriter{}
+	plan.render(b, "home")
+	require.NoError(t, b.err)
+	assert.Contains(t, b.String(), "schema ConfigItem:\n    category: str\n    note?: str = \"\"\n    services: [Service] = []\n",
+		"a nullable field keeps its default")
+	assert.Contains(t, b.String(), "schema Service:\n    iconBubble: bool = True\n    name: str\n",
+		"a field one element leaves out keeps its default")
+
+	completed := plan.withElementDefaults(map[string]any{"application": map[string]any{"config": []any{
+		map[string]any{"category": "Apps", "services": []any{map[string]any{"name": "ArgoCD"}}},
+	}}}, nil)
+	assert.Equal(t, []any{map[string]any{
+		"category": "Apps",
+		"note":     "",
+		"services": []any{map[string]any{"name": "ArgoCD", "iconBubble": true}},
+	}}, completed["application"].(map[string]any)["config"])
 }
 
 func TestClaimName(t *testing.T) {
@@ -762,16 +843,14 @@ components:
 	m.protoBase = map[string]map[string]any{"sts": values}
 	m.protoInspected = map[string]*inspectedSchema{"sts": schema}
 	m.protoPlans = map[string]*protoSchemaPlan{"sts": newProtoSchemaPlan("Sts", values, schema)}
-	require.NoError(t, m.writeProtoK("sts"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "sts", protoKFileName))
+	content, err := m.renderProtoK("sts")
 	require.NoError(t, err)
 	// The empty default fails min_len, so the array is demanded instead of defaulted.
-	assert.Contains(t, string(content), "    apps?: [App]\n")
+	assert.Contains(t, string(content), "    apps?: [ApplicationApp]\n", "App is myks.App to a reader, so the element takes the longer name")
 	assert.Contains(t, string(content),
 		`len(apps) >= 1 if apps != Undefined, "application.apps must not be empty"`)
 	assert.Contains(t, string(content),
-		"schema App:\n    app_id?: int = 0\n    name?: str = \"\"\n\n    check:\n        len(name) >= 1, \"application.apps[].name must not be empty\"\n")
+		"schema ApplicationApp:\n    app_id: int = 0\n    name: str = \"\"\n\n    check:\n        len(name) >= 1, \"application.apps[].name must not be empty\"\n")
 	assert.Empty(t, m.warnings)
 }
 
@@ -849,7 +928,7 @@ func TestRenderAppKJoinsAccountedFrozenBlock(t *testing.T) {
 		literals: map[string]any{".title": "Web"},
 	}
 
-	content, err := m.renderAppK(leaf, "web", nil)
+	content, _, err := m.renderAppK(leaf, "web", nil)
 	require.NoError(t, err)
 	assert.NotContains(t, content, "TODO(myks migrate)")
 	assert.Equal(t, 1, strings.Count(content, "_apps:"), content)
@@ -859,7 +938,7 @@ func TestRenderAppKJoinsAccountedFrozenBlock(t *testing.T) {
 
 	// A value nothing accounts for keeps its own block, marked.
 	leaf.appPatches["web"]["extra"] = 1
-	content, err = m.renderAppK(leaf, "web", nil)
+	content, _, err = m.renderAppK(leaf, "web", nil)
 	require.NoError(t, err)
 	assert.Contains(t, content, "TODO(myks migrate)")
 	assert.Equal(t, 2, strings.Count(content, "_apps:"), content)
@@ -885,16 +964,126 @@ func TestWrapKclExpr(t *testing.T) {
 	assert.Equal(t, short, wrapKclExpr(short, 4, 4))
 
 	long := `[{match = {registry = reg.replace(".", "\\."), repository = "(.+)"}, replace = {registry = "oci.zebradil.dev", repository = reg + "-cache/$1"}} for reg in _registries]`
-	assert.Equal(t, `[
-        {
-            match = {registry = reg.replace(".", "\\."), repository = "(.+)"}
-            replace = {registry = "oci.zebradil.dev", repository = reg + "-cache/$1"}
-        } for reg in _registries
-    ]`, wrapKclExpr(long, 20, 4))
+	assert.Equal(t, `[{
+        match = {registry = reg.replace(".", "\\."), repository = "(.+)"}
+        replace = {registry = "oci.zebradil.dev", repository = reg + "-cache/$1"}
+    } for reg in _registries]`, wrapKclExpr(long, 20, 4), "the element of a comprehension hugs its brackets, as kcl fmt writes it")
+
+	arg := `lib.f({key = "` + strings.Repeat("x", 60) + `", other = "` + strings.Repeat("y", 30) + `"})`
+	assert.Equal(t, `lib.f({
+    key = "`+strings.Repeat("x", 60)+`"
+    other = "`+strings.Repeat("y", 30)+`"
+})`, wrapKclExpr(arg, 0, 0), "a call's one bracketed argument hugs its parentheses")
 
 	call := `lib.format("` + strings.Repeat("x", 60) + `", "` + strings.Repeat("y", 40) + `, {not a group}")`
 	assert.Equal(t, `lib.format(
     "`+strings.Repeat("x", 60)+`",
     "`+strings.Repeat("y", 40)+`, {not a group}"
 )`, wrapKclExpr(call, 0, 0))
+}
+
+// TestWriteProtoKSourceOrder pins that the generated schema reads in the order of its source:
+// nested schemas and check items follow the fields, and a free-form default keeps the key
+// order of its list elements.
+func TestWriteProtoKSourceOrder(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	source := []byte(`#@data/values-schema
+---
+application:
+  #@schema/validation min_len=1
+  zone: a
+  #@schema/validation min_len=1
+  image: x
+  resources:
+    requests:
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  #@schema/type any=True
+  config:
+    servers:
+      - name: default
+        uri: http://example
+        proxy: true
+`)
+	schema, err := parseSchemaInspect([]byte(`
+components:
+  schemas:
+    dataValues:
+      type: object
+      additionalProperties: false
+      properties:
+        application:
+          type: object
+          additionalProperties: false
+          properties:
+            zone: {type: string, default: a, minLength: 1}
+            image: {type: string, default: x, minLength: 1}
+            resources:
+              type: object
+              additionalProperties: false
+              properties:
+                requests:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    memory: {type: string, default: 64Mi}
+                limits:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    memory: {type: string, default: 128Mi}
+            config:
+              nullable: true
+              default:
+                servers:
+                  - {name: default, uri: "http://example", proxy: true}
+`))
+	require.NoError(t, err)
+	m := &migrator{g: &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}}}
+	values := schema.defaults
+	m.protoSchemas = map[string]string{"web": "Web"}
+	m.protoComments = map[string]map[string][]string{"web": m.readComments("app-data.yaml", source, true)}
+	m.protoPlans = map[string]*protoSchemaPlan{"web": newProtoSchemaPlan("Web", values, schema)}
+	content, err := m.renderProtoK("web")
+	require.NoError(t, err)
+	text := string(content)
+	assert.Less(t, strings.Index(text, "schema Requests:"), strings.Index(text, "schema Limits:"))
+	assert.Less(t, strings.Index(text, `"application.zone must`), strings.Index(text, `"application.image must`))
+	assert.Contains(t, text, "{name = \"default\", uri = \"http://example\", proxy = True}")
+	assert.Contains(t, text, "    zone: str = \"a\"\n", "a typed, non-nullable value is required: ytt rejected its null too")
+	assert.Contains(t, text, "    config?: any = {\n", "a nullable value stays optional")
+}
+
+func TestCarriedCommentChecks(t *testing.T) {
+	t.Parallel()
+	m := &migrator{g: &Globe{Config: Config{PrototypesDir: "prototypes"}}}
+	m.readComments("envs/_apps/csi/app-data.yaml", []byte(`application:
+  #! See prototypes/synology-csi/README.md.
+  #! Not prototypes/synology-csi-v2, though.
+  secret: ""
+`), false)
+	m.readComments("prototypes/web/app-data.yaml", []byte(`application:
+  #! renovate: datasource=docker
+  image: nginx:1.0
+`), false)
+	m.renamedProtos = map[string]string{"synology-csi": "synology_csi"}
+	m.warnRenamedPrototypeRefs()
+
+	require.Len(t, m.warnings, 1)
+	assert.Contains(t, m.warnings[0], "envs/_apps/csi/app-data.yaml: ")
+	assert.Contains(t, m.warnings[0], "prototypes/synology-csi (now synology_csi)")
+	assert.Equal(t, []string{"prototypes/web/app-data.yaml"}, m.renovateMarked())
+}
+
+func TestDerivedShape(t *testing.T) {
+	t.Parallel()
+	shape := derivedShape(&derivations{
+		exprs:    map[string]string{".app.config[0].services[1].uri": "_uri"},
+		literals: map[string]any{".app.config[0].services[1].name": "Paperless", ".app.config[0].category": "Apps"},
+	}, nil)
+	assert.Equal(t, map[string]any{"app": map[string]any{"config": []any{
+		map[string]any{"category": true, "services": []any{nil, map[string]any{"uri": true, "name": true}}},
+	}}}, shape)
 }

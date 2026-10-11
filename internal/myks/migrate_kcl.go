@@ -19,6 +19,9 @@ import (
 const (
 	envKFileName   = "env.k"
 	patchKFileName = "patch.k"
+	// appsKFileName gathers the applications a level only declares, each in a block of its
+	// own: a key of a block shadows a package of the same name for the rest of that block.
+	appsKFileName = "apps.k"
 )
 
 // appKFileName is the level file of one application. A file name is not a package path, so
@@ -26,15 +29,6 @@ const (
 func appKFileName(app string) string {
 	return "app-" + app + ".k"
 }
-
-// appsFoldExpr folds the per-application accumulator into a plain dict. A schema instance on
-// the right of `|` or `:` replaces instead of merging, which would drop everything the parent
-// level said about the application.
-const appsFoldExpr = "{k: v for k, v in _apps}"
-
-// appsFoldComment explains the fold where it is written, in every level that has one.
-const appsFoldComment = "\n# The comprehension folds the `_apps` schema instance into a plain dict, which merges\n" +
-	"# into the inherited applications; the instance itself would replace them.\n"
 
 // levelVarName is the level's environment data before its applications are folded in: what
 // the level inherits, what it states itself, and its frozen patch. The application files of
@@ -50,37 +44,45 @@ func (m *migrator) emit(schemaPackage string) error {
 	}
 	envKDirs := slices.DeleteFunc(slices.Sorted(maps.Keys(m.nodes)), func(dir string) bool { return !emitted[dir] })
 
-	protos := m.declaredPrototypeSchemas()
-
-	// The level files are rendered up front: the refusal check and the writes need the same set.
-	levelFiles := map[string]string{}
+	// Every file is rendered up front: the refusal check and the writes need the same set, and
+	// the library keeps only what the other files call.
+	files := map[string]string{}
+	for _, proto := range m.declaredPrototypeSchemas() {
+		content, err := m.renderProtoK(proto)
+		if err != nil {
+			return fmt.Errorf("rendering %s: %w", m.protoKPath(proto), err)
+		}
+		files[m.protoKPath(proto)] = content
+	}
 	for _, dir := range envKDirs {
 		node := m.nodes[dir]
 		parent := node.parent
 		for parent != nil && !emitted[parent.dir] {
 			parent = parent.parent
 		}
-		files, err := m.renderNodeFiles(node, parent)
+		levelFiles, err := m.renderNodeFiles(node, parent)
 		if err != nil {
 			return err
 		}
-		for name, content := range files {
-			levelFiles[filepath.Join(m.g.RootDir, dir, name)] = content
+		for name, content := range levelFiles {
+			files[filepath.Join(m.g.RootDir, dir, name)] = content
 		}
 	}
-	levelPaths := slices.Sorted(maps.Keys(levelFiles))
-
-	targets := []string{
-		filepath.Join(m.g.RootDir, kclModFileName),
-		filepath.Join(m.g.RootDir, "main.k"),
-	}
-	for _, proto := range protos {
-		targets = append(targets, m.protoKPath(proto))
+	var callers strings.Builder
+	for _, content := range files {
+		callers.WriteString(content + "\n")
 	}
 	for _, lib := range m.emittedLibs() {
-		targets = append(targets, m.libKPath(m.g.RootDir, lib))
+		if source := lib.sourceReadBy(callers.String(), m.libPackage); source != "" {
+			files[m.libKPath(m.g.RootDir, lib)] = strings.TrimPrefix(source, "\n")
+		}
 	}
-	targets = append(targets, levelPaths...)
+	paths := slices.Sorted(maps.Keys(files))
+
+	targets := append([]string{
+		filepath.Join(m.g.RootDir, kclModFileName),
+		filepath.Join(m.g.RootDir, "main.k"),
+	}, paths...)
 	if !m.force {
 		if err := refuseExisting(targets); err != nil {
 			return err
@@ -93,19 +95,8 @@ func (m *migrator) emit(schemaPackage string) error {
 	if err := m.writeMainK(); err != nil {
 		return err
 	}
-	for _, lib := range m.emittedLibs() {
-		if err := m.writeLibK(lib); err != nil {
-			return fmt.Errorf("writing %s: %w", m.libKPath(m.g.RootDir, lib), err)
-		}
-	}
-	for _, proto := range protos {
-		if err := m.writeProtoK(proto); err != nil {
-			return fmt.Errorf("writing %s: %w", m.protoKPath(proto), err)
-		}
-	}
-
-	for _, path := range levelPaths {
-		if err := writeFile(path, []byte(levelFiles[path])); err != nil {
+	for _, path := range paths {
+		if err := writeFile(path, []byte(files[path])); err != nil {
 			return fmt.Errorf("writing %s: %w", path, err)
 		}
 	}
@@ -134,12 +125,39 @@ func (m *migrator) renderNodeFiles(node, parent *migNode) (map[string]string, er
 		}
 	}
 	renames := m.levelRenames(node)
+	var declarations []string
 	for _, name := range nodeAppNames(node) {
-		if err := render(appKFileName(name), func() (string, error) { return m.renderAppK(node, name, renames[name]) }); err != nil {
-			return nil, err
+		content, bare, err := m.renderAppK(node, name, renames[name])
+		if err != nil {
+			return nil, fmt.Errorf("rendering %s/%s: %w", node.dir, appKFileName(name), err)
+		}
+		if bare {
+			declarations = append(declarations, content)
+		} else {
+			files[appKFileName(name)] = content
 		}
 	}
+	if len(declarations) > 0 {
+		files[appsKFileName] = joinKclFiles(declarations)
+	}
 	return files, nil
+}
+
+// joinKclFiles joins rendered files into one: their imports, deduplicated and sorted, then
+// their bodies apart by a blank line.
+func joinKclFiles(contents []string) string {
+	var imports, bodies []string
+	for _, content := range contents {
+		head, body, _ := strings.Cut(content, "\n\n")
+		for _, line := range strings.Split(head, "\n") {
+			if !slices.Contains(imports, line) {
+				imports = append(imports, line)
+			}
+		}
+		bodies = append(bodies, body)
+	}
+	slices.Sort(imports)
+	return strings.Join(imports, "\n") + "\n\n" + strings.Join(bodies, "\n")
 }
 
 // levelRenames renames the module-level variables an application file binds that another file
@@ -269,22 +287,15 @@ func (m *migrator) libKPath(root string, lib *yttLib) string {
 	return filepath.Join(root, m.g.YttLibraryDirName, lib.name+".k")
 }
 
-// writeLibK writes the KCL translation of the repo's ytt library. The whole library is one
-// KCL package, so a file importing it reads every function translated out of it.
-func (m *migrator) writeLibK(lib *yttLib) error {
-	return writeFile(m.libKPath(m.g.RootDir, lib), []byte(strings.TrimPrefix(lib.source, "\n")))
-}
-
 func (m *migrator) protoKPath(proto string) string {
 	return filepath.Join(m.g.RootDir, m.g.PrototypesDir, proto, protoKFileName)
 }
 
-// writeProtoK renders a prototype's base schema: its converted app-data values become
+// renderProtoK renders a prototype's base schema: its converted app-data values become
 // attribute defaults, so applications instantiate the schema instead of repeating them, and
-// a structured object value becomes a nested schema of its own (see protoSchemaPlan). Every
-// attribute is optional, so a null default stays null instead of failing the required-value
-// check.
-func (m *migrator) writeProtoK(proto string) error {
+// a structured object value becomes a nested schema of its own (see protoSchemaPlan). An
+// attribute ytt let be null is optional (optionalMark).
+func (m *migrator) renderProtoK(proto string) (string, error) {
 	plan := m.protoPlans[proto]
 	b := &kclWriter{derived: m.protoDerived[proto], comments: m.protoComments[proto]}
 	b.WriteString("import myks\n")
@@ -295,10 +306,7 @@ func (m *migrator) writeProtoK(proto string) error {
 		m.warn("%s/%s: validation of %s is not carried into the generated KCL schema",
 			m.g.PrototypesDir, proto, failure)
 	}
-	if b.err != nil {
-		return b.err
-	}
-	return writeFile(m.protoKPath(proto), []byte(b.String()))
+	return b.String(), b.err
 }
 
 // migrationDocsURL is where the hand-finish steps are documented. The generated files point
@@ -323,7 +331,10 @@ func pathKey(path []string) string { return strings.Join(path, "\x00") }
 type protoSchemaPlan struct {
 	values   map[string]any
 	schema   *inspectedSchema
-	demanded map[string]bool   // path key -> generated without a default
+	demanded map[string]bool // path key -> generated without a default
+	// required holds the element fields generated as required, without the default the ytt
+	// schema gave them (requireStatedFields), by path key.
+	required map[string]bool
 	names    map[string]string // path key -> schema name; the root is the empty path
 	items    map[string]string // path key of an array -> its element schema name
 	taken    map[string]bool   // the schema names claimed so far
@@ -337,15 +348,20 @@ type protoSchemaPlan struct {
 
 func newProtoSchemaPlan(root string, values map[string]any, schema *inspectedSchema) *protoSchemaPlan {
 	p := &protoSchemaPlan{
-		values: values,
-		schema: schema,
-		names:  map[string]string{"": root},
-		items:  map[string]string{},
-		taken:  map[string]bool{root: true},
+		values:   values,
+		schema:   schema,
+		names:    map[string]string{"": root},
+		items:    map[string]string{},
+		required: map[string]bool{},
+		taken:    map[string]bool{root: true},
 	}
-	// A data key could otherwise name a schema after a KCL literal (`Undefined`).
+	// A data key could otherwise name a schema after a KCL literal (`Undefined`), or after a
+	// schema of the myks package, which a reader would take for it.
 	for reserved := range kclReservedWords {
 		p.taken[reserved] = true
+	}
+	for _, exported := range []string{"App", "Apps", "Environment"} {
+		p.taken[exported] = true
 	}
 	if schema != nil {
 		p.demanded = schema.demanded
@@ -544,24 +560,60 @@ func (p *protoSchemaPlan) attributes(path []string, values map[string]any) []str
 	if prefix != "" {
 		prefix += "\x00"
 	}
-	for key := range p.demanded {
-		child, found := strings.CutPrefix(key, prefix)
-		if !found || child == "" || strings.Contains(child, "\x00") {
-			continue
+	for _, generated := range []map[string]bool{p.demanded, p.required} {
+		for key := range generated {
+			child, found := strings.CutPrefix(key, prefix)
+			if !found || child == "" || strings.Contains(child, "\x00") {
+				continue
+			}
+			names = append(names, child)
 		}
-		names = append(names, child)
 	}
 	slices.Sort(names)
 	return slices.Compact(names)
 }
 
 // render writes the root schema and the nested ones. KCL schema definitions are
-// order-independent, so the root comes first: it is what an application instantiates.
+// order-independent, so the root comes first: it is what an application instantiates. The
+// nested schemas follow depth first, in the order the source states their fields.
 func (p *protoSchemaPlan) render(b *kclWriter, proto string) {
 	p.renderSchema(b, nil, p.values, proto)
-	for _, path := range p.nested {
-		p.renderSchema(b, path, p.valuesAt(path), "")
+	p.renderNested(b, nil)
+}
+
+// renderNested writes every generated schema directly below path, each followed by those below
+// it. The element schema of an array sits below the array's key.
+func (p *protoSchemaPlan) renderNested(b *kclWriter, path []string) {
+	below := map[string][][]string{}
+	for _, nested := range p.nested {
+		rest, ok := pathRest(nested, path)
+		if !ok || len(rest) == 0 || len(rest) > 2 || (len(rest) == 2 && rest[1] != itemsKey) {
+			continue
+		}
+		below[rest[0]] = append(below[rest[0]], nested)
 	}
+	for _, key := range b.sortKeys(dottedPath(path), slices.Collect(maps.Keys(below))) {
+		for _, nested := range below[key] {
+			p.renderSchema(b, nested, p.valuesAt(nested), "")
+			p.renderNested(b, nested)
+		}
+	}
+}
+
+// pathRest returns what path adds to prefix, if prefix is where it starts.
+func pathRest(path, prefix []string) ([]string, bool) {
+	if len(path) < len(prefix) || !slices.Equal(path[:len(prefix)], prefix) {
+		return nil, false
+	}
+	return path[len(prefix):], true
+}
+
+// dottedPath is how the comment index addresses the value at path (".application.port").
+func dottedPath(path []string) string {
+	if len(path) == 0 {
+		return ""
+	}
+	return "." + strings.Join(path, ".")
 }
 
 // withElementDefaults returns values with every array the generated schemas type by an element
@@ -610,7 +662,7 @@ func (p *protoSchemaPlan) pruneElementDefaults(values map[string]any, path []str
 				continue
 			}
 			itemsPath := append(slices.Clone(childPath), itemsKey)
-			defaults := schemaDefaults(p.schema.nodeAt(itemsPath))
+			defaults := p.elementDefaults(itemsPath)
 			for _, raw := range typed {
 				element, ok := raw.(map[string]any)
 				if !ok {
@@ -633,7 +685,7 @@ func (p *protoSchemaPlan) pruneElementDefaults(values map[string]any, path []str
 // in from it.
 func (p *protoSchemaPlan) completeElements(list []any, path []string) []any {
 	itemsPath := append(slices.Clone(path), itemsKey)
-	defaults := schemaDefaults(p.schema.nodeAt(itemsPath))
+	defaults := p.elementDefaults(itemsPath)
 	out := slices.Clone(list)
 	for i, raw := range out {
 		element, ok := raw.(map[string]any)
@@ -651,12 +703,88 @@ func (p *protoSchemaPlan) completeElements(list []any, path []string) []any {
 	return out
 }
 
+// elementDefaults returns the defaults the ytt schema gives the value at path inside an array
+// element, less those of the fields generated as required.
+func (p *protoSchemaPlan) elementDefaults(path []string) map[string]any {
+	defaults := schemaDefaults(p.schema.nodeAt(path))
+	for name := range defaults {
+		if p.required[pathKey(append(slices.Clone(path), name))] {
+			delete(defaults, name)
+		}
+	}
+	return defaults
+}
+
+// requireStatedFields generates as required, without a default, every scalar element field
+// that each element stated anywhere sets. A ytt array item's values are both the default of every
+// element and the example of its shape, and as KCL defaults they read like values someone
+// chose (`name: str = "Arch"`). Required instead, the field changes nothing the tree renders —
+// every element states it — and an element added later has to state it too. A field no
+// element was stated for keeps its default; so does a nullable one, and so does every field
+// where a schema outside the prototype also governs the scope.
+func (p *protoSchemaPlan) requireStatedFields(stated []map[string]any) {
+	if p.schema == nil || p.externalSchema || len(p.items) == 0 {
+		return
+	}
+	elements := map[string]int{}       // items path key -> elements stated there
+	set := map[string]map[string]int{} // items path key -> field -> elements setting it
+	for _, values := range stated {
+		p.countStatedElements(values, nil, elements, set)
+	}
+	for at, count := range elements {
+		itemsPath := strings.Split(at, "\x00")
+		node := p.schema.nodeAt(itemsPath)
+		for name, value := range schemaDefaults(node) {
+			if _, ok := inlineScalar(value); !ok {
+				// An empty collection is no example of anything.
+				continue
+			}
+			field := pathKey(append(slices.Clone(itemsPath), name))
+			prop := node.Properties[name]
+			if set[at][name] == count && !p.demanded[field] && prop != nil && !prop.Nullable {
+				p.required[field] = true
+			}
+		}
+	}
+}
+
+// countStatedElements counts, below path, the elements of every array an element schema types,
+// and per field how many of them set it to something other than null.
+func (p *protoSchemaPlan) countStatedElements(values map[string]any, path []string, elements map[string]int, set map[string]map[string]int) {
+	for key, value := range values {
+		childPath := append(slices.Clone(path), key)
+		switch typed := value.(type) {
+		case map[string]any:
+			p.countStatedElements(typed, childPath, elements, set)
+		case []any:
+			if _, ok := p.items[pathKey(childPath)]; !ok {
+				continue
+			}
+			itemsPath := append(slices.Clone(childPath), itemsKey)
+			at := pathKey(itemsPath)
+			if set[at] == nil {
+				set[at] = map[string]int{}
+			}
+			for _, raw := range typed {
+				elements[at]++
+				element, _ := raw.(map[string]any)
+				for name, field := range element {
+					if field != nil {
+						set[at][name]++
+					}
+				}
+				p.countStatedElements(element, itemsPath, elements, set)
+			}
+		}
+	}
+}
+
 // valuesAt returns the prototype's values at path. Below an array element there are none —
 // the prototype states the array, not its elements — so the ytt schema's own defaults for the
 // element stand in, which is what KCL will fill into every element written there.
 func (p *protoSchemaPlan) valuesAt(path []string) map[string]any {
 	if slices.Contains(path, itemsKey) {
-		return schemaDefaults(p.schema.nodeAt(path))
+		return p.elementDefaults(path)
 	}
 	values := p.values
 	for _, key := range path {
@@ -667,10 +795,7 @@ func (p *protoSchemaPlan) valuesAt(path []string) map[string]any {
 
 func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[string]any, proto string) {
 	names := p.attributes(path, values)
-	dotted := ""
-	if len(path) > 0 {
-		dotted = "." + strings.Join(path, ".")
-	}
+	dotted := dottedPath(path)
 	b.WriteString("\n")
 	if len(path) == 0 {
 		b.printf("schema %s(myks.App):\n", p.names[""])
@@ -687,11 +812,11 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 	}
 	for _, key := range b.sortKeys(dotted, names) {
 		child := append(slices.Clone(path), key)
-		childPath := "." + strings.Join(child, ".")
+		childPath := dottedPath(child)
 		b.writeComments(childPath, 4)
 		if nested, ok := p.names[pathKey(child)]; ok {
 			// The nested schema carries the defaults of everything below it.
-			b.printf("    %s?: %s = %s {}\n", key, nested, nested)
+			b.printf("    %s%s: %s = %s {}\n", key, p.optionalMark(child, values[key]), nested, nested)
 			continue
 		}
 		if p.demanded[pathKey(child)] {
@@ -699,17 +824,36 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 			b.printf("    %s?: %s\n", key, p.attributeType(child, nil))
 			continue
 		}
+		if p.required[pathKey(child)] {
+			b.printf("    %s: %s\n", key, p.attributeType(child, nil))
+			continue
+		}
 		value := values[key]
-		b.printf("    %s?: %s = ", key, p.attributeType(child, value))
+		b.printf("    %s%s: %s = ", key, p.optionalMark(child, value), p.attributeType(child, value))
 		writeKclValue(b, value, 4, false, childPath)
 		b.WriteString("\n")
 	}
-	if checks := p.checks(path); len(checks) > 0 {
+	if checks := p.checks(b, path); len(checks) > 0 {
 		b.WriteString("\n    check:\n")
 		for _, check := range checks {
 			b.printf("        %s\n", check)
 		}
 	}
+}
+
+// optionalMark returns the `?` that lets an attribute be None, for every attribute that ytt
+// let be null. An attribute the ytt schema types, with neither null nor `any` allowed, is
+// required instead: ytt rejected a null there too, and KCL now does the same. Its default
+// still applies wherever a level leaves it unset.
+func (p *protoSchemaPlan) optionalMark(path []string, value any) string {
+	if value == nil || p.schema == nil || p.externalSchema {
+		return "?"
+	}
+	node := p.schema.nodeAt(path)
+	if node == nil || node.Nullable || node.Type == "" {
+		return "?"
+	}
+	return ""
 }
 
 // openScope reports whether the schema at path has to take keys it does not declare. A ytt
@@ -775,12 +919,14 @@ func (p *protoSchemaPlan) attributeType(path []string, value any) string {
 // default (`min_len=1` on an empty default, the way a prototype demands a value) is generated
 // without one (pruneDemandedDefaults): unset, its check does not fire; set at any level, it is
 // enforced from there on.
-func (p *protoSchemaPlan) checks(path []string) []string {
+func (p *protoSchemaPlan) checks(b *kclWriter, path []string) []string {
 	if p.schema == nil {
 		return nil
 	}
+	constraints := slices.Clone(p.schema.constraints)
+	slices.SortStableFunc(constraints, func(x, y schemaConstraint) int { return b.comparePaths(x.path, y.path) })
 	var checks []string
-	for _, constraint := range p.schema.constraints {
+	for _, constraint := range constraints {
 		owner, access, guards := p.locate(constraint.path, constraint.kind != constraintNotNull)
 		if pathKey(owner) != pathKey(path) {
 			continue
@@ -998,20 +1144,26 @@ func (m *migrator) writeKclMod(schemaPackage string) error {
 		dep = fmt.Sprintf("myks = { path = %q }", filepath.ToSlash(schemaPackage))
 	}
 	content := fmt.Sprintf(`[package]
-name = "config"
+name = %q
 version = "0.1.0"
 
 [dependencies]
 %s
-`, dep)
+`, kclPackageName(m.g.RootDir), dep)
 	return writeFile(filepath.Join(m.g.RootDir, kclModFileName), []byte(content))
+}
+
+// kclPackageName names the KCL package after the repository directory.
+func kclPackageName(rootDir string) string {
+	if abs, err := filepath.Abs(rootDir); err == nil && filepath.Base(abs) != string(filepath.Separator) {
+		return filepath.Base(abs)
+	}
+	return "config"
 }
 
 func (m *migrator) writeMainK() error {
 	b := &kclWriter{}
-	b.WriteString("# Generated by `myks migrate`: the root evaluation emitting the frozen resolved tree.\n")
-	b.WriteString("# Environments are discovered from this output only — no filesystem walk.\n")
-	b.printf("# The generated tree is a machine seed: see %s for the hand-finish steps.\n", migrationDocsURL)
+	b.WriteString("# Entry point myks evaluates. Every environment must be listed in \"environments\".\n")
 	b.WriteString("import myks\n")
 
 	leafDirs := slices.Sorted(maps.Keys(m.g.environments))
@@ -1114,6 +1266,20 @@ func (w *kclWriter) sortKeys(path string, keys []string) []string {
 	return sorted
 }
 
+// comparePaths orders two value paths the way the source states them: by the first key they
+// differ in, ranked as sortKeys ranks it, and a path before the paths below it.
+func (w *kclWriter) comparePaths(x, y []string) int {
+	for i := 0; i < len(x) && i < len(y); i++ {
+		if x[i] != y[i] {
+			if w.sortKeys(dottedPath(x[:i]), []string{x[i], y[i]})[0] == x[i] {
+				return -1
+			}
+			return 1
+		}
+	}
+	return len(x) - len(y)
+}
+
 // writeDerivationHeader writes what a file's derivations read: the imports of the translated
 // ytt library, and the module-level variables of the ytt prelude behind them.
 func writeDerivationHeader(b *kclWriter, d *derivations) {
@@ -1178,12 +1344,11 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 		if hasApps {
 			rootVar = levelVarName
 		}
-		b.printf("%s = myks.Environment {\n", rootVar)
-		writeKclEntries(b, node.envValues, 4, false, "")
-		b.WriteString("}\n")
+		b.printf("%s = myks.Environment ", rootVar)
+		writeKclValue(b, node.envValues, 0, false, "")
+		b.WriteString("\n")
 		if hasApps {
-			b.WriteString(appsFoldComment)
-			b.printf("env = %s | {applications = %s}\n", levelVarName, appsFoldExpr)
+			b.printf("\nenv = myks.with_apps(%s, _apps)\n", levelVarName)
 		}
 		b.writeTrailingComments()
 		return b.String(), b.err
@@ -1219,13 +1384,12 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 
 	expr := levelVar
 	if hasApps {
-		b.WriteString(appsFoldComment)
-		expr = fmt.Sprintf("%s | {applications: %s}", levelVar, appsFoldExpr)
+		expr = fmt.Sprintf("myks.with_apps(%s, _apps)", levelVar)
 	}
 	if node.env != nil {
-		b.printf("env = myks.finalize(%s)\n", expr)
+		b.printf("\nenv = myks.finalize(%s)\n", expr)
 	} else if levelVar != "env" {
-		b.printf("env = %s\n", expr)
+		b.printf("\nenv = %s\n", expr)
 	}
 	b.writeTrailingComments()
 	return b.String(), b.err
@@ -1242,8 +1406,10 @@ func writeAppsBase(b *kclWriter, node *migNode) {
 // renderAppK renders one level's file for one application: everything this level says about
 // it — the declaration or the dict-union override of a declaration above, plus the values
 // frozen from the legacy-resolved output. The blocks unify into `_apps` in file order, so the
-// frozen values win over the declaration above them.
-func (m *migrator) renderAppK(node *migNode, name string, renames map[string]string) (string, error) {
+// frozen values win over the declaration above them. bare reports a file that only declares
+// the application, with no values, no derivations and no comments: one line, not worth a
+// file of its own.
+func (m *migrator) renderAppK(node *migNode, name string, renames map[string]string) (content string, bare bool, err error) {
 	b := &kclWriter{}
 	app, declared := node.declared[name]
 	// Inside the `_apps` block the application's name is a key, which shadows a package of
@@ -1304,6 +1470,7 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 		b.printf("_apps: %s.Apps {\n    %s", myks, kclKey(name))
 	}
 
+	bare = declared && bareDeclaration(b, values, myks, overridden || patched)
 	if declared {
 		separate()
 		openBlock()
@@ -1332,7 +1499,15 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 		b.derived = declDerived
 	}
 	b.writeTrailingComments()
-	return b.String(), b.err
+	return b.String(), bare, b.err
+}
+
+// bareDeclaration reports whether an application file says nothing but the declaration it
+// writes: no values, no derivations, no comments, no further block, and the schema package
+// under its own name, which the other files of apps.k import it as.
+func bareDeclaration(b *kclWriter, values map[string]any, myks string, moreBlocks bool) bool {
+	return !moreBlocks && len(values) == 0 && !b.derived.has() && myks == "myks" &&
+		len(b.comments[trailingCommentsPath]) == 0
 }
 
 // writeDeclaration writes the instance that declares an application, after its key: the
@@ -1346,6 +1521,10 @@ func writeDeclaration(b *kclWriter, name, proto, schema, myks string, values map
 	b.printf(" = %s {", constructor)
 	if len(values) == 0 && (schema != "" || proto == name) {
 		b.WriteString("}\n}\n")
+		return
+	}
+	if len(values) == 0 {
+		b.printf("proto = %s}\n}\n", quoteKclString(proto))
 		return
 	}
 	b.WriteString("\n")
@@ -1394,20 +1573,50 @@ func writeFrozenValuesComment(b *kclWriter) {
 
 // writeKclEntries renders a map's entries, one per line, in source order. In merge style
 // (dict-union patches) map values use `key: {...}` so nested dicts merge instead of
-// replacing; everything else uses `key = value`.
+// replacing, and a chain of single-entry maps is one dotted key, which merges the same way;
+// everything else uses `key = value`.
 func writeKclEntries(b *kclWriter, values map[string]any, indent int, merge bool, path string) {
 	pad := strings.Repeat(" ", indent)
 	for _, key := range b.sortKeys(path, slices.Collect(maps.Keys(values))) {
 		value := values[key]
 		keyPath := path + "." + key
 		b.writeComments(keyPath, indent)
+		label := kclKey(key)
+		if merge {
+			label, value, keyPath = b.chainKey(key, value, keyPath)
+		}
 		if _, isMap := value.(map[string]any); isMap && merge {
-			b.printf("%s%s: ", pad, kclKey(key))
+			b.printf("%s%s: ", pad, label)
 		} else {
-			b.printf("%s%s = ", pad, kclKey(key))
+			b.printf("%s%s = ", pad, label)
 		}
 		writeKclValue(b, value, indent, merge, keyPath)
 		b.WriteString("\n")
+	}
+}
+
+// chainKey follows a map of one entry down to the first value that is not one, so that
+// `storage: {media: {size = x}}` is written `storage.media.size = x`. It returns the dotted
+// key, the value it leads to, and that value's path. The chain stops above a link that is no
+// identifier or has a comment of its own, and at a map a derivation states whole.
+func (w *kclWriter) chainKey(key string, value any, path string) (label string, leaf any, leafPath string) {
+	if !isKclIdentifier(key) {
+		return kclKey(key), value, path
+	}
+	label = key
+	for {
+		inner, ok := value.(map[string]any)
+		if !ok || len(inner) != 1 || w.derived.hasPath(path) {
+			return label, value, path
+		}
+		var child string
+		for child = range inner {
+		}
+		childPath := path + "." + child
+		if !isKclIdentifier(child) || len(w.comments[childPath]) > 0 {
+			return label, value, path
+		}
+		label, value, path = label+"."+child, inner[child], childPath
 	}
 }
 
@@ -1422,6 +1631,10 @@ func writeKclValue(b *kclWriter, value any, indent int, merge bool, path string)
 	case map[string]any:
 		if len(typed) == 0 {
 			b.WriteString("{}")
+			return
+		}
+		if inline, ok := inlineKclDict(b, typed, path); ok {
+			b.WriteString(inline)
 			return
 		}
 		b.WriteString("{\n")
@@ -1472,22 +1685,48 @@ func inlineKclList(b *kclWriter, list []any, path string) (string, bool) {
 		if b.derived.hasPath(elementPath(path, i)) || (path != "" && len(b.comments[elementPath(path, i)]) > 0) {
 			return "", false
 		}
-		switch typed := element.(type) {
-		case map[string]any, []any:
-			return "", false
-		case string:
-			if strings.Contains(typed, "\n") {
-				return "", false
-			}
-		}
-		scalar, err := kclScalar(element)
-		if err != nil {
+		scalar, ok := inlineScalar(element)
+		if !ok {
 			return "", false
 		}
 		elements = append(elements, scalar)
 	}
 	inline := "[" + strings.Join(elements, ", ") + "]"
 	return inline, b.column()+len(inline) <= kclLineWidth
+}
+
+// inlineKclDict renders a dict of plain scalars on one line, when it fits on the current one.
+// A dict holding a container, a multi-line string, a derivation or a commented entry keeps
+// one entry per line.
+func inlineKclDict(b *kclWriter, values map[string]any, path string) (string, bool) {
+	entries := make([]string, 0, len(values))
+	for _, key := range b.sortKeys(path, slices.Collect(maps.Keys(values))) {
+		keyPath := path + "." + key
+		if b.derived.hasPath(keyPath) || len(b.comments[keyPath]) > 0 {
+			return "", false
+		}
+		scalar, ok := inlineScalar(values[key])
+		if !ok {
+			return "", false
+		}
+		entries = append(entries, kclKey(key)+" = "+scalar)
+	}
+	inline := "{" + strings.Join(entries, ", ") + "}"
+	return inline, b.column()+len(inline) <= kclLineWidth
+}
+
+// inlineScalar renders a value that fits on one line of a collection literal.
+func inlineScalar(value any) (string, bool) {
+	switch typed := value.(type) {
+	case map[string]any, []any:
+		return "", false
+	case string:
+		if strings.Contains(typed, "\n") {
+			return "", false
+		}
+	}
+	scalar, err := kclScalar(value)
+	return scalar, err == nil
 }
 
 // column is the length of the line written so far.
@@ -1498,9 +1737,8 @@ func (w *kclWriter) column() int {
 
 // wrapKclExpr breaks a derivation too long for its line at its first bracket group: the
 // elements of the group go one per line, each wrapped the same way, and what surrounds the
-// group stays around it — `[{...} for x in xs]` keeps its `for` clause after the element it
-// repeats. A dict or list states its elements on lines of their own; the arguments of a call
-// keep their commas.
+// group stays around it. A dict or list states its elements on lines of their own; the
+// arguments of a call keep their commas.
 func wrapKclExpr(expr string, column, indent int) string {
 	if strings.Contains(expr, "\n") || column+len(expr) <= kclLineWidth {
 		return expr
@@ -1517,6 +1755,9 @@ func wrapKclExpr(expr string, column, indent int) string {
 	if len(elements) == 0 {
 		return expr
 	}
+	if len(elements) == 1 && hugsBrackets(expr[open], elements[0]) {
+		return expr[:open+1] + wrapKclExpr(elements[0], column+open+1, indent) + expr[closing:]
+	}
 	pad := strings.Repeat(" ", indent+4)
 	separator := "\n"
 	if expr[open] == '(' {
@@ -1528,6 +1769,21 @@ func wrapKclExpr(expr string, column, indent int) string {
 	}
 	return expr[:open+1] + "\n" + strings.Join(wrapped, separator) + "\n" +
 		strings.Repeat(" ", indent) + expr[closing:]
+}
+
+// hugsBrackets reports whether the only element of a bracket group stays against the
+// brackets, the way `kcl fmt` writes it: the repeated element of a comprehension
+// (`[{` ... `} for x in xs]`), or the one bracketed argument of a call (`f({` ... `})`).
+func hugsBrackets(open byte, element string) bool {
+	if firstBracket(element) != 0 {
+		return false
+	}
+	end := matchingBracket(element, 0)
+	if end < 0 {
+		return false
+	}
+	rest := element[end+1:]
+	return strings.HasPrefix(rest, " for ") || (open == '(' && rest == "")
 }
 
 // firstBracket returns the index of the first bracket outside a string, or -1.

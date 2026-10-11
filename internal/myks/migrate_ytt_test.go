@@ -152,6 +152,8 @@ zone: a
 	assert.Equal(t, []yttComment{
 		{path: ".application.image", lines: []string{"# renovate: datasource=docker"}},
 		{path: ".application.name", lines: []string{"# Two lines,", "# both kept."}},
+		{path: ".application.clients[0].host", lines: []string{"# a comment inside a sequence belongs to the element schema"}},
+		{path: keyOrderPath(".application.clients[0]"), lines: []string{"host"}},
 		{path: ".application.clients.\x01.host", lines: []string{"# a comment inside a sequence belongs to the element schema"}},
 		{path: keyOrderPath(".application.clients.\x01"), lines: []string{"host"}},
 		{path: keyOrderPath(".application"), lines: []string{"image", "name", "clients"}},
