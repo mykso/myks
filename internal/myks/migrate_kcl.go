@@ -97,14 +97,13 @@ func (m *migrator) emit(schemaPackage string) error {
 		return err
 	}
 	for _, path := range paths {
-		// The KCL formatter has the last word, so a format-on-save leaves the seed unchanged.
-		content, err := kcl.FormatCode(files[path])
-		if err != nil {
-			m.warn("%s: not formatted: %v", path, err)
-			content = []byte(files[path])
-		}
-		if err := writeFile(path, content); err != nil {
+		if err := writeFile(path, []byte(files[path])); err != nil {
 			return fmt.Errorf("writing %s: %w", path, err)
+		}
+		// The KCL formatter has the last word, so a format-on-save leaves the seed unchanged.
+		// It resolves the imports, so it runs on the written file, beside kcl.mod.
+		if _, err := kcl.FormatPath(path); err != nil {
+			m.warn("%s: not formatted: %v", path, err)
 		}
 	}
 	return nil

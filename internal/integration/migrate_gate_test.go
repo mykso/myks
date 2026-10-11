@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"kcl-lang.io/kcl-go/pkg/tools/format"
+
 	"github.com/mykso/myks/cmd"
 	"github.com/mykso/myks/internal/myks"
 )
@@ -48,6 +50,12 @@ func TestMigrateGate(t *testing.T) {
 		t.Fatalf("Migrate --force failed: %s", err)
 	}
 	assertDerivations(t, migratedRoot)
+	// The seed is written formatted, so a format-on-save changes nothing.
+	for _, path := range []string{"main.k", "envs/...", "prototypes/...", "lib/..."} {
+		if changed, err := format.FormatPathWithOptions(path, format.FormatPathOptions{DryRun: true}); err != nil || len(changed) > 0 {
+			t.Fatalf("the seeded %s is not formatted: %v %v", path, changed, err)
+		}
+	}
 	if err := cmd.RenderCmd(myks.New("."), true, true); err != nil {
 		t.Fatalf("Render of the migrated repo failed: %s", err)
 	}
