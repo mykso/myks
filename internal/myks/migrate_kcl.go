@@ -862,7 +862,7 @@ func (p *protoSchemaPlan) optionalMark(path []string, value any) string {
 // misspelled key that ytt used to catch. The signature stays wherever that is not certain:
 // no inspected schema at all, another schema document governing the same scope from the
 // environment tree, a scope the schema left open, or an attribute that reached the values
-// from outside the schema.
+// from outside the schema. The engine scopes myks.App declares count as declared on the root.
 func (p *protoSchemaPlan) openScope(path, names []string) bool {
 	if p.schema == nil || p.externalSchema {
 		return true
@@ -875,12 +875,16 @@ func (p *protoSchemaPlan) openScope(path, names []string) bool {
 		return true
 	}
 	for _, name := range names {
-		if node.Properties[name] == nil {
+		if node.Properties[name] == nil && (len(path) > 0 || !slices.Contains(appEngineScopes, name)) {
 			return true
 		}
 	}
 	return false
 }
+
+// appEngineScopes are the data-values scopes myks.App declares itself, so a prototype root
+// that sets one stays closed: every application may set them, whatever its prototype says.
+var appEngineScopes = []string{"argocd", "helm", "kbld", "render", "yttPkg"}
 
 // attributeType types a generated attribute from the inspected schema, which is what ytt
 // enforced on the legacy data values. Where the schema says nothing (a plain data-values

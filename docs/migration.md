@@ -354,7 +354,9 @@ into what an application writes there.
 A generated schema keeps an index signature (`[...str]: any`) only where the ytt schema did
 not close the scope. A data-values schema is strict — it rejects a key it does not declare,
 whichever file states it — so a scope it governed needs none, and the generated schema catches
-the misspelled key ytt used to catch. The signature stays wherever that is not certain: a
+the misspelled key ytt used to catch. The engine scopes `argocd`, `helm`, `kbld`, `render` and
+`yttPkg` are declared on `myks.App` itself, so every application may set them whatever its
+prototype schema says. The signature stays wherever that is not certain: a
 prototype with no schema document, a scope the schema left open, a key that reached the values
 from outside the schema, or a prototype whose application scope another schema document
 governs from the environment tree (a `_proto/<proto>/` or `_apps/<app>/` file) — what that one

@@ -619,6 +619,8 @@ components:
 
 	m := &migrator{g: &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}}}
 	values := schema.defaults
+	// An engine scope the prototype sets is declared on myks.App, not by the prototype schema.
+	values["kbld"] = map[string]any{"cache": false}
 	m.protoSchemas = map[string]string{"home": "Home"}
 	m.protoBase = map[string]map[string]any{"home": values}
 	m.protoInspected = map[string]*inspectedSchema{"home": schema}
@@ -631,8 +633,10 @@ components:
 		"schema ConfigItem:\n    category: str = \"Category\"\n    services: [Service] = []\n")
 	assert.Contains(t, string(content),
 		"schema Service:\n    iconBubble: bool = True\n    name: str = \"Arch\"\n")
-	// The ytt schema closed every scope, so nothing needs an index signature.
+	// The ytt schema closed every scope and myks.App declares kbld, so nothing needs an index
+	// signature.
 	assert.NotContains(t, string(content), "[...str]: any")
+	assert.Contains(t, string(content), "    kbld?: {str:any} = {cache = False}\n")
 
 	// The patch simulation expects what KCL fills in, at every depth.
 	completed := m.protoPlans["home"].withElementDefaults(map[string]any{

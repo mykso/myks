@@ -1,5 +1,5 @@
 [dependencies]
   [dependencies.myks]
     name = "myks"
-    full_name = "myks_0.2.1"
-    version = "0.2.1"
+    full_name = "myks_0.2.2"
+    version = "0.2.2"
