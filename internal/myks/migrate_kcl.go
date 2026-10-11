@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+
+	kcl "kcl-lang.io/kcl-go"
 )
 
 // Generated files of one environment-tree level. A KCL package is a directory, so the files
@@ -95,7 +97,13 @@ func (m *migrator) emit(schemaPackage string) error {
 		return err
 	}
 	for _, path := range paths {
-		if err := writeFile(path, []byte(files[path])); err != nil {
+		// The KCL formatter has the last word, so a format-on-save leaves the seed unchanged.
+		content, err := kcl.FormatCode(files[path])
+		if err != nil {
+			m.warn("%s: not formatted: %v", path, err)
+			content = []byte(files[path])
+		}
+		if err := writeFile(path, content); err != nil {
 			return fmt.Errorf("writing %s: %w", path, err)
 		}
 	}
