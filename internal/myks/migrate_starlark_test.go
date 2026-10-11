@@ -199,7 +199,7 @@ func TestStarScopeExprPrecedence(t *testing.T) {
 		"a if a else None":        "_a if _a else None",
 		"[a, 1, True]":            "[_a, 1, True]",
 		"not a":                   "not _a",
-		"{'k': a}":                `{"k": _a}`,
+		"{'k': a}":                `{k = _a}`,
 		"[x * 2 for x in a if x]": "[x * 2 for x in _a if x]",
 	} {
 		got, err := translateStarExpr(scope, expr)
