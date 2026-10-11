@@ -32,10 +32,14 @@ func appKFileName(app string) string {
 // level said about the application.
 const appsFoldExpr = "{k: v for k, v in _apps}"
 
+// appsFoldComment explains the fold where it is written, in every level that has one.
+const appsFoldComment = "\n# The comprehension folds the `_apps` schema instance into a plain dict, which merges\n" +
+	"# into the inherited applications; the instance itself would replace them.\n"
+
 // levelVarName is the level's environment data before its applications are folded in: what
 // the level inherits, what it states itself, and its frozen patch. The application files of
 // the level read it, so it must not depend on the `_apps` they feed.
-const levelVarName = "_lvl"
+const levelVarName = "_level"
 
 // emit writes the seeded KCL tree: kcl.mod, main.k, and the level files of every non-empty
 // environment-tree level.
@@ -1076,12 +1080,12 @@ func (w *kclWriter) fail(err error) {
 // same KCL package, folded in here from the `_apps` accumulator they unify into; the frozen
 // environment values live in patch.k, referenced as `_patch`.
 //
-// The level's environment data is bound to `_lvl` — inherited values, this level's own, and
+// The level's environment data is bound to `_level` — inherited values, this level's own, and
 // its frozen patch — and the applications are folded in only where `env` is built from it.
-// That keeps `_lvl` free of `_apps`, so the level's application files can read it: an
+// That keeps `_level` free of `_apps`, so the level's application files can read it: an
 // application deriving a value from its environment is what `@myks:data.lib.yaml` did for
-// the legacy ytt files, and `_lvl` is where that derivation reads it now. Folding the
-// applications into `_lvl` instead would make it undefined for the very files that feed it.
+// the legacy ytt files, and `_level` is where that derivation reads it now. Folding the
+// applications into `_level` instead would make it undefined for the very files that feed it.
 func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 	b := &kclWriter{derived: node.envDerived, comments: node.envComments}
 
@@ -1099,6 +1103,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 		writeKclEntries(b, node.envValues, 4, false, "")
 		b.WriteString("}\n")
 		if hasApps {
+			b.WriteString(appsFoldComment)
 			b.printf("env = %s | {applications = %s}\n", levelVarName, appsFoldExpr)
 		}
 		return b.String(), b.err
@@ -1134,6 +1139,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 
 	expr := levelVar
 	if hasApps {
+		b.WriteString(appsFoldComment)
 		expr = fmt.Sprintf("%s | {applications: %s}", levelVar, appsFoldExpr)
 	}
 	if node.env != nil {

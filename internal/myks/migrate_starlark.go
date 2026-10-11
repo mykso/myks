@@ -169,7 +169,7 @@ type starScope struct {
 }
 
 // kclReservedVars are the module-level names the generated level files bind themselves.
-var kclReservedVars = map[string]bool{"_apps": true, "_lvl": true, "_patch": true}
+var kclReservedVars = map[string]bool{"_apps": true, "_level": true, "_patch": true}
 
 func newStarScope(libs map[string]*yttLib, libPackage, levelVar string) *starScope {
 	return &starScope{

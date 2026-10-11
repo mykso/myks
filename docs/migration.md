@@ -145,14 +145,14 @@ and `@ytt:data`'s `data.values`.
 
 A file loading `@myks:data.lib.yaml` reads the data values of its environment, which only a
 leaf has — it never resolves standalone, and its computed values are frozen per leaf. Those
-values are translated too: `env_data` becomes `_lvl`, the level's environment data, which
+values are translated too: `env_data` becomes `_level`, the level's environment data, which
 `env.k` binds before folding the applications in, so the level's application files can read
 it.
 
 ```kcl
 # envs/alpha/app-traefik.k
 _apps: m.Apps {
-    traefik: {application: {tls: {baseDomains = _lvl.environment.hosts}}}
+    traefik: {application: {tls: {baseDomains = _level.environment.hosts}}}
 }
 ```
 
@@ -162,8 +162,8 @@ reproduces it, the leaf states the derivation; where it does not — the value d
 the level the file sits at — that leaf keeps the literal. Nothing is hoisted above the leaf
 that proved it.
 
-An **environment** value is never translated this way: `patch.k` is what `_lvl` is built
-from, so a derivation reading `_lvl` inside it would be circular.
+An **environment** value is never translated this way: `patch.k` is what `_level` is built
+from, so a derivation reading `_level` inside it would be circular.
 
 ## Step by step
 
@@ -225,7 +225,7 @@ from, so a derivation reading `_lvl` inside it would be circular.
 Every frozen block is a value that used to be computed by ytt and that the converter could
 not carry over. Move it to where it belongs and express the computation in KCL. Typical
 example — an app value derived from the environment id, which the engine regenerates and
-`_lvl` therefore carries under `id` rather than under `environment.id`:
+`_level` therefore carries under `id` rather than under `environment.id`:
 
 ```kcl
 # seed (frozen literal in envs/dev/app-argocd-tests.k):
@@ -240,7 +240,7 @@ environment data — the derivation stays next to the value it feeds:
 ```kcl
 # envs/dev/app-argocd-tests.k — one block, no frozen literal left
 _apps: m.Apps {
-    "argocd-tests": {application: {envId = _lvl.id}}
+    "argocd-tests": {application: {envId = _level.id}}
 }
 ```
 

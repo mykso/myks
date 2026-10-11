@@ -289,11 +289,11 @@ application:
 `), nil, "lib", levelVarName)
 	require.NotNil(t, d)
 	assert.Equal(t, map[string]string{
-		".application.tls.baseDomains": "_lvl.environment.hosts",
+		".application.tls.baseDomains": "_level.environment.hosts",
 		".application.links[0].uri":    `_uri("home")`,
 		".application.links[1].uri":    `_uri("docs")`,
 	}, d.exprs)
-	assert.Equal(t, []string{"_uri = lambda service {\n    \"https://{}.{}\".format(service, _lvl.environment.baseDomain)\n}"}, d.prelude)
+	assert.Equal(t, []string{"_uri = lambda service {\n    \"https://{}.{}\".format(service, _level.environment.baseDomain)\n}"}, d.prelude)
 }
 
 func TestValueAtPath(t *testing.T) {
