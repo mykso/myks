@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 
 	"go.starlark.net/syntax"
@@ -895,6 +896,49 @@ func (s *starScope) call(call *syntax.CallExpr) (string, error) {
 	}
 }
 
+// template translates a ytt text template into a KCL string interpolating `${expr}`. A string
+// of several lines is a text block; a one-line string is single-quoted, since KCL does not
+// read a double quote inside an interpolation of a double-quoted string.
+func (s *starScope) template(file string, parts []templatePart) (string, bool) {
+	multiline := false
+	for _, part := range parts {
+		multiline = multiline || (!part.isExpr && strings.Contains(part.text, "\n"))
+	}
+	var b strings.Builder
+	for i, part := range parts {
+		if part.isExpr {
+			parsed, err := starSyntax.ParseExpr(file, part.text, 0)
+			if err != nil {
+				return "", false
+			}
+			translated, err := s.expr(parsed)
+			if err != nil || strings.ContainsAny(translated, "{}") || (!multiline && strings.Contains(translated, "'")) {
+				return "", false
+			}
+			b.WriteString("${" + translated + "}")
+			continue
+		}
+		for _, r := range part.text {
+			if r != '\n' && r != '\t' && !strconv.IsPrint(r) {
+				return "", false
+			}
+		}
+		text := strings.ReplaceAll(part.text, `\`, `\\`)
+		switch {
+		case !multiline:
+			text = strings.ReplaceAll(strings.ReplaceAll(text, "'", `\'`), "\t", `\t`)
+		case strings.Contains(text, `"""`) || (i == len(parts)-1 && strings.HasSuffix(text, `"`)):
+			// Three quotes, or one right before the closing ones, would end the text block.
+			text = strings.ReplaceAll(text, `"`, `\"`)
+		}
+		b.WriteString(strings.ReplaceAll(text, "${", `\${`))
+	}
+	if multiline {
+		return `"""\` + "\n" + b.String() + `"""`, true
+	}
+	return "'" + b.String() + "'", true
+}
+
 // myksDataLibrary is the ytt library myks generates per application, through which a legacy
 // data file reads the data values of its environment.
 const myksDataLibrary = "@myks:data.lib.yaml"
@@ -905,7 +949,7 @@ const myksDataLibrary = "@myks:data.lib.yaml"
 // as the literal ytt resolved.
 func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPackage, levelVar string) *derivations {
 	split, err := splitYttFile(content)
-	if err != nil || len(split.exprs) == 0 {
+	if err != nil || len(split.exprs)+len(split.templates) == 0 {
 		return nil
 	}
 
@@ -931,6 +975,11 @@ func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPac
 			continue
 		}
 		d.exprs[path] = translated
+	}
+	for _, path := range slices.Sorted(maps.Keys(split.templates)) {
+		if translated, ok := scope.template(file, split.templates[path]); ok {
+			d.exprs[path] = translated
+		}
 	}
 	if len(d.exprs) == 0 {
 		return nil

@@ -79,13 +79,82 @@ type yttSplit struct {
 	// value the source states for it plainly, next to the expressions: a frozen value equal
 	// to it is what the source said, not something ytt computed.
 	literals map[string]any
+	// templates maps the dotted path of a dropped `#@yaml/text-templated-strings` scalar to
+	// its text, split at the `(@= expr @)` it interpolates.
+	templates map[string][]templatePart
+}
+
+// templatePart is one piece of a ytt text template: literal text, or an expression.
+type templatePart struct {
+	text   string
+	isExpr bool
+}
+
+// textTemplateRe matches the annotation that makes ytt interpolate `(@= expr @)` in a string.
+var textTemplateRe = regexp.MustCompile(`^\s*#@yaml/text-templated-strings\s*$`)
+
+// parseTextTemplate splits a ytt text template at its `(@= expr @)` interpolations. Any other
+// `(@ ... @)` block is code, which a KCL string cannot state, and fails the parse.
+func parseTextTemplate(text string) ([]templatePart, bool) {
+	var parts []templatePart
+	for {
+		start := strings.Index(text, "(@")
+		if start < 0 {
+			break
+		}
+		if !strings.HasPrefix(text[start:], "(@=") {
+			return nil, false
+		}
+		end := strings.Index(text[start:], "@)")
+		if end < 0 {
+			return nil, false
+		}
+		expr := strings.TrimSpace(text[start+3 : start+end])
+		if expr == "" || strings.HasPrefix(expr, "-") || strings.HasSuffix(expr, "-") {
+			// The trim markers change the text around the interpolation.
+			return nil, false
+		}
+		if start > 0 {
+			parts = append(parts, templatePart{text: text[:start]})
+		}
+		parts = append(parts, templatePart{text: expr, isExpr: true})
+		text = text[start+end+2:]
+	}
+	if text != "" {
+		parts = append(parts, templatePart{text: text})
+	}
+	return parts, slices.ContainsFunc(parts, func(part templatePart) bool { return part.isExpr })
+}
+
+// recordTemplate records the text template of a dropped scalar whose only computation is the
+// `#@yaml/text-templated-strings` annotation above it.
+func (s *yttSplit) recordTemplate(value *yaml.Node, path string, start, keyLine int) {
+	if value.Kind != yaml.ScalarNode {
+		return
+	}
+	annotated := false
+	for _, line := range s.lines[start : keyLine-1] {
+		if !lineComputes(line) {
+			continue
+		}
+		if !textTemplateRe.MatchString(line) {
+			return
+		}
+		annotated = true
+	}
+	if !annotated || lineComputes(s.lines[keyLine-1]) {
+		return
+	}
+	if parts, ok := parseTextTemplate(value.Value); ok {
+		s.templates[path] = parts
+	}
 }
 
 // splitYttFile removes from content every value ytt computes, together with the Starlark that
 // computes it, and returns what remains. An error means the file cannot be split — the caller
 // falls back to skipping it whole.
 func splitYttFile(content []byte) (*yttSplit, error) {
-	s := &yttSplit{lines: strings.Split(string(content), "\n"), exprs: map[string]string{}, literals: map[string]any{}}
+	s := &yttSplit{lines: strings.Split(string(content), "\n"), exprs: map[string]string{}, literals: map[string]any{}, templates: map[string][]templatePart{}}
 	s.computes = make([]bool, len(s.lines))
 	s.dropped = make([]bool, len(s.lines))
 	for i, line := range s.lines {
@@ -144,6 +213,7 @@ func (s *yttSplit) pruneMapping(node *yaml.Node, path []string) int {
 		// which is where `key: #@ expr` puts the computation.
 		if s.computesIn(start, key.Line-1) {
 			s.drop(childPath, key.Line, start, end)
+			s.recordTemplate(value, "."+strings.Join(childPath, "."), start, key.Line)
 			continue
 		}
 		switch {
@@ -218,6 +288,7 @@ func (s *yttSplit) recordExprs(node *yaml.Node, path string) {
 				if expr, ok := inlineYttExpr(s.lines[key.Line-1]); ok {
 					s.exprs[childPath] = expr
 				}
+				s.recordTemplate(value, childPath, start, key.Line)
 				continue
 			}
 			s.recordExprs(value, childPath)

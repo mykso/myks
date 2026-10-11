@@ -325,11 +325,17 @@ application:
 
 func TestValueAtPath(t *testing.T) {
 	values := map[string]any{"a": map[string]any{
-		"list": []any{map[string]any{"k": "v"}, map[string]any{"k": "w"}},
+		"list":    []any{map[string]any{"k": "v"}, map[string]any{"k": "w"}},
+		"init.sh": "script",
+		"init":    map[string]any{"x": 1},
+		"nested":  []any{[]any{"deep"}},
 	}}
 	for path, want := range map[string]any{
-		".a.list[1].k": "w",
-		".a.list[0].k": "v",
+		".a.list[1].k":    "w",
+		".a.list[0].k":    "v",
+		".a.init.sh":      "script", // a key may contain a dot
+		".a.init.x":       1,
+		".a.nested[0][0]": "deep",
 	} {
 		got, found := valueAtPath(values, path)
 		require.True(t, found, path)
@@ -363,4 +369,28 @@ func TestFoldAppends(t *testing.T) {
 	// Read in between, or reading what is rebound in between: folding would change the value.
 	kept := []string{`_a = [1]`, `_xs = _a`, `_a = _a + [2]`, `_xs = _xs + [3]`}
 	assert.Equal(t, kept, foldAppends(kept, map[string][]string{}))
+}
+
+func TestYttDerivationsTextTemplates(t *testing.T) {
+	libs := map[string]*yttLib{"secrets": {name: "secrets", funcs: map[string]bool{"sops": true}}}
+	d := yttDerivations("app-data.yaml", []byte(`#@ load("secrets.star", "sops")
+#@ name = "rsa"
+#@data/values
+---
+files:
+  #@yaml/text-templated-strings
+  init.sh: |
+    #!/bin/sh
+    echo "(@= sops("0", "key") @)" > /etc/(@= name @)
+  #@yaml/text-templated-strings
+  line: 'host-(@= name @) isn''t ${x}'
+  #@yaml/text-templated-strings
+  code: |
+    (@ if True: @)yes(@ end @)
+`), libs, "lib", "")
+	require.NotNil(t, d)
+	assert.Equal(t, map[string]string{
+		".files.init.sh": "\"\"\"\\\n#!/bin/sh\necho \"${lib.sops(\"0\", \"key\")}\" > /etc/${_name}\n\"\"\"",
+		".files.line":    `'host-${_name} isn\'t \${x}'`,
+	}, d.exprs, "code blocks other than (@= @) have no KCL string counterpart")
 }
