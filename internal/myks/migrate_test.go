@@ -350,7 +350,7 @@ components:
 	content, err := m.renderProtoK("kb_mcp")
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "schema KbMcp(myks.App):\n    [...str]: any\n    proto: str = \"kb_mcp\"\n")
-	assert.Contains(t, string(content), "image?: str = \"kb-mcp:1.0.0\"", "the inspected schema types the attribute")
+	assert.Contains(t, string(content), "image: str = \"kb-mcp:1.0.0\"", "the inspected schema types the attribute")
 	assert.Contains(t, string(content), "\n    check:\n        len(image) >= 1, \"image must not be empty\"\n")
 	assert.Contains(t, string(content), "helm?: {str:any} = {", "a value the schema does not describe stays a literal")
 }
@@ -390,10 +390,10 @@ components:
 	}
 	content, err := m.renderProtoK("webapp")
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "    application?: Application = Application {}\n")
+	assert.Contains(t, string(content), "    application: Application = Application {}\n")
 	assert.Contains(t, string(content), "    image?: str\n", "a demanded value is declared without a default")
 	assert.Contains(t, string(content),
-		"schema Application:\n    [...str]: any\n    containerPort?: int = 80\n    ingress?: bool = True\n    name?: str\n")
+		"schema Application:\n    [...str]: any\n    containerPort: int = 80\n    ingress: bool = True\n    name?: str\n")
 	assert.Contains(t, string(content), `len(name) >= 1 if name != Undefined, "application.name must not be empty"`,
 		"a nested check lives in the schema that owns the field")
 	assert.Contains(t, string(content), `len(image) >= 1 if image != Undefined, "image must not be empty"`)
@@ -537,9 +537,9 @@ components:
 	m.protoPlans = map[string]*protoSchemaPlan{"csi": newProtoSchemaPlan("Csi", values, schema)}
 	content, err := m.renderProtoK("csi")
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "    clients?: [Client] = []\n")
+	assert.Contains(t, string(content), "    clients: [Client] = []\n")
 	assert.Contains(t, string(content),
-		"schema Client:\n    [...str]: any\n    host?: str = \"\"\n    insecureSkipVerify?: bool = False\n    port?: int = 5001\n")
+		"schema Client:\n    [...str]: any\n    host: str = \"\"\n    insecureSkipVerify: bool = False\n    port: int = 5001\n")
 	assert.Contains(t, string(content), "    registries?: any\n", "not_null prunes the null default")
 	assert.Contains(t, string(content),
 		`registries != None if registries != Undefined, "application.registries must not be null"`)
@@ -600,11 +600,11 @@ components:
 	content, err := m.renderProtoK("home")
 	require.NoError(t, err)
 	// The element of an array inside an array element is typed too, down to the last field.
-	assert.Contains(t, string(content), "    config?: [ConfigItem] = []\n")
+	assert.Contains(t, string(content), "    config: [ConfigItem] = []\n")
 	assert.Contains(t, string(content),
-		"schema ConfigItem:\n    category?: str = \"Category\"\n    services?: [Service] = []\n")
+		"schema ConfigItem:\n    category: str = \"Category\"\n    services: [Service] = []\n")
 	assert.Contains(t, string(content),
-		"schema Service:\n    iconBubble?: bool = True\n    name?: str = \"Arch\"\n")
+		"schema Service:\n    iconBubble: bool = True\n    name: str = \"Arch\"\n")
 	// The ytt schema closed every scope, so nothing needs an index signature.
 	assert.NotContains(t, string(content), "[...str]: any")
 
@@ -761,7 +761,7 @@ components:
 	assert.Contains(t, string(content),
 		`len(apps) >= 1 if apps != Undefined, "application.apps must not be empty"`)
 	assert.Contains(t, string(content),
-		"schema ApplicationApp:\n    app_id?: int = 0\n    name?: str = \"\"\n\n    check:\n        len(name) >= 1, \"application.apps[].name must not be empty\"\n")
+		"schema ApplicationApp:\n    app_id: int = 0\n    name: str = \"\"\n\n    check:\n        len(name) >= 1, \"application.apps[].name must not be empty\"\n")
 	assert.Empty(t, m.warnings)
 }
 
@@ -963,4 +963,6 @@ components:
 	assert.Less(t, strings.Index(text, "schema Requests:"), strings.Index(text, "schema Limits:"))
 	assert.Less(t, strings.Index(text, `"application.zone must`), strings.Index(text, `"application.image must`))
 	assert.Contains(t, text, "name = \"default\"\n                uri = \"http://example\"\n                proxy = True\n")
+	assert.Contains(t, text, "    zone: str = \"a\"\n", "a typed, non-nullable value is required: ytt rejected its null too")
+	assert.Contains(t, text, "    config?: any = {\n", "a nullable value stays optional")
 }

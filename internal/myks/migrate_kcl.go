@@ -272,9 +272,8 @@ func (m *migrator) protoKPath(proto string) string {
 
 // renderProtoK renders a prototype's base schema: its converted app-data values become
 // attribute defaults, so applications instantiate the schema instead of repeating them, and
-// a structured object value becomes a nested schema of its own (see protoSchemaPlan). Every
-// attribute is optional, so a null default stays null instead of failing the required-value
-// check.
+// a structured object value becomes a nested schema of its own (see protoSchemaPlan). An
+// attribute ytt let be null is optional (optionalMark).
 func (m *migrator) renderProtoK(proto string) (string, error) {
 	plan := m.protoPlans[proto]
 	b := &kclWriter{derived: m.protoDerived[proto], comments: m.protoComments[proto]}
@@ -714,7 +713,7 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 		b.writeComments(childPath, 4)
 		if nested, ok := p.names[pathKey(child)]; ok {
 			// The nested schema carries the defaults of everything below it.
-			b.printf("    %s?: %s = %s {}\n", key, nested, nested)
+			b.printf("    %s%s: %s = %s {}\n", key, p.optionalMark(child, values[key]), nested, nested)
 			continue
 		}
 		if p.demanded[pathKey(child)] {
@@ -723,7 +722,7 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 			continue
 		}
 		value := values[key]
-		b.printf("    %s?: %s = ", key, p.attributeType(child, value))
+		b.printf("    %s%s: %s = ", key, p.optionalMark(child, value), p.attributeType(child, value))
 		writeKclValue(b, value, 4, false, childPath)
 		b.WriteString("\n")
 	}
@@ -733,6 +732,21 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 			b.printf("        %s\n", check)
 		}
 	}
+}
+
+// optionalMark returns the `?` that lets an attribute be None, for every attribute that ytt
+// let be null. An attribute the ytt schema types, with neither null nor `any` allowed, is
+// required instead: ytt rejected a null there too, and KCL now does the same. Its default
+// still applies wherever a level leaves it unset.
+func (p *protoSchemaPlan) optionalMark(path []string, value any) string {
+	if value == nil || p.schema == nil || p.externalSchema {
+		return "?"
+	}
+	node := p.schema.nodeAt(path)
+	if node == nil || node.Nullable || node.Type == "" {
+		return "?"
+	}
+	return ""
 }
 
 // openScope reports whether the schema at path has to take keys it does not declare. A ytt
