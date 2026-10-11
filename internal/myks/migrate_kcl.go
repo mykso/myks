@@ -557,6 +557,10 @@ func (p *protoSchemaPlan) valuesAt(path []string) map[string]any {
 
 func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[string]any, proto string) {
 	names := p.attributes(path, values)
+	dotted := ""
+	if len(path) > 0 {
+		dotted = "." + strings.Join(path, ".")
+	}
 	b.WriteString("\n")
 	if len(path) == 0 {
 		b.printf("schema %s(m.App):\n", p.names[""])
@@ -571,7 +575,7 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 	if len(path) == 0 {
 		b.printf("    proto: str = %s\n", quoteKclString(proto))
 	}
-	for _, key := range names {
+	for _, key := range b.sortKeys(dotted, names) {
 		child := append(slices.Clone(path), key)
 		childPath := "." + strings.Join(child, ".")
 		b.writeComments(childPath, 4)
@@ -929,12 +933,36 @@ type kclWriter struct {
 	comments map[string][]string
 }
 
-// writeComments writes the comment block belonging to one value path, if any.
+// writeComments writes the comment block belonging to one value path, if any. An empty line of
+// the block is the blank line the source separated the value with, dropped where it would
+// open a block or double another blank line.
 func (w *kclWriter) writeComments(path string, indent int) {
 	pad := strings.Repeat(" ", indent)
 	for _, line := range w.comments[path] {
+		if line == "" {
+			if s := w.b.String(); s != "" && !strings.HasSuffix(s, "\n\n") &&
+				!strings.HasSuffix(s, "{\n") && !strings.HasSuffix(s, "[\n") && !strings.HasSuffix(s, ":\n") {
+				w.WriteString("\n")
+			}
+			continue
+		}
 		w.printf("%s%s\n", pad, line)
 	}
+}
+
+// sortKeys orders the keys of the mapping at a dotted path the way the source files stated
+// them. A key no source file stated comes after those, alphabetically.
+func (w *kclWriter) sortKeys(path string, keys []string) []string {
+	order := w.comments[keyOrderPath(path)]
+	rank := func(key string) int {
+		if i := slices.Index(order, key); i >= 0 {
+			return i
+		}
+		return len(order)
+	}
+	sorted := slices.Sorted(slices.Values(keys))
+	slices.SortStableFunc(sorted, func(a, b string) int { return rank(a) - rank(b) })
+	return sorted
 }
 
 // writeDerivationHeader writes what a file's derivations read: the imports of the translated
@@ -1162,12 +1190,12 @@ func writeFrozenValuesComment(b *kclWriter) {
 	b.printf("# (see %s).\n", migrationDocsURL)
 }
 
-// writeKclEntries renders a map's entries, one per line, keys sorted. In merge style
+// writeKclEntries renders a map's entries, one per line, in source order. In merge style
 // (dict-union patches) map values use `key: {...}` so nested dicts merge instead of
 // replacing; everything else uses `key = value`.
 func writeKclEntries(b *kclWriter, values map[string]any, indent int, merge bool, path string) {
 	pad := strings.Repeat(" ", indent)
-	for _, key := range slices.Sorted(maps.Keys(values)) {
+	for _, key := range b.sortKeys(path, slices.Collect(maps.Keys(values))) {
 		value := values[key]
 		keyPath := path + "." + key
 		b.writeComments(keyPath, indent)

@@ -635,3 +635,25 @@ func TestClaimName(t *testing.T) {
 	// The root schema's own name is taken.
 	assert.Equal(t, "ApplicationWebapp", p.claimName([]string{"application", "webapp"}))
 }
+
+func TestWriteKclEntriesSourceOrder(t *testing.T) {
+	b := &kclWriter{comments: map[string][]string{
+		keyOrderPath(""):      {"zeta", "alpha"},
+		keyOrderPath(".zeta"): {"b", "a"},
+		".alpha":              {"", "# grouped apart"},
+		".zeta.a":             {""},
+	}}
+	writeKclEntries(b, map[string]any{
+		"alpha": 1, "zeta": map[string]any{"a": 1, "b": 2}, "extra": 3,
+	}, 0, false, "")
+	assert.Equal(t, `zeta = {
+    b = 2
+
+    a = 1
+}
+
+# grouped apart
+alpha = 1
+extra = 3
+`, b.String())
+}

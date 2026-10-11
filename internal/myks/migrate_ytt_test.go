@@ -142,14 +142,20 @@ application:
 # plain YAML comments travel too
 port: 8080
 
+#! a blank line above a key travels with it
+zone: a
+
 #! this block ends the file and belongs to nothing
 `))
 	require.NoError(t, err)
 
 	assert.Equal(t, []yttComment{
-		{path: []string{"application", "image"}, lines: []string{"# renovate: datasource=docker"}},
-		{path: []string{"application", "name"}, lines: []string{"# Two lines,", "# both kept."}},
-		{path: []string{"port"}, lines: []string{"# plain YAML comments travel too"}},
+		{path: ".application.image", lines: []string{"# renovate: datasource=docker"}},
+		{path: ".application.name", lines: []string{"# Two lines,", "# both kept."}},
+		{path: keyOrderPath(".application"), lines: []string{"image", "name", "clients"}},
+		{path: ".port", lines: []string{"# plain YAML comments travel too"}},
+		{path: ".zone", lines: []string{"", "# a blank line above a key travels with it"}},
+		{path: keyOrderPath(""), lines: []string{"application", "port", "zone"}},
 		{lines: []string{"# this block ends the file and belongs to nothing"}},
 	}, comments)
 }

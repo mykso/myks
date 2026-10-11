@@ -346,19 +346,23 @@ func validationKwargs(args string) []string {
 }
 
 // yttComment is the comment block a data-values file writes above one of its values, ready to
-// be written into the generated KCL.
+// be written into the generated KCL, or the order a mapping states its keys in (keyOrderPath).
 type yttComment struct {
-	path  []string
+	path  string // the dotted value path, as the KCL writer addresses values
 	lines []string
 }
 
 // yttComments returns the comments a data-values file writes above its mapping keys, each with
 // the path of the value it belongs to. The conversion moves a value out of the file it was
 // written in, and what someone wrote next to it — why the value is what it is, a tool's
-// annotation such as Renovate's — has to travel with it.
+// annotation such as Renovate's — has to travel with it. A blank line above a key travels as
+// an empty line of its block, so the groups the file separated stay separated.
 //
-// Only the block above a mapping key is read. A comment inside a sequence or after a value
-// has no attribute of its own to sit above in the generated schema, and is left behind.
+// It also returns the order every mapping states its keys in: the converted values are Go
+// maps, and the generated file would otherwise list them alphabetically.
+//
+// Only the block above a mapping key is read. A comment after a value has no attribute of its
+// own to sit above in the generated schema, and is left behind.
 func yttComments(content []byte) ([]yttComment, error) {
 	lines := strings.Split(string(content), "\n")
 	var found []yttComment
@@ -374,13 +378,17 @@ func yttComments(content []byte) ([]yttComment, error) {
 		if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
 			continue
 		}
-		collectComments(doc.Content[0], lines, nil, &found)
+		collectComments(doc.Content[0], lines, "", &found)
 	}
 	if trailing := trailingComments(lines); len(trailing) > 0 {
 		found = append(found, yttComment{lines: trailing})
 	}
 	return found, nil
 }
+
+// keyOrderPath is where the comment index of a file keeps the key order of the mapping at a
+// dotted path. The prefix is no possible start of a value path, which always starts with a dot.
+func keyOrderPath(path string) string { return "\x02" + path }
 
 // trailingComments returns the comment block a file ends with, which sits above no value and
 // therefore reaches no attribute of the generated KCL. It is reported so that a note left
@@ -403,14 +411,19 @@ func trailingComments(lines []string) []string {
 	return block
 }
 
-func collectComments(node *yaml.Node, lines, path []string, out *[]yttComment) {
+func collectComments(node *yaml.Node, lines []string, path string, out *[]yttComment) {
+	keys := make([]string, 0, len(node.Content)/2)
 	for i := 0; i+1 < len(node.Content); i += 2 {
 		key, value := node.Content[i], node.Content[i+1]
-		childPath := append(slices.Clone(path), key.Value)
+		childPath := path + "." + key.Value
+		keys = append(keys, key.Value)
 		// The comment block of an entry reaches from the blank line above it to its own line.
 		start, _ := entryRange(lines, key.Line)
 		var block []string
-		for _, line := range lines[start:key.Line] {
+		if i > 0 && start > 0 && strings.TrimSpace(lines[start-1]) == "" {
+			block = append(block, "")
+		}
+		for _, line := range lines[start : key.Line-1] {
 			line = strings.TrimSpace(line)
 			// A `#@` directive is a comment to YAML but code to ytt: it carries no meaning
 			// into KCL, where the value it annotated is stated in KCL's own terms.
@@ -426,6 +439,7 @@ func collectComments(node *yaml.Node, lines, path []string, out *[]yttComment) {
 			collectComments(value, lines, childPath, out)
 		}
 	}
+	*out = append(*out, yttComment{path: keyOrderPath(path), lines: keys})
 }
 
 // kclComment rewrites one comment line as KCL writes comments. ytt's own comment marker

@@ -421,11 +421,22 @@ type convertedFile struct {
 	comments map[string][]string
 }
 
-// mergeComments folds comment blocks together, the later file winning a path both state.
+// mergeComments folds comment blocks together, the later file winning a path both state. A key
+// order is merged instead: the keys a later file adds go after those already ordered.
 func mergeComments(parts ...map[string][]string) map[string][]string {
 	merged := map[string][]string{}
 	for _, part := range parts {
-		maps.Copy(merged, part)
+		for path, lines := range part {
+			if !strings.HasPrefix(path, keyOrderPath("")) {
+				merged[path] = lines
+				continue
+			}
+			for _, key := range lines {
+				if !slices.Contains(merged[path], key) {
+					merged[path] = append(slices.Clone(merged[path]), key)
+				}
+			}
+		}
 	}
 	return merged
 }
@@ -637,12 +648,12 @@ func (m *migrator) readComments(file string, content []byte) map[string][]string
 	}
 	out := make(map[string][]string, len(comments))
 	for _, comment := range comments {
-		if len(comment.path) == 0 {
+		if comment.path == "" {
 			m.warn("%s: the comment block the file ends with sits above no value, so it is not carried into the generated KCL; move it by hand: %s",
 				file, strings.Join(comment.lines, " "))
 			continue
 		}
-		out["."+strings.Join(comment.path, ".")] = comment.lines
+		out[comment.path] = comment.lines
 	}
 	return out
 }
