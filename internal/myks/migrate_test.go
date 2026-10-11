@@ -654,6 +654,29 @@ components:
 // TestRequireStatedFields pins that an element field every stated element sets loses the
 // ytt default that was only an example of the element's shape, and that the simulation no
 // longer fills it in.
+// TestRequireDemanded pins when a value the ytt schema demands becomes a required attribute:
+// only when every declaration states it on its own level, a frozen block there included.
+func TestRequireDemanded(t *testing.T) {
+	t.Parallel()
+	image, tag := pathKey([]string{"application", "image"}), pathKey([]string{"application", "tag"})
+	plan := &protoSchemaPlan{demanded: map[string]bool{image: true, tag: true}, required: map[string]bool{}}
+	app := func(values map[string]any) migApp { return migApp{proto: "web", values: values} }
+	m := &migrator{
+		protoPlans: map[string]*protoSchemaPlan{"web": plan},
+		nodes: map[string]*migNode{
+			"envs/a": {declared: map[string]migApp{"a": app(map[string]any{
+				"application": map[string]any{"image": "x", "tag": "1"},
+			})}},
+			"envs/b": {
+				declared:   map[string]migApp{"b": app(nil)},
+				appPatches: map[string]map[string]any{"b": {"application": map[string]any{"image": "y"}}},
+			},
+		},
+	}
+	m.requireDemanded()
+	assert.Equal(t, map[string]bool{image: true}, plan.required)
+}
+
 func TestRequireStatedFields(t *testing.T) {
 	t.Parallel()
 	schema, err := parseSchemaInspect([]byte(`

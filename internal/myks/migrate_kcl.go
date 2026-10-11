@@ -819,13 +819,13 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 			b.printf("    %s%s: %s = %s {}\n", key, p.optionalMark(child, values[key]), nested, nested)
 			continue
 		}
+		if p.required[pathKey(child)] {
+			b.printf("    %s: %s\n", key, p.attributeType(child, nil))
+			continue
+		}
 		if p.demanded[pathKey(child)] {
 			// No default: the prototype validates this value without supplying a valid one.
 			b.printf("    %s?: %s\n", key, p.attributeType(child, nil))
-			continue
-		}
-		if p.required[pathKey(child)] {
-			b.printf("    %s: %s\n", key, p.attributeType(child, nil))
 			continue
 		}
 		value := values[key]
@@ -969,7 +969,9 @@ func (p *protoSchemaPlan) locate(path []string, guardNull bool) (owner []string,
 	depth := len(owner)
 	access = path[depth]
 	if p.demanded[pathKey(path[:depth+1])] {
-		// An optional attribute left unset is Undefined, which only != compares with.
+		// The value is Undefined while unset: an optional attribute until a level sets it, a
+		// required one in the nested default KCL instantiates before the declaration merges in.
+		// Only != compares with Undefined.
 		guards = append(guards, access+" != Undefined")
 	}
 	for i := depth; i < len(path); i++ {

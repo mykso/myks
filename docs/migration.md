@@ -374,11 +374,13 @@ A KCL check runs where the schema is instantiated, that is where the application
 and again on every override of that instance, while ytt validated the final data values of a
 render once. So a value the prototype validates without supplying a satisfying default —
 `min_len=1` on an empty string, which is how a ytt prototype demands a value — is declared
-**without a default** (`image?: str` above) and its check guarded against the absence. The
-value is then absent until some level sets it, and validated from that level down. What this
-does not catch is an application that never sets it at all: KCL cannot express "required at
-the leaf" in a schema whose instances are also the intermediate levels. If a value must be
-present, assert it in the leaf finalizer instead.
+**without a default** and its check guarded against the absence. Where every declaration of
+the prototype's applications states the value on its own level, it is a required attribute
+(`image: str`): an application that leaves it out fails to evaluate, as it failed to render
+before. KCL checks a required attribute once the declaring level is complete, so a value that
+only a lower level sets stays optional (`image?: str` above): absent until some level sets
+it, and validated from that level down. What this does not catch is an application that
+never sets it at all. If such a value must be present, assert it in the leaf finalizer.
 
 One consequence to watch during migration: the value no longer defaults to the empty string,
 so an application that legacy rendering resolved to `""` gets that empty string frozen as a
