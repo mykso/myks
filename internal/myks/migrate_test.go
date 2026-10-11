@@ -1,6 +1,7 @@
 package myks
 
 import (
+	"fmt"
 	"maps"
 	"math"
 	"os"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	yaml "gopkg.in/yaml.v3"
+	kcl "kcl-lang.io/kcl-go"
 )
 
 func TestFileComputes(t *testing.T) {
@@ -99,6 +102,10 @@ func TestKclScalar(t *testing.T) {
 		{1.5, "1.5"},
 		{1.0, "1.0"},                            // integral floats keep the dot to stay floats in KCL
 		{"literal ${VAR}", `"literal \${VAR}"`}, // KCL interpolates ${...} in string literals
+		{"two\nlines\n", "\"\"\"\\\ntwo\nlines\n\"\"\""},
+		{"a\\b\n${x} \"q\" end", "\"\"\"\\\na\\\\b\n\\${x} \"q\" end\"\"\""},
+		{"ends with\n\"", "\"\"\"\\\nends with\n\\\"\"\"\""},
+		{"bell\a\n", `"bell\a\n"`}, // a control character keeps the escapes
 	}
 	for _, tt := range tests {
 		got, err := kclScalar(tt.value)
@@ -671,4 +678,30 @@ func TestLeafImportNames(t *testing.T) {
 	assert.Equal(t,
 		[]string{"alpha", "env_2", "env_3", "env_4"},
 		leafImportNames([]string{"envs/alpha", "envs/eu/prod", "envs/us/prod", "envs/myks"}))
+}
+
+// TestKclScalarRoundTrip evaluates the rendered string literals with KCL itself: whatever
+// quoting kclScalar picks, KCL has to read back the very same string.
+func TestKclScalarRoundTrip(t *testing.T) {
+	values := []string{
+		`plain`, `with "double" quotes`, `with 'single' quotes`, `both "kinds" 'of'`,
+		`back\slash`, `${not interpolated}`, "tab\tand\nnewline\n", "two\nlines",
+		"text block with \"\"\" inside\n", "ends with a quote\n\"", "a\\b\n\\${x}\n",
+		"unicode ✓\nline", "bell\a\n",
+	}
+	dir := t.TempDir()
+	var b strings.Builder
+	for i, value := range values {
+		literal, err := kclScalar(value)
+		require.NoError(t, err)
+		fmt.Fprintf(&b, "v%d = %s\n", i, literal)
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.k"), []byte(b.String()), 0o600))
+	res, err := kcl.Run(filepath.Join(dir, "main.k"))
+	require.NoError(t, err, b.String())
+	evaluated := map[string]any{}
+	require.NoError(t, yaml.Unmarshal([]byte(res.GetRawYamlResult()), &evaluated))
+	for i, value := range values {
+		assert.Equal(t, value, evaluated[fmt.Sprintf("v%d", i)], "literal %d:\n%s", i, b.String())
+	}
 }

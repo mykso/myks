@@ -1429,6 +1429,9 @@ func kclScalar(value any) (string, error) {
 		}
 		return "False", nil
 	case string:
+		if block, ok := kclTextBlock(typed); ok {
+			return block, nil
+		}
 		return quoteKclString(typed), nil
 	case float64:
 		if math.IsNaN(typed) || math.IsInf(typed, 0) {
@@ -1457,6 +1460,28 @@ func quoteKclString(s string) string {
 		quoted = "'" + unescapeDoubleQuotes(quoted[1:len(quoted)-1]) + "'"
 	}
 	return strings.ReplaceAll(quoted, "${", `\${`)
+}
+
+// kclTextBlock renders a multi-line string as a triple-quoted KCL string, its lines as they
+// are: the backslash after the opening quotes continues the line, so the text starts on the
+// next one. A string with a control character other than a newline or a tab stays one line of
+// escapes.
+func kclTextBlock(s string) (string, bool) {
+	if !strings.Contains(s, "\n") {
+		return "", false
+	}
+	for _, r := range s {
+		if r != '\n' && r != '\t' && !strconv.IsPrint(r) {
+			return "", false
+		}
+	}
+	body := strings.ReplaceAll(s, `\`, `\\`)
+	// A run of three quotes, or one right before the closing ones, would end the string.
+	if strings.Contains(body, `"""`) || strings.HasSuffix(body, `"`) {
+		body = strings.ReplaceAll(body, `"`, `\"`)
+	}
+	body = strings.ReplaceAll(body, "${", `\${`)
+	return `"""\` + "\n" + body + `"""`, true
 }
 
 // unescapeDoubleQuotes drops the escape from every `\"` of a Go-quoted string's body, leaving
