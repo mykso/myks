@@ -5,7 +5,9 @@ import (
 	"maps"
 	"math/big"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	"go.starlark.net/syntax"
@@ -32,6 +34,12 @@ type derivations struct {
 	prelude []string
 	// imports holds the KCL import statements they need.
 	imports []string
+	// notes holds the comments the Starlark wrote above a prelude statement, keyed by the
+	// statement's translation.
+	notes map[string][]string
+	// literals holds what the source states plainly next to the computed values, keyed by
+	// dotted path (yttSplit.literals).
+	literals map[string]any
 }
 
 func (d *derivations) has() bool { return d != nil && len(d.exprs) > 0 }
@@ -77,6 +85,8 @@ func mergeDerivations(parts ...*derivations) *derivations {
 		}
 		maps.Copy(bound, vars)
 		maps.Copy(out.exprs, part.exprs)
+		out.addNotes(part.notes)
+		out.addLiterals(part.literals)
 		for _, stmt := range part.prelude {
 			if !seen[stmt] {
 				seen[stmt] = true
@@ -94,6 +104,97 @@ func mergeDerivations(parts ...*derivations) *derivations {
 		return nil
 	}
 	return out
+}
+
+// addNotes copies the comments of prelude statements.
+func (d *derivations) addNotes(notes map[string][]string) {
+	if len(notes) == 0 {
+		return
+	}
+	if d.notes == nil {
+		d.notes = map[string][]string{}
+	}
+	maps.Copy(d.notes, notes)
+}
+
+// addLiterals copies what the source states plainly.
+func (d *derivations) addLiterals(literals map[string]any) {
+	if len(literals) == 0 {
+		return
+	}
+	if d.literals == nil {
+		d.literals = map[string]any{}
+	}
+	maps.Copy(d.literals, literals)
+}
+
+// starComments returns the comment lines written above a Starlark statement.
+func starComments(stmt syntax.Stmt) []string {
+	comments := stmt.Comments()
+	if comments == nil {
+		return nil
+	}
+	lines := make([]string, 0, len(comments.Before))
+	for _, comment := range comments.Before {
+		lines = append(lines, kclComment(comment.Text))
+	}
+	return lines
+}
+
+// renamed returns the derivations with module-level variables renamed, wherever they are read
+// or bound.
+func (d *derivations) renamed(renames map[string]string) *derivations {
+	if d == nil || len(renames) == 0 {
+		return d
+	}
+	out := &derivations{exprs: make(map[string]string, len(d.exprs)), imports: d.imports, literals: d.literals}
+	for path, expr := range d.exprs {
+		out.exprs[path] = renameIdents(expr, renames)
+	}
+	for _, stmt := range d.prelude {
+		out.prelude = append(out.prelude, renameIdents(stmt, renames))
+	}
+	for stmt, lines := range d.notes {
+		out.addNotes(map[string][]string{renameIdents(stmt, renames): lines})
+	}
+	return out
+}
+
+// renameIdents renames the identifiers of KCL text, leaving string literals and attribute
+// names (`x._a`) alone.
+func renameIdents(text string, renames map[string]string) string {
+	var out strings.Builder
+	for i := 0; i < len(text); {
+		c := text[i]
+		switch {
+		case c == '"' || c == '\'':
+			end := i + 1
+			for end < len(text) && text[end] != c {
+				if text[end] == '\\' {
+					end++
+				}
+				end++
+			}
+			end = min(end+1, len(text))
+			out.WriteString(text[i:end])
+			i = end
+		case isIdentifierChar(c):
+			end := i
+			for end < len(text) && isIdentifierChar(text[end]) {
+				end++
+			}
+			word := text[i:end]
+			if renamed, ok := renames[word]; ok && (i == 0 || text[i-1] != '.') {
+				word = renamed
+			}
+			out.WriteString(word)
+			i = end
+		default:
+			out.WriteByte(c)
+			i++
+		}
+	}
+	return out.String()
 }
 
 // preludeVars groups prelude statements by the variable they assign. A variable assigned more
@@ -120,7 +221,7 @@ type yttLib struct {
 // function whose body is more than a `return`, and every other top-level statement, is left
 // behind: the values it computes stay literals.
 func translateYttLib(path string, content []byte) *yttLib {
-	file, err := starSyntax.Parse(path, content, 0)
+	file, err := starSyntax.Parse(path, content, syntax.RetainComments)
 	if err != nil {
 		return nil
 	}
@@ -140,7 +241,11 @@ func translateYttLib(path string, content []byte) *yttLib {
 			continue
 		}
 		lib.funcs[def.Name.Name] = true
-		fmt.Fprintf(&b, "\n%s = %s\n", sanitizeKclIdentifier(def.Name.Name), lambda)
+		b.WriteString("\n")
+		for _, line := range starComments(def) {
+			b.WriteString(line + "\n")
+		}
+		fmt.Fprintf(&b, "%s = %s\n", sanitizeKclIdentifier(def.Name.Name), lambda)
 	}
 	if len(lib.funcs) == 0 {
 		return nil
@@ -156,6 +261,8 @@ type starScope struct {
 	names map[string]string
 	// prelude collects the module-level KCL statements the translation emits, in order.
 	prelude []string
+	// notes holds the comments above the Starlark statement behind a prelude statement.
+	notes   map[string][]string
 	imports map[string]bool
 	libs    map[string]*yttLib
 	// libPackage is the KCL package path of the translated ytt library ("lib").
@@ -169,11 +276,12 @@ type starScope struct {
 }
 
 // kclReservedVars are the module-level names the generated level files bind themselves.
-var kclReservedVars = map[string]bool{"_apps": true, "_lvl": true, "_patch": true}
+var kclReservedVars = map[string]bool{"_apps": true, "_level": true, "_patch": true}
 
 func newStarScope(libs map[string]*yttLib, libPackage, levelVar string) *starScope {
 	return &starScope{
 		names:      map[string]string{},
+		notes:      map[string][]string{},
 		imports:    map[string]bool{},
 		libs:       libs,
 		libPackage: libPackage,
@@ -219,6 +327,7 @@ func (s *starScope) lambda(def *syntax.DefStmt, ret *syntax.ReturnStmt) (string,
 // translate unbinds the names it assigns, so the values reading them stay literals.
 func (s *starScope) run(stmts []syntax.Stmt) {
 	for _, stmt := range stmts {
+		emitted := len(s.prelude)
 		switch typed := stmt.(type) {
 		case *syntax.LoadStmt:
 			s.load(typed)
@@ -228,6 +337,10 @@ func (s *starScope) run(stmts []syntax.Stmt) {
 			s.appendLoop(typed)
 		case *syntax.DefStmt:
 			s.def(typed)
+		}
+		// The comments above a statement go above the first statement it translates to.
+		if lines := starComments(stmt); len(lines) > 0 && len(s.prelude) > emitted {
+			s.notes[s.prelude[emitted]] = lines
 		}
 	}
 }
@@ -412,14 +525,28 @@ func (s *starScope) ident(ident *syntax.Ident) (string, error) {
 	return "", fmt.Errorf("%s is not bound to a KCL expression", ident.Name)
 }
 
+// list translates a list literal. The comments written between its elements — a disabled
+// element, why it is disabled — keep it one element per line, each under its comments.
 func (s *starScope) list(items []syntax.Expr) (string, error) {
 	parts := make([]string, 0, len(items))
+	commented := false
 	for _, item := range items {
 		part, err := s.expr(item)
 		if err != nil {
 			return "", err
 		}
+		if comments := item.Comments(); comments != nil && len(comments.Before) > 0 {
+			commented = true
+			lines := make([]string, 0, len(comments.Before)+1)
+			for _, comment := range comments.Before {
+				lines = append(lines, kclComment(comment.Text))
+			}
+			part = strings.Join(append(lines, part), "\n    ")
+		}
 		parts = append(parts, part)
+	}
+	if commented {
+		return "[\n    " + strings.Join(parts, "\n    ") + "\n]", nil
 	}
 	return "[" + strings.Join(parts, ", ") + "]", nil
 }
@@ -441,11 +568,17 @@ func (s *starScope) dict(d *syntax.DictExpr) (string, error) {
 }
 
 func (s *starScope) dictEntry(entry *syntax.DictEntry) (string, error) {
-	key, err := s.expr(entry.Key)
+	value, err := s.expr(entry.Value)
 	if err != nil {
 		return "", err
 	}
-	value, err := s.expr(entry.Value)
+	// A constant key that is an identifier reads as KCL writes its own dicts.
+	if lit, ok := entry.Key.(*syntax.Literal); ok {
+		if name, ok := lit.Value.(string); ok && isKclIdentifier(name) {
+			return name + " = " + value, nil
+		}
+	}
+	key, err := s.expr(entry.Key)
 	if err != nil {
 		return "", err
 	}
@@ -778,6 +911,49 @@ func (s *starScope) call(call *syntax.CallExpr) (string, error) {
 	}
 }
 
+// template translates a ytt text template into a KCL string interpolating `${expr}`. A string
+// of several lines is a text block; a one-line string is single-quoted, since KCL does not
+// read a double quote inside an interpolation of a double-quoted string.
+func (s *starScope) template(file string, parts []templatePart) (string, bool) {
+	multiline := false
+	for _, part := range parts {
+		multiline = multiline || (!part.isExpr && strings.Contains(part.text, "\n"))
+	}
+	var b strings.Builder
+	for i, part := range parts {
+		if part.isExpr {
+			parsed, err := starSyntax.ParseExpr(file, part.text, 0)
+			if err != nil {
+				return "", false
+			}
+			translated, err := s.expr(parsed)
+			if err != nil || strings.ContainsAny(translated, "{}") || (!multiline && strings.Contains(translated, "'")) {
+				return "", false
+			}
+			b.WriteString("${" + translated + "}")
+			continue
+		}
+		for _, r := range part.text {
+			if r != '\n' && r != '\t' && !strconv.IsPrint(r) {
+				return "", false
+			}
+		}
+		text := strings.ReplaceAll(part.text, `\`, `\\`)
+		switch {
+		case !multiline:
+			text = strings.ReplaceAll(strings.ReplaceAll(text, "'", `\'`), "\t", `\t`)
+		case strings.Contains(text, `"""`) || (i == len(parts)-1 && strings.HasSuffix(text, `"`)):
+			// Three quotes, or one right before the closing ones, would end the text block.
+			text = strings.ReplaceAll(text, `"`, `\"`)
+		}
+		b.WriteString(strings.ReplaceAll(text, "${", `\${`))
+	}
+	if multiline {
+		return `"""\` + "\n" + b.String() + `"""`, true
+	}
+	return "'" + b.String() + "'", true
+}
+
 // myksDataLibrary is the ytt library myks generates per application, through which a legacy
 // data file reads the data values of its environment.
 const myksDataLibrary = "@myks:data.lib.yaml"
@@ -788,16 +964,16 @@ const myksDataLibrary = "@myks:data.lib.yaml"
 // as the literal ytt resolved.
 func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPackage, levelVar string) *derivations {
 	split, err := splitYttFile(content)
-	if err != nil || len(split.exprs) == 0 {
+	if err != nil || len(split.exprs)+len(split.templates) == 0 {
 		return nil
 	}
 
 	scope := newStarScope(libs, libPackage, levelVar)
-	prelude, err := starSyntax.Parse(file, yttPreludeSource(split.lines, false), 0)
+	prelude, err := starSyntax.Parse(file, yttPreludeSource(split.lines, false), syntax.RetainComments)
 	if err != nil {
 		// A ytt template function — a `def` whose body is YAML rather than Starlark — is no
 		// Starlark program. Dropping those blocks leaves the rest of the prelude readable.
-		prelude, err = starSyntax.Parse(file, yttPreludeSource(split.lines, true), 0)
+		prelude, err = starSyntax.Parse(file, yttPreludeSource(split.lines, true), syntax.RetainComments)
 	}
 	if err == nil {
 		scope.run(prelude.Stmts)
@@ -815,10 +991,17 @@ func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPac
 		}
 		d.exprs[path] = translated
 	}
+	for _, path := range slices.Sorted(maps.Keys(split.templates)) {
+		if translated, ok := scope.template(file, split.templates[path]); ok {
+			d.exprs[path] = translated
+		}
+	}
 	if len(d.exprs) == 0 {
 		return nil
 	}
-	d.prelude = prunePrelude(scope.prelude, d.exprs)
+	d.prelude = prunePrelude(foldAppends(scope.prelude, scope.notes), d.exprs)
+	d.addNotes(scope.notes)
+	d.addLiterals(split.literals)
 	for imp := range scope.imports {
 		d.imports = append(d.imports, imp)
 	}
@@ -826,16 +1009,108 @@ func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPac
 	return d
 }
 
+// foldAppends folds a list variable that is bound and then only appended to into one
+// statement: `_xs = [a]` followed by `_xs = _xs + [f(n) for n in ns]` becomes
+// `_xs = [a] + [f(n) for n in ns]`, which is what the ytt loop built. The statement takes the
+// place of the last append, so it is folded only when nothing between reads the variable and
+// nothing between rebinds what it reads. The comments of the folded statements move along.
+func foldAppends(prelude []string, notes map[string][]string) []string {
+	prelude = slices.Clone(prelude)
+	for folded := true; folded; {
+		folded = false
+		for i, stmt := range prelude {
+			name, rhs, _ := strings.Cut(stmt, " = ")
+			appended, ok := strings.CutPrefix(rhs, name+" + ")
+			if !ok {
+				continue
+			}
+			j := i - 1
+			for j >= 0 && !strings.HasPrefix(prelude[j], name+" = ") {
+				j--
+			}
+			if j < 0 {
+				continue
+			}
+			initial := strings.TrimPrefix(prelude[j], name+" = ")
+			if strings.HasPrefix(initial, name+" + ") || !foldable(prelude[j+1:i], name, initial) {
+				continue
+			}
+			if !isListLiteral(initial) && !isKclIdentifier(initial) {
+				initial = "(" + initial + ")"
+			}
+			combined := name + " = " + initial + " + " + appended
+			if lines := append(slices.Clone(notes[prelude[j]]), notes[stmt]...); len(lines) > 0 {
+				notes[combined] = lines
+			}
+			prelude[i] = combined
+			prelude = slices.Delete(prelude, j, j+1)
+			folded = true
+			break
+		}
+	}
+	return prelude
+}
+
+// foldable reports whether the statements between a binding and an append to it neither read
+// the variable nor rebind a name its initial value reads, which moves down to the append.
+func foldable(between []string, name, initial string) bool {
+	for _, stmt := range between {
+		bound, rhs, _ := strings.Cut(stmt, " = ")
+		if readsName(rhs, name) || readsName(initial, bound) {
+			return false
+		}
+	}
+	return true
+}
+
+// isListLiteral reports whether expr is one bracketed list, which needs no parentheses as the
+// left operand of `+`.
+func isListLiteral(expr string) bool {
+	if !strings.HasPrefix(expr, "[") || !strings.HasSuffix(expr, "]") {
+		return false
+	}
+	depth := 0
+	for i, c := range expr {
+		switch c {
+		case '[', '(', '{':
+			depth++
+		case ']', ')', '}':
+			depth--
+			if depth == 0 && i < len(expr)-1 {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // yttPreludeSource returns the Starlark of a ytt file's top-level code: the `#@` lines at
-// zero indentation that carry code rather than an annotation. Code indented into the YAML
-// body belongs to a template construct, which this translation does not cover. With
-// dropDefs, function blocks are left out with their bodies — which is what a ytt template
-// function needs, its body being YAML the `#@` lines do not carry.
+// zero indentation that carry code rather than an annotation, and the assignments indented
+// into the YAML body, which ytt evaluates where they stand — `#@ registries = [...]` right
+// above the sequence a `for/end` builds from it. Any other code indented into the YAML body
+// belongs to a template construct, which this translation does not cover. With dropDefs,
+// function blocks are left out with their bodies — which is what a ytt template function
+// needs, its body being YAML the `#@` lines do not carry.
 func yttPreludeSource(lines []string, dropDefs bool) string {
 	code := make([]string, 0, len(lines))
 	depth := 0
+	open := 0 // the brackets an indented assignment left open, which its next lines continue
 	for _, line := range lines {
-		if !strings.HasPrefix(line, "#@") {
+		indented := !strings.HasPrefix(line, "#@")
+		if indented {
+			trimmed := strings.TrimLeft(line, " ")
+			if !strings.HasPrefix(trimmed, "#@") {
+				continue
+			}
+			statement := strings.TrimPrefix(trimmed[2:], " ")
+			if open == 0 {
+				if yttAnnotationRe.FindStringSubmatch(trimmed)[1] != "" || !assignmentRe.MatchString(statement) {
+					continue
+				}
+				statement = strings.TrimLeft(statement, " ")
+			}
+			open += bracketBalance(statement)
+			code = append(code, statement)
 			continue
 		}
 		if match := yttAnnotationRe.FindStringSubmatch(line); len(match) > 1 && match[1] != "" {
@@ -858,6 +1133,32 @@ func yttPreludeSource(lines []string, dropDefs bool) string {
 		code = append(code, statement)
 	}
 	return strings.Join(code, "\n") + "\n"
+}
+
+// assignmentRe matches a Starlark statement assigning one name.
+var assignmentRe = regexp.MustCompile(`^\s*[A-Za-z_][A-Za-z0-9_]*\s*=[^=]`)
+
+// bracketBalance counts the brackets one line of Starlark opens minus those it closes,
+// outside its strings and its comment.
+func bracketBalance(line string) int {
+	balance := 0
+	for i := 0; i < len(line); i++ {
+		switch c := line[i]; c {
+		case '#':
+			return balance
+		case '"', '\'':
+			for i++; i < len(line) && line[i] != c; i++ {
+				if line[i] == '\\' {
+					i++
+				}
+			}
+		case '(', '[', '{':
+			balance++
+		case ')', ']', '}':
+			balance--
+		}
+	}
+	return balance
 }
 
 // prunePrelude keeps the statements the translated expressions reach, directly or through

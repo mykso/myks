@@ -421,11 +421,30 @@ type convertedFile struct {
 	comments map[string][]string
 }
 
-// mergeComments folds comment blocks together, the later file winning a path both state.
+// mergeComments folds comment blocks together, the later file winning a path both state. A key
+// order is merged instead: the keys a later file adds go after those already ordered. The
+// blocks files end with all stay, in file order.
 func mergeComments(parts ...map[string][]string) map[string][]string {
 	merged := map[string][]string{}
 	for _, part := range parts {
-		maps.Copy(merged, part)
+		for path, lines := range part {
+			if path == trailingCommentsPath {
+				if len(merged[path]) > 0 {
+					lines = append(append(slices.Clone(merged[path]), ""), lines...)
+				}
+				merged[path] = lines
+				continue
+			}
+			if !strings.HasPrefix(path, keyOrderPath("")) {
+				merged[path] = lines
+				continue
+			}
+			for _, key := range lines {
+				if !slices.Contains(merged[path], key) {
+					merged[path] = append(slices.Clone(merged[path]), key)
+				}
+			}
+		}
 	}
 	return merged
 }
@@ -542,6 +561,9 @@ var (
 	// file cannot be resolved on its own: what it would answer standalone is not what it
 	// answers at render time.
 	renderContextRe = regexp.MustCompile(`@ytt:data|@myks:`)
+	// legacyFileRefRe detects a comment pointing at a legacy data-values file or directory,
+	// which stops being true once the KCL tree replaces them.
+	legacyFileRefRe = regexp.MustCompile(`\b(app-data|env-data)\b|\.ytt\.ya?ml\b|\b_(apps|proto)/`)
 	// schemaDocRe detects a data-values schema document. ytt forbids mixing schema and plain
 	// data-values documents in one file, so one match settles how the whole file is read.
 	schemaDocRe = regexp.MustCompile(`(?m)^#@data/values-schema\b`)
@@ -575,9 +597,9 @@ func (m *migrator) carryValidations(file string, content []byte, schema *inspect
 					schemaConstraint{path: validation.path, kind: constraintNotNull})
 			case mappedValidationKwargs[kwarg]:
 			case kwarg == "":
-				lost = append(lost, strings.Join(validation.path, ".")+" (custom rule)")
+				lost = append(lost, displayPath(validation.path)+" (custom rule)")
 			default:
-				lost = append(lost, strings.Join(validation.path, ".")+" ("+kwarg+")")
+				lost = append(lost, displayPath(validation.path)+" ("+kwarg+")")
 			}
 		}
 	}
@@ -622,27 +644,33 @@ func (m *migrator) convertDataFile(file string) (*convertedFile, error) {
 	if err != nil || converted == nil {
 		return converted, err
 	}
-	converted.comments = m.readComments(file, content)
+	converted.comments = m.readComments(file, content, isSchema)
 	return converted, nil
 }
 
 // readComments reads what a data-values file wrote above its values. A file the parser cannot
 // read yields none: the conversion of its values has its own error path, and a missing comment
 // is not worth failing one over.
-func (m *migrator) readComments(file string, content []byte) map[string][]string {
-	comments, err := yttComments(content)
+func (m *migrator) readComments(file string, content []byte, isSchema bool) map[string][]string {
+	comments, err := yttComments(content, isSchema)
 	if err != nil {
 		log.Debug().Err(err).Msg(m.g.Msg("Reading the comments of " + file))
 		return nil
 	}
 	out := make(map[string][]string, len(comments))
+	var stale []string
 	for _, comment := range comments {
-		if len(comment.path) == 0 {
-			m.warn("%s: the comment block the file ends with sits above no value, so it is not carried into the generated KCL; move it by hand: %s",
-				file, strings.Join(comment.lines, " "))
+		out[comment.path] = comment.lines
+		if strings.HasPrefix(comment.path, keyOrderPath("")) {
 			continue
 		}
-		out["."+strings.Join(comment.path, ".")] = comment.lines
+		stale = append(stale, slices.DeleteFunc(slices.Clone(comment.lines), func(line string) bool {
+			return !legacyFileRefRe.MatchString(line)
+		})...)
+	}
+	if len(stale) > 0 {
+		m.warn("%s: carried comments name legacy ytt files, which the KCL tree replaces; update them: %s",
+			file, strings.Join(stale, " "))
 	}
 	return out
 }
@@ -1502,13 +1530,19 @@ func mergeValues(values ...map[string]any) map[string]any {
 // stillFrozen reports whether any leaf still states this value path as a literal, rather than
 // as the derivation the converter found for it. A value whose every leaf is a derivation is
 // no longer frozen, even where the path itself carries none — an array states its elements.
-func (m *migrator) stillFrozen(path string) bool {
+// With sourceLiterals, a literal the source file stated plainly at the same path counts as
+// accounted for too.
+func (m *migrator) stillFrozen(path string, sourceLiterals bool) bool {
 	for _, node := range m.nodes {
-		if value, found := valueAtPath(node.envPatch, path); found && patchHasLiterals(value, nil, path) {
+		if value, found := valueAtPath(node.envPatch, path); found && frozenNeedsWork(value, nil, path) {
 			return true
 		}
 		for name, patch := range node.appPatches {
-			if value, found := valueAtPath(patch, path); found && patchHasLiterals(value, node.appPatchDerived[name], path) {
+			derived := node.appPatchDerived[name]
+			if !sourceLiterals && derived != nil {
+				derived = &derivations{exprs: derived.exprs}
+			}
+			if value, found := valueAtPath(patch, path); found && frozenNeedsWork(value, derived, path) {
 				return true
 			}
 		}
@@ -1532,7 +1566,7 @@ func (m *migrator) printReport() {
 				"Skipped %s: it contains ytt logic; its resolved values are frozen in leaf-level TODO patches", skipped.file)))
 			continue
 		}
-		frozen := slices.DeleteFunc(slices.Clone(skipped.deferred), func(path string) bool { return !m.stillFrozen(path) })
+		frozen := slices.DeleteFunc(slices.Clone(skipped.deferred), func(path string) bool { return !m.stillFrozen(path, true) })
 		if len(frozen) == 0 {
 			// Every value taken out of the file reached the generated tree as a derivation.
 			continue
@@ -1545,7 +1579,8 @@ func (m *migrator) printReport() {
 		log.Warn().Msg(m.g.Msg(warning))
 	}
 	for _, frozen := range m.frozenLists {
-		if !m.stillFrozen(frozen.path) {
+		// Plain literals do not help here: the array replaces the schema default's either way.
+		if !m.stillFrozen(frozen.path, false) {
 			continue
 		}
 		m.warnNow("%s: array value %s is frozen in a patch, but ytt appends arrays over schema defaults; if the gate reports a difference here, fix it by hand", frozen.context, frozen.path)
