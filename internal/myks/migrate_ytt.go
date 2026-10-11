@@ -75,13 +75,17 @@ type yttSplit struct {
 	// exprs maps the dotted path of a dropped entry to the ytt expression that computed it,
 	// where the source states it inline (`key: #@ expr`).
 	exprs map[string]string
+	// literals maps the dotted path of a scalar inside a dropped sequence or block to the
+	// value the source states for it plainly, next to the expressions: a frozen value equal
+	// to it is what the source said, not something ytt computed.
+	literals map[string]any
 }
 
 // splitYttFile removes from content every value ytt computes, together with the Starlark that
 // computes it, and returns what remains. An error means the file cannot be split — the caller
 // falls back to skipping it whole.
 func splitYttFile(content []byte) (*yttSplit, error) {
-	s := &yttSplit{lines: strings.Split(string(content), "\n"), exprs: map[string]string{}}
+	s := &yttSplit{lines: strings.Split(string(content), "\n"), exprs: map[string]string{}, literals: map[string]any{}}
 	s.computes = make([]bool, len(s.lines))
 	s.dropped = make([]bool, len(s.lines))
 	for i, line := range s.lines {
@@ -190,22 +194,38 @@ func (s *yttSplit) drop(path []string, keyLine, start, end int) {
 	}
 }
 
-// recordExprs records the ytt expressions inside a dropped value, addressing a sequence
-// element by its index: `.config[0].services[1].uri`.
+// recordExprs records the ytt expressions inside a dropped value, and the scalars it states
+// plainly, addressing a sequence element by its index: `.config[0].services[1].uri`. A value
+// with any other computation on or above its line is neither.
 func (s *yttSplit) recordExprs(node *yaml.Node, path string) {
 	switch node.Kind {
 	case yaml.SequenceNode:
 		for i, item := range node.Content {
-			s.recordExprs(item, fmt.Sprintf("%s[%d]", path, i))
+			itemPath := fmt.Sprintf("%s[%d]", path, i)
+			// A mapping item's first key shares the item's line, and is checked as a key.
+			if item.Kind != yaml.MappingNode {
+				if start, _ := s.entryRange(item.Line); s.computesIn(start, item.Line-1) {
+					continue
+				}
+			}
+			s.recordExprs(item, itemPath)
 		}
 	case yaml.MappingNode:
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key, value := node.Content[i], node.Content[i+1]
 			childPath := path + "." + key.Value
-			if expr, ok := inlineYttExpr(s.lines[key.Line-1]); ok {
-				s.exprs[childPath] = expr
+			if start, _ := s.entryRange(key.Line); s.computesIn(start, key.Line-1) {
+				if expr, ok := inlineYttExpr(s.lines[key.Line-1]); ok {
+					s.exprs[childPath] = expr
+				}
+				continue
 			}
 			s.recordExprs(value, childPath)
+		}
+	case yaml.ScalarNode:
+		var value any
+		if node.Decode(&value) == nil {
+			s.literals[path] = value
 		}
 	}
 }

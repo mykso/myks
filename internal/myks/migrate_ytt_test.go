@@ -195,3 +195,29 @@ func TestKclComment(t *testing.T) {
 	assert.Equal(t, "# no space after the marker", kclComment("#no space after the marker"))
 	assert.Equal(t, "#", kclComment("#"))
 }
+
+func TestSplitYttFileLiterals(t *testing.T) {
+	t.Parallel()
+	split, err := splitYttFile([]byte(`#@ load("@myks:data.lib.yaml", "env_data")
+#@data/values
+---
+services:
+  - name: Grafana
+    uri: https://grafana.example
+  - name: Vault
+    uri: #@ env_data.vault
+  #@ if True:
+  - name: Hidden
+  #@ end
+  - plain
+`))
+	require.NoError(t, err)
+	assert.Equal(t, map[string]string{".services[1].uri": "env_data.vault"}, split.exprs)
+	// A value under any other ytt computation is not a literal of the source; nor is one right
+	// below it, which a removed element would have shifted.
+	assert.Equal(t, map[string]any{
+		".services[0].name": "Grafana",
+		".services[0].uri":  "https://grafana.example",
+		".services[1].name": "Vault",
+	}, split.literals)
+}

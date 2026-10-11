@@ -815,3 +815,19 @@ func TestRenameIdents(t *testing.T) {
 	assert.Equal(t, `_x_a + f(_x_a) + "_a" + '_a' + y._a + _ab`, renameIdents(`_a + f(_a) + "_a" + '_a' + y._a + _ab`, renames))
 	assert.Equal(t, `"esc \" _a" + _x_a`, renameIdents(`"esc \" _a" + _a`, renames))
 }
+
+func TestFrozenNeedsWork(t *testing.T) {
+	t.Parallel()
+	derived := &derivations{
+		exprs:    map[string]string{".s[1].uri": `_uri("vault")`},
+		literals: map[string]any{".s[0].uri": "https://grafana.example", ".s[1].name": "Vault"},
+	}
+	explained := map[string]any{"s": []any{
+		map[string]any{"uri": "https://grafana.example"},
+		map[string]any{"name": "Vault", "uri": "https://vault.example"},
+	}}
+	assert.False(t, frozenNeedsWork(explained, derived, ""), "derived or stated plainly by the source")
+	changed := map[string]any{"s": []any{map[string]any{"uri": "https://other.example"}}}
+	assert.True(t, frozenNeedsWork(changed, derived, ""), "differs from what the source stated")
+	assert.True(t, frozenNeedsWork(map[string]any{"x": 1}, nil, ""), "nothing accounts for it")
+}

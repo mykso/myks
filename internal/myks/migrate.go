@@ -1516,13 +1516,19 @@ func mergeValues(values ...map[string]any) map[string]any {
 // stillFrozen reports whether any leaf still states this value path as a literal, rather than
 // as the derivation the converter found for it. A value whose every leaf is a derivation is
 // no longer frozen, even where the path itself carries none — an array states its elements.
-func (m *migrator) stillFrozen(path string) bool {
+// With sourceLiterals, a literal the source file stated plainly at the same path counts as
+// accounted for too.
+func (m *migrator) stillFrozen(path string, sourceLiterals bool) bool {
 	for _, node := range m.nodes {
-		if value, found := valueAtPath(node.envPatch, path); found && patchHasLiterals(value, nil, path) {
+		if value, found := valueAtPath(node.envPatch, path); found && frozenNeedsWork(value, nil, path) {
 			return true
 		}
 		for name, patch := range node.appPatches {
-			if value, found := valueAtPath(patch, path); found && patchHasLiterals(value, node.appPatchDerived[name], path) {
+			derived := node.appPatchDerived[name]
+			if !sourceLiterals && derived != nil {
+				derived = &derivations{exprs: derived.exprs}
+			}
+			if value, found := valueAtPath(patch, path); found && frozenNeedsWork(value, derived, path) {
 				return true
 			}
 		}
@@ -1546,7 +1552,7 @@ func (m *migrator) printReport() {
 				"Skipped %s: it contains ytt logic; its resolved values are frozen in leaf-level TODO patches", skipped.file)))
 			continue
 		}
-		frozen := slices.DeleteFunc(slices.Clone(skipped.deferred), func(path string) bool { return !m.stillFrozen(path) })
+		frozen := slices.DeleteFunc(slices.Clone(skipped.deferred), func(path string) bool { return !m.stillFrozen(path, true) })
 		if len(frozen) == 0 {
 			// Every value taken out of the file reached the generated tree as a derivation.
 			continue
@@ -1559,7 +1565,8 @@ func (m *migrator) printReport() {
 		log.Warn().Msg(m.g.Msg(warning))
 	}
 	for _, frozen := range m.frozenLists {
-		if !m.stillFrozen(frozen.path) {
+		// Plain literals do not help here: the array replaces the schema default's either way.
+		if !m.stillFrozen(frozen.path, false) {
 			continue
 		}
 		m.warnNow("%s: array value %s is frozen in a patch, but ytt appends arrays over schema defaults; if the gate reports a difference here, fix it by hand", frozen.context, frozen.path)

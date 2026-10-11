@@ -1321,7 +1321,7 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 
 	if patch, ok := node.appPatches[name]; ok {
 		separate()
-		if patchHasLiterals(patch, patchDerived, "") {
+		if frozenNeedsWork(patch, patchDerived, "") {
 			writeFrozenValuesComment(b)
 		}
 		declDerived := b.derived
@@ -1475,28 +1475,34 @@ func elementPath(path string, i int) string {
 	return fmt.Sprintf("%s[%d]", path, i)
 }
 
-// patchHasLiterals reports whether a frozen block still states a value no derivation replaces.
-func patchHasLiterals(value any, derived *derivations, path string) bool {
+// frozenNeedsWork reports whether a frozen block states a value the converter could not
+// account for: one that is neither a translated derivation nor what the source file stated
+// plainly at the same path.
+func frozenNeedsWork(value any, derived *derivations, path string) bool {
 	if derived.hasPath(path) {
 		return false
 	}
 	switch typed := value.(type) {
 	case map[string]any:
 		for key, child := range typed {
-			if patchHasLiterals(child, derived, path+"."+key) {
+			if frozenNeedsWork(child, derived, path+"."+key) {
 				return true
 			}
 		}
 		return false
 	case []any:
 		for i, child := range typed {
-			if patchHasLiterals(child, derived, elementPath(path, i)) {
+			if frozenNeedsWork(child, derived, elementPath(path, i)) {
 				return true
 			}
 		}
 		return false
 	default:
-		return true
+		if derived == nil {
+			return true
+		}
+		literal, stated := derived.literals[path]
+		return !stated || !sameValue(literal, value)
 	}
 }
 

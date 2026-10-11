@@ -35,6 +35,9 @@ type derivations struct {
 	// notes holds the comments the Starlark wrote above a prelude statement, keyed by the
 	// statement's translation.
 	notes map[string][]string
+	// literals holds what the source states plainly next to the computed values, keyed by
+	// dotted path (yttSplit.literals).
+	literals map[string]any
 }
 
 func (d *derivations) has() bool { return d != nil && len(d.exprs) > 0 }
@@ -81,6 +84,7 @@ func mergeDerivations(parts ...*derivations) *derivations {
 		maps.Copy(bound, vars)
 		maps.Copy(out.exprs, part.exprs)
 		out.addNotes(part.notes)
+		out.addLiterals(part.literals)
 		for _, stmt := range part.prelude {
 			if !seen[stmt] {
 				seen[stmt] = true
@@ -111,6 +115,17 @@ func (d *derivations) addNotes(notes map[string][]string) {
 	maps.Copy(d.notes, notes)
 }
 
+// addLiterals copies what the source states plainly.
+func (d *derivations) addLiterals(literals map[string]any) {
+	if len(literals) == 0 {
+		return
+	}
+	if d.literals == nil {
+		d.literals = map[string]any{}
+	}
+	maps.Copy(d.literals, literals)
+}
+
 // starComments returns the comment lines written above a Starlark statement.
 func starComments(stmt syntax.Stmt) []string {
 	comments := stmt.Comments()
@@ -130,7 +145,7 @@ func (d *derivations) renamed(renames map[string]string) *derivations {
 	if d == nil || len(renames) == 0 {
 		return d
 	}
-	out := &derivations{exprs: make(map[string]string, len(d.exprs)), imports: d.imports}
+	out := &derivations{exprs: make(map[string]string, len(d.exprs)), imports: d.imports, literals: d.literals}
 	for path, expr := range d.exprs {
 		out.exprs[path] = renameIdents(expr, renames)
 	}
@@ -922,6 +937,7 @@ func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPac
 	}
 	d.prelude = prunePrelude(scope.prelude, d.exprs)
 	d.addNotes(scope.notes)
+	d.addLiterals(split.literals)
 	for imp := range scope.imports {
 		d.imports = append(d.imports, imp)
 	}

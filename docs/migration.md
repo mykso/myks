@@ -65,7 +65,9 @@ identically:
 Whatever the split leaves out has its *resolved* value frozen as a literal at the leaf,
 marked with a `TODO(myks migrate)` comment: application values in that application's file,
 environment values in `patch.k`. The result still renders identically; those literals are
-yours to replace with real KCL derivations.
+yours to replace with real KCL derivations. The marker is left out where every frozen value is
+accounted for — translated (see below), or stated plainly by the source next to the computed
+ones, as the other entries of an array that ytt resolved whole are.
 
 A value ytt resolved standalone carries no such comment, translated or not: the file it came
 from reads nothing outside itself, so the literal states everything its computation stated.
