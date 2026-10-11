@@ -594,9 +594,9 @@ func (m *migrator) carryValidations(file string, content []byte, schema *inspect
 					schemaConstraint{path: validation.path, kind: constraintNotNull})
 			case mappedValidationKwargs[kwarg]:
 			case kwarg == "":
-				lost = append(lost, strings.Join(validation.path, ".")+" (custom rule)")
+				lost = append(lost, displayPath(validation.path)+" (custom rule)")
 			default:
-				lost = append(lost, strings.Join(validation.path, ".")+" ("+kwarg+")")
+				lost = append(lost, displayPath(validation.path)+" ("+kwarg+")")
 			}
 		}
 	}

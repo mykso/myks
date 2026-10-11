@@ -291,8 +291,8 @@ var (
 )
 
 // yttValidations returns the `#@schema/validation` annotations of a schema document, each with
-// the path of the value it annotates. A validation inside a sequence constrains one element
-// rather than a path in the document and is skipped, matching the inspected schema.
+// the path of the value it annotates. A validation on a key of a sequence's element is
+// anchored below the sequence at itemsKey, matching the inspected schema.
 func yttValidations(content []byte) ([]yttValidation, error) {
 	lines := strings.Split(string(content), "\n")
 	var found []yttValidation
@@ -326,8 +326,12 @@ func collectValidations(node *yaml.Node, lines, path []string, out *[]yttValidat
 			}
 			*out = append(*out, yttValidation{path: childPath, kwargs: validationKwargs(match[1])})
 		}
-		if value.Kind == yaml.MappingNode {
+		switch {
+		case value.Kind == yaml.MappingNode:
 			collectValidations(value, lines, childPath, out)
+		case value.Kind == yaml.SequenceNode && len(value.Content) > 0 && value.Content[0].Kind == yaml.MappingNode:
+			// A schema's one sequence item describes every element.
+			collectValidations(value.Content[0], lines, append(childPath, itemsKey), out)
 		}
 	}
 }

@@ -718,3 +718,59 @@ func TestMergeComments(t *testing.T) {
 		trailingCommentsPath: {"# end one", "", "# end two"},
 	}, merged)
 }
+
+func TestWriteProtoKArrayValidations(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	source := []byte(`#@data/values-schema
+---
+application:
+  #@schema/validation min_len=1
+  apps:
+    - app_id: 0
+      #@schema/validation min_len=1
+      name: ''
+`)
+	schema, err := parseSchemaInspect([]byte(`
+components:
+  schemas:
+    dataValues:
+      type: object
+      properties:
+        application:
+          type: object
+          additionalProperties: false
+          properties:
+            apps:
+              type: array
+              default: []
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                properties:
+                  app_id: {type: integer, default: 0}
+                  name: {type: string, default: "", minLength: 1}
+`))
+	require.NoError(t, err)
+
+	m := &migrator{g: &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}}}
+	m.carryValidations("app-data.schema.yaml", source, schema)
+	values := schema.defaults
+	pruneDemandedDefaults(values, schema)
+	m.protoSchemas = map[string]string{"sts": "Sts"}
+	m.protoBase = map[string]map[string]any{"sts": values}
+	m.protoInspected = map[string]*inspectedSchema{"sts": schema}
+	m.protoPlans = map[string]*protoSchemaPlan{"sts": newProtoSchemaPlan("Sts", values, schema)}
+	require.NoError(t, m.writeProtoK("sts"))
+
+	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "sts", protoKFileName))
+	require.NoError(t, err)
+	// The empty default fails min_len, so the array is demanded instead of defaulted.
+	assert.Contains(t, string(content), "    apps?: [App]\n")
+	assert.Contains(t, string(content),
+		`len(apps) >= 1 if apps != Undefined, "application.apps must not be empty"`)
+	assert.Contains(t, string(content),
+		"schema App:\n    app_id?: int = 0\n    name?: str = \"\"\n\n    check:\n        len(name) >= 1, \"application.apps[].name must not be empty\"\n")
+	assert.Empty(t, m.warnings)
+}

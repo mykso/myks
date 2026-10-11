@@ -726,16 +726,21 @@ func (p *protoSchemaPlan) checks(path []string) []string {
 		if pathKey(owner) != pathKey(path) {
 			continue
 		}
+		if strings.Contains(access, itemsKey) {
+			// An element no generated schema describes has nowhere to carry its check.
+			p.failed = append(p.failed, displayPath(constraint.path)+" (an array element with no generated schema)")
+			continue
+		}
 		condition, requirement, err := checkCondition(access, constraint)
 		if err != nil {
-			p.failed = append(p.failed, fmt.Sprintf("%s (%s)", strings.Join(constraint.path, "."), err))
+			p.failed = append(p.failed, fmt.Sprintf("%s (%s)", displayPath(constraint.path), err))
 			continue
 		}
 		if len(guards) > 0 {
 			condition += " if " + strings.Join(guards, " and ")
 		}
 		checks = append(checks, fmt.Sprintf("%s, %s", condition,
-			quoteKclString(strings.Join(constraint.path, ".")+" "+requirement)))
+			quoteKclString(displayPath(constraint.path)+" "+requirement)))
 	}
 	return checks
 }
