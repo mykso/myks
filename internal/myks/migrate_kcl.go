@@ -404,11 +404,15 @@ func (p *protoSchemaPlan) structured(path []string, values map[string]any) bool 
 func (p *protoSchemaPlan) claimName(path []string) string {
 	var parts []string
 	for _, key := range path {
-		// The element of an array is named after the array, which is what call sites see.
+		// The element of an array is named after the array, in the singular: one element of
+		// `clients` is a `Client`.
 		if key == itemsKey {
+			if len(parts) > 0 {
+				parts[len(parts)-1] = singularSchemaName(parts[len(parts)-1])
+			}
 			continue
 		}
-		parts = append(parts, strings.ToUpper(key[:1])+key[1:])
+		parts = append(parts, schemaNamePart(key))
 	}
 	name := ""
 	for i := len(parts) - 1; i >= 0; i-- {
@@ -424,6 +428,48 @@ func (p *protoSchemaPlan) claimName(path []string) string {
 	}
 	p.taken[unique] = true
 	return unique
+}
+
+// schemaNamePart turns one data key into a schema name segment: `app_id` -> `AppId`. A key of
+// underscores alone — ytt's convention for a private bag of helper values — is `Private`.
+func schemaNamePart(key string) string {
+	var name strings.Builder
+	for _, word := range strings.Split(key, "_") {
+		if word != "" {
+			name.WriteString(strings.ToUpper(word[:1]) + word[1:])
+		}
+	}
+	if name.Len() == 0 {
+		return "Private"
+	}
+	return name.String()
+}
+
+// singularSchemaName names one element of an array named name. A name that does not read as
+// an English plural gets an `Item` suffix instead.
+func singularSchemaName(name string) string {
+	for _, rule := range []struct{ plural, singular string }{
+		{"ies", "y"},
+		{"sses", "ss"},
+		{"shes", "sh"},
+		{"ches", "ch"},
+		{"xes", "x"},
+		{"ss", ""},
+		{"us", ""},
+		{"is", ""},
+		{"s", ""},
+	} {
+		stem, ok := strings.CutSuffix(name, rule.plural)
+		if !ok || stem == "" {
+			continue
+		}
+		if rule.singular == "" && rule.plural != "s" {
+			// Not a plural: `Address`, `Status`, `Analysis`.
+			break
+		}
+		return stem + rule.singular
+	}
+	return name + "Item"
 }
 
 // attributes lists the KCL attributes of the schema at path: the keys the prototype's values

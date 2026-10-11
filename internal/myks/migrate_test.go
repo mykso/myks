@@ -534,9 +534,9 @@ components:
 
 	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "csi", protoKFileName))
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "    clients?: [Clients] = []\n")
+	assert.Contains(t, string(content), "    clients?: [Client] = []\n")
 	assert.Contains(t, string(content),
-		"schema Clients:\n    [...str]: any\n    host?: str = \"\"\n    insecureSkipVerify?: bool = False\n    port?: int = 5001\n")
+		"schema Client:\n    [...str]: any\n    host?: str = \"\"\n    insecureSkipVerify?: bool = False\n    port?: int = 5001\n")
 	assert.Contains(t, string(content), "    registries?: any\n", "not_null prunes the null default")
 	assert.Contains(t, string(content),
 		`registries != None if registries != Undefined, "application.registries must not be null"`)
@@ -599,11 +599,11 @@ components:
 	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "home", protoKFileName))
 	require.NoError(t, err)
 	// The element of an array inside an array element is typed too, down to the last field.
-	assert.Contains(t, string(content), "    config?: [Config] = []\n")
+	assert.Contains(t, string(content), "    config?: [ConfigItem] = []\n")
 	assert.Contains(t, string(content),
-		"schema Config:\n    category?: str = \"Category\"\n    services?: [Services] = []\n")
+		"schema ConfigItem:\n    category?: str = \"Category\"\n    services?: [Service] = []\n")
 	assert.Contains(t, string(content),
-		"schema Services:\n    iconBubble?: bool = True\n    name?: str = \"Arch\"\n")
+		"schema Service:\n    iconBubble?: bool = True\n    name?: str = \"Arch\"\n")
 	// The ytt schema closed every scope, so nothing needs an index signature.
 	assert.NotContains(t, string(content), "[...str]: any")
 
@@ -630,7 +630,13 @@ func TestClaimName(t *testing.T) {
 	// Nothing above the root is left to lengthen with, so the last resort numbers the name.
 	assert.Equal(t, "IngressServerTls2", p.claimName([]string{"ingress", "server", "tls"}))
 	// An element schema is named after its array, and never takes a KCL literal's name.
-	assert.Equal(t, "Clients", p.claimName([]string{"clients", itemsKey}))
+	assert.Equal(t, "Client", p.claimName([]string{"clients", itemsKey}))
+	assert.Equal(t, "Policy", p.claimName([]string{"policies", itemsKey}))
+	assert.Equal(t, "EnvItem", p.claimName([]string{"env", itemsKey}))
+	assert.Equal(t, "AddressItem", p.claimName([]string{"address", itemsKey}))
+	// A private bag is no schema name; underscores read as word breaks.
+	assert.Equal(t, "Private", p.claimName([]string{"_"}))
+	assert.Equal(t, "TlsConfig", p.claimName([]string{"tls_config"}))
 	assert.Equal(t, "ApplicationUndefined", p.claimName([]string{"application", "undefined"}))
 	// The root schema's own name is taken.
 	assert.Equal(t, "ApplicationWebapp", p.claimName([]string{"application", "webapp"}))
