@@ -9,10 +9,11 @@ setup, and this guide covers turning that seed into idiomatic KCL.
 
 Running `myks migrate` in a legacy repository writes:
 
-- `kcl.mod` — the module manifest, depending on the myks schema package. Its presence
-  switches myks to the KCL path; the legacy data-values files are ignored from then on.
-- `main.k` — the root evaluation emitting the frozen resolved tree; it imports every
-  environment.
+- `kcl.mod` — the module manifest, named after the repository directory and depending on
+  the myks schema package. Its presence switches myks to the KCL path; the legacy
+  data-values files are ignored from then on.
+- `main.k` — the entry point myks evaluates; every environment must be listed in its
+  `environments`.
 - `prototypes/<name>/proto.k` — one base schema per prototype, subclassing `myks.App` with
   the prototype's `app-data*` values as attribute defaults. Applications instantiate it
   instead of repeating those values ([ADR 0004](adr/0004-pure-language-config-surface.md)).
@@ -22,12 +23,15 @@ Running `myks migrate` in a legacy repository writes:
   `env-data.yaml` plus one directory per application. A KCL package is a directory, so the
   files of one level share a namespace and cross-reference each other directly:
   - `env.k` — the level's converted `env-data.*.yaml` values, the import of the parent
-    level, and the wiring (`id`, `myks.finalize` on a leaf). Always written.
+    level, and the wiring (`id`, `myks.with_apps`, `myks.finalize` on a leaf). Always
+    written.
   - `app-<name>.k` — everything this level says about one application: its declaration
     (with the values from `_proto/` and `_apps/` files, and from `prototypes/*/app-data*`
     when the prototype has no base schema, merged in) or its override of a declaration
     above, plus the values frozen from the legacy-resolved output. One file per application
     per level, the KCL counterpart of the legacy `_apps/<name>/` directory.
+  - `apps.k` — the applications the level only declares, with nothing else to say about
+    them: one line each, so they share a file instead of getting one apiece.
   - `patch.k` — `_patch`: environment values frozen from the legacy-resolved output, see
     below. Written only when the level needs one.
 
@@ -78,7 +82,7 @@ the way ytt resolves them — a schema's defaults never win over a value file th
 it.
 
 The application files unify into one accumulator, `_apps`, which `env.k` folds into
-`applications`:
+`applications` with `myks.with_apps(_level, _apps)`:
 
 ```kcl
 # envs/shop/prod/app-forwarder.k
@@ -87,12 +91,14 @@ import prototypes.forwarder
 
 _apps: myks.Apps {
     forwarder = forwarder.Forwarder {
-        application: {logLevel = "debug"}
+        application.logLevel = "debug"
     }
 }
 ```
 
-Adding an application is adding a file — nothing to register elsewhere. Within a level the
+A chain of single-key maps is written as one dotted key (`storage.media.size = "1Gi"`), which
+merges into the defaults exactly as the nested union would, and a dict of a few scalars stays
+on one line. Adding an application is adding a file — nothing to register elsewhere. Within a level the
 later block wins, which is how the frozen values override the declaration above them in the
 same file. Frozen values with nothing left to do (no `TODO(myks migrate)` marker) need no block
 of their own: they are written into the declaration, or the override, the level states anyway. Splitting a level further is free the same way: any `.k` file you add next to
@@ -109,10 +115,12 @@ explaining why it is what it is, a tool's annotation such as Renovate's. That ho
 sequence element too, and blank lines between entries stay, as does the order the file states
 its keys in. A ytt comment marker
 (`#!`) means nothing outside a ytt template, so only its `#` is kept — a pattern matching such
-a comment in the generated files has to look for `# ` and for KCL's `key?: type = value`
-rather than YAML's `key: value`. Update those patterns before deleting the legacy files. A
-carried comment that names a legacy file (`app-data`, `env-data`, `*.ytt.yaml`, `_apps/`) is
-reported, since it stops being true once the KCL tree replaces that file.
+a comment in the generated files has to look for `# ` and for KCL's `key: type = value` or
+`key = value` rather than YAML's `key: value`. The converter warns when a converted file
+carries a Renovate marker; see [Renovate](#renovate). A carried comment that names a legacy
+file (`app-data`, `env-data`, `*.ytt.yaml`, `_apps/`), or a prototype directory by the name
+the converter renamed, is reported, since it stops being true once the KCL tree replaces that
+file or the compatibility symlink is gone.
 
 A `#@` directive is not a comment but code, and is never carried: what it did is stated in
 KCL's own terms, or reported as not carried over.
@@ -131,10 +139,10 @@ standalone is carried over as the derivation it was rather than the value it pro
 
 | ytt | generated KCL |
 | --- | --- |
-| `#@ port = 8080` … `port: #@ port` | `_port = 8080` … `port?: int = _port` |
-| `purge_files_after: #@ 60 * 60 * 24` | `purge_files_after?: int = 60 * 60 * 24` |
+| `#@ port = 8080` … `port: #@ port` | `_port = 8080` … `port: int = _port` |
+| `purge_files_after: #@ 60 * 60 * 24` | `purge_files_after: int = 60 * 60 * 24` |
 | `#@ hosts = [domain]` `#@ for n in nodes:` `#@   hosts.append(n + "." + domain)` `#@ end` | `_hosts = [_domain] + [n + "." + _domain for n in _nodes]` |
-| `#@ load("secrets.star", "sops")` … `token: #@ sops("0", "api")` | `import lib` … `token?: str = lib.sops("0", "api")` |
+| `#@ load("secrets.star", "sops")` … `token: #@ sops("0", "api")` | `import lib` … `token: str = lib.sops("0", "api")` |
 | `#@ for/end reg in registries:` `- name: #@ reg` | `[{name = reg} for reg in _registries]` |
 | `#@yaml/text-templated-strings` `key: "(@= sops("0", "k") @)\n"` | `key = """\` … `${lib.sops("0", "k")}` … `"""` |
 
@@ -149,7 +157,8 @@ becomes a KCL string interpolating the same expressions.
 
 Every function of the repo's ytt library whose body is a single `return` is translated to a
 KCL lambda in `<ytt-library-dir>/<file>.k`, imported as one package by the files that call
-it. The `.star` sources stay where they are: ytt templates still load them.
+it. Only the lambdas a generated file calls are written. The `.star` sources stay where they
+are: ytt templates still load them.
 
 **Nothing is taken on trust.** Each file's derivations are evaluated by KCL — its prelude,
 its imports, one variable per derived value — and compared against what ytt resolved. A
@@ -170,7 +179,10 @@ it.
 # envs/alpha/app-traefik.k
 _apps: myks.Apps {
     traefik = traefik.Traefik {
-        application: {tls: {baseDomains = _level.environment.hosts, issuer = "cloudflare-zerossl"}}
+        application.tls: {
+            baseDomains = _level.environment.hosts
+            issuer = "cloudflare-zerossl"
+        }
     }
 }
 ```
@@ -249,7 +261,9 @@ example — an app value derived from the environment id, which the engine regen
 ```kcl
 # seed (frozen literal in envs/dev/app-argocd-tests.k):
 _apps: myks.Apps {
-    "argocd-tests": {application: {envId = "mykso-dev"}}
+    "argocd-tests": {
+        application.envId = "mykso-dev"
+    }
 }
 ```
 
@@ -259,7 +273,9 @@ environment data — the derivation stays next to the value it feeds:
 ```kcl
 # envs/dev/app-argocd-tests.k — one block, no frozen literal left
 _apps: myks.Apps {
-    "argocd-tests": {application: {envId = _level.id}}
+    "argocd-tests": {
+        application.envId = _level.id
+    }
 }
 ```
 
@@ -282,16 +298,22 @@ for `#@schema/type any=True`) and its default, at any depth:
 ```kcl
 schema Webapp(myks.App):
     proto: str = "webapp"
-    application?: Application = Application {}
+    application: Application = Application {}
 
 schema Application:
-    containerPort?: int = 80
+    containerPort: int = 80
     image?: str
-    ingress?: bool = True
+    ingress: bool = True
 
     check:
         len(image) >= 1 if image != Undefined, "application.image must not be empty"
 ```
+
+An attribute the ytt schema types without allowing null is required (`containerPort: int`):
+its default applies wherever no level sets it, and setting it to `None` fails, as ytt failed.
+A nullable value, one typed `any`, and one no schema document describes keep the `?` that
+lets them be `None`. The generated schemas, and the checks in them, follow the order the
+source states the fields in.
 
 A schema is named after the last segment of the path to it — `Application`, not
 `WebappApplication` — and lengthened with the segments above only where that name is already
@@ -305,16 +327,23 @@ keys, become checks there too:
 
 ```kcl
 schema Application:
-    clients?: [Client] = []
+    clients: [Client] = []
 
 schema Client:
-    host?: str = ""
-    port?: int = 5001
-    routes?: [Route] = []
+    host: str
+    port: int = 5001
+    routes: [Route] = []
 
 schema Route:
-    path?: str = "/"
+    path: str = "/"
 ```
+
+The values a ytt schema writes into an array item are both the default of every element and
+the example of its shape. Where every element the sources state — at any level, computed or
+not — sets a scalar field, the example is dropped and the field is required instead (`host`
+above): it changes nothing the tree renders, and an element added later has to set the field
+too, rather than silently becoming `"Arch"` or `"TZ"`. A field some element leaves out keeps
+its default.
 
 KCL instantiates every element of such a list, so an application writing
 `clients = [{host = "h"}]` still gets `port` and `routes` — which is what ytt did by
@@ -379,13 +408,45 @@ A prototype the converter skipped (no base schema) has its values inlined into e
 application declaration using it — that duplication is the signal to rename the directory
 and write the schema by hand.
 
-### Collapse the per-application files you do not need
+### Arrange the application files
 
-One file per application per level is the seed's default, and the layout to keep for
-anything with real configuration. A level whose applications are one-liners reads better
-collapsed: any `.k` file of the level may declare several of them, so merge them into a
-single `apps.k` and delete the rest — the accumulator is what the level folds in, not the
-file names ([design](redesign/design.md#tree-layout)).
+The seed writes one file per application that the level configures, and gathers the bare
+declarations into `apps.k`. Any `.k` file of the level may declare applications, since the
+accumulator is what the level folds in, not the file names
+([design](redesign/design.md#tree-layout)): move an application out of `apps.k` once it gains
+values, or group related ones as you see fit. Keep one `_apps` block per application in a
+shared file — an application's key shadows a package of the same name for the rest of its
+block.
+
+### Renovate
+
+Renovate regex managers written for the legacy files match `#! renovate:` above YAML's
+`image: x:1`. The generated KCL keeps the marker as `# renovate:` above
+`image: str = "x:1"` (a schema default) or `image = "x:1"` (a level's value), so those
+patterns no longer match. Worse, they keep matching the legacy files, whose bumps no longer
+render anything, while the versions in the KCL tree never move. The converter names every
+converted file that carries a marker.
+
+Point the managers at the `.k` files in the same change that deletes the legacy data-values
+files. Patterns covering the three shapes the converter writes:
+
+```yaml
+customManagers:
+  - customType: regex
+    managerFilePatterns: ["/\\.k$/"]
+    matchStrings:
+      # # renovate: datasource=docker versioning=semver-coerced
+      # image: str = "ghcr.io/org/app:1.2.3"
+      - '#!? renovate: datasource=(?<datasource>docker)(?: versioning=(?<versioning>\S+))?\s*\n\s*\w+\??(?::\s*\w+)?\s*=\s*"(?<depName>[^":@]+):(?<currentValue>[^"@]+)"'
+      # # renovate: datasource=github-releases depName=traefik/traefik
+      # version: str = "v3.7.13"
+      - '#!? renovate: datasource=(?<datasource>\S+) depName=(?<depName>\S+)\s*\n\s*\w+\??(?::\s*\w+)?\s*=\s*"(?<currentValue>[^"]+)"'
+      # # renovate: datasource=github-releases depName=helm/helm version=4.3.0
+      - '#!? renovate: datasource=(?<datasource>\S+) depName=(?<depName>\S+) version=(?<currentValue>\S+)'
+```
+
+The optional `!` lets one pattern serve the legacy files as well while they remain, so a
+version bump never leaves the two out of step.
 
 ## Known limitations
 

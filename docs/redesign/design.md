@@ -104,7 +104,7 @@ are computed in KCL and merged by the engine over the static YAML.
 
 ## myks schema package
 
-myks ships its KCL schemas (`Environment`, `App`, `Apps`, the `finalize` helper) as a
+myks ships its KCL schemas (`Environment`, `App`, `Apps`, the `with_apps` and `finalize` helpers) as a
 **KCL package on an OCI registry** (ADR 0006). Prototype bases are not shipped: each repo owns
 them, one package per prototype (`prototypes/<name>/proto.k`, subclassing `App` — see
 [ADR 0007](../adr/0007-prototype-bases-as-packages.md)). User repos depend on it via `kcl.mod`
