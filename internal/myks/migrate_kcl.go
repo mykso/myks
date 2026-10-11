@@ -728,38 +728,8 @@ func (p *protoSchemaPlan) requireStatedFields(stated []map[string]any) {
 	}
 	elements := map[string]int{}       // items path key -> elements stated there
 	set := map[string]map[string]int{} // items path key -> field -> elements setting it
-	var walk func(values map[string]any, path []string)
-	walk = func(values map[string]any, path []string) {
-		for key, value := range values {
-			childPath := append(slices.Clone(path), key)
-			switch typed := value.(type) {
-			case map[string]any:
-				walk(typed, childPath)
-			case []any:
-				if _, ok := p.items[pathKey(childPath)]; !ok {
-					continue
-				}
-				itemsPath := append(childPath, itemsKey)
-				at := pathKey(itemsPath)
-				for _, raw := range typed {
-					elements[at]++
-					element, _ := raw.(map[string]any)
-					for name, field := range element {
-						if field == nil {
-							continue
-						}
-						if set[at] == nil {
-							set[at] = map[string]int{}
-						}
-						set[at][name]++
-					}
-					walk(element, itemsPath)
-				}
-			}
-		}
-	}
 	for _, values := range stated {
-		walk(values, nil)
+		p.countStatedElements(values, nil, elements, set)
 	}
 	for at, count := range elements {
 		itemsPath := strings.Split(at, "\x00")
@@ -773,6 +743,37 @@ func (p *protoSchemaPlan) requireStatedFields(stated []map[string]any) {
 			prop := node.Properties[name]
 			if set[at][name] == count && !p.demanded[field] && prop != nil && !prop.Nullable {
 				p.required[field] = true
+			}
+		}
+	}
+}
+
+// countStatedElements counts, below path, the elements of every array an element schema types,
+// and per field how many of them set it to something other than null.
+func (p *protoSchemaPlan) countStatedElements(values map[string]any, path []string, elements map[string]int, set map[string]map[string]int) {
+	for key, value := range values {
+		childPath := append(slices.Clone(path), key)
+		switch typed := value.(type) {
+		case map[string]any:
+			p.countStatedElements(typed, childPath, elements, set)
+		case []any:
+			if _, ok := p.items[pathKey(childPath)]; !ok {
+				continue
+			}
+			itemsPath := append(slices.Clone(childPath), itemsKey)
+			at := pathKey(itemsPath)
+			if set[at] == nil {
+				set[at] = map[string]int{}
+			}
+			for _, raw := range typed {
+				elements[at]++
+				element, _ := raw.(map[string]any)
+				for name, field := range element {
+					if field != nil {
+						set[at][name]++
+					}
+				}
+				p.countStatedElements(element, itemsPath, elements, set)
 			}
 		}
 	}
@@ -1469,8 +1470,7 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 		b.printf("_apps: %s.Apps {\n    %s", myks, kclKey(name))
 	}
 
-	bare = declared && !overridden && !patched && len(values) == 0 && !b.derived.has() &&
-		myks == "myks" && len(b.comments[trailingCommentsPath]) == 0
+	bare = declared && bareDeclaration(b, values, myks, overridden || patched)
 	if declared {
 		separate()
 		openBlock()
@@ -1500,6 +1500,14 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 	}
 	b.writeTrailingComments()
 	return b.String(), bare, b.err
+}
+
+// bareDeclaration reports whether an application file says nothing but the declaration it
+// writes: no values, no derivations, no comments, no further block, and the schema package
+// under its own name, which the other files of apps.k import it as.
+func bareDeclaration(b *kclWriter, values map[string]any, myks string, moreBlocks bool) bool {
+	return !moreBlocks && len(values) == 0 && !b.derived.has() && myks == "myks" &&
+		len(b.comments[trailingCommentsPath]) == 0
 }
 
 // writeDeclaration writes the instance that declares an application, after its key: the
@@ -1591,11 +1599,11 @@ func writeKclEntries(b *kclWriter, values map[string]any, indent int, merge bool
 // `storage: {media: {size = x}}` is written `storage.media.size = x`. It returns the dotted
 // key, the value it leads to, and that value's path. The chain stops above a link that is no
 // identifier or has a comment of its own, and at a map a derivation states whole.
-func (w *kclWriter) chainKey(key string, value any, path string) (string, any, string) {
+func (w *kclWriter) chainKey(key string, value any, path string) (label string, leaf any, leafPath string) {
 	if !isKclIdentifier(key) {
 		return kclKey(key), value, path
 	}
-	label := key
+	label = key
 	for {
 		inner, ok := value.(map[string]any)
 		if !ok || len(inner) != 1 || w.derived.hasPath(path) {
