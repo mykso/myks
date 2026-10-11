@@ -633,15 +633,15 @@ func (m *migrator) convertDataFile(file string) (*convertedFile, error) {
 	if err != nil || converted == nil {
 		return converted, err
 	}
-	converted.comments = m.readComments(file, content)
+	converted.comments = m.readComments(file, content, isSchema)
 	return converted, nil
 }
 
 // readComments reads what a data-values file wrote above its values. A file the parser cannot
 // read yields none: the conversion of its values has its own error path, and a missing comment
 // is not worth failing one over.
-func (m *migrator) readComments(file string, content []byte) map[string][]string {
-	comments, err := yttComments(content)
+func (m *migrator) readComments(file string, content []byte, isSchema bool) map[string][]string {
+	comments, err := yttComments(content, isSchema)
 	if err != nil {
 		log.Debug().Err(err).Msg(m.g.Msg("Reading the comments of " + file))
 		return nil

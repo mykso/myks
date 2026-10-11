@@ -361,9 +361,12 @@ type yttComment struct {
 // It also returns the order every mapping states its keys in: the converted values are Go
 // maps, and the generated file would otherwise list them alphabetically.
 //
-// Only the block above a mapping key is read. A comment after a value has no attribute of its
-// own to sit above in the generated schema, and is left behind.
-func yttComments(content []byte) ([]yttComment, error) {
+// Only the block above a mapping key or a sequence item is read. A comment after a value has
+// no attribute of its own to sit above in the generated schema, and is left behind. In a
+// schema document a sequence's one item describes every element, so what is written inside
+// it belongs to the element schema; in a data-values document each item is addressed by its
+// index.
+func yttComments(content []byte, schema bool) ([]yttComment, error) {
 	lines := strings.Split(string(content), "\n")
 	var found []yttComment
 	decoder := yaml.NewDecoder(bytes.NewReader(content))
@@ -378,7 +381,7 @@ func yttComments(content []byte) ([]yttComment, error) {
 		if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
 			continue
 		}
-		collectComments(doc.Content[0], lines, "", &found)
+		collectComments(doc.Content[0], lines, "", schema, &found)
 	}
 	if trailing := trailingComments(lines); len(trailing) > 0 {
 		found = append(found, yttComment{lines: trailing})
@@ -411,35 +414,62 @@ func trailingComments(lines []string) []string {
 	return block
 }
 
-func collectComments(node *yaml.Node, lines []string, path string, out *[]yttComment) {
+func collectComments(node *yaml.Node, lines []string, path string, schema bool, out *[]yttComment) {
 	keys := make([]string, 0, len(node.Content)/2)
 	for i := 0; i+1 < len(node.Content); i += 2 {
 		key, value := node.Content[i], node.Content[i+1]
 		childPath := path + "." + key.Value
 		keys = append(keys, key.Value)
-		// The comment block of an entry reaches from the blank line above it to its own line.
-		start, _ := entryRange(lines, key.Line)
-		var block []string
-		if i > 0 && start > 0 && strings.TrimSpace(lines[start-1]) == "" {
-			block = append(block, "")
-		}
-		for _, line := range lines[start : key.Line-1] {
-			line = strings.TrimSpace(line)
-			// A `#@` directive is a comment to YAML but code to ytt: it carries no meaning
-			// into KCL, where the value it annotated is stated in KCL's own terms.
-			if !strings.HasPrefix(line, "#") || strings.HasPrefix(line, "#@") {
-				continue
-			}
-			block = append(block, kclComment(line))
-		}
-		if len(block) > 0 {
-			*out = append(*out, yttComment{path: childPath, lines: block})
-		}
-		if value.Kind == yaml.MappingNode {
-			collectComments(value, lines, childPath, out)
-		}
+		collectBlock(lines, key.Line, i > 0, childPath, out)
+		collectNested(value, lines, childPath, schema, out)
 	}
 	*out = append(*out, yttComment{path: keyOrderPath(path), lines: keys})
+}
+
+// collectNested descends into a mapping or sequence value.
+func collectNested(node *yaml.Node, lines []string, path string, schema bool, out *[]yttComment) {
+	switch node.Kind {
+	case yaml.MappingNode:
+		collectComments(node, lines, path, schema, out)
+	case yaml.SequenceNode:
+		for i, item := range node.Content {
+			itemPath := elementPath(path, i)
+			if schema {
+				itemPath = path + "." + itemsKey
+			}
+			if item.Kind != yaml.MappingNode {
+				// A mapping item's first key sits on the item's line and claims its block.
+				collectBlock(lines, item.Line, i > 0, itemPath, out)
+			}
+			collectNested(item, lines, itemPath, schema, out)
+			if schema {
+				break
+			}
+		}
+	}
+}
+
+// collectBlock records the comment block above the entry on line (1-based): from the blank
+// line above it to the entry itself. A blank line above an entry that is not the first of its
+// collection is recorded as an empty first line.
+func collectBlock(lines []string, line int, separable bool, path string, out *[]yttComment) {
+	start, _ := entryRange(lines, line)
+	var block []string
+	if separable && start > 0 && strings.TrimSpace(lines[start-1]) == "" {
+		block = append(block, "")
+	}
+	for _, text := range lines[start : line-1] {
+		text = strings.TrimSpace(text)
+		// A `#@` directive is a comment to YAML but code to ytt: it carries no meaning
+		// into KCL, where the value it annotated is stated in KCL's own terms.
+		if !strings.HasPrefix(text, "#") || strings.HasPrefix(text, "#@") {
+			continue
+		}
+		block = append(block, kclComment(text))
+	}
+	if len(block) > 0 {
+		*out = append(*out, yttComment{path: path, lines: block})
+	}
 }
 
 // kclComment rewrites one comment line as KCL writes comments. ytt's own comment marker

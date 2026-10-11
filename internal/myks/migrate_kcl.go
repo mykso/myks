@@ -1323,6 +1323,7 @@ func writeKclValue(b *kclWriter, value any, indent int, merge bool, path string)
 		}
 		b.WriteString("[\n")
 		for i, element := range typed {
+			b.writeComments(elementPath(path, i), indent+4)
 			b.WriteString(pad)
 			b.WriteString("    ")
 			// A list element is a fresh value, not a union; its path is its index, which is
@@ -1345,11 +1346,12 @@ func writeKclValue(b *kclWriter, value any, indent int, merge bool, path string)
 const kclLineWidth = 100
 
 // inlineKclList renders a list of plain scalars on one line, when it fits on the current one.
-// A list holding a container, a multi-line string or a derivation keeps one element per line.
+// A list holding a container, a multi-line string, a derivation or a commented element keeps
+// one element per line.
 func inlineKclList(b *kclWriter, list []any, path string) (string, bool) {
 	elements := make([]string, 0, len(list))
 	for i, element := range list {
-		if b.derived.hasPath(elementPath(path, i)) {
+		if b.derived.hasPath(elementPath(path, i)) || len(b.comments[elementPath(path, i)]) > 0 {
 			return "", false
 		}
 		switch typed := element.(type) {

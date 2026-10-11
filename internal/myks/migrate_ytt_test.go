@@ -137,7 +137,7 @@ application:
   #@schema/validation min_len=1
   name: ""
   clients:
-    #! a comment inside a sequence has no attribute to sit above
+    #! a comment inside a sequence belongs to the element schema
     - host: ""
 # plain YAML comments travel too
 port: 8080
@@ -146,17 +146,46 @@ port: 8080
 zone: a
 
 #! this block ends the file and belongs to nothing
-`))
+`), true)
 	require.NoError(t, err)
 
 	assert.Equal(t, []yttComment{
 		{path: ".application.image", lines: []string{"# renovate: datasource=docker"}},
 		{path: ".application.name", lines: []string{"# Two lines,", "# both kept."}},
+		{path: ".application.clients.\x01.host", lines: []string{"# a comment inside a sequence belongs to the element schema"}},
+		{path: keyOrderPath(".application.clients.\x01"), lines: []string{"host"}},
 		{path: keyOrderPath(".application"), lines: []string{"image", "name", "clients"}},
 		{path: ".port", lines: []string{"# plain YAML comments travel too"}},
 		{path: ".zone", lines: []string{"", "# a blank line above a key travels with it"}},
 		{path: keyOrderPath(""), lines: []string{"application", "port", "zone"}},
 		{lines: []string{"# this block ends the file and belongs to nothing"}},
+	}, comments)
+}
+
+func TestYttCommentsDataSequences(t *testing.T) {
+	t.Parallel()
+	comments, err := yttComments([]byte(`clients:
+  - name: a
+    #! why the host is pinned
+    host: x
+  #! the second client
+  - name: b
+hosts:
+  #! primary
+  - one
+
+  #! fallback
+  - two
+`), false)
+	require.NoError(t, err)
+	assert.Equal(t, []yttComment{
+		{path: ".clients[0].host", lines: []string{"# why the host is pinned"}},
+		{path: keyOrderPath(".clients[0]"), lines: []string{"name", "host"}},
+		{path: ".clients[1].name", lines: []string{"# the second client"}},
+		{path: keyOrderPath(".clients[1]"), lines: []string{"name"}},
+		{path: ".hosts[0]", lines: []string{"# primary"}},
+		{path: ".hosts[1]", lines: []string{"", "# fallback"}},
+		{path: keyOrderPath(""), lines: []string{"clients", "hosts"}},
 	}, comments)
 }
 
