@@ -27,6 +27,20 @@ sops = lambda name, key {
 `, lib.source)
 }
 
+func TestTranslateYttLibDicts(t *testing.T) {
+	lib := translateYttLib("lib/util.star", []byte(`
+def resources(cpu, memory):
+    return {"requests": {"cpu": cpu, "memory": memory}, "with-dash": 1}
+end
+`))
+	require.NotNil(t, lib)
+	assert.Equal(t, `
+resources = lambda cpu, memory {
+    {requests = {cpu = cpu, memory = memory}, "with-dash": 1}
+}
+`, lib.source)
+}
+
 func TestYttDerivations(t *testing.T) {
 	libs := map[string]*yttLib{"secrets": {name: "secrets", funcs: map[string]bool{"sops": true}}}
 

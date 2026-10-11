@@ -441,11 +441,17 @@ func (s *starScope) dict(d *syntax.DictExpr) (string, error) {
 }
 
 func (s *starScope) dictEntry(entry *syntax.DictEntry) (string, error) {
-	key, err := s.expr(entry.Key)
+	value, err := s.expr(entry.Value)
 	if err != nil {
 		return "", err
 	}
-	value, err := s.expr(entry.Value)
+	// A constant key that is an identifier reads as KCL writes its own dicts.
+	if lit, ok := entry.Key.(*syntax.Literal); ok {
+		if name, ok := lit.Value.(string); ok && isKclIdentifier(name) {
+			return name + " = " + value, nil
+		}
+	}
+	key, err := s.expr(entry.Key)
 	if err != nil {
 		return "", err
 	}
