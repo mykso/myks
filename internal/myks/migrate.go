@@ -1601,9 +1601,10 @@ func (m *migrator) printReport() {
 	}
 	if m.patched > 0 {
 		log.Info().Msg(m.g.Msg(fmt.Sprintf(
-			"Froze %d resolved value(s) in leaf-level TODO patches; turn them into KCL derivations (see docs/migration.md)", m.patched)))
+			"Froze %d resolved value(s) in leaf-level TODO patches; turn them into KCL derivations (see %s)",
+			m.patched, migrationDocsURL)))
 	}
 	log.Info().Msg(m.g.Msg(
 		"Migration seed complete. Verify with the byte-identical gate (render and diff rendered/), " +
-			"then hand-finish following docs/migration.md"))
+			"then hand-finish following " + migrationDocsURL))
 }

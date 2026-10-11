@@ -767,11 +767,11 @@ components:
 	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "sts", protoKFileName))
 	require.NoError(t, err)
 	// The empty default fails min_len, so the array is demanded instead of defaulted.
-	assert.Contains(t, string(content), "    apps?: [App]\n")
+	assert.Contains(t, string(content), "    apps?: [ApplicationApp]\n", "App is myks.App to a reader, so the element takes the longer name")
 	assert.Contains(t, string(content),
 		`len(apps) >= 1 if apps != Undefined, "application.apps must not be empty"`)
 	assert.Contains(t, string(content),
-		"schema App:\n    app_id?: int = 0\n    name?: str = \"\"\n\n    check:\n        len(name) >= 1, \"application.apps[].name must not be empty\"\n")
+		"schema ApplicationApp:\n    app_id?: int = 0\n    name?: str = \"\"\n\n    check:\n        len(name) >= 1, \"application.apps[].name must not be empty\"\n")
 	assert.Empty(t, m.warnings)
 }
 
@@ -885,12 +885,16 @@ func TestWrapKclExpr(t *testing.T) {
 	assert.Equal(t, short, wrapKclExpr(short, 4, 4))
 
 	long := `[{match = {registry = reg.replace(".", "\\."), repository = "(.+)"}, replace = {registry = "oci.zebradil.dev", repository = reg + "-cache/$1"}} for reg in _registries]`
-	assert.Equal(t, `[
-        {
-            match = {registry = reg.replace(".", "\\."), repository = "(.+)"}
-            replace = {registry = "oci.zebradil.dev", repository = reg + "-cache/$1"}
-        } for reg in _registries
-    ]`, wrapKclExpr(long, 20, 4))
+	assert.Equal(t, `[{
+        match = {registry = reg.replace(".", "\\."), repository = "(.+)"}
+        replace = {registry = "oci.zebradil.dev", repository = reg + "-cache/$1"}
+    } for reg in _registries]`, wrapKclExpr(long, 20, 4), "the element of a comprehension hugs its brackets, as kcl fmt writes it")
+
+	arg := `lib.f({key = "` + strings.Repeat("x", 60) + `", other = "` + strings.Repeat("y", 30) + `"})`
+	assert.Equal(t, `lib.f({
+    key = "`+strings.Repeat("x", 60)+`"
+    other = "`+strings.Repeat("y", 30)+`"
+})`, wrapKclExpr(arg, 0, 0), "a call's one bracketed argument hugs its parentheses")
 
 	call := `lib.format("` + strings.Repeat("x", 60) + `", "` + strings.Repeat("y", 40) + `, {not a group}")`
 	assert.Equal(t, `lib.format(
