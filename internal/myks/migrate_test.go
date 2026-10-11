@@ -992,3 +992,24 @@ components:
 	assert.Contains(t, text, "    zone: str = \"a\"\n", "a typed, non-nullable value is required: ytt rejected its null too")
 	assert.Contains(t, text, "    config?: any = {\n", "a nullable value stays optional")
 }
+
+func TestCarriedCommentChecks(t *testing.T) {
+	t.Parallel()
+	m := &migrator{g: &Globe{Config: Config{PrototypesDir: "prototypes"}}}
+	m.readComments("envs/_apps/csi/app-data.yaml", []byte(`application:
+  #! See prototypes/synology-csi/README.md.
+  #! Not prototypes/synology-csi-v2, though.
+  secret: ""
+`), false)
+	m.readComments("prototypes/web/app-data.yaml", []byte(`application:
+  #! renovate: datasource=docker
+  image: nginx:1.0
+`), false)
+	m.renamedProtos = map[string]string{"synology-csi": "synology_csi"}
+	m.warnRenamedPrototypeRefs()
+
+	require.Len(t, m.warnings, 1)
+	assert.Contains(t, m.warnings[0], "envs/_apps/csi/app-data.yaml: ")
+	assert.Contains(t, m.warnings[0], "prototypes/synology-csi (now synology_csi)")
+	assert.Equal(t, []string{"prototypes/web/app-data.yaml"}, m.renovateMarked())
+}
