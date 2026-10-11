@@ -27,6 +27,23 @@ sops = lambda name, key {
 `, lib.source)
 }
 
+func TestYttLibSourceReadBy(t *testing.T) {
+	lib := translateYttLib("lib/util.star", []byte(`
+def sops(name):
+    return "ref+" + name
+end
+
+#! Unused by the converted files.
+def sops_key(name):
+    return name
+end
+`))
+	require.NotNil(t, lib)
+	assert.Equal(t, "\nsops = lambda name {\n    \"ref+\" + name\n}\n",
+		lib.sourceReadBy(`token = lib.sops("x")`, "lib"), "a name that only prefixes another is not read")
+	assert.Empty(t, lib.sourceReadBy("# lib.sopsy is no call", "lib"))
+}
+
 func TestTranslateYttLibDicts(t *testing.T) {
 	lib := translateYttLib("lib/util.star", []byte(`
 #! Container resources with the memory limit pinned.

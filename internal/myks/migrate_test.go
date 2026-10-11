@@ -347,9 +347,7 @@ components:
 		protoInspected: map[string]*inspectedSchema{"kb_mcp": schema},
 		protoPlans:     map[string]*protoSchemaPlan{"kb_mcp": newProtoSchemaPlan("KbMcp", values, schema)},
 	}
-	require.NoError(t, m.writeProtoK("kb_mcp"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "kb_mcp", protoKFileName))
+	content, err := m.renderProtoK("kb_mcp")
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "schema KbMcp(myks.App):\n    [...str]: any\n    proto: str = \"kb_mcp\"\n")
 	assert.Contains(t, string(content), "image?: str = \"kb-mcp:1.0.0\"", "the inspected schema types the attribute")
@@ -390,9 +388,7 @@ components:
 		protoInspected: map[string]*inspectedSchema{"webapp": schema},
 		protoPlans:     map[string]*protoSchemaPlan{"webapp": newProtoSchemaPlan("Webapp", values, schema)},
 	}
-	require.NoError(t, m.writeProtoK("webapp"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "webapp", protoKFileName))
+	content, err := m.renderProtoK("webapp")
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "    application?: Application = Application {}\n")
 	assert.Contains(t, string(content), "    image?: str\n", "a demanded value is declared without a default")
@@ -539,9 +535,7 @@ components:
 	m.protoBase = map[string]map[string]any{"csi": values}
 	m.protoInspected = map[string]*inspectedSchema{"csi": schema}
 	m.protoPlans = map[string]*protoSchemaPlan{"csi": newProtoSchemaPlan("Csi", values, schema)}
-	require.NoError(t, m.writeProtoK("csi"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "csi", protoKFileName))
+	content, err := m.renderProtoK("csi")
 	require.NoError(t, err)
 	assert.Contains(t, string(content), "    clients?: [Client] = []\n")
 	assert.Contains(t, string(content),
@@ -603,9 +597,7 @@ components:
 	m.protoBase = map[string]map[string]any{"home": values}
 	m.protoInspected = map[string]*inspectedSchema{"home": schema}
 	m.protoPlans = map[string]*protoSchemaPlan{"home": newProtoSchemaPlan("Home", values, schema)}
-	require.NoError(t, m.writeProtoK("home"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "home", protoKFileName))
+	content, err := m.renderProtoK("home")
 	require.NoError(t, err)
 	// The element of an array inside an array element is typed too, down to the last field.
 	assert.Contains(t, string(content), "    config?: [ConfigItem] = []\n")
@@ -762,9 +754,7 @@ components:
 	m.protoBase = map[string]map[string]any{"sts": values}
 	m.protoInspected = map[string]*inspectedSchema{"sts": schema}
 	m.protoPlans = map[string]*protoSchemaPlan{"sts": newProtoSchemaPlan("Sts", values, schema)}
-	require.NoError(t, m.writeProtoK("sts"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "sts", protoKFileName))
+	content, err := m.renderProtoK("sts")
 	require.NoError(t, err)
 	// The empty default fails min_len, so the array is demanded instead of defaulted.
 	assert.Contains(t, string(content), "    apps?: [ApplicationApp]\n", "App is myks.App to a reader, so the element takes the longer name")
@@ -967,9 +957,7 @@ components:
 	m.protoSchemas = map[string]string{"web": "Web"}
 	m.protoComments = map[string]map[string][]string{"web": m.readComments("app-data.yaml", source, true)}
 	m.protoPlans = map[string]*protoSchemaPlan{"web": newProtoSchemaPlan("Web", values, schema)}
-	require.NoError(t, m.writeProtoK("web"))
-
-	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "web", protoKFileName))
+	content, err := m.renderProtoK("web")
 	require.NoError(t, err)
 	text := string(content)
 	assert.Less(t, strings.Index(text, "schema Requests:"), strings.Index(text, "schema Limits:"))

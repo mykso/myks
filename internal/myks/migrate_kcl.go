@@ -50,37 +50,45 @@ func (m *migrator) emit(schemaPackage string) error {
 	}
 	envKDirs := slices.DeleteFunc(slices.Sorted(maps.Keys(m.nodes)), func(dir string) bool { return !emitted[dir] })
 
-	protos := m.declaredPrototypeSchemas()
-
-	// The level files are rendered up front: the refusal check and the writes need the same set.
-	levelFiles := map[string]string{}
+	// Every file is rendered up front: the refusal check and the writes need the same set, and
+	// the library keeps only what the other files call.
+	files := map[string]string{}
+	for _, proto := range m.declaredPrototypeSchemas() {
+		content, err := m.renderProtoK(proto)
+		if err != nil {
+			return fmt.Errorf("rendering %s: %w", m.protoKPath(proto), err)
+		}
+		files[m.protoKPath(proto)] = content
+	}
 	for _, dir := range envKDirs {
 		node := m.nodes[dir]
 		parent := node.parent
 		for parent != nil && !emitted[parent.dir] {
 			parent = parent.parent
 		}
-		files, err := m.renderNodeFiles(node, parent)
+		levelFiles, err := m.renderNodeFiles(node, parent)
 		if err != nil {
 			return err
 		}
-		for name, content := range files {
-			levelFiles[filepath.Join(m.g.RootDir, dir, name)] = content
+		for name, content := range levelFiles {
+			files[filepath.Join(m.g.RootDir, dir, name)] = content
 		}
 	}
-	levelPaths := slices.Sorted(maps.Keys(levelFiles))
-
-	targets := []string{
-		filepath.Join(m.g.RootDir, kclModFileName),
-		filepath.Join(m.g.RootDir, "main.k"),
-	}
-	for _, proto := range protos {
-		targets = append(targets, m.protoKPath(proto))
+	var callers strings.Builder
+	for _, content := range files {
+		callers.WriteString(content + "\n")
 	}
 	for _, lib := range m.emittedLibs() {
-		targets = append(targets, m.libKPath(m.g.RootDir, lib))
+		if source := lib.sourceReadBy(callers.String(), m.libPackage); source != "" {
+			files[m.libKPath(m.g.RootDir, lib)] = strings.TrimPrefix(source, "\n")
+		}
 	}
-	targets = append(targets, levelPaths...)
+	paths := slices.Sorted(maps.Keys(files))
+
+	targets := append([]string{
+		filepath.Join(m.g.RootDir, kclModFileName),
+		filepath.Join(m.g.RootDir, "main.k"),
+	}, paths...)
 	if !m.force {
 		if err := refuseExisting(targets); err != nil {
 			return err
@@ -93,19 +101,8 @@ func (m *migrator) emit(schemaPackage string) error {
 	if err := m.writeMainK(); err != nil {
 		return err
 	}
-	for _, lib := range m.emittedLibs() {
-		if err := m.writeLibK(lib); err != nil {
-			return fmt.Errorf("writing %s: %w", m.libKPath(m.g.RootDir, lib), err)
-		}
-	}
-	for _, proto := range protos {
-		if err := m.writeProtoK(proto); err != nil {
-			return fmt.Errorf("writing %s: %w", m.protoKPath(proto), err)
-		}
-	}
-
-	for _, path := range levelPaths {
-		if err := writeFile(path, []byte(levelFiles[path])); err != nil {
+	for _, path := range paths {
+		if err := writeFile(path, []byte(files[path])); err != nil {
 			return fmt.Errorf("writing %s: %w", path, err)
 		}
 	}
@@ -269,22 +266,16 @@ func (m *migrator) libKPath(root string, lib *yttLib) string {
 	return filepath.Join(root, m.g.YttLibraryDirName, lib.name+".k")
 }
 
-// writeLibK writes the KCL translation of the repo's ytt library. The whole library is one
-// KCL package, so a file importing it reads every function translated out of it.
-func (m *migrator) writeLibK(lib *yttLib) error {
-	return writeFile(m.libKPath(m.g.RootDir, lib), []byte(strings.TrimPrefix(lib.source, "\n")))
-}
-
 func (m *migrator) protoKPath(proto string) string {
 	return filepath.Join(m.g.RootDir, m.g.PrototypesDir, proto, protoKFileName)
 }
 
-// writeProtoK renders a prototype's base schema: its converted app-data values become
+// renderProtoK renders a prototype's base schema: its converted app-data values become
 // attribute defaults, so applications instantiate the schema instead of repeating them, and
 // a structured object value becomes a nested schema of its own (see protoSchemaPlan). Every
 // attribute is optional, so a null default stays null instead of failing the required-value
 // check.
-func (m *migrator) writeProtoK(proto string) error {
+func (m *migrator) renderProtoK(proto string) (string, error) {
 	plan := m.protoPlans[proto]
 	b := &kclWriter{derived: m.protoDerived[proto], comments: m.protoComments[proto]}
 	b.WriteString("import myks\n")
@@ -295,10 +286,7 @@ func (m *migrator) writeProtoK(proto string) error {
 		m.warn("%s/%s: validation of %s is not carried into the generated KCL schema",
 			m.g.PrototypesDir, proto, failure)
 	}
-	if b.err != nil {
-		return b.err
-	}
-	return writeFile(m.protoKPath(proto), []byte(b.String()))
+	return b.String(), b.err
 }
 
 // migrationDocsURL is where the hand-finish steps are documented. The generated files point
