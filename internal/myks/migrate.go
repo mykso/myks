@@ -664,9 +664,12 @@ func (m *migrator) readComments(file string, content []byte, isSchema bool) map[
 		if strings.HasPrefix(comment.path, keyOrderPath("")) {
 			continue
 		}
-		stale = append(stale, slices.DeleteFunc(slices.Clone(comment.lines), func(line string) bool {
-			return !legacyFileRefRe.MatchString(line)
-		})...)
+		for _, line := range comment.lines {
+			// A schema document's first array item is read twice: as itself and as the element.
+			if legacyFileRefRe.MatchString(line) && !slices.Contains(stale, line) {
+				stale = append(stale, line)
+			}
+		}
 	}
 	if len(stale) > 0 {
 		m.warn("%s: carried comments name legacy ytt files, which the KCL tree replaces; update them: %s",

@@ -556,12 +556,46 @@ func (p *protoSchemaPlan) attributes(path []string, values map[string]any) []str
 }
 
 // render writes the root schema and the nested ones. KCL schema definitions are
-// order-independent, so the root comes first: it is what an application instantiates.
+// order-independent, so the root comes first: it is what an application instantiates. The
+// nested schemas follow depth first, in the order the source states their fields.
 func (p *protoSchemaPlan) render(b *kclWriter, proto string) {
 	p.renderSchema(b, nil, p.values, proto)
-	for _, path := range p.nested {
-		p.renderSchema(b, path, p.valuesAt(path), "")
+	p.renderNested(b, nil)
+}
+
+// renderNested writes every generated schema directly below path, each followed by those below
+// it. The element schema of an array sits below the array's key.
+func (p *protoSchemaPlan) renderNested(b *kclWriter, path []string) {
+	below := map[string][][]string{}
+	for _, nested := range p.nested {
+		rest, ok := pathRest(nested, path)
+		if !ok || len(rest) == 0 || len(rest) > 2 || (len(rest) == 2 && rest[1] != itemsKey) {
+			continue
+		}
+		below[rest[0]] = append(below[rest[0]], nested)
 	}
+	for _, key := range b.sortKeys(dottedPath(path), slices.Collect(maps.Keys(below))) {
+		for _, nested := range below[key] {
+			p.renderSchema(b, nested, p.valuesAt(nested), "")
+			p.renderNested(b, nested)
+		}
+	}
+}
+
+// pathRest returns what path adds to prefix, if prefix is where it starts.
+func pathRest(path, prefix []string) ([]string, bool) {
+	if len(path) < len(prefix) || !slices.Equal(path[:len(prefix)], prefix) {
+		return nil, false
+	}
+	return path[len(prefix):], true
+}
+
+// dottedPath is how the comment index addresses the value at path (".application.port").
+func dottedPath(path []string) string {
+	if len(path) == 0 {
+		return ""
+	}
+	return "." + strings.Join(path, ".")
 }
 
 // withElementDefaults returns values with every array the generated schemas type by an element
@@ -667,10 +701,7 @@ func (p *protoSchemaPlan) valuesAt(path []string) map[string]any {
 
 func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[string]any, proto string) {
 	names := p.attributes(path, values)
-	dotted := ""
-	if len(path) > 0 {
-		dotted = "." + strings.Join(path, ".")
-	}
+	dotted := dottedPath(path)
 	b.WriteString("\n")
 	if len(path) == 0 {
 		b.printf("schema %s(myks.App):\n", p.names[""])
@@ -687,7 +718,7 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 	}
 	for _, key := range b.sortKeys(dotted, names) {
 		child := append(slices.Clone(path), key)
-		childPath := "." + strings.Join(child, ".")
+		childPath := dottedPath(child)
 		b.writeComments(childPath, 4)
 		if nested, ok := p.names[pathKey(child)]; ok {
 			// The nested schema carries the defaults of everything below it.
@@ -704,7 +735,7 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 		writeKclValue(b, value, 4, false, childPath)
 		b.WriteString("\n")
 	}
-	if checks := p.checks(path); len(checks) > 0 {
+	if checks := p.checks(b, path); len(checks) > 0 {
 		b.WriteString("\n    check:\n")
 		for _, check := range checks {
 			b.printf("        %s\n", check)
@@ -775,12 +806,14 @@ func (p *protoSchemaPlan) attributeType(path []string, value any) string {
 // default (`min_len=1` on an empty default, the way a prototype demands a value) is generated
 // without one (pruneDemandedDefaults): unset, its check does not fire; set at any level, it is
 // enforced from there on.
-func (p *protoSchemaPlan) checks(path []string) []string {
+func (p *protoSchemaPlan) checks(b *kclWriter, path []string) []string {
 	if p.schema == nil {
 		return nil
 	}
+	constraints := slices.Clone(p.schema.constraints)
+	slices.SortStableFunc(constraints, func(x, y schemaConstraint) int { return b.comparePaths(x.path, y.path) })
 	var checks []string
-	for _, constraint := range p.schema.constraints {
+	for _, constraint := range constraints {
 		owner, access, guards := p.locate(constraint.path, constraint.kind != constraintNotNull)
 		if pathKey(owner) != pathKey(path) {
 			continue
@@ -1112,6 +1145,20 @@ func (w *kclWriter) sortKeys(path string, keys []string) []string {
 	sorted := slices.Sorted(slices.Values(keys))
 	slices.SortStableFunc(sorted, func(a, b string) int { return rank(a) - rank(b) })
 	return sorted
+}
+
+// comparePaths orders two value paths the way the source states them: by the first key they
+// differ in, ranked as sortKeys ranks it, and a path before the paths below it.
+func (w *kclWriter) comparePaths(x, y []string) int {
+	for i := 0; i < len(x) && i < len(y); i++ {
+		if x[i] != y[i] {
+			if w.sortKeys(dottedPath(x[:i]), []string{x[i], y[i]})[0] == x[i] {
+				return -1
+			}
+			return 1
+		}
+	}
+	return len(x) - len(y)
 }
 
 // writeDerivationHeader writes what a file's derivations read: the imports of the translated

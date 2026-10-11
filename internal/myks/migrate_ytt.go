@@ -584,10 +584,9 @@ type yttComment struct {
 // maps, and the generated file would otherwise list them alphabetically.
 //
 // Only the block above a mapping key or a sequence item is read. A comment after a value has
-// no attribute of its own to sit above in the generated schema, and is left behind. In a
-// schema document a sequence's one item describes every element, so what is written inside
-// it belongs to the element schema; in a data-values document each item is addressed by its
-// index.
+// no attribute of its own to sit above in the generated schema, and is left behind. Each
+// sequence item is addressed by its index; in a schema document the first item is also
+// addressed as the element (itemsKey), since it describes every element of a typed array.
 func yttComments(content []byte, schema bool) ([]yttComment, error) {
 	lines := strings.Split(string(content), "\n")
 	var found []yttComment
@@ -658,17 +657,18 @@ func collectNested(node *yaml.Node, lines []string, path string, schema bool, ou
 		collectComments(node, lines, path, schema, out)
 	case yaml.SequenceNode:
 		for i, item := range node.Content {
-			itemPath := elementPath(path, i)
-			if schema {
-				itemPath = path + "." + itemsKey
+			itemPaths := []string{elementPath(path, i)}
+			if schema && i == 0 {
+				// The first item describes the element of a typed array; an array typed `any`
+				// is a default value instead, written element by element.
+				itemPaths = append(itemPaths, path+"."+itemsKey)
 			}
-			if item.Kind != yaml.MappingNode {
-				// A mapping item's first key sits on the item's line and claims its block.
-				collectBlock(lines, item.Line, i > 0, itemPath, out)
-			}
-			collectNested(item, lines, itemPath, schema, out)
-			if schema {
-				break
+			for _, itemPath := range itemPaths {
+				if item.Kind != yaml.MappingNode {
+					// A mapping item's first key sits on the item's line and claims its block.
+					collectBlock(lines, item.Line, i > 0, itemPath, out)
+				}
+				collectNested(item, lines, itemPath, schema, out)
 			}
 		}
 	}

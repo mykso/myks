@@ -898,3 +898,77 @@ func TestWrapKclExpr(t *testing.T) {
     "`+strings.Repeat("y", 40)+`, {not a group}"
 )`, wrapKclExpr(call, 0, 0))
 }
+
+// TestWriteProtoKSourceOrder pins that the generated schema reads in the order of its source:
+// nested schemas and check items follow the fields, and a free-form default keeps the key
+// order of its list elements.
+func TestWriteProtoKSourceOrder(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	source := []byte(`#@data/values-schema
+---
+application:
+  #@schema/validation min_len=1
+  zone: a
+  #@schema/validation min_len=1
+  image: x
+  resources:
+    requests:
+      memory: 64Mi
+    limits:
+      memory: 128Mi
+  #@schema/type any=True
+  config:
+    servers:
+      - name: default
+        uri: http://example
+        proxy: true
+`)
+	schema, err := parseSchemaInspect([]byte(`
+components:
+  schemas:
+    dataValues:
+      type: object
+      additionalProperties: false
+      properties:
+        application:
+          type: object
+          additionalProperties: false
+          properties:
+            zone: {type: string, default: a, minLength: 1}
+            image: {type: string, default: x, minLength: 1}
+            resources:
+              type: object
+              additionalProperties: false
+              properties:
+                requests:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    memory: {type: string, default: 64Mi}
+                limits:
+                  type: object
+                  additionalProperties: false
+                  properties:
+                    memory: {type: string, default: 128Mi}
+            config:
+              nullable: true
+              default:
+                servers:
+                  - {name: default, uri: "http://example", proxy: true}
+`))
+	require.NoError(t, err)
+	m := &migrator{g: &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}}}
+	values := schema.defaults
+	m.protoSchemas = map[string]string{"web": "Web"}
+	m.protoComments = map[string]map[string][]string{"web": m.readComments("app-data.yaml", source, true)}
+	m.protoPlans = map[string]*protoSchemaPlan{"web": newProtoSchemaPlan("Web", values, schema)}
+	require.NoError(t, m.writeProtoK("web"))
+
+	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "web", protoKFileName))
+	require.NoError(t, err)
+	text := string(content)
+	assert.Less(t, strings.Index(text, "schema Requests:"), strings.Index(text, "schema Limits:"))
+	assert.Less(t, strings.Index(text, `"application.zone must`), strings.Index(text, `"application.image must`))
+	assert.Contains(t, text, "name = \"default\"\n                uri = \"http://example\"\n                proxy = True\n")
+}
