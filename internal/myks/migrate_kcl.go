@@ -19,6 +19,9 @@ import (
 const (
 	envKFileName   = "env.k"
 	patchKFileName = "patch.k"
+	// appsKFileName gathers the applications a level only declares, each in a block of its
+	// own: a key of a block shadows a package of the same name for the rest of that block.
+	appsKFileName = "apps.k"
 )
 
 // appKFileName is the level file of one application. A file name is not a package path, so
@@ -131,12 +134,38 @@ func (m *migrator) renderNodeFiles(node, parent *migNode) (map[string]string, er
 		}
 	}
 	renames := m.levelRenames(node)
+	var declarations []string
 	for _, name := range nodeAppNames(node) {
-		if err := render(appKFileName(name), func() (string, error) { return m.renderAppK(node, name, renames[name]) }); err != nil {
-			return nil, err
+		content, bare, err := m.renderAppK(node, name, renames[name])
+		if err != nil {
+			return nil, fmt.Errorf("rendering %s/%s: %w", node.dir, appKFileName(name), err)
+		}
+		if bare {
+			declarations = append(declarations, content)
+		} else {
+			files[appKFileName(name)] = content
 		}
 	}
+	if len(declarations) > 0 {
+		files[appsKFileName] = joinKclFiles(declarations)
+	}
 	return files, nil
+}
+
+// joinKclFiles joins rendered files into one: their imports, deduplicated, then their bodies
+// apart by a blank line.
+func joinKclFiles(contents []string) string {
+	var imports, bodies []string
+	for _, content := range contents {
+		head, body, _ := strings.Cut(content, "\n\n")
+		for _, line := range strings.Split(head, "\n") {
+			if !slices.Contains(imports, line) {
+				imports = append(imports, line)
+			}
+		}
+		bodies = append(bodies, body)
+	}
+	return strings.Join(imports, "\n") + "\n\n" + strings.Join(bodies, "\n")
 }
 
 // levelRenames renames the module-level variables an application file binds that another file
@@ -1301,8 +1330,10 @@ func writeAppsBase(b *kclWriter, node *migNode) {
 // renderAppK renders one level's file for one application: everything this level says about
 // it — the declaration or the dict-union override of a declaration above, plus the values
 // frozen from the legacy-resolved output. The blocks unify into `_apps` in file order, so the
-// frozen values win over the declaration above them.
-func (m *migrator) renderAppK(node *migNode, name string, renames map[string]string) (string, error) {
+// frozen values win over the declaration above them. bare reports a file that only declares
+// the application, with no values, no derivations and no comments: one line, not worth a
+// file of its own.
+func (m *migrator) renderAppK(node *migNode, name string, renames map[string]string) (content string, bare bool, err error) {
 	b := &kclWriter{}
 	app, declared := node.declared[name]
 	// Inside the `_apps` block the application's name is a key, which shadows a package of
@@ -1363,6 +1394,8 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 		b.printf("_apps: %s.Apps {\n    %s", myks, kclKey(name))
 	}
 
+	bare = declared && !overridden && !patched && len(values) == 0 && !b.derived.has() &&
+		myks == "myks" && len(b.comments[trailingCommentsPath]) == 0
 	if declared {
 		separate()
 		openBlock()
@@ -1391,7 +1424,7 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 		b.derived = declDerived
 	}
 	b.writeTrailingComments()
-	return b.String(), b.err
+	return b.String(), bare, b.err
 }
 
 // writeDeclaration writes the instance that declares an application, after its key: the
@@ -1405,6 +1438,10 @@ func writeDeclaration(b *kclWriter, name, proto, schema, myks string, values map
 	b.printf(" = %s {", constructor)
 	if len(values) == 0 && (schema != "" || proto == name) {
 		b.WriteString("}\n}\n")
+		return
+	}
+	if len(values) == 0 {
+		b.printf("proto = %s}\n}\n", quoteKclString(proto))
 		return
 	}
 	b.WriteString("\n")

@@ -468,6 +468,8 @@ func TestRenderLevelFiles(t *testing.T) {
 	leaf := m.newNode(filepath.Join("envs", "dev"), m.root)
 	leaf.env = &Environment{ID: "dev"}
 	leaf.declared["web"] = migApp{name: "web", proto: "web", values: map[string]any{"replicas": 3}}
+	leaf.declared["arc"] = migApp{name: "arc", proto: "arc"}
+	leaf.declared["argocd"] = migApp{name: "argocd", proto: "argo"}
 	leaf.overrides["cache"] = map[string]any{"replicas": 1}
 	leaf.appPatches["web"] = map[string]any{"computed": "x"}
 	leaf.envPatch = map[string]any{"computed": "y"}
@@ -479,8 +481,20 @@ func TestRenderLevelFiles(t *testing.T) {
 	files, err := m.renderNodeFiles(leaf, m.root)
 	require.NoError(t, err)
 	assert.Equal(t,
-		[]string{"app-cache.k", "app-web.k", envKFileName, patchKFileName},
+		[]string{"app-cache.k", "app-web.k", appsKFileName, envKFileName, patchKFileName},
 		slices.Sorted(maps.Keys(files)))
+
+	// Applications the level only declares share one file, a block each.
+	assert.Equal(t, `import myks
+
+_apps: myks.Apps {
+    arc = myks.App {}
+}
+
+_apps: myks.Apps {
+    argocd = myks.App {proto = "argo"}
+}
+`, files[appsKFileName])
 
 	assert.Contains(t, files[envKFileName], "_apps: myks.Apps {}\n")
 	// The level variable carries what the level inherits, states and freezes — and no
@@ -851,7 +865,7 @@ func TestRenderAppKJoinsAccountedFrozenBlock(t *testing.T) {
 		literals: map[string]any{".title": "Web"},
 	}
 
-	content, err := m.renderAppK(leaf, "web", nil)
+	content, _, err := m.renderAppK(leaf, "web", nil)
 	require.NoError(t, err)
 	assert.NotContains(t, content, "TODO(myks migrate)")
 	assert.Equal(t, 1, strings.Count(content, "_apps:"), content)
@@ -861,7 +875,7 @@ func TestRenderAppKJoinsAccountedFrozenBlock(t *testing.T) {
 
 	// A value nothing accounts for keeps its own block, marked.
 	leaf.appPatches["web"]["extra"] = 1
-	content, err = m.renderAppK(leaf, "web", nil)
+	content, _, err = m.renderAppK(leaf, "web", nil)
 	require.NoError(t, err)
 	assert.Contains(t, content, "TODO(myks migrate)")
 	assert.Equal(t, 2, strings.Count(content, "_apps:"), content)
