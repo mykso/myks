@@ -32,6 +32,9 @@ type derivations struct {
 	prelude []string
 	// imports holds the KCL import statements they need.
 	imports []string
+	// notes holds the comments the Starlark wrote above a prelude statement, keyed by the
+	// statement's translation.
+	notes map[string][]string
 }
 
 func (d *derivations) has() bool { return d != nil && len(d.exprs) > 0 }
@@ -77,6 +80,7 @@ func mergeDerivations(parts ...*derivations) *derivations {
 		}
 		maps.Copy(bound, vars)
 		maps.Copy(out.exprs, part.exprs)
+		out.addNotes(part.notes)
 		for _, stmt := range part.prelude {
 			if !seen[stmt] {
 				seen[stmt] = true
@@ -94,6 +98,30 @@ func mergeDerivations(parts ...*derivations) *derivations {
 		return nil
 	}
 	return out
+}
+
+// addNotes copies the comments of prelude statements.
+func (d *derivations) addNotes(notes map[string][]string) {
+	if len(notes) == 0 {
+		return
+	}
+	if d.notes == nil {
+		d.notes = map[string][]string{}
+	}
+	maps.Copy(d.notes, notes)
+}
+
+// starComments returns the comment lines written above a Starlark statement.
+func starComments(stmt syntax.Stmt) []string {
+	comments := stmt.Comments()
+	if comments == nil {
+		return nil
+	}
+	lines := make([]string, 0, len(comments.Before))
+	for _, comment := range comments.Before {
+		lines = append(lines, kclComment(comment.Text))
+	}
+	return lines
 }
 
 // preludeVars groups prelude statements by the variable they assign. A variable assigned more
@@ -120,7 +148,7 @@ type yttLib struct {
 // function whose body is more than a `return`, and every other top-level statement, is left
 // behind: the values it computes stay literals.
 func translateYttLib(path string, content []byte) *yttLib {
-	file, err := starSyntax.Parse(path, content, 0)
+	file, err := starSyntax.Parse(path, content, syntax.RetainComments)
 	if err != nil {
 		return nil
 	}
@@ -140,7 +168,11 @@ func translateYttLib(path string, content []byte) *yttLib {
 			continue
 		}
 		lib.funcs[def.Name.Name] = true
-		fmt.Fprintf(&b, "\n%s = %s\n", sanitizeKclIdentifier(def.Name.Name), lambda)
+		b.WriteString("\n")
+		for _, line := range starComments(def) {
+			b.WriteString(line + "\n")
+		}
+		fmt.Fprintf(&b, "%s = %s\n", sanitizeKclIdentifier(def.Name.Name), lambda)
 	}
 	if len(lib.funcs) == 0 {
 		return nil
@@ -156,6 +188,8 @@ type starScope struct {
 	names map[string]string
 	// prelude collects the module-level KCL statements the translation emits, in order.
 	prelude []string
+	// notes holds the comments above the Starlark statement behind a prelude statement.
+	notes   map[string][]string
 	imports map[string]bool
 	libs    map[string]*yttLib
 	// libPackage is the KCL package path of the translated ytt library ("lib").
@@ -174,6 +208,7 @@ var kclReservedVars = map[string]bool{"_apps": true, "_level": true, "_patch": t
 func newStarScope(libs map[string]*yttLib, libPackage, levelVar string) *starScope {
 	return &starScope{
 		names:      map[string]string{},
+		notes:      map[string][]string{},
 		imports:    map[string]bool{},
 		libs:       libs,
 		libPackage: libPackage,
@@ -219,6 +254,7 @@ func (s *starScope) lambda(def *syntax.DefStmt, ret *syntax.ReturnStmt) (string,
 // translate unbinds the names it assigns, so the values reading them stay literals.
 func (s *starScope) run(stmts []syntax.Stmt) {
 	for _, stmt := range stmts {
+		emitted := len(s.prelude)
 		switch typed := stmt.(type) {
 		case *syntax.LoadStmt:
 			s.load(typed)
@@ -228,6 +264,10 @@ func (s *starScope) run(stmts []syntax.Stmt) {
 			s.appendLoop(typed)
 		case *syntax.DefStmt:
 			s.def(typed)
+		}
+		// The comments above a statement go above the first statement it translates to.
+		if lines := starComments(stmt); len(lines) > 0 && len(s.prelude) > emitted {
+			s.notes[s.prelude[emitted]] = lines
 		}
 	}
 }
@@ -799,11 +839,11 @@ func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPac
 	}
 
 	scope := newStarScope(libs, libPackage, levelVar)
-	prelude, err := starSyntax.Parse(file, yttPreludeSource(split.lines, false), 0)
+	prelude, err := starSyntax.Parse(file, yttPreludeSource(split.lines, false), syntax.RetainComments)
 	if err != nil {
 		// A ytt template function — a `def` whose body is YAML rather than Starlark — is no
 		// Starlark program. Dropping those blocks leaves the rest of the prelude readable.
-		prelude, err = starSyntax.Parse(file, yttPreludeSource(split.lines, true), 0)
+		prelude, err = starSyntax.Parse(file, yttPreludeSource(split.lines, true), syntax.RetainComments)
 	}
 	if err == nil {
 		scope.run(prelude.Stmts)
@@ -825,6 +865,7 @@ func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPac
 		return nil
 	}
 	d.prelude = prunePrelude(scope.prelude, d.exprs)
+	d.addNotes(scope.notes)
 	for imp := range scope.imports {
 		d.imports = append(d.imports, imp)
 	}

@@ -29,16 +29,31 @@ sops = lambda name, key {
 
 func TestTranslateYttLibDicts(t *testing.T) {
 	lib := translateYttLib("lib/util.star", []byte(`
+#! Container resources with the memory limit pinned.
 def resources(cpu, memory):
     return {"requests": {"cpu": cpu, "memory": memory}, "with-dash": 1}
 end
 `))
 	require.NotNil(t, lib)
 	assert.Equal(t, `
+# Container resources with the memory limit pinned.
 resources = lambda cpu, memory {
     {requests = {cpu = cpu, memory = memory}, "with-dash": 1}
 }
 `, lib.source)
+}
+
+func TestYttDerivationsComments(t *testing.T) {
+	d := yttDerivations("app-data.yaml", []byte(`#@data/values
+#@ # The port every listener shares.
+#@ port = 8080
+---
+application:
+  port: #@ port
+`), nil, "", "")
+	require.NotNil(t, d)
+	assert.Equal(t, []string{"_port = 8080"}, d.prelude)
+	assert.Equal(t, map[string][]string{"_port = 8080": {"# The port every listener shares."}}, d.notes)
 }
 
 func TestYttDerivations(t *testing.T) {

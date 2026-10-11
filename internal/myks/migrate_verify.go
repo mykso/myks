@@ -88,6 +88,7 @@ func (m *migrator) proveContextual(leafDir, unit string, candidates *derivations
 		return nil
 	}
 	proven.prelude = prunePrelude(candidates.prelude, proven.exprs)
+	proven.addNotes(candidates.notes)
 	proven.imports = usedImports(candidates.imports, proven)
 	return proven
 }

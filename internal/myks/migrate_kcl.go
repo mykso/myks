@@ -1062,6 +1062,9 @@ func writeDerivationHeader(b *kclWriter, d *derivations) {
 	if len(d.prelude) > 0 {
 		b.WriteString("\n")
 		for _, statement := range d.prelude {
+			for _, line := range d.notes[statement] {
+				b.printf("%s\n", line)
+			}
 			b.printf("%s\n", statement)
 		}
 	}
