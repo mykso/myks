@@ -161,8 +161,14 @@ func schemaDefaults(node *openapiNode) map[string]any {
 	return out
 }
 
-// kclType maps a property's OpenAPI type to its KCL type expression.
+// kclType maps a property's OpenAPI type to its KCL type expression. An array is typed by its
+// element where the schema describes one that cannot be null.
 func kclType(node *openapiNode) string {
+	if node.Type == "array" && node.Items != nil && !node.Items.Nullable {
+		if element := kclType(node.Items); element != "any" {
+			return "[" + element + "]"
+		}
+	}
 	if t, ok := kclScalarTypes[node.Type]; ok {
 		return t
 	}
