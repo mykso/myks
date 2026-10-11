@@ -27,6 +27,35 @@ sops = lambda name, key {
 `, lib.source)
 }
 
+func TestTranslateYttLibDicts(t *testing.T) {
+	lib := translateYttLib("lib/util.star", []byte(`
+#! Container resources with the memory limit pinned.
+def resources(cpu, memory):
+    return {"requests": {"cpu": cpu, "memory": memory}, "with-dash": 1}
+end
+`))
+	require.NotNil(t, lib)
+	assert.Equal(t, `
+# Container resources with the memory limit pinned.
+resources = lambda cpu, memory {
+    {requests = {cpu = cpu, memory = memory}, "with-dash": 1}
+}
+`, lib.source)
+}
+
+func TestYttDerivationsComments(t *testing.T) {
+	d := yttDerivations("app-data.yaml", []byte(`#@data/values
+#@ # The port every listener shares.
+#@ port = 8080
+---
+application:
+  port: #@ port
+`), nil, "", "")
+	require.NotNil(t, d)
+	assert.Equal(t, []string{"_port = 8080"}, d.prelude)
+	assert.Equal(t, map[string][]string{"_port = 8080": {"# The port every listener shares."}}, d.notes)
+}
+
 func TestYttDerivations(t *testing.T) {
 	libs := map[string]*yttLib{"secrets": {name: "secrets", funcs: map[string]bool{"sops": true}}}
 
@@ -108,10 +137,8 @@ environment:
 				`_edge_nodes = ["junior"]`,
 				`_base_domain = "zebradil.dev"`,
 				`_lan_domain = "lan." + _base_domain`,
-				`_base_hosts = [_base_domain]`,
-				`_lan_hosts = [_lan_domain]`,
-				`_base_hosts = _base_hosts + [node + "." + _base_domain for node in _edge_nodes]`,
-				`_lan_hosts = _lan_hosts + [node + "." + _lan_domain for node in _edge_nodes]`,
+				`_base_hosts = [_base_domain] + [node + "." + _base_domain for node in _edge_nodes]`,
+				`_lan_hosts = [_lan_domain] + [node + "." + _lan_domain for node in _edge_nodes]`,
 			},
 		},
 		{
@@ -172,7 +199,7 @@ func TestStarScopeExprPrecedence(t *testing.T) {
 		"a if a else None":        "_a if _a else None",
 		"[a, 1, True]":            "[_a, 1, True]",
 		"not a":                   "not _a",
-		"{'k': a}":                `{"k": _a}`,
+		"{'k': a}":                `{k = _a}`,
 		"[x * 2 for x in a if x]": "[x * 2 for x in _a if x]",
 	} {
 		got, err := translateStarExpr(scope, expr)
@@ -289,20 +316,26 @@ application:
 `), nil, "lib", levelVarName)
 	require.NotNil(t, d)
 	assert.Equal(t, map[string]string{
-		".application.tls.baseDomains": "_lvl.environment.hosts",
+		".application.tls.baseDomains": "_level.environment.hosts",
 		".application.links[0].uri":    `_uri("home")`,
 		".application.links[1].uri":    `_uri("docs")`,
 	}, d.exprs)
-	assert.Equal(t, []string{"_uri = lambda service {\n    \"https://{}.{}\".format(service, _lvl.environment.baseDomain)\n}"}, d.prelude)
+	assert.Equal(t, []string{"_uri = lambda service {\n    \"https://{}.{}\".format(service, _level.environment.baseDomain)\n}"}, d.prelude)
 }
 
 func TestValueAtPath(t *testing.T) {
 	values := map[string]any{"a": map[string]any{
-		"list": []any{map[string]any{"k": "v"}, map[string]any{"k": "w"}},
+		"list":    []any{map[string]any{"k": "v"}, map[string]any{"k": "w"}},
+		"init.sh": "script",
+		"init":    map[string]any{"x": 1},
+		"nested":  []any{[]any{"deep"}},
 	}}
 	for path, want := range map[string]any{
-		".a.list[1].k": "w",
-		".a.list[0].k": "v",
+		".a.list[1].k":    "w",
+		".a.list[0].k":    "v",
+		".a.init.sh":      "script", // a key may contain a dot
+		".a.init.x":       1,
+		".a.nested[0][0]": "deep",
 	} {
 		got, found := valueAtPath(values, path)
 		require.True(t, found, path)
@@ -312,4 +345,78 @@ func TestValueAtPath(t *testing.T) {
 		_, found := valueAtPath(values, path)
 		assert.False(t, found, path)
 	}
+}
+
+func TestFoldAppends(t *testing.T) {
+	notes := map[string][]string{"_hosts = [_domain]": {"# The apex first."}}
+	assert.Equal(t, []string{
+		`_domain = "example.com"`,
+		`_lan = ["lan"]`,
+		`_hosts = [_domain] + [n + "." + _domain for n in _nodes]`,
+		`_lan_hosts = _lan + _hosts`,
+	}, foldAppends([]string{
+		`_domain = "example.com"`,
+		`_hosts = [_domain]`,
+		`_lan = ["lan"]`,
+		`_hosts = _hosts + [n + "." + _domain for n in _nodes]`,
+		`_lan_hosts = _lan + _hosts`,
+	}, notes))
+	assert.Equal(t, []string{"# The apex first."}, notes[`_hosts = [_domain] + [n + "." + _domain for n in _nodes]`])
+
+	assert.Equal(t, []string{`_xs = (_a if _c else _b) + [1]`},
+		foldAppends([]string{`_xs = _a if _c else _b`, `_xs = _xs + [1]`}, map[string][]string{}))
+
+	// Read in between, or reading what is rebound in between: folding would change the value.
+	kept := []string{`_a = [1]`, `_xs = _a`, `_a = _a + [2]`, `_xs = _xs + [3]`}
+	assert.Equal(t, kept, foldAppends(kept, map[string][]string{}))
+}
+
+func TestYttDerivationsTextTemplates(t *testing.T) {
+	libs := map[string]*yttLib{"secrets": {name: "secrets", funcs: map[string]bool{"sops": true}}}
+	d := yttDerivations("app-data.yaml", []byte(`#@ load("secrets.star", "sops")
+#@ name = "rsa"
+#@data/values
+---
+files:
+  #@yaml/text-templated-strings
+  init.sh: |
+    #!/bin/sh
+    echo "(@= sops("0", "key") @)" > /etc/(@= name @)
+  #@yaml/text-templated-strings
+  line: 'host-(@= name @) isn''t ${x}'
+  #@yaml/text-templated-strings
+  code: |
+    (@ if True: @)yes(@ end @)
+`), libs, "lib", "")
+	require.NotNil(t, d)
+	assert.Equal(t, map[string]string{
+		".files.init.sh": "\"\"\"\\\n#!/bin/sh\necho \"${lib.sops(\"0\", \"key\")}\" > /etc/${_name}\n\"\"\"",
+		".files.line":    `'host-${_name} isn\'t \${x}'`,
+	}, d.exprs, "code blocks other than (@= @) have no KCL string counterpart")
+}
+
+func TestYttDerivationsForEndLoop(t *testing.T) {
+	d := yttDerivations("env-data.values.yaml", []byte(`#@data/values
+---
+kbld:
+  overrides:
+    #@ registries = [
+    #@   "ghcr.io",
+    #@   # Disabled until the fix is released.
+    #@   #"index.docker.io",
+    #@   "quay.io",
+    #@ ]
+    #@ for/end reg in registries:
+    - match:
+        registry: #@ reg.replace(".", "\\.")
+        repository: (.+)
+      replace:
+        registry: oci.example
+        port: 443
+`), nil, "", "")
+	require.NotNil(t, d)
+	assert.Equal(t, map[string]string{
+		".kbld.overrides": `[{match = {registry = reg.replace(".", "\\."), repository = "(.+)"}, replace = {registry = "oci.example", port = 443}} for reg in _registries]`,
+	}, d.exprs)
+	assert.Equal(t, []string{"_registries = [\n    \"ghcr.io\"\n    # Disabled until the fix is released.\n    # \"index.docker.io\",\n    \"quay.io\"\n]"}, d.prelude)
 }

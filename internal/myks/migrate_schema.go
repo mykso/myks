@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	yaml "gopkg.in/yaml.v3"
 )
@@ -88,6 +89,8 @@ type openapiNode struct {
 	Items                *openapiNode            `yaml:"items"`
 	MinLength            *int                    `yaml:"minLength"`
 	MaxLength            *int                    `yaml:"maxLength"`
+	MinItems             *int                    `yaml:"minItems"`
+	MaxItems             *int                    `yaml:"maxItems"`
 	Minimum              *float64                `yaml:"minimum"`
 	Maximum              *float64                `yaml:"maximum"`
 	Enum                 []any                   `yaml:"enum"`
@@ -161,16 +164,24 @@ func schemaDefaults(node *openapiNode) map[string]any {
 	return out
 }
 
-// kclType maps a property's OpenAPI type to its KCL type expression.
+// kclType maps a property's OpenAPI type to its KCL type expression. An array is typed by its
+// element where the schema describes one that cannot be null.
 func kclType(node *openapiNode) string {
+	if node.Type == "array" && node.Items != nil && !node.Items.Nullable {
+		if element := kclType(node.Items); element != "any" {
+			return "[" + element + "]"
+		}
+	}
 	if t, ok := kclScalarTypes[node.Type]; ok {
 		return t
 	}
 	return "any"
 }
 
-// collectConstraints appends every validation found at node and below (excluding items, which
-// constrain an element rather than a path in the document) to out.
+// collectConstraints appends every validation found at node and below to out. What constrains
+// an array's element is anchored below the array's path at itemsKey, where the generated
+// element schema checks it. ytt reports an array's min_len/max_len as minItems/maxItems, which
+// are lengths all the same.
 func collectConstraints(node *openapiNode, path []string, out *[]schemaConstraint) {
 	// A validation on the document root constrains no attribute, so there is nowhere to put it.
 	if len(path) == 0 {
@@ -185,6 +196,12 @@ func collectConstraints(node *openapiNode, path []string, out *[]schemaConstrain
 	if node.MaxLength != nil {
 		*out = append(*out, schemaConstraint{path: path, kind: constraintMaxLength, value: *node.MaxLength})
 	}
+	if node.MinItems != nil {
+		*out = append(*out, schemaConstraint{path: path, kind: constraintMinLength, value: *node.MinItems})
+	}
+	if node.MaxItems != nil {
+		*out = append(*out, schemaConstraint{path: path, kind: constraintMaxLength, value: *node.MaxItems})
+	}
 	if node.Minimum != nil {
 		*out = append(*out, schemaConstraint{path: path, kind: constraintMinimum, value: *node.Minimum})
 	}
@@ -197,6 +214,14 @@ func collectConstraints(node *openapiNode, path []string, out *[]schemaConstrain
 	for name, prop := range node.Properties {
 		collectConstraints(prop, append(append([]string{}, path...), name), out)
 	}
+	if node.Items != nil {
+		collectConstraints(node.Items, append(append([]string{}, path...), itemsKey), out)
+	}
+}
+
+// displayPath renders a value path for a message: `apps[].name` for the name of every element.
+func displayPath(path []string) string {
+	return strings.ReplaceAll(strings.Join(path, "."), "."+itemsKey, "[]")
 }
 
 // sortConstraints puts constraints in a deterministic order, whatever the map iteration order

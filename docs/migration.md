@@ -65,7 +65,9 @@ identically:
 Whatever the split leaves out has its *resolved* value frozen as a literal at the leaf,
 marked with a `TODO(myks migrate)` comment: application values in that application's file,
 environment values in `patch.k`. The result still renders identically; those literals are
-yours to replace with real KCL derivations.
+yours to replace with real KCL derivations. The marker is left out where every frozen value is
+accounted for — translated (see below), or stated plainly by the source next to the computed
+ones, as the other entries of an array that ytt resolved whole are.
 
 A value ytt resolved standalone carries no such comment, translated or not: the file it came
 from reads nothing outside itself, so the literal states everything its computation stated.
@@ -80,10 +82,10 @@ The application files unify into one accumulator, `_apps`, which `env.k` folds i
 
 ```kcl
 # envs/shop/prod/app-forwarder.k
-import myks as m
+import myks
 import prototypes.forwarder
 
-_apps: m.Apps {
+_apps: myks.Apps {
     forwarder = forwarder.Forwarder {
         application: {logLevel = "debug"}
     }
@@ -92,24 +94,32 @@ _apps: m.Apps {
 
 Adding an application is adding a file — nothing to register elsewhere. Within a level the
 later block wins, which is how the frozen values override the declaration above them in the
-same file. Splitting a level further is free the same way: any `.k` file you add next to
-`env.k` joins the package, so a level's own schemas can live in a file of their own.
+same file. Frozen values with nothing left to do (no `TODO(myks migrate)` marker) need no block
+of their own: they are written into the declaration, or the override, the level states anyway. Splitting a level further is free the same way: any `.k` file you add next to
+`env.k` joins the package, so a level's own schemas can live in a file of their own. The
+shared namespace cuts both ways: a module-level variable bound in two files of a level is one
+variable, which every reader sees with the value bound last. The converter prefixes a helper
+an application file binds with the application's name (`_web_get_uri`) where another file of
+the level binds the same name differently; keep to that when adding helpers by hand.
 
 ### Comments
 
 What a data-values file wrote above one of its values travels with that value: the note
-explaining why it is what it is, a tool's annotation such as Renovate's. A ytt comment marker
+explaining why it is what it is, a tool's annotation such as Renovate's. That holds inside a
+sequence element too, and blank lines between entries stay, as does the order the file states
+its keys in. A ytt comment marker
 (`#!`) means nothing outside a ytt template, so only its `#` is kept — a pattern matching such
 a comment in the generated files has to look for `# ` and for KCL's `key?: type = value`
-rather than YAML's `key: value`. Update those patterns before deleting the legacy files.
+rather than YAML's `key: value`. Update those patterns before deleting the legacy files. A
+carried comment that names a legacy file (`app-data`, `env-data`, `*.ytt.yaml`, `_apps/`) is
+reported, since it stops being true once the KCL tree replaces that file.
 
 A `#@` directive is not a comment but code, and is never carried: what it did is stated in
 KCL's own terms, or reported as not carried over.
 
-Two comments are left behind, both of them in the legacy file the conversion does not touch:
-one inside a sequence or after a value, which has no attribute of its own to sit above, and
-one the file ends with, which belongs to no value at all — the converter warns naming the file
-for that one, so a marker tracking a version the file does not state is not lost with it.
+The block a file ends with belongs to no value; the generated file ends with it instead, so a
+marker tracking a version the file does not state is not lost with the legacy file. A comment
+after a value, on its line, has no attribute of its own to sit above and is left behind.
 
 The legacy files are left in place so the conversion is easy to inspect and revert
 (`git checkout` / delete `kcl.mod`, `main.k` and the generated level files).
@@ -123,12 +133,19 @@ standalone is carried over as the derivation it was rather than the value it pro
 | --- | --- |
 | `#@ port = 8080` … `port: #@ port` | `_port = 8080` … `port?: int = _port` |
 | `purge_files_after: #@ 60 * 60 * 24` | `purge_files_after?: int = 60 * 60 * 24` |
-| `#@ for n in nodes:` `#@   hosts.append(n + "." + domain)` `#@ end` | `_hosts = _hosts + [n + "." + _domain for n in _nodes]` |
+| `#@ hosts = [domain]` `#@ for n in nodes:` `#@   hosts.append(n + "." + domain)` `#@ end` | `_hosts = [_domain] + [n + "." + _domain for n in _nodes]` |
 | `#@ load("secrets.star", "sops")` … `token: #@ sops("0", "api")` | `import lib` … `token?: str = lib.sops("0", "api")` |
+| `#@ for/end reg in registries:` `- name: #@ reg` | `[{name = reg} for reg in _registries]` |
+| `#@yaml/text-templated-strings` `key: "(@= sops("0", "k") @)\n"` | `key = """\` … `${lib.sops("0", "k")}` … `"""` |
 
 The prelude's top-level assignments become module-level `_`-prefixed variables of the
-generated file, pruned to the ones a derivation reads. A loop whose body only appends to
-lists becomes a comprehension over the same iterable.
+generated file, pruned to the ones a derivation reads; an assignment indented into the YAML
+body, as the list a `for/end` loop iterates usually is, counts as one too. A loop whose body
+only appends to lists becomes a comprehension over the same iterable, joined to the list's
+binding where nothing in between depends on the order. Comments in the prelude come along,
+including those between the elements of a list. A `for/end` loop over a sequence item becomes
+a list comprehension when the item computes nothing but inline expressions; a text template
+becomes a KCL string interpolating the same expressions.
 
 Every function of the repo's ytt library whose body is a single `return` is translated to a
 KCL lambda in `<ytt-library-dir>/<file>.k`, imported as one package by the files that call
@@ -145,14 +162,16 @@ and `@ytt:data`'s `data.values`.
 
 A file loading `@myks:data.lib.yaml` reads the data values of its environment, which only a
 leaf has — it never resolves standalone, and its computed values are frozen per leaf. Those
-values are translated too: `env_data` becomes `_lvl`, the level's environment data, which
+values are translated too: `env_data` becomes `_level`, the level's environment data, which
 `env.k` binds before folding the applications in, so the level's application files can read
 it.
 
 ```kcl
 # envs/alpha/app-traefik.k
-_apps: m.Apps {
-    traefik: {application: {tls: {baseDomains = _lvl.environment.hosts}}}
+_apps: myks.Apps {
+    traefik = traefik.Traefik {
+        application: {tls: {baseDomains = _level.environment.hosts, issuer = "cloudflare-zerossl"}}
+    }
 }
 ```
 
@@ -162,8 +181,8 @@ reproduces it, the leaf states the derivation; where it does not — the value d
 the level the file sits at — that leaf keeps the literal. Nothing is hoisted above the leaf
 that proved it.
 
-An **environment** value is never translated this way: `patch.k` is what `_lvl` is built
-from, so a derivation reading `_lvl` inside it would be circular.
+An **environment** value is never translated this way: `patch.k` is what `_level` is built
+from, so a derivation reading `_level` inside it would be circular.
 
 ## Step by step
 
@@ -225,11 +244,11 @@ from, so a derivation reading `_lvl` inside it would be circular.
 Every frozen block is a value that used to be computed by ytt and that the converter could
 not carry over. Move it to where it belongs and express the computation in KCL. Typical
 example — an app value derived from the environment id, which the engine regenerates and
-`_lvl` therefore carries under `id` rather than under `environment.id`:
+`_level` therefore carries under `id` rather than under `environment.id`:
 
 ```kcl
 # seed (frozen literal in envs/dev/app-argocd-tests.k):
-_apps: m.Apps {
+_apps: myks.Apps {
     "argocd-tests": {application: {envId = "mykso-dev"}}
 }
 ```
@@ -239,8 +258,8 @@ environment data — the derivation stays next to the value it feeds:
 
 ```kcl
 # envs/dev/app-argocd-tests.k — one block, no frozen literal left
-_apps: m.Apps {
-    "argocd-tests": {application: {envId = _lvl.id}}
+_apps: myks.Apps {
+    "argocd-tests": {application: {envId = _level.id}}
 }
 ```
 
@@ -257,11 +276,11 @@ gate will check.
 When a prototype's `app-data*` file is a schema document ytt could inspect, `proto.k` already
 carries what that schema said. A structured object value — one the ytt schema describes with
 properties — becomes a KCL schema of its own, so every field keeps its name, its type (`str`,
-`int`, `float`, `bool`, `{str:any}`, `[any]`, or `any` for `#@schema/type any=True`) and its
-default, at any depth:
+`int`, `float`, `bool`, `{str:any}`, a list of its element type such as `[str]`, or `any`
+for `#@schema/type any=True`) and its default, at any depth:
 
 ```kcl
-schema Webapp(m.App):
+schema Webapp(myks.App):
     proto: str = "webapp"
     application?: Application = Application {}
 
@@ -271,7 +290,7 @@ schema Application:
     ingress?: bool = True
 
     check:
-        len(image) >= 1 if image != Undefined, "application.image must be at least 1 long"
+        len(image) >= 1 if image != Undefined, "application.image must not be empty"
 ```
 
 A schema is named after the last segment of the path to it — `Application`, not
@@ -280,18 +299,20 @@ taken (`ServerTls` next to `Tls`). Every prototype is a KCL package of its own, 
 name is what call sites read: `webapp.Application`.
 
 An array whose ytt schema describes its element gets an element schema the same way, named
-after the array, and the attribute is typed `[Element]`:
+after the array in the singular (`ConfigItem` where the name reads as no plural), and the
+attribute is typed `[Element]`. A `min_len` on the array, and any validation on the element's
+keys, become checks there too:
 
 ```kcl
 schema Application:
-    clients?: [Clients] = []
+    clients?: [Client] = []
 
-schema Clients:
+schema Client:
     host?: str = ""
     port?: int = 5001
-    routes?: [Routes] = []
+    routes?: [Route] = []
 
-schema Routes:
+schema Route:
     path?: str = "/"
 ```
 
@@ -341,12 +362,12 @@ schema starts catching mistakes:
 
 ```kcl
 # seed:
-schema Forwarder(m.App):
+schema Forwarder(myks.App):
     proto: str = "forwarder"
     application?: {str:any} = {logLevel = "info"}
 
 # hand-finished:
-schema Forwarder(m.App):
+schema Forwarder(myks.App):
     proto: str = "forwarder"
     application: ForwarderApplication = ForwarderApplication {}
 

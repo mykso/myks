@@ -221,3 +221,11 @@ components:
 		})
 	}
 }
+
+func TestKclTypeArrays(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "[str]", kclType(&openapiNode{Type: "array", Items: &openapiNode{Type: "string"}}))
+	assert.Equal(t, "[[int]]", kclType(&openapiNode{Type: "array", Items: &openapiNode{Type: "array", Items: &openapiNode{Type: "integer"}}}))
+	assert.Equal(t, "[any]", kclType(&openapiNode{Type: "array", Items: &openapiNode{Type: "string", Nullable: true}}), "a null element would fail [str]")
+	assert.Equal(t, "[any]", kclType(&openapiNode{Type: "array"}))
+}

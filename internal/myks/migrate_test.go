@@ -1,15 +1,19 @@
 package myks
 
 import (
+	"fmt"
 	"maps"
 	"math"
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	yaml "gopkg.in/yaml.v3"
+	kcl "kcl-lang.io/kcl-go"
 )
 
 func TestFileComputes(t *testing.T) {
@@ -90,12 +94,18 @@ func TestKclScalar(t *testing.T) {
 		{true, "True"},
 		{false, "False"},
 		{"text", `"text"`},
-		{"with \"quotes\"", `"with \"quotes\""`},
+		{"with \"quotes\"", `'with "quotes"'`}, // single quotes save escaping double ones
+		{`both "kinds" 'of' quotes`, `"both \"kinds\" 'of' quotes"`},
+		{`back\slash "and" quote`, `'back\\slash "and" quote'`},
 		{42, "42"},
 		{int64(-7), "-7"},
 		{1.5, "1.5"},
 		{1.0, "1.0"},                            // integral floats keep the dot to stay floats in KCL
 		{"literal ${VAR}", `"literal \${VAR}"`}, // KCL interpolates ${...} in string literals
+		{"two\nlines\n", "\"\"\"\\\ntwo\nlines\n\"\"\""},
+		{"a\\b\n${x} \"q\" end", "\"\"\"\\\na\\\\b\n\\${x} \"q\" end\"\"\""},
+		{"ends with\n\"", "\"\"\"\\\nends with\n\\\"\"\"\""},
+		{"bell\a\n", `"bell\a\n"`}, // a control character keeps the escapes
 	}
 	for _, tt := range tests {
 		got, err := kclScalar(tt.value)
@@ -119,6 +129,8 @@ func TestWriteKclEntries(t *testing.T) {
 		"emptyDict":  map[string]any{},
 		"nullValue":  nil,
 		"floatValue": 2.0,
+		"scalars":    []any{"a", 1, true},
+		"long":       []any{strings.Repeat("x", 50), strings.Repeat("y", 50)},
 	}
 
 	assign := &kclWriter{}
@@ -132,11 +144,16 @@ list = [
     }
     2
 ]
+long = [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+]
 nested = {
     inner = 1
 }
 nullValue = None
 plain = "v"
+scalars = ["a", 1, True]
 "weird-key" = True
 `, assign.String())
 
@@ -334,9 +351,9 @@ components:
 
 	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "kb_mcp", protoKFileName))
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "schema KbMcp(m.App):\n    [...str]: any\n    proto: str = \"kb_mcp\"\n")
+	assert.Contains(t, string(content), "schema KbMcp(myks.App):\n    [...str]: any\n    proto: str = \"kb_mcp\"\n")
 	assert.Contains(t, string(content), "image?: str = \"kb-mcp:1.0.0\"", "the inspected schema types the attribute")
-	assert.Contains(t, string(content), "\n    check:\n        len(image) >= 1, \"image must be at least 1 long\"\n")
+	assert.Contains(t, string(content), "\n    check:\n        len(image) >= 1, \"image must not be empty\"\n")
 	assert.Contains(t, string(content), "helm?: {str:any} = {", "a value the schema does not describe stays a literal")
 }
 
@@ -381,9 +398,9 @@ components:
 	assert.Contains(t, string(content), "    image?: str\n", "a demanded value is declared without a default")
 	assert.Contains(t, string(content),
 		"schema Application:\n    [...str]: any\n    containerPort?: int = 80\n    ingress?: bool = True\n    name?: str\n")
-	assert.Contains(t, string(content), `len(name) >= 1 if name != Undefined, "application.name must be at least 1 long"`,
+	assert.Contains(t, string(content), `len(name) >= 1 if name != Undefined, "application.name must not be empty"`,
 		"a nested check lives in the schema that owns the field")
-	assert.Contains(t, string(content), `len(image) >= 1 if image != Undefined, "image must be at least 1 long"`)
+	assert.Contains(t, string(content), `len(image) >= 1 if image != Undefined, "image must not be empty"`)
 	assert.Empty(t, m.warnings)
 }
 
@@ -457,18 +474,18 @@ func TestRenderLevelFiles(t *testing.T) {
 		[]string{"app-cache.k", "app-web.k", envKFileName, patchKFileName},
 		slices.Sorted(maps.Keys(files)))
 
-	assert.Contains(t, files[envKFileName], "_apps: m.Apps {}\n")
+	assert.Contains(t, files[envKFileName], "_apps: myks.Apps {}\n")
 	// The level variable carries what the level inherits, states and freezes — and no
 	// applications: the level's application files read it, and they are what feeds `_apps`.
-	assert.Contains(t, files[envKFileName], "_lvl = parent.env | {\n    id = \"dev\"\n} | _patch\n")
+	assert.Contains(t, files[envKFileName], "_level = parent.env | {\n    id = \"dev\"\n} | _patch\n")
 	assert.Contains(t, files[envKFileName],
-		"env = m.finalize(_lvl | {applications: {k: v for k, v in _apps}})\n")
+		"env = myks.finalize(_level | {applications: {k: v for k, v in _apps}})\n")
 
 	// Declaration and frozen values of one application, in that order: the later block wins.
 	assert.Contains(t, files["app-web.k"],
-		"_apps: m.Apps {\n    web = m.App {\n        replicas = 3\n    }\n}\n")
-	assert.Contains(t, files["app-web.k"], "_apps: m.Apps {\n    web: {\n        computed = \"x\"\n    }\n}\n")
-	assert.Contains(t, files["app-cache.k"], "_apps: m.Apps {\n    cache: {\n        replicas = 1\n    }\n}\n")
+		"_apps: myks.Apps {\n    web = myks.App {\n        replicas = 3\n    }\n}\n")
+	assert.Contains(t, files["app-web.k"], "_apps: myks.Apps {\n    web: {\n        computed = \"x\"\n    }\n}\n")
+	assert.Contains(t, files["app-cache.k"], "_apps: myks.Apps {\n    cache: {\n        replicas = 1\n    }\n}\n")
 
 	assert.Contains(t, files[patchKFileName], "_patch = {\n    computed = \"y\"\n}\n")
 }
@@ -526,9 +543,9 @@ components:
 
 	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "csi", protoKFileName))
 	require.NoError(t, err)
-	assert.Contains(t, string(content), "    clients?: [Clients] = []\n")
+	assert.Contains(t, string(content), "    clients?: [Client] = []\n")
 	assert.Contains(t, string(content),
-		"schema Clients:\n    [...str]: any\n    host?: str = \"\"\n    insecureSkipVerify?: bool = False\n    port?: int = 5001\n")
+		"schema Client:\n    [...str]: any\n    host?: str = \"\"\n    insecureSkipVerify?: bool = False\n    port?: int = 5001\n")
 	assert.Contains(t, string(content), "    registries?: any\n", "not_null prunes the null default")
 	assert.Contains(t, string(content),
 		`registries != None if registries != Undefined, "application.registries must not be null"`)
@@ -591,11 +608,11 @@ components:
 	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "home", protoKFileName))
 	require.NoError(t, err)
 	// The element of an array inside an array element is typed too, down to the last field.
-	assert.Contains(t, string(content), "    config?: [Config] = []\n")
+	assert.Contains(t, string(content), "    config?: [ConfigItem] = []\n")
 	assert.Contains(t, string(content),
-		"schema Config:\n    category?: str = \"Category\"\n    services?: [Services] = []\n")
+		"schema ConfigItem:\n    category?: str = \"Category\"\n    services?: [Service] = []\n")
 	assert.Contains(t, string(content),
-		"schema Services:\n    iconBubble?: bool = True\n    name?: str = \"Arch\"\n")
+		"schema Service:\n    iconBubble?: bool = True\n    name?: str = \"Arch\"\n")
 	// The ytt schema closed every scope, so nothing needs an index signature.
 	assert.NotContains(t, string(content), "[...str]: any")
 
@@ -622,8 +639,262 @@ func TestClaimName(t *testing.T) {
 	// Nothing above the root is left to lengthen with, so the last resort numbers the name.
 	assert.Equal(t, "IngressServerTls2", p.claimName([]string{"ingress", "server", "tls"}))
 	// An element schema is named after its array, and never takes a KCL literal's name.
-	assert.Equal(t, "Clients", p.claimName([]string{"clients", itemsKey}))
+	assert.Equal(t, "Client", p.claimName([]string{"clients", itemsKey}))
+	assert.Equal(t, "Policy", p.claimName([]string{"policies", itemsKey}))
+	assert.Equal(t, "EnvItem", p.claimName([]string{"env", itemsKey}))
+	assert.Equal(t, "AddressItem", p.claimName([]string{"address", itemsKey}))
+	// A private bag is no schema name; underscores read as word breaks.
+	assert.Equal(t, "Private", p.claimName([]string{"_"}))
+	assert.Equal(t, "TlsConfig", p.claimName([]string{"tls_config"}))
 	assert.Equal(t, "ApplicationUndefined", p.claimName([]string{"application", "undefined"}))
 	// The root schema's own name is taken.
 	assert.Equal(t, "ApplicationWebapp", p.claimName([]string{"application", "webapp"}))
+}
+
+func TestWriteKclEntriesSourceOrder(t *testing.T) {
+	b := &kclWriter{comments: map[string][]string{
+		keyOrderPath(""):      {"zeta", "alpha"},
+		keyOrderPath(".zeta"): {"b", "a"},
+		".alpha":              {"", "# grouped apart"},
+		".zeta.a":             {""},
+	}}
+	writeKclEntries(b, map[string]any{
+		"alpha": 1, "zeta": map[string]any{"a": 1, "b": 2}, "extra": 3,
+	}, 0, false, "")
+	assert.Equal(t, `zeta = {
+    b = 2
+
+    a = 1
+}
+
+# grouped apart
+alpha = 1
+extra = 3
+`, b.String())
+}
+
+func TestLeafImportNames(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t,
+		[]string{"alpha", "env_2", "env_3", "env_4"},
+		leafImportNames([]string{"envs/alpha", "envs/eu/prod", "envs/us/prod", "envs/myks"}))
+}
+
+// TestKclScalarRoundTrip evaluates the rendered string literals with KCL itself: whatever
+// quoting kclScalar picks, KCL has to read back the very same string.
+func TestKclScalarRoundTrip(t *testing.T) {
+	values := []string{
+		`plain`, `with "double" quotes`, `with 'single' quotes`, `both "kinds" 'of'`,
+		`back\slash`, `${not interpolated}`, "tab\tand\nnewline\n", "two\nlines",
+		"text block with \"\"\" inside\n", "ends with a quote\n\"", "a\\b\n\\${x}\n",
+		"unicode ✓\nline", "bell\a\n",
+	}
+	dir := t.TempDir()
+	var b strings.Builder
+	for i, value := range values {
+		literal, err := kclScalar(value)
+		require.NoError(t, err)
+		fmt.Fprintf(&b, "v%d = %s\n", i, literal)
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "main.k"), []byte(b.String()), 0o600))
+	res, err := kcl.Run(filepath.Join(dir, "main.k"))
+	require.NoError(t, err, b.String())
+	evaluated := map[string]any{}
+	require.NoError(t, yaml.Unmarshal([]byte(res.GetRawYamlResult()), &evaluated))
+	for i, value := range values {
+		assert.Equal(t, value, evaluated[fmt.Sprintf("v%d", i)], "literal %d:\n%s", i, b.String())
+	}
+}
+
+func TestMergeComments(t *testing.T) {
+	t.Parallel()
+	merged := mergeComments(
+		map[string][]string{".a": {"# first"}, keyOrderPath(""): {"b", "a"}, trailingCommentsPath: {"# end one"}},
+		map[string][]string{".a": {"# second"}, keyOrderPath(""): {"c", "a"}, trailingCommentsPath: {"# end two"}},
+	)
+	assert.Equal(t, map[string][]string{
+		".a":                 {"# second"},
+		keyOrderPath(""):     {"b", "a", "c"},
+		trailingCommentsPath: {"# end one", "", "# end two"},
+	}, merged)
+}
+
+func TestWriteProtoKArrayValidations(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	source := []byte(`#@data/values-schema
+---
+application:
+  #@schema/validation min_len=1
+  apps:
+    - app_id: 0
+      #@schema/validation min_len=1
+      name: ''
+`)
+	schema, err := parseSchemaInspect([]byte(`
+components:
+  schemas:
+    dataValues:
+      type: object
+      properties:
+        application:
+          type: object
+          additionalProperties: false
+          properties:
+            apps:
+              type: array
+              default: []
+              minItems: 1
+              items:
+                type: object
+                additionalProperties: false
+                properties:
+                  app_id: {type: integer, default: 0}
+                  name: {type: string, default: "", minLength: 1}
+`))
+	require.NoError(t, err)
+
+	m := &migrator{g: &Globe{Config: Config{RootDir: dir, PrototypesDir: "prototypes"}}}
+	m.carryValidations("app-data.schema.yaml", source, schema)
+	values := schema.defaults
+	pruneDemandedDefaults(values, schema)
+	m.protoSchemas = map[string]string{"sts": "Sts"}
+	m.protoBase = map[string]map[string]any{"sts": values}
+	m.protoInspected = map[string]*inspectedSchema{"sts": schema}
+	m.protoPlans = map[string]*protoSchemaPlan{"sts": newProtoSchemaPlan("Sts", values, schema)}
+	require.NoError(t, m.writeProtoK("sts"))
+
+	content, err := os.ReadFile(filepath.Join(dir, "prototypes", "sts", protoKFileName))
+	require.NoError(t, err)
+	// The empty default fails min_len, so the array is demanded instead of defaulted.
+	assert.Contains(t, string(content), "    apps?: [App]\n")
+	assert.Contains(t, string(content),
+		`len(apps) >= 1 if apps != Undefined, "application.apps must not be empty"`)
+	assert.Contains(t, string(content),
+		"schema App:\n    app_id?: int = 0\n    name?: str = \"\"\n\n    check:\n        len(name) >= 1, \"application.apps[].name must not be empty\"\n")
+	assert.Empty(t, m.warnings)
+}
+
+func TestLevelRenames(t *testing.T) {
+	t.Parallel()
+	m := &migrator{
+		g:            &Globe{Config: Config{PrototypesDir: "prototypes"}},
+		nodes:        map[string]*migNode{},
+		protoSchemas: map[string]string{},
+	}
+	m.root = m.newNode("envs", nil)
+	m.root.envDerived = &derivations{
+		exprs:   map[string]string{".environment.port": "_port"},
+		prelude: []string{"_port = 80"},
+	}
+	for _, name := range []string{"api", "web"} {
+		m.root.overrides[name] = map[string]any{"port": 0, "url": ""}
+	}
+	// `api` binds `_port` differently from env.k, so its own is renamed. Its `_url` claims
+	// the name first; web's, which reads another `_port`, then differs and is renamed.
+	m.root.appDerived["api"] = &derivations{
+		exprs:   map[string]string{".port": "_port", ".url": "_url"},
+		prelude: []string{"_port = 8080", `_url = "http://x:{}".format(_port)`},
+	}
+	m.root.appDerived["web"] = &derivations{
+		exprs:   map[string]string{".port": "_port", ".url": "_url"},
+		prelude: []string{"_port = 80", `_url = "http://x:{}".format(_port)`},
+	}
+
+	files, err := m.renderNodeFiles(m.root, nil)
+	require.NoError(t, err)
+	assert.Contains(t, files["app-api.k"], "_api_port = 8080\n"+`_url = "http://x:{}".format(_api_port)`+"\n")
+	assert.Contains(t, files["app-api.k"], "port = _api_port\n")
+	assert.Contains(t, files["app-web.k"], "_port = 80\n"+`_web_url = "http://x:{}".format(_port)`+"\n")
+	assert.Contains(t, files["app-web.k"], "url = _web_url\n")
+}
+
+func TestRenameIdents(t *testing.T) {
+	t.Parallel()
+	renames := map[string]string{"_a": "_x_a"}
+	assert.Equal(t, `_x_a + f(_x_a) + "_a" + '_a' + y._a + _ab`, renameIdents(`_a + f(_a) + "_a" + '_a' + y._a + _ab`, renames))
+	assert.Equal(t, `"esc \" _a" + _x_a`, renameIdents(`"esc \" _a" + _a`, renames))
+}
+
+func TestFrozenNeedsWork(t *testing.T) {
+	t.Parallel()
+	derived := &derivations{
+		exprs:    map[string]string{".s[1].uri": `_uri("vault")`},
+		literals: map[string]any{".s[0].uri": "https://grafana.example", ".s[1].name": "Vault"},
+	}
+	explained := map[string]any{"s": []any{
+		map[string]any{"uri": "https://grafana.example"},
+		map[string]any{"name": "Vault", "uri": "https://vault.example"},
+	}}
+	assert.False(t, frozenNeedsWork(explained, derived, ""), "derived or stated plainly by the source")
+	changed := map[string]any{"s": []any{map[string]any{"uri": "https://other.example"}}}
+	assert.True(t, frozenNeedsWork(changed, derived, ""), "differs from what the source stated")
+	assert.True(t, frozenNeedsWork(map[string]any{"x": 1}, nil, ""), "nothing accounts for it")
+}
+
+func TestRenderAppKJoinsAccountedFrozenBlock(t *testing.T) {
+	t.Parallel()
+	m := &migrator{
+		g:            &Globe{Config: Config{PrototypesDir: "prototypes"}},
+		nodes:        map[string]*migNode{},
+		protoSchemas: map[string]string{},
+	}
+	m.root = m.newNode("envs", nil)
+	leaf := m.newNode(filepath.Join("envs", "dev"), m.root)
+	leaf.env = &Environment{ID: "dev"}
+	leaf.declared["web"] = migApp{name: "web", proto: "web", values: map[string]any{"replicas": 3}}
+	leaf.appPatches["web"] = map[string]any{"url": "https://web.dev", "title": "Web"}
+	leaf.appPatchDerived["web"] = &derivations{
+		exprs:    map[string]string{".url": `"https://web." + _level.id`},
+		literals: map[string]any{".title": "Web"},
+	}
+
+	content, err := m.renderAppK(leaf, "web", nil)
+	require.NoError(t, err)
+	assert.NotContains(t, content, "TODO(myks migrate)")
+	assert.Equal(t, 1, strings.Count(content, "_apps:"), content)
+	assert.Contains(t, content, "replicas = 3\n")
+	assert.Contains(t, content, `url = "https://web." + _level.id`+"\n")
+	assert.Contains(t, content, `title = "Web"`+"\n")
+
+	// A value nothing accounts for keeps its own block, marked.
+	leaf.appPatches["web"]["extra"] = 1
+	content, err = m.renderAppK(leaf, "web", nil)
+	require.NoError(t, err)
+	assert.Contains(t, content, "TODO(myks migrate)")
+	assert.Equal(t, 2, strings.Count(content, "_apps:"), content)
+}
+
+func TestReadCommentsWarnsOnLegacyFileRefs(t *testing.T) {
+	t.Parallel()
+	m := &migrator{g: &Globe{}}
+	m.readComments("prototypes/kb/app-data.schema.yaml", []byte(`application:
+  #! Must be set in envs/_apps/kb-mcp/app-data.ytt.yaml
+  repo: ""
+  #! The OAuth client id.
+  client: ""
+`), true)
+	require.Len(t, m.warnings, 1)
+	assert.Contains(t, m.warnings[0], "# Must be set in envs/_apps/kb-mcp/app-data.ytt.yaml")
+	assert.NotContains(t, m.warnings[0], "OAuth")
+}
+
+func TestWrapKclExpr(t *testing.T) {
+	t.Parallel()
+	short := `[{a = 1} for x in _xs]`
+	assert.Equal(t, short, wrapKclExpr(short, 4, 4))
+
+	long := `[{match = {registry = reg.replace(".", "\\."), repository = "(.+)"}, replace = {registry = "oci.zebradil.dev", repository = reg + "-cache/$1"}} for reg in _registries]`
+	assert.Equal(t, `[
+        {
+            match = {registry = reg.replace(".", "\\."), repository = "(.+)"}
+            replace = {registry = "oci.zebradil.dev", repository = reg + "-cache/$1"}
+        } for reg in _registries
+    ]`, wrapKclExpr(long, 20, 4))
+
+	call := `lib.format("` + strings.Repeat("x", 60) + `", "` + strings.Repeat("y", 40) + `, {not a group}")`
+	assert.Equal(t, `lib.format(
+    "`+strings.Repeat("x", 60)+`",
+    "`+strings.Repeat("y", 40)+`, {not a group}"
+)`, wrapKclExpr(call, 0, 0))
 }

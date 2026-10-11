@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	yaml "gopkg.in/yaml.v3"
@@ -75,13 +77,86 @@ type yttSplit struct {
 	// exprs maps the dotted path of a dropped entry to the ytt expression that computed it,
 	// where the source states it inline (`key: #@ expr`).
 	exprs map[string]string
+	// literals maps the dotted path of a scalar inside a dropped sequence or block to the
+	// value the source states for it plainly, next to the expressions: a frozen value equal
+	// to it is what the source said, not something ytt computed.
+	literals map[string]any
+	// templates maps the dotted path of a dropped `#@yaml/text-templated-strings` scalar to
+	// its text, split at the `(@= expr @)` it interpolates.
+	templates map[string][]templatePart
+}
+
+// templatePart is one piece of a ytt text template: literal text, or an expression.
+type templatePart struct {
+	text   string
+	isExpr bool
+}
+
+// textTemplateRe matches the annotation that makes ytt interpolate `(@= expr @)` in a string.
+var textTemplateRe = regexp.MustCompile(`^\s*#@yaml/text-templated-strings\s*$`)
+
+// parseTextTemplate splits a ytt text template at its `(@= expr @)` interpolations. Any other
+// `(@ ... @)` block is code, which a KCL string cannot state, and fails the parse.
+func parseTextTemplate(text string) ([]templatePart, bool) {
+	var parts []templatePart
+	for {
+		start := strings.Index(text, "(@")
+		if start < 0 {
+			break
+		}
+		if !strings.HasPrefix(text[start:], "(@=") {
+			return nil, false
+		}
+		end := strings.Index(text[start:], "@)")
+		if end < 0 {
+			return nil, false
+		}
+		expr := strings.TrimSpace(text[start+3 : start+end])
+		if expr == "" || strings.HasPrefix(expr, "-") || strings.HasSuffix(expr, "-") {
+			// The trim markers change the text around the interpolation.
+			return nil, false
+		}
+		if start > 0 {
+			parts = append(parts, templatePart{text: text[:start]})
+		}
+		parts = append(parts, templatePart{text: expr, isExpr: true})
+		text = text[start+end+2:]
+	}
+	if text != "" {
+		parts = append(parts, templatePart{text: text})
+	}
+	return parts, slices.ContainsFunc(parts, func(part templatePart) bool { return part.isExpr })
+}
+
+// recordTemplate records the text template of a dropped scalar whose only computation is the
+// `#@yaml/text-templated-strings` annotation above it.
+func (s *yttSplit) recordTemplate(value *yaml.Node, path string, start, keyLine int) {
+	if value.Kind != yaml.ScalarNode {
+		return
+	}
+	annotated := false
+	for _, line := range s.lines[start : keyLine-1] {
+		if !lineComputes(line) {
+			continue
+		}
+		if !textTemplateRe.MatchString(line) {
+			return
+		}
+		annotated = true
+	}
+	if !annotated || lineComputes(s.lines[keyLine-1]) {
+		return
+	}
+	if parts, ok := parseTextTemplate(value.Value); ok {
+		s.templates[path] = parts
+	}
 }
 
 // splitYttFile removes from content every value ytt computes, together with the Starlark that
 // computes it, and returns what remains. An error means the file cannot be split — the caller
 // falls back to skipping it whole.
 func splitYttFile(content []byte) (*yttSplit, error) {
-	s := &yttSplit{lines: strings.Split(string(content), "\n"), exprs: map[string]string{}}
+	s := &yttSplit{lines: strings.Split(string(content), "\n"), exprs: map[string]string{}, literals: map[string]any{}, templates: map[string][]templatePart{}}
 	s.computes = make([]bool, len(s.lines))
 	s.dropped = make([]bool, len(s.lines))
 	for i, line := range s.lines {
@@ -140,6 +215,7 @@ func (s *yttSplit) pruneMapping(node *yaml.Node, path []string) int {
 		// which is where `key: #@ expr` puts the computation.
 		if s.computesIn(start, key.Line-1) {
 			s.drop(childPath, key.Line, start, end)
+			s.recordTemplate(value, "."+strings.Join(childPath, "."), start, key.Line)
 			continue
 		}
 		switch {
@@ -190,24 +266,166 @@ func (s *yttSplit) drop(path []string, keyLine, start, end int) {
 	}
 }
 
-// recordExprs records the ytt expressions inside a dropped value, addressing a sequence
-// element by its index: `.config[0].services[1].uri`.
+// recordExprs records the ytt expressions inside a dropped value, and the scalars it states
+// plainly, addressing a sequence element by its index: `.config[0].services[1].uri`. A value
+// with any other computation on or above its line is neither.
 func (s *yttSplit) recordExprs(node *yaml.Node, path string) {
 	switch node.Kind {
 	case yaml.SequenceNode:
+		if loop, ok := s.forEndLoop(node); ok {
+			s.exprs[path] = loop
+			return
+		}
 		for i, item := range node.Content {
-			s.recordExprs(item, fmt.Sprintf("%s[%d]", path, i))
+			itemPath := fmt.Sprintf("%s[%d]", path, i)
+			// A mapping item's first key shares the item's line, and is checked as a key.
+			if item.Kind != yaml.MappingNode {
+				if start, _ := s.entryRange(item.Line); s.computesIn(start, item.Line-1) {
+					continue
+				}
+			}
+			s.recordExprs(item, itemPath)
 		}
 	case yaml.MappingNode:
 		for i := 0; i+1 < len(node.Content); i += 2 {
 			key, value := node.Content[i], node.Content[i+1]
 			childPath := path + "." + key.Value
-			if expr, ok := inlineYttExpr(s.lines[key.Line-1]); ok {
-				s.exprs[childPath] = expr
+			if start, _ := s.entryRange(key.Line); s.computesIn(start, key.Line-1) {
+				if expr, ok := inlineYttExpr(s.lines[key.Line-1]); ok {
+					s.exprs[childPath] = expr
+				}
+				s.recordTemplate(value, childPath, start, key.Line)
+				continue
 			}
 			s.recordExprs(value, childPath)
 		}
+	case yaml.ScalarNode:
+		var value any
+		if node.Decode(&value) == nil {
+			s.literals[path] = value
+		}
 	}
+}
+
+// forEndRe matches the annotation repeating a sequence item once per element of an iterable.
+var forEndRe = regexp.MustCompile(`^\s*#@\s*for/end\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+(.+):\s*$`)
+
+// forEndLoop states a sequence built by `#@ for/end x in xs:` over its one item as the
+// Starlark list comprehension it amounts to: `[{"name": x} for x in xs]`. Only an item whose
+// computation is inline expressions qualifies, and only prelude assignments may precede the
+// loop annotation; anything else is left to the resolved value.
+func (s *yttSplit) forEndLoop(node *yaml.Node) (string, bool) {
+	if len(node.Content) != 1 {
+		return "", false
+	}
+	item := node.Content[0]
+	annotation := item.Line - 2
+	if annotation < 0 {
+		return "", false
+	}
+	loop := forEndRe.FindStringSubmatch(s.lines[annotation])
+	if loop == nil {
+		return "", false
+	}
+	start, _ := entryRange(s.lines, item.Line)
+	open := 0
+	for _, line := range s.lines[start:annotation] {
+		if !lineComputes(line) {
+			continue
+		}
+		statement := strings.TrimPrefix(strings.TrimLeft(line, " "), "#@")
+		if open == 0 && !assignmentRe.MatchString(statement) {
+			return "", false
+		}
+		open += bracketBalance(statement)
+	}
+	if open != 0 {
+		return "", false
+	}
+	body, ok := s.starlarkOf(item, true)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("[%s for %s in %s]", body, loop[1], strings.TrimSpace(loop[2])), true
+}
+
+// starlarkOf writes a YAML value as a Starlark expression, its inline `#@ expr` values as the
+// expressions they are. A value with any other computation has none. The first key of a loop's
+// item shares the item's line, whose annotations the caller has checked.
+func (s *yttSplit) starlarkOf(node *yaml.Node, loopItem bool) (string, bool) {
+	switch node.Kind {
+	case yaml.MappingNode:
+		entries := make([]string, 0, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			key, value := node.Content[i], node.Content[i+1]
+			start := key.Line - 1
+			if !loopItem || i > 0 {
+				start, _ = entryRange(s.lines, key.Line)
+			}
+			var expr string
+			if s.computesIn(start, key.Line-1) {
+				inline, ok := inlineYttExpr(s.lines[key.Line-1])
+				if !ok || s.computesIn(start, key.Line-2) {
+					return "", false
+				}
+				expr = inline
+			} else {
+				var ok bool
+				if expr, ok = s.starlarkOf(value, false); !ok {
+					return "", false
+				}
+			}
+			entries = append(entries, strconv.Quote(key.Value)+": "+expr)
+		}
+		return "{" + strings.Join(entries, ", ") + "}", true
+	case yaml.SequenceNode:
+		elements := make([]string, 0, len(node.Content))
+		for _, item := range node.Content {
+			if start, _ := entryRange(s.lines, item.Line); s.computesIn(start, item.Line-1) {
+				return "", false
+			}
+			element, ok := s.starlarkOf(item, false)
+			if !ok {
+				return "", false
+			}
+			elements = append(elements, element)
+		}
+		return "[" + strings.Join(elements, ", ") + "]", true
+	case yaml.ScalarNode:
+		var value any
+		if node.Decode(&value) != nil {
+			return "", false
+		}
+		return starlarkScalar(value)
+	}
+	return "", false
+}
+
+// starlarkScalar writes a decoded YAML scalar as a Starlark literal.
+func starlarkScalar(value any) (string, bool) {
+	switch typed := value.(type) {
+	case nil:
+		return "None", true
+	case bool:
+		if typed {
+			return "True", true
+		}
+		return "False", true
+	case string:
+		return strconv.Quote(typed), true
+	case int:
+		return strconv.Itoa(typed), true
+	case float64:
+		if math.IsNaN(typed) || math.IsInf(typed, 0) {
+			return "", false
+		}
+		formatted := strconv.FormatFloat(typed, 'g', -1, 64)
+		if !strings.ContainsAny(formatted, ".e") {
+			formatted += ".0"
+		}
+		return formatted, true
+	}
+	return "", false
 }
 
 // inlineYttExpr returns the ytt expression a mapping entry states on its own line, as in
@@ -291,8 +509,8 @@ var (
 )
 
 // yttValidations returns the `#@schema/validation` annotations of a schema document, each with
-// the path of the value it annotates. A validation inside a sequence constrains one element
-// rather than a path in the document and is skipped, matching the inspected schema.
+// the path of the value it annotates. A validation on a key of a sequence's element is
+// anchored below the sequence at itemsKey, matching the inspected schema.
 func yttValidations(content []byte) ([]yttValidation, error) {
 	lines := strings.Split(string(content), "\n")
 	var found []yttValidation
@@ -326,8 +544,12 @@ func collectValidations(node *yaml.Node, lines, path []string, out *[]yttValidat
 			}
 			*out = append(*out, yttValidation{path: childPath, kwargs: validationKwargs(match[1])})
 		}
-		if value.Kind == yaml.MappingNode {
+		switch {
+		case value.Kind == yaml.MappingNode:
 			collectValidations(value, lines, childPath, out)
+		case value.Kind == yaml.SequenceNode && len(value.Content) > 0 && value.Content[0].Kind == yaml.MappingNode:
+			// A schema's one sequence item describes every element.
+			collectValidations(value.Content[0], lines, append(childPath, itemsKey), out)
 		}
 	}
 }
@@ -346,20 +568,27 @@ func validationKwargs(args string) []string {
 }
 
 // yttComment is the comment block a data-values file writes above one of its values, ready to
-// be written into the generated KCL.
+// be written into the generated KCL, or the order a mapping states its keys in (keyOrderPath).
 type yttComment struct {
-	path  []string
+	path  string // the dotted value path, as the KCL writer addresses values
 	lines []string
 }
 
 // yttComments returns the comments a data-values file writes above its mapping keys, each with
 // the path of the value it belongs to. The conversion moves a value out of the file it was
 // written in, and what someone wrote next to it — why the value is what it is, a tool's
-// annotation such as Renovate's — has to travel with it.
+// annotation such as Renovate's — has to travel with it. A blank line above a key travels as
+// an empty line of its block, so the groups the file separated stay separated.
 //
-// Only the block above a mapping key is read. A comment inside a sequence or after a value
-// has no attribute of its own to sit above in the generated schema, and is left behind.
-func yttComments(content []byte) ([]yttComment, error) {
+// It also returns the order every mapping states its keys in: the converted values are Go
+// maps, and the generated file would otherwise list them alphabetically.
+//
+// Only the block above a mapping key or a sequence item is read. A comment after a value has
+// no attribute of its own to sit above in the generated schema, and is left behind. In a
+// schema document a sequence's one item describes every element, so what is written inside
+// it belongs to the element schema; in a data-values document each item is addressed by its
+// index.
+func yttComments(content []byte, schema bool) ([]yttComment, error) {
 	lines := strings.Split(string(content), "\n")
 	var found []yttComment
 	decoder := yaml.NewDecoder(bytes.NewReader(content))
@@ -374,18 +603,25 @@ func yttComments(content []byte) ([]yttComment, error) {
 		if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
 			continue
 		}
-		collectComments(doc.Content[0], lines, nil, &found)
+		collectComments(doc.Content[0], lines, "", schema, &found)
 	}
 	if trailing := trailingComments(lines); len(trailing) > 0 {
-		found = append(found, yttComment{lines: trailing})
+		found = append(found, yttComment{path: trailingCommentsPath, lines: trailing})
 	}
 	return found, nil
 }
 
-// trailingComments returns the comment block a file ends with, which sits above no value and
-// therefore reaches no attribute of the generated KCL. It is reported so that a note left
-// there — a Renovate marker tracking a version the file does not state, say — is not lost
-// with the legacy file.
+// trailingCommentsPath is where the comment index of a file keeps the block the file ends
+// with: no value path is empty.
+const trailingCommentsPath = ""
+
+// keyOrderPath is where the comment index of a file keeps the key order of the mapping at a
+// dotted path. The prefix is no possible start of a value path, which always starts with a dot.
+func keyOrderPath(path string) string { return "\x02" + path }
+
+// trailingComments returns the comment block a file ends with, which sits above no value. The
+// generated file ends with it too, so that a note left there — a Renovate marker tracking a
+// version the file does not state, say — is not lost with the legacy file.
 func trailingComments(lines []string) []string {
 	var block []string
 	for i := len(lines) - 1; i >= 0; i-- {
@@ -403,28 +639,61 @@ func trailingComments(lines []string) []string {
 	return block
 }
 
-func collectComments(node *yaml.Node, lines, path []string, out *[]yttComment) {
+func collectComments(node *yaml.Node, lines []string, path string, schema bool, out *[]yttComment) {
+	keys := make([]string, 0, len(node.Content)/2)
 	for i := 0; i+1 < len(node.Content); i += 2 {
 		key, value := node.Content[i], node.Content[i+1]
-		childPath := append(slices.Clone(path), key.Value)
-		// The comment block of an entry reaches from the blank line above it to its own line.
-		start, _ := entryRange(lines, key.Line)
-		var block []string
-		for _, line := range lines[start:key.Line] {
-			line = strings.TrimSpace(line)
-			// A `#@` directive is a comment to YAML but code to ytt: it carries no meaning
-			// into KCL, where the value it annotated is stated in KCL's own terms.
-			if !strings.HasPrefix(line, "#") || strings.HasPrefix(line, "#@") {
-				continue
+		childPath := path + "." + key.Value
+		keys = append(keys, key.Value)
+		collectBlock(lines, key.Line, i > 0, childPath, out)
+		collectNested(value, lines, childPath, schema, out)
+	}
+	*out = append(*out, yttComment{path: keyOrderPath(path), lines: keys})
+}
+
+// collectNested descends into a mapping or sequence value.
+func collectNested(node *yaml.Node, lines []string, path string, schema bool, out *[]yttComment) {
+	switch node.Kind {
+	case yaml.MappingNode:
+		collectComments(node, lines, path, schema, out)
+	case yaml.SequenceNode:
+		for i, item := range node.Content {
+			itemPath := elementPath(path, i)
+			if schema {
+				itemPath = path + "." + itemsKey
 			}
-			block = append(block, kclComment(line))
+			if item.Kind != yaml.MappingNode {
+				// A mapping item's first key sits on the item's line and claims its block.
+				collectBlock(lines, item.Line, i > 0, itemPath, out)
+			}
+			collectNested(item, lines, itemPath, schema, out)
+			if schema {
+				break
+			}
 		}
-		if len(block) > 0 {
-			*out = append(*out, yttComment{path: childPath, lines: block})
+	}
+}
+
+// collectBlock records the comment block above the entry on line (1-based): from the blank
+// line above it to the entry itself. A blank line above an entry that is not the first of its
+// collection is recorded as an empty first line.
+func collectBlock(lines []string, line int, separable bool, path string, out *[]yttComment) {
+	start, _ := entryRange(lines, line)
+	var block []string
+	if separable && start > 0 && strings.TrimSpace(lines[start-1]) == "" {
+		block = append(block, "")
+	}
+	for _, text := range lines[start : line-1] {
+		text = strings.TrimSpace(text)
+		// A `#@` directive is a comment to YAML but code to ytt: it carries no meaning
+		// into KCL, where the value it annotated is stated in KCL's own terms.
+		if !strings.HasPrefix(text, "#") || strings.HasPrefix(text, "#@") {
+			continue
 		}
-		if value.Kind == yaml.MappingNode {
-			collectComments(value, lines, childPath, out)
-		}
+		block = append(block, kclComment(text))
+	}
+	if len(block) > 0 {
+		*out = append(*out, yttComment{path: path, lines: block})
 	}
 }
 

@@ -88,6 +88,8 @@ func (m *migrator) proveContextual(leafDir, unit string, candidates *derivations
 		return nil
 	}
 	proven.prelude = prunePrelude(candidates.prelude, proven.exprs)
+	proven.addNotes(candidates.notes)
+	proven.addLiterals(candidates.literals)
 	proven.imports = usedImports(candidates.imports, proven)
 	return proven
 }
@@ -144,47 +146,36 @@ func (m *migrator) evalDerivations(file string, d *derivations, paths []string) 
 
 func verifiedVar(i int) string { return fmt.Sprintf("derived%d", i) }
 
-// valueAtPath reads the value one path addresses: `.a.b[0].c`. A key containing a dot or a
-// bracket cannot be addressed, and is reported as absent.
-func valueAtPath(values map[string]any, path string) (any, bool) {
-	var current any = values
-	for _, token := range pathTokens(path) {
-		if index, isIndex := strings.CutPrefix(token, "["); isIndex {
-			list, ok := current.([]any)
-			if !ok {
-				return nil, false
-			}
-			i, err := strconv.Atoi(strings.TrimSuffix(index, "]"))
-			if err != nil || i < 0 || i >= len(list) {
-				return nil, false
-			}
-			current = list[i]
-			continue
-		}
-		mapping, ok := current.(map[string]any)
-		if !ok {
+// valueAtPath reads the value one path addresses: `.a.b[0].c`. The path joins its keys with
+// dots as they are, so a key may contain a dot itself (`init.sh`): the walk matches the keys
+// the values actually have, trying every one the path could continue with.
+func valueAtPath(current any, path string) (any, bool) {
+	if path == "" {
+		return current, true
+	}
+	switch typed := current.(type) {
+	case []any:
+		index, rest, ok := strings.Cut(strings.TrimPrefix(path, "["), "]")
+		if !ok || !strings.HasPrefix(path, "[") {
 			return nil, false
 		}
-		if current, ok = mapping[token]; !ok {
+		i, err := strconv.Atoi(index)
+		if err != nil || i < 0 || i >= len(typed) {
 			return nil, false
 		}
-	}
-	return current, true
-}
-
-// pathTokens splits a value path into its keys and its `[i]` indexes.
-func pathTokens(path string) []string {
-	var tokens []string
-	for _, segment := range strings.Split(strings.TrimPrefix(path, "."), ".") {
-		key, rest, found := strings.Cut(segment, "[")
-		tokens = append(tokens, key)
-		for found {
-			var index string
-			index, rest, found = strings.Cut(rest, "[")
-			tokens = append(tokens, "["+index)
+		return valueAtPath(typed[i], rest)
+	case map[string]any:
+		for key, child := range typed {
+			rest, ok := strings.CutPrefix(path, "."+key)
+			if !ok || (rest != "" && rest[0] != '.' && rest[0] != '[') {
+				continue
+			}
+			if value, found := valueAtPath(child, rest); found {
+				return value, true
+			}
 		}
 	}
-	return tokens
+	return nil, false
 }
 
 // sameValue compares a value KCL evaluated with one ytt resolved. Both come from YAML, so
