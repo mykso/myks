@@ -37,11 +37,15 @@ schema Apps:
     A KCL package is a directory, so every `.k` file of a level shares one
     namespace and a schema-typed declaration of the same name unifies across
     them. Each application file declares `_apps: Apps { <name> = ... }`, and
-    the level's `env.k` folds the unified result into `applications` — so
-    everything one level says about an application lives in one file.
-
-    The fold is a dict comprehension (`{k: v for k, v in _apps}`): a schema
-    instance on the right of `|` or `:` replaces instead of merging, which
-    would drop the values inherited from the parent level.
+    the level's `env.k` folds the unified result into `applications` with
+    `with_apps` — so everything one level says about an application lives in
+    one file.
     """
     [...str]: App
+
+# with_apps folds a level's `_apps` accumulator into its environment. The comprehension turns
+# the Apps instance into a plain dict, which merges into the inherited applications: a schema
+# instance on the right of `|` or `:` replaces instead, dropping what the parent level said.
+with_apps = lambda env: Environment, apps: Apps -> Environment {
+    env | {applications: {k: v for k, v in apps}}
+}

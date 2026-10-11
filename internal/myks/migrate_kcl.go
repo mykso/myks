@@ -30,15 +30,6 @@ func appKFileName(app string) string {
 	return "app-" + app + ".k"
 }
 
-// appsFoldExpr folds the per-application accumulator into a plain dict. A schema instance on
-// the right of `|` or `:` replaces instead of merging, which would drop everything the parent
-// level said about the application.
-const appsFoldExpr = "{k: v for k, v in _apps}"
-
-// appsFoldComment explains the fold where it is written, in every level that has one.
-const appsFoldComment = "\n# The comprehension folds the `_apps` schema instance into a plain dict, which merges\n" +
-	"# into the inherited applications; the instance itself would replace them.\n"
-
 // levelVarName is the level's environment data before its applications are folded in: what
 // the level inherits, what it states itself, and its frozen patch. The application files of
 // the level read it, so it must not depend on the `_apps` they feed.
@@ -1270,8 +1261,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 		writeKclValue(b, node.envValues, 0, false, "")
 		b.WriteString("\n")
 		if hasApps {
-			b.WriteString(appsFoldComment)
-			b.printf("env = %s | {applications = %s}\n", levelVarName, appsFoldExpr)
+			b.printf("\nenv = myks.with_apps(%s, _apps)\n", levelVarName)
 		}
 		b.writeTrailingComments()
 		return b.String(), b.err
@@ -1307,13 +1297,12 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 
 	expr := levelVar
 	if hasApps {
-		b.WriteString(appsFoldComment)
-		expr = fmt.Sprintf("%s | {applications: %s}", levelVar, appsFoldExpr)
+		expr = fmt.Sprintf("myks.with_apps(%s, _apps)", levelVar)
 	}
 	if node.env != nil {
-		b.printf("env = myks.finalize(%s)\n", expr)
+		b.printf("\nenv = myks.finalize(%s)\n", expr)
 	} else if levelVar != "env" {
-		b.printf("env = %s\n", expr)
+		b.printf("\nenv = %s\n", expr)
 	}
 	b.writeTrailingComments()
 	return b.String(), b.err

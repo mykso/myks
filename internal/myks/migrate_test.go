@@ -501,7 +501,7 @@ _apps: myks.Apps {
 	// applications: the level's application files read it, and they are what feeds `_apps`.
 	assert.Contains(t, files[envKFileName], "_level = parent.env | {\n    id = \"dev\"\n} | _patch\n")
 	assert.Contains(t, files[envKFileName],
-		"env = myks.finalize(_level | {applications: {k: v for k, v in _apps}})\n")
+		"\nenv = myks.finalize(myks.with_apps(_level, _apps))\n")
 
 	// Declaration and frozen values of one application, in that order: the later block wins.
 	assert.Contains(t, files["app-web.k"],
