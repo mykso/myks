@@ -561,6 +561,9 @@ var (
 	// file cannot be resolved on its own: what it would answer standalone is not what it
 	// answers at render time.
 	renderContextRe = regexp.MustCompile(`@ytt:data|@myks:`)
+	// legacyFileRefRe detects a comment pointing at a legacy data-values file or directory,
+	// which stops being true once the KCL tree replaces them.
+	legacyFileRefRe = regexp.MustCompile(`\b(app-data|env-data)\b|\.ytt\.ya?ml\b|\b_(apps|proto)/`)
 	// schemaDocRe detects a data-values schema document. ytt forbids mixing schema and plain
 	// data-values documents in one file, so one match settles how the whole file is read.
 	schemaDocRe = regexp.MustCompile(`(?m)^#@data/values-schema\b`)
@@ -655,8 +658,19 @@ func (m *migrator) readComments(file string, content []byte, isSchema bool) map[
 		return nil
 	}
 	out := make(map[string][]string, len(comments))
+	var stale []string
 	for _, comment := range comments {
 		out[comment.path] = comment.lines
+		if strings.HasPrefix(comment.path, keyOrderPath("")) {
+			continue
+		}
+		stale = append(stale, slices.DeleteFunc(slices.Clone(comment.lines), func(line string) bool {
+			return !legacyFileRefRe.MatchString(line)
+		})...)
+	}
+	if len(stale) > 0 {
+		m.warn("%s: carried comments name legacy ytt files, which the KCL tree replaces; update them: %s",
+			file, strings.Join(stale, " "))
 	}
 	return out
 }

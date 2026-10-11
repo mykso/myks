@@ -864,3 +864,17 @@ func TestRenderAppKJoinsAccountedFrozenBlock(t *testing.T) {
 	assert.Contains(t, content, "TODO(myks migrate)")
 	assert.Equal(t, 2, strings.Count(content, "_apps:"), content)
 }
+
+func TestReadCommentsWarnsOnLegacyFileRefs(t *testing.T) {
+	t.Parallel()
+	m := &migrator{g: &Globe{}}
+	m.readComments("prototypes/kb/app-data.schema.yaml", []byte(`application:
+  #! Must be set in envs/_apps/kb-mcp/app-data.ytt.yaml
+  repo: ""
+  #! The OAuth client id.
+  client: ""
+`), true)
+	require.Len(t, m.warnings, 1)
+	assert.Contains(t, m.warnings[0], "# Must be set in envs/_apps/kb-mcp/app-data.ytt.yaml")
+	assert.NotContains(t, m.warnings[0], "OAuth")
+}

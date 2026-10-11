@@ -106,7 +106,9 @@ sequence element too, and blank lines between entries stay, as does the order th
 its keys in. A ytt comment marker
 (`#!`) means nothing outside a ytt template, so only its `#` is kept — a pattern matching such
 a comment in the generated files has to look for `# ` and for KCL's `key?: type = value`
-rather than YAML's `key: value`. Update those patterns before deleting the legacy files.
+rather than YAML's `key: value`. Update those patterns before deleting the legacy files. A
+carried comment that names a legacy file (`app-data`, `env-data`, `*.ytt.yaml`, `_apps/`) is
+reported, since it stops being true once the KCL tree replaces that file.
 
 A `#@` directive is not a comment but code, and is never carried: what it did is stated in
 KCL's own terms, or reported as not carried over.
