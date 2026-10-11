@@ -127,12 +127,13 @@ standalone is carried over as the derivation it was rather than the value it pro
 | --- | --- |
 | `#@ port = 8080` … `port: #@ port` | `_port = 8080` … `port?: int = _port` |
 | `purge_files_after: #@ 60 * 60 * 24` | `purge_files_after?: int = 60 * 60 * 24` |
-| `#@ for n in nodes:` `#@   hosts.append(n + "." + domain)` `#@ end` | `_hosts = _hosts + [n + "." + _domain for n in _nodes]` |
+| `#@ hosts = [domain]` `#@ for n in nodes:` `#@   hosts.append(n + "." + domain)` `#@ end` | `_hosts = [_domain] + [n + "." + _domain for n in _nodes]` |
 | `#@ load("secrets.star", "sops")` … `token: #@ sops("0", "api")` | `import lib` … `token?: str = lib.sops("0", "api")` |
 
 The prelude's top-level assignments become module-level `_`-prefixed variables of the
 generated file, pruned to the ones a derivation reads. A loop whose body only appends to
-lists becomes a comprehension over the same iterable.
+lists becomes a comprehension over the same iterable, joined to the list's binding where
+nothing in between depends on the order. Comments above a prelude statement come along.
 
 Every function of the repo's ytt library whose body is a single `return` is translated to a
 KCL lambda in `<ytt-library-dir>/<file>.k`, imported as one package by the files that call
