@@ -82,10 +82,10 @@ The application files unify into one accumulator, `_apps`, which `env.k` folds i
 
 ```kcl
 # envs/shop/prod/app-forwarder.k
-import myks as m
+import myks
 import prototypes.forwarder
 
-_apps: m.Apps {
+_apps: myks.Apps {
     forwarder = forwarder.Forwarder {
         application: {logLevel = "debug"}
     }
@@ -96,7 +96,11 @@ Adding an application is adding a file — nothing to register elsewhere. Within
 later block wins, which is how the frozen values override the declaration above them in the
 same file. Frozen values with nothing left to do (no `TODO(myks migrate)` marker) need no block
 of their own: they are written into the declaration, or the override, the level states anyway. Splitting a level further is free the same way: any `.k` file you add next to
-`env.k` joins the package, so a level's own schemas can live in a file of their own.
+`env.k` joins the package, so a level's own schemas can live in a file of their own. The
+shared namespace cuts both ways: a module-level variable bound in two files of a level is one
+variable, which every reader sees with the value bound last. The converter prefixes a helper
+an application file binds with the application's name (`_web_get_uri`) where another file of
+the level binds the same name differently; keep to that when adding helpers by hand.
 
 ### Comments
 
@@ -244,7 +248,7 @@ example — an app value derived from the environment id, which the engine regen
 
 ```kcl
 # seed (frozen literal in envs/dev/app-argocd-tests.k):
-_apps: m.Apps {
+_apps: myks.Apps {
     "argocd-tests": {application: {envId = "mykso-dev"}}
 }
 ```
@@ -254,7 +258,7 @@ environment data — the derivation stays next to the value it feeds:
 
 ```kcl
 # envs/dev/app-argocd-tests.k — one block, no frozen literal left
-_apps: m.Apps {
+_apps: myks.Apps {
     "argocd-tests": {application: {envId = _level.id}}
 }
 ```
@@ -272,11 +276,11 @@ gate will check.
 When a prototype's `app-data*` file is a schema document ytt could inspect, `proto.k` already
 carries what that schema said. A structured object value — one the ytt schema describes with
 properties — becomes a KCL schema of its own, so every field keeps its name, its type (`str`,
-`int`, `float`, `bool`, `{str:any}`, `[any]`, or `any` for `#@schema/type any=True`) and its
-default, at any depth:
+`int`, `float`, `bool`, `{str:any}`, a list of its element type such as `[str]`, or `any`
+for `#@schema/type any=True`) and its default, at any depth:
 
 ```kcl
-schema Webapp(m.App):
+schema Webapp(myks.App):
     proto: str = "webapp"
     application?: Application = Application {}
 
@@ -286,7 +290,7 @@ schema Application:
     ingress?: bool = True
 
     check:
-        len(image) >= 1 if image != Undefined, "application.image must be at least 1 long"
+        len(image) >= 1 if image != Undefined, "application.image must not be empty"
 ```
 
 A schema is named after the last segment of the path to it — `Application`, not
@@ -295,18 +299,20 @@ taken (`ServerTls` next to `Tls`). Every prototype is a KCL package of its own, 
 name is what call sites read: `webapp.Application`.
 
 An array whose ytt schema describes its element gets an element schema the same way, named
-after the array, and the attribute is typed `[Element]`:
+after the array in the singular (`ConfigItem` where the name reads as no plural), and the
+attribute is typed `[Element]`. A `min_len` on the array, and any validation on the element's
+keys, become checks there too:
 
 ```kcl
 schema Application:
-    clients?: [Clients] = []
+    clients?: [Client] = []
 
-schema Clients:
+schema Client:
     host?: str = ""
     port?: int = 5001
-    routes?: [Routes] = []
+    routes?: [Route] = []
 
-schema Routes:
+schema Route:
     path?: str = "/"
 ```
 
@@ -356,12 +362,12 @@ schema starts catching mistakes:
 
 ```kcl
 # seed:
-schema Forwarder(m.App):
+schema Forwarder(myks.App):
     proto: str = "forwarder"
     application?: {str:any} = {logLevel = "info"}
 
 # hand-finished:
-schema Forwarder(m.App):
+schema Forwarder(myks.App):
     proto: str = "forwarder"
     application: ForwarderApplication = ForwarderApplication {}
 
