@@ -1794,6 +1794,16 @@ func (m *migrator) printReport() {
 			"Froze %d resolved value(s) in leaf-level TODO patches; turn them into KCL derivations (see %s)",
 			m.patched, migrationDocsURL)))
 	}
+	if len(m.renamedProtos) > 0 {
+		var renames []string
+		for _, old := range slices.Sorted(maps.Keys(m.renamedProtos)) {
+			renames = append(renames, old+" -> "+m.renamedProtos[old])
+		}
+		log.Info().Strs("prototypes", renames).Msg(m.g.Msg(fmt.Sprintf(
+			"Renamed prototypes keep a compatibility symlink under the legacy name in %s and every _proto directory, "+
+				"so the legacy sources still resolve; delete the symlinks together with the legacy data-values files",
+			m.g.PrototypesDir)))
+	}
 	log.Info().Msg(m.g.Msg(
 		"Migration seed complete. Verify with the byte-identical gate (render and diff rendered/), " +
 			"then hand-finish following " + migrationDocsURL))
