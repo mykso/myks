@@ -5,6 +5,7 @@ import (
 	"maps"
 	"math/big"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -524,14 +525,28 @@ func (s *starScope) ident(ident *syntax.Ident) (string, error) {
 	return "", fmt.Errorf("%s is not bound to a KCL expression", ident.Name)
 }
 
+// list translates a list literal. The comments written between its elements — a disabled
+// element, why it is disabled — keep it one element per line, each under its comments.
 func (s *starScope) list(items []syntax.Expr) (string, error) {
 	parts := make([]string, 0, len(items))
+	commented := false
 	for _, item := range items {
 		part, err := s.expr(item)
 		if err != nil {
 			return "", err
 		}
+		if comments := item.Comments(); comments != nil && len(comments.Before) > 0 {
+			commented = true
+			lines := make([]string, 0, len(comments.Before)+1)
+			for _, comment := range comments.Before {
+				lines = append(lines, kclComment(comment.Text))
+			}
+			part = strings.Join(append(lines, part), "\n    ")
+		}
 		parts = append(parts, part)
+	}
+	if commented {
+		return "[\n    " + strings.Join(parts, "\n    ") + "\n]", nil
 	}
 	return "[" + strings.Join(parts, ", ") + "]", nil
 }
@@ -1070,15 +1085,32 @@ func isListLiteral(expr string) bool {
 }
 
 // yttPreludeSource returns the Starlark of a ytt file's top-level code: the `#@` lines at
-// zero indentation that carry code rather than an annotation. Code indented into the YAML
-// body belongs to a template construct, which this translation does not cover. With
-// dropDefs, function blocks are left out with their bodies — which is what a ytt template
-// function needs, its body being YAML the `#@` lines do not carry.
+// zero indentation that carry code rather than an annotation, and the assignments indented
+// into the YAML body, which ytt evaluates where they stand — `#@ registries = [...]` right
+// above the sequence a `for/end` builds from it. Any other code indented into the YAML body
+// belongs to a template construct, which this translation does not cover. With dropDefs,
+// function blocks are left out with their bodies — which is what a ytt template function
+// needs, its body being YAML the `#@` lines do not carry.
 func yttPreludeSource(lines []string, dropDefs bool) string {
 	code := make([]string, 0, len(lines))
 	depth := 0
+	open := 0 // the brackets an indented assignment left open, which its next lines continue
 	for _, line := range lines {
-		if !strings.HasPrefix(line, "#@") {
+		indented := !strings.HasPrefix(line, "#@")
+		if indented {
+			trimmed := strings.TrimLeft(line, " ")
+			if !strings.HasPrefix(trimmed, "#@") {
+				continue
+			}
+			statement := strings.TrimPrefix(trimmed[2:], " ")
+			if open == 0 {
+				if yttAnnotationRe.FindStringSubmatch(trimmed)[1] != "" || !assignmentRe.MatchString(statement) {
+					continue
+				}
+				statement = strings.TrimLeft(statement, " ")
+			}
+			open += bracketBalance(statement)
+			code = append(code, statement)
 			continue
 		}
 		if match := yttAnnotationRe.FindStringSubmatch(line); len(match) > 1 && match[1] != "" {
@@ -1101,6 +1133,32 @@ func yttPreludeSource(lines []string, dropDefs bool) string {
 		code = append(code, statement)
 	}
 	return strings.Join(code, "\n") + "\n"
+}
+
+// assignmentRe matches a Starlark statement assigning one name.
+var assignmentRe = regexp.MustCompile(`^\s*[A-Za-z_][A-Za-z0-9_]*\s*=[^=]`)
+
+// bracketBalance counts the brackets one line of Starlark opens minus those it closes,
+// outside its strings and its comment.
+func bracketBalance(line string) int {
+	balance := 0
+	for i := 0; i < len(line); i++ {
+		switch c := line[i]; c {
+		case '#':
+			return balance
+		case '"', '\'':
+			for i++; i < len(line) && line[i] != c; i++ {
+				if line[i] == '\\' {
+					i++
+				}
+			}
+		case '(', '[', '{':
+			balance++
+		case ')', ']', '}':
+			balance--
+		}
+	}
+	return balance
 }
 
 // prunePrelude keeps the statements the translated expressions reach, directly or through

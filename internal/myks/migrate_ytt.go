@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	yaml "gopkg.in/yaml.v3"
@@ -270,6 +272,10 @@ func (s *yttSplit) drop(path []string, keyLine, start, end int) {
 func (s *yttSplit) recordExprs(node *yaml.Node, path string) {
 	switch node.Kind {
 	case yaml.SequenceNode:
+		if loop, ok := s.forEndLoop(node); ok {
+			s.exprs[path] = loop
+			return
+		}
 		for i, item := range node.Content {
 			itemPath := fmt.Sprintf("%s[%d]", path, i)
 			// A mapping item's first key shares the item's line, and is checked as a key.
@@ -299,6 +305,127 @@ func (s *yttSplit) recordExprs(node *yaml.Node, path string) {
 			s.literals[path] = value
 		}
 	}
+}
+
+// forEndRe matches the annotation repeating a sequence item once per element of an iterable.
+var forEndRe = regexp.MustCompile(`^\s*#@\s*for/end\s+([A-Za-z_][A-Za-z0-9_]*)\s+in\s+(.+):\s*$`)
+
+// forEndLoop states a sequence built by `#@ for/end x in xs:` over its one item as the
+// Starlark list comprehension it amounts to: `[{"name": x} for x in xs]`. Only an item whose
+// computation is inline expressions qualifies, and only prelude assignments may precede the
+// loop annotation; anything else is left to the resolved value.
+func (s *yttSplit) forEndLoop(node *yaml.Node) (string, bool) {
+	if len(node.Content) != 1 {
+		return "", false
+	}
+	item := node.Content[0]
+	annotation := item.Line - 2
+	if annotation < 0 {
+		return "", false
+	}
+	loop := forEndRe.FindStringSubmatch(s.lines[annotation])
+	if loop == nil {
+		return "", false
+	}
+	start, _ := entryRange(s.lines, item.Line)
+	open := 0
+	for _, line := range s.lines[start:annotation] {
+		if !lineComputes(line) {
+			continue
+		}
+		statement := strings.TrimPrefix(strings.TrimLeft(line, " "), "#@")
+		if open == 0 && !assignmentRe.MatchString(statement) {
+			return "", false
+		}
+		open += bracketBalance(statement)
+	}
+	if open != 0 {
+		return "", false
+	}
+	body, ok := s.starlarkOf(item, true)
+	if !ok {
+		return "", false
+	}
+	return fmt.Sprintf("[%s for %s in %s]", body, loop[1], strings.TrimSpace(loop[2])), true
+}
+
+// starlarkOf writes a YAML value as a Starlark expression, its inline `#@ expr` values as the
+// expressions they are. A value with any other computation has none. The first key of a loop's
+// item shares the item's line, whose annotations the caller has checked.
+func (s *yttSplit) starlarkOf(node *yaml.Node, loopItem bool) (string, bool) {
+	switch node.Kind {
+	case yaml.MappingNode:
+		entries := make([]string, 0, len(node.Content)/2)
+		for i := 0; i+1 < len(node.Content); i += 2 {
+			key, value := node.Content[i], node.Content[i+1]
+			start := key.Line - 1
+			if !loopItem || i > 0 {
+				start, _ = entryRange(s.lines, key.Line)
+			}
+			var expr string
+			if s.computesIn(start, key.Line-1) {
+				inline, ok := inlineYttExpr(s.lines[key.Line-1])
+				if !ok || s.computesIn(start, key.Line-2) {
+					return "", false
+				}
+				expr = inline
+			} else {
+				var ok bool
+				if expr, ok = s.starlarkOf(value, false); !ok {
+					return "", false
+				}
+			}
+			entries = append(entries, strconv.Quote(key.Value)+": "+expr)
+		}
+		return "{" + strings.Join(entries, ", ") + "}", true
+	case yaml.SequenceNode:
+		elements := make([]string, 0, len(node.Content))
+		for _, item := range node.Content {
+			if start, _ := entryRange(s.lines, item.Line); s.computesIn(start, item.Line-1) {
+				return "", false
+			}
+			element, ok := s.starlarkOf(item, false)
+			if !ok {
+				return "", false
+			}
+			elements = append(elements, element)
+		}
+		return "[" + strings.Join(elements, ", ") + "]", true
+	case yaml.ScalarNode:
+		var value any
+		if node.Decode(&value) != nil {
+			return "", false
+		}
+		return starlarkScalar(value)
+	}
+	return "", false
+}
+
+// starlarkScalar writes a decoded YAML scalar as a Starlark literal.
+func starlarkScalar(value any) (string, bool) {
+	switch typed := value.(type) {
+	case nil:
+		return "None", true
+	case bool:
+		if typed {
+			return "True", true
+		}
+		return "False", true
+	case string:
+		return strconv.Quote(typed), true
+	case int:
+		return strconv.Itoa(typed), true
+	case float64:
+		if math.IsNaN(typed) || math.IsInf(typed, 0) {
+			return "", false
+		}
+		formatted := strconv.FormatFloat(typed, 'g', -1, 64)
+		if !strings.ContainsAny(formatted, ".e") {
+			formatted += ".0"
+		}
+		return formatted, true
+	}
+	return "", false
 }
 
 // inlineYttExpr returns the ytt expression a mapping entry states on its own line, as in

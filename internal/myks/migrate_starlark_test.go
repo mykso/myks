@@ -394,3 +394,29 @@ files:
 		".files.line":    `'host-${_name} isn\'t \${x}'`,
 	}, d.exprs, "code blocks other than (@= @) have no KCL string counterpart")
 }
+
+func TestYttDerivationsForEndLoop(t *testing.T) {
+	d := yttDerivations("env-data.values.yaml", []byte(`#@data/values
+---
+kbld:
+  overrides:
+    #@ registries = [
+    #@   "ghcr.io",
+    #@   # Disabled until the fix is released.
+    #@   #"index.docker.io",
+    #@   "quay.io",
+    #@ ]
+    #@ for/end reg in registries:
+    - match:
+        registry: #@ reg.replace(".", "\\.")
+        repository: (.+)
+      replace:
+        registry: oci.example
+        port: 443
+`), nil, "", "")
+	require.NotNil(t, d)
+	assert.Equal(t, map[string]string{
+		".kbld.overrides": `[{match = {registry = reg.replace(".", "\\."), repository = "(.+)"}, replace = {registry = "oci.example", port = 443}} for reg in _registries]`,
+	}, d.exprs)
+	assert.Equal(t, []string{"_registries = [\n    \"ghcr.io\"\n    # Disabled until the fix is released.\n    # \"index.docker.io\",\n    \"quay.io\"\n]"}, d.prelude)
+}
