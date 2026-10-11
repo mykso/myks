@@ -1305,24 +1305,9 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 	}
 
 	if declared {
-		constructor, declMerge := myks+".App", false
-		if schema != "" {
-			constructor, declMerge = app.proto+"."+schema, true
-		}
 		separate()
 		openBlock()
-		b.printf(" = %s {", constructor)
-		if len(values) == 0 && (schema != "" || app.proto == name) {
-			b.WriteString("}\n")
-		} else {
-			b.WriteString("\n")
-			if schema == "" && app.proto != name {
-				b.printf("        proto = %s\n", quoteKclString(app.proto))
-			}
-			writeKclEntries(b, values, 8, declMerge, "")
-			b.WriteString("    }\n")
-		}
-		b.WriteString("}\n")
+		writeDeclaration(b, name, app.proto, schema, myks, values)
 	}
 
 	if overridden {
@@ -1348,6 +1333,27 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 	}
 	b.writeTrailingComments()
 	return b.String(), b.err
+}
+
+// writeDeclaration writes the instance that declares an application, after its key: the
+// prototype's generated schema, whose defaults the values are a union on top of, or the plain
+// myks.App, which names its prototype unless the application is named after it.
+func writeDeclaration(b *kclWriter, name, proto, schema, myks string, values map[string]any) {
+	constructor, merge := myks+".App", false
+	if schema != "" {
+		constructor, merge = proto+"."+schema, true
+	}
+	b.printf(" = %s {", constructor)
+	if len(values) == 0 && (schema != "" || proto == name) {
+		b.WriteString("}\n}\n")
+		return
+	}
+	b.WriteString("\n")
+	if schema == "" && proto != name {
+		b.printf("        proto = %s\n", quoteKclString(proto))
+	}
+	writeKclEntries(b, values, 8, merge, "")
+	b.WriteString("    }\n}\n")
 }
 
 // withFrozen folds the derivations of a frozen block into those of the block it joins. The
@@ -1547,7 +1553,8 @@ func matchingBracket(expr string, open int) int {
 		case '(', '[', '{':
 			depth++
 		case ')', ']', '}':
-			if depth--; depth == 0 {
+			depth--
+			if depth == 0 {
 				return i
 			}
 		}
