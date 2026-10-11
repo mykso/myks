@@ -137,10 +137,8 @@ environment:
 				`_edge_nodes = ["junior"]`,
 				`_base_domain = "zebradil.dev"`,
 				`_lan_domain = "lan." + _base_domain`,
-				`_base_hosts = [_base_domain]`,
-				`_lan_hosts = [_lan_domain]`,
-				`_base_hosts = _base_hosts + [node + "." + _base_domain for node in _edge_nodes]`,
-				`_lan_hosts = _lan_hosts + [node + "." + _lan_domain for node in _edge_nodes]`,
+				`_base_hosts = [_base_domain] + [node + "." + _base_domain for node in _edge_nodes]`,
+				`_lan_hosts = [_lan_domain] + [node + "." + _lan_domain for node in _edge_nodes]`,
 			},
 		},
 		{
@@ -341,4 +339,28 @@ func TestValueAtPath(t *testing.T) {
 		_, found := valueAtPath(values, path)
 		assert.False(t, found, path)
 	}
+}
+
+func TestFoldAppends(t *testing.T) {
+	notes := map[string][]string{"_hosts = [_domain]": {"# The apex first."}}
+	assert.Equal(t, []string{
+		`_domain = "example.com"`,
+		`_lan = ["lan"]`,
+		`_hosts = [_domain] + [n + "." + _domain for n in _nodes]`,
+		`_lan_hosts = _lan + _hosts`,
+	}, foldAppends([]string{
+		`_domain = "example.com"`,
+		`_hosts = [_domain]`,
+		`_lan = ["lan"]`,
+		`_hosts = _hosts + [n + "." + _domain for n in _nodes]`,
+		`_lan_hosts = _lan + _hosts`,
+	}, notes))
+	assert.Equal(t, []string{"# The apex first."}, notes[`_hosts = [_domain] + [n + "." + _domain for n in _nodes]`])
+
+	assert.Equal(t, []string{`_xs = (_a if _c else _b) + [1]`},
+		foldAppends([]string{`_xs = _a if _c else _b`, `_xs = _xs + [1]`}, map[string][]string{}))
+
+	// Read in between, or reading what is rebound in between: folding would change the value.
+	kept := []string{`_a = [1]`, `_xs = _a`, `_a = _a + [2]`, `_xs = _xs + [3]`}
+	assert.Equal(t, kept, foldAppends(kept, map[string][]string{}))
 }

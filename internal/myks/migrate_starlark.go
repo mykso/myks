@@ -935,7 +935,7 @@ func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPac
 	if len(d.exprs) == 0 {
 		return nil
 	}
-	d.prelude = prunePrelude(scope.prelude, d.exprs)
+	d.prelude = prunePrelude(foldAppends(scope.prelude, scope.notes), d.exprs)
 	d.addNotes(scope.notes)
 	d.addLiterals(split.literals)
 	for imp := range scope.imports {
@@ -943,6 +943,81 @@ func yttDerivations(file string, content []byte, libs map[string]*yttLib, libPac
 	}
 	slices.Sort(d.imports)
 	return d
+}
+
+// foldAppends folds a list variable that is bound and then only appended to into one
+// statement: `_xs = [a]` followed by `_xs = _xs + [f(n) for n in ns]` becomes
+// `_xs = [a] + [f(n) for n in ns]`, which is what the ytt loop built. The statement takes the
+// place of the last append, so it is folded only when nothing between reads the variable and
+// nothing between rebinds what it reads. The comments of the folded statements move along.
+func foldAppends(prelude []string, notes map[string][]string) []string {
+	prelude = slices.Clone(prelude)
+	for folded := true; folded; {
+		folded = false
+		for i, stmt := range prelude {
+			name, rhs, _ := strings.Cut(stmt, " = ")
+			appended, ok := strings.CutPrefix(rhs, name+" + ")
+			if !ok {
+				continue
+			}
+			j := i - 1
+			for j >= 0 && !strings.HasPrefix(prelude[j], name+" = ") {
+				j--
+			}
+			if j < 0 {
+				continue
+			}
+			initial := strings.TrimPrefix(prelude[j], name+" = ")
+			if strings.HasPrefix(initial, name+" + ") || !foldable(prelude[j+1:i], name, initial) {
+				continue
+			}
+			if !isListLiteral(initial) && !isKclIdentifier(initial) {
+				initial = "(" + initial + ")"
+			}
+			combined := name + " = " + initial + " + " + appended
+			if lines := append(slices.Clone(notes[prelude[j]]), notes[stmt]...); len(lines) > 0 {
+				notes[combined] = lines
+			}
+			prelude[i] = combined
+			prelude = slices.Delete(prelude, j, j+1)
+			folded = true
+			break
+		}
+	}
+	return prelude
+}
+
+// foldable reports whether the statements between a binding and an append to it neither read
+// the variable nor rebind a name its initial value reads, which moves down to the append.
+func foldable(between []string, name, initial string) bool {
+	for _, stmt := range between {
+		bound, rhs, _ := strings.Cut(stmt, " = ")
+		if readsName(rhs, name) || readsName(initial, bound) {
+			return false
+		}
+	}
+	return true
+}
+
+// isListLiteral reports whether expr is one bracketed list, which needs no parentheses as the
+// left operand of `+`.
+func isListLiteral(expr string) bool {
+	if !strings.HasPrefix(expr, "[") || !strings.HasSuffix(expr, "]") {
+		return false
+	}
+	depth := 0
+	for i, c := range expr {
+		switch c {
+		case '[', '(', '{':
+			depth++
+		case ']', ')', '}':
+			depth--
+			if depth == 0 && i < len(expr)-1 {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // yttPreludeSource returns the Starlark of a ytt file's top-level code: the `#@` lines at
