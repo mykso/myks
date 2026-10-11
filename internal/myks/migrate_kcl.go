@@ -1276,6 +1276,20 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 			b.printf("import %s\n", packagePath(filepath.Join(m.g.PrototypesDir, app.proto)))
 		}
 	}
+	// A frozen block with nothing left to do is no task to set apart: it joins the block this
+	// level states anyway, the declaration or the override.
+	values, override := app.values, node.overrides[name]
+	_, overridden := node.overrides[name]
+	patch, patched := node.appPatches[name]
+	if patched && (declared || overridden) && !frozenNeedsWork(patch, patchDerived, "") {
+		b.derived = withFrozen(b.derived, patchDerived, patch)
+		if declared {
+			values = mergeValues(values, patch)
+		} else {
+			override = mergeValues(override, patch)
+		}
+		patched, patchDerived = false, nil
+	}
 	writeDerivationHeader(b, mergeDerivations(b.derived, patchDerived))
 
 	b.WriteString("\n")
@@ -1298,20 +1312,20 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 		separate()
 		openBlock()
 		b.printf(" = %s {", constructor)
-		if len(app.values) == 0 && (schema != "" || app.proto == name) {
+		if len(values) == 0 && (schema != "" || app.proto == name) {
 			b.WriteString("}\n")
 		} else {
 			b.WriteString("\n")
 			if schema == "" && app.proto != name {
 				b.printf("        proto = %s\n", quoteKclString(app.proto))
 			}
-			writeKclEntries(b, app.values, 8, declMerge, "")
+			writeKclEntries(b, values, 8, declMerge, "")
 			b.WriteString("    }\n")
 		}
 		b.WriteString("}\n")
 	}
 
-	if override, ok := node.overrides[name]; ok {
+	if overridden {
 		separate()
 		openBlock()
 		b.WriteString(": ")
@@ -1319,7 +1333,7 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 		b.WriteString("\n}\n")
 	}
 
-	if patch, ok := node.appPatches[name]; ok {
+	if patched {
 		separate()
 		if frozenNeedsWork(patch, patchDerived, "") {
 			writeFrozenValuesComment(b)
@@ -1334,6 +1348,23 @@ func (m *migrator) renderAppK(node *migNode, name string, renames map[string]str
 	}
 	b.writeTrailingComments()
 	return b.String(), b.err
+}
+
+// withFrozen folds the derivations of a frozen block into those of the block it joins. The
+// frozen values win wherever they are stated, so a derivation of the block they join is kept
+// only at a path they leave alone.
+func withFrozen(block, frozen *derivations, values map[string]any) *derivations {
+	if block.has() {
+		kept := &derivations{exprs: map[string]string{}, prelude: block.prelude, imports: block.imports, notes: block.notes}
+		for path, expr := range block.exprs {
+			if _, stated := valueAtPath(values, path); !stated {
+				kept.exprs[path] = expr
+			}
+		}
+		kept.prelude = prunePrelude(kept.prelude, kept.exprs)
+		block = kept
+	}
+	return mergeDerivations(block, frozen)
 }
 
 // renderPatchK renders one level's patch.k: the environment values the raw conversion could

@@ -831,3 +831,36 @@ func TestFrozenNeedsWork(t *testing.T) {
 	assert.True(t, frozenNeedsWork(changed, derived, ""), "differs from what the source stated")
 	assert.True(t, frozenNeedsWork(map[string]any{"x": 1}, nil, ""), "nothing accounts for it")
 }
+
+func TestRenderAppKJoinsAccountedFrozenBlock(t *testing.T) {
+	t.Parallel()
+	m := &migrator{
+		g:            &Globe{Config: Config{PrototypesDir: "prototypes"}},
+		nodes:        map[string]*migNode{},
+		protoSchemas: map[string]string{},
+	}
+	m.root = m.newNode("envs", nil)
+	leaf := m.newNode(filepath.Join("envs", "dev"), m.root)
+	leaf.env = &Environment{ID: "dev"}
+	leaf.declared["web"] = migApp{name: "web", proto: "web", values: map[string]any{"replicas": 3}}
+	leaf.appPatches["web"] = map[string]any{"url": "https://web.dev", "title": "Web"}
+	leaf.appPatchDerived["web"] = &derivations{
+		exprs:    map[string]string{".url": `"https://web." + _level.id`},
+		literals: map[string]any{".title": "Web"},
+	}
+
+	content, err := m.renderAppK(leaf, "web", nil)
+	require.NoError(t, err)
+	assert.NotContains(t, content, "TODO(myks migrate)")
+	assert.Equal(t, 1, strings.Count(content, "_apps:"), content)
+	assert.Contains(t, content, "replicas = 3\n")
+	assert.Contains(t, content, `url = "https://web." + _level.id`+"\n")
+	assert.Contains(t, content, `title = "Web"`+"\n")
+
+	// A value nothing accounts for keeps its own block, marked.
+	leaf.appPatches["web"]["extra"] = 1
+	content, err = m.renderAppK(leaf, "web", nil)
+	require.NoError(t, err)
+	assert.Contains(t, content, "TODO(myks migrate)")
+	assert.Equal(t, 2, strings.Count(content, "_apps:"), content)
+}

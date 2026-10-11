@@ -94,7 +94,8 @@ _apps: m.Apps {
 
 Adding an application is adding a file — nothing to register elsewhere. Within a level the
 later block wins, which is how the frozen values override the declaration above them in the
-same file. Splitting a level further is free the same way: any `.k` file you add next to
+same file. Frozen values with nothing left to do (no `TODO(myks migrate)` marker) need no block
+of their own: they are written into the declaration, or the override, the level states anyway. Splitting a level further is free the same way: any `.k` file you add next to
 `env.k` joins the package, so a level's own schemas can live in a file of their own.
 
 ### Comments
@@ -154,8 +155,10 @@ it.
 
 ```kcl
 # envs/alpha/app-traefik.k
-_apps: m.Apps {
-    traefik: {application: {tls: {baseDomains = _level.environment.hosts}}}
+_apps: myks.Apps {
+    traefik = traefik.Traefik {
+        application: {tls: {baseDomains = _level.environment.hosts, issuer = "cloudflare-zerossl"}}
+    }
 }
 ```
 
