@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -119,6 +120,8 @@ func TestWriteKclEntries(t *testing.T) {
 		"emptyDict":  map[string]any{},
 		"nullValue":  nil,
 		"floatValue": 2.0,
+		"scalars":    []any{"a", 1, true},
+		"long":       []any{strings.Repeat("x", 50), strings.Repeat("y", 50)},
 	}
 
 	assign := &kclWriter{}
@@ -132,11 +135,16 @@ list = [
     }
     2
 ]
+long = [
+    "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
+]
 nested = {
     inner = 1
 }
 nullValue = None
 plain = "v"
+scalars = ["a", 1, True]
 "weird-key" = True
 `, assign.String())
 

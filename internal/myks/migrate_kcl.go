@@ -1203,6 +1203,10 @@ func writeKclValue(b *kclWriter, value any, indent int, merge bool, path string)
 			b.WriteString("[]")
 			return
 		}
+		if inline, ok := inlineKclList(b, typed, path); ok {
+			b.WriteString(inline)
+			return
+		}
 		b.WriteString("[\n")
 		for i, element := range typed {
 			b.WriteString(pad)
@@ -1221,6 +1225,41 @@ func writeKclValue(b *kclWriter, value any, indent int, merge bool, path string)
 		}
 		b.WriteString(scalar)
 	}
+}
+
+// kclLineWidth is the column a list is kept within when it is written on one line.
+const kclLineWidth = 100
+
+// inlineKclList renders a list of plain scalars on one line, when it fits on the current one.
+// A list holding a container, a multi-line string or a derivation keeps one element per line.
+func inlineKclList(b *kclWriter, list []any, path string) (string, bool) {
+	elements := make([]string, 0, len(list))
+	for i, element := range list {
+		if b.derived.hasPath(elementPath(path, i)) {
+			return "", false
+		}
+		switch typed := element.(type) {
+		case map[string]any, []any:
+			return "", false
+		case string:
+			if strings.Contains(typed, "\n") {
+				return "", false
+			}
+		}
+		scalar, err := kclScalar(element)
+		if err != nil {
+			return "", false
+		}
+		elements = append(elements, scalar)
+	}
+	inline := "[" + strings.Join(elements, ", ") + "]"
+	return inline, b.column()+len(inline) <= kclLineWidth
+}
+
+// column is the length of the line written so far.
+func (w *kclWriter) column() int {
+	s := w.b.String()
+	return len(s) - strings.LastIndex(s, "\n") - 1
 }
 
 // kclLiteral renders a value map as a KCL dict literal.
