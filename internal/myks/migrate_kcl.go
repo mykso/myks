@@ -143,8 +143,8 @@ func (m *migrator) renderNodeFiles(node, parent *migNode) (map[string]string, er
 	return files, nil
 }
 
-// joinKclFiles joins rendered files into one: their imports, deduplicated, then their bodies
-// apart by a blank line.
+// joinKclFiles joins rendered files into one: their imports, deduplicated and sorted, then
+// their bodies apart by a blank line.
 func joinKclFiles(contents []string) string {
 	var imports, bodies []string
 	for _, content := range contents {
@@ -156,6 +156,7 @@ func joinKclFiles(contents []string) string {
 		}
 		bodies = append(bodies, body)
 	}
+	slices.Sort(imports)
 	return strings.Join(imports, "\n") + "\n\n" + strings.Join(bodies, "\n")
 }
 
