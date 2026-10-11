@@ -19,8 +19,7 @@ import (
 const (
 	envKFileName   = "env.k"
 	patchKFileName = "patch.k"
-	// appsKFileName gathers the applications a level only declares, each in a block of its
-	// own: a key of a block shadows a package of the same name for the rest of that block.
+	// appsKFileName gathers the applications a level only declares.
 	appsKFileName = "apps.k"
 )
 
@@ -138,15 +137,19 @@ func (m *migrator) renderNodeFiles(node, parent *migNode) (map[string]string, er
 		}
 	}
 	if len(declarations) > 0 {
-		files[appsKFileName] = joinKclFiles(declarations)
+		files[appsKFileName] = joinDeclarations(declarations)
 	}
 	return files, nil
 }
 
-// joinKclFiles joins rendered files into one: their imports, deduplicated and sorted, then
-// their bodies apart by a blank line.
-func joinKclFiles(contents []string) string {
-	var imports, bodies []string
+// joinDeclarations joins the files of the applications a level only declares into one: their
+// imports, deduplicated and sorted, then their declarations in one `_apps` block. A key
+// shadows a package of the same name for the rest of its block, so a declaration reading a
+// package an earlier key names opens a block of its own.
+func joinDeclarations(contents []string) string {
+	var imports []string
+	var blocks [][]string
+	keys := map[string]bool{}
 	for _, content := range contents {
 		head, body, _ := strings.Cut(content, "\n\n")
 		for _, line := range strings.Split(head, "\n") {
@@ -154,10 +157,23 @@ func joinKclFiles(contents []string) string {
 				imports = append(imports, line)
 			}
 		}
-		bodies = append(bodies, body)
+		// A bare file's block holds its one declaration on one line.
+		entry := strings.Split(body, "\n")[1]
+		key, constructor, _ := strings.Cut(strings.TrimSpace(entry), " = ")
+		pkg, _, _ := strings.Cut(constructor, ".")
+		if len(blocks) == 0 || keys[pkg] {
+			blocks = append(blocks, nil)
+			clear(keys)
+		}
+		keys[key] = true
+		blocks[len(blocks)-1] = append(blocks[len(blocks)-1], entry)
 	}
 	slices.Sort(imports)
-	return strings.Join(imports, "\n") + "\n\n" + strings.Join(bodies, "\n")
+	b := strings.Join(imports, "\n") + "\n"
+	for _, block := range blocks {
+		b += "\n_apps: myks.Apps {\n" + strings.Join(block, "\n") + "\n}\n"
+	}
+	return b
 }
 
 // levelRenames renames the module-level variables an application file binds that another file

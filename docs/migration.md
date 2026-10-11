@@ -418,9 +418,12 @@ The seed writes one file per application that the level configures, and gathers 
 declarations into `apps.k`. Any `.k` file of the level may declare applications, since the
 accumulator is what the level folds in, not the file names
 ([design](redesign/design.md#tree-layout)): move an application out of `apps.k` once it gains
-values, or group related ones as you see fit. Keep one `_apps` block per application in a
-shared file — an application's key shadows a package of the same name for the rest of its
-block.
+values, or group related ones as you see fit. Within one `_apps` block an application's key
+shadows a package of the same name for the rest of the block: a declaration that reads such a
+package goes before that key, or into a block of its own. Keep an application's declaration
+and the overrides its own level states in one file: KCL unifies the files of a level in file
+name order, and an `x: {...}` override in a file sorting before the one declaring
+`x = X {...}` is dropped.
 
 ### Renovate
 

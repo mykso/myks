@@ -462,13 +462,14 @@ func TestRenderLevelFiles(t *testing.T) {
 	m := &migrator{
 		g:            &Globe{Config: Config{PrototypesDir: "prototypes"}},
 		nodes:        map[string]*migNode{},
-		protoSchemas: map[string]string{},
+		protoSchemas: map[string]string{"arc": "Arc"},
 	}
 	m.root = m.newNode("envs", nil)
 	leaf := m.newNode(filepath.Join("envs", "dev"), m.root)
 	leaf.env = &Environment{ID: "dev"}
 	leaf.declared["web"] = migApp{name: "web", proto: "web", values: map[string]any{"replicas": 3}}
 	leaf.declared["arc"] = migApp{name: "arc", proto: "arc"}
+	leaf.declared["arc2"] = migApp{name: "arc2", proto: "arc"}
 	leaf.declared["argocd"] = migApp{name: "argocd", proto: "argo"}
 	leaf.overrides["cache"] = map[string]any{"replicas": 1}
 	leaf.appPatches["web"] = map[string]any{"computed": "x"}
@@ -484,14 +485,17 @@ func TestRenderLevelFiles(t *testing.T) {
 		[]string{"app-cache.k", "app-web.k", appsKFileName, envKFileName, patchKFileName},
 		slices.Sorted(maps.Keys(files)))
 
-	// Applications the level only declares share one file, a block each.
+	// Applications the level only declares share one file and one block, except where a key
+	// would shadow the package a later declaration reads.
 	assert.Equal(t, `import myks
+import prototypes.arc
 
 _apps: myks.Apps {
-    arc = myks.App {}
+    arc = arc.Arc {}
 }
 
 _apps: myks.Apps {
+    arc2 = arc.Arc {}
     argocd = myks.App {proto = "argo"}
 }
 `, files[appsKFileName])
