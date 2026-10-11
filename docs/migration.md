@@ -98,7 +98,9 @@ same file. Splitting a level further is free the same way: any `.k` file you add
 ### Comments
 
 What a data-values file wrote above one of its values travels with that value: the note
-explaining why it is what it is, a tool's annotation such as Renovate's. A ytt comment marker
+explaining why it is what it is, a tool's annotation such as Renovate's. That holds inside a
+sequence element too, and blank lines between entries stay, as does the order the file states
+its keys in. A ytt comment marker
 (`#!`) means nothing outside a ytt template, so only its `#` is kept — a pattern matching such
 a comment in the generated files has to look for `# ` and for KCL's `key?: type = value`
 rather than YAML's `key: value`. Update those patterns before deleting the legacy files.
@@ -106,10 +108,9 @@ rather than YAML's `key: value`. Update those patterns before deleting the legac
 A `#@` directive is not a comment but code, and is never carried: what it did is stated in
 KCL's own terms, or reported as not carried over.
 
-Two comments are left behind, both of them in the legacy file the conversion does not touch:
-one inside a sequence or after a value, which has no attribute of its own to sit above, and
-one the file ends with, which belongs to no value at all — the converter warns naming the file
-for that one, so a marker tracking a version the file does not state is not lost with it.
+The block a file ends with belongs to no value; the generated file ends with it instead, so a
+marker tracking a version the file does not state is not lost with the legacy file. A comment
+after a value, on its line, has no attribute of its own to sit above and is left behind.
 
 The legacy files are left in place so the conversion is easy to inspect and revert
 (`git checkout` / delete `kcl.mod`, `main.k` and the generated level files).

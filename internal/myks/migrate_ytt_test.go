@@ -158,7 +158,7 @@ zone: a
 		{path: ".port", lines: []string{"# plain YAML comments travel too"}},
 		{path: ".zone", lines: []string{"", "# a blank line above a key travels with it"}},
 		{path: keyOrderPath(""), lines: []string{"application", "port", "zone"}},
-		{lines: []string{"# this block ends the file and belongs to nothing"}},
+		{path: trailingCommentsPath, lines: []string{"# this block ends the file and belongs to nothing"}},
 	}, comments)
 }
 

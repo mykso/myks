@@ -231,6 +231,7 @@ func (m *migrator) writeProtoK(proto string) error {
 	b.WriteString("import myks\n")
 	writeDerivationHeader(b, b.derived)
 	plan.render(b, proto)
+	b.writeTrailingComments()
 	for _, failure := range plan.failed {
 		m.warn("%s/%s: validation of %s is not carried into the generated KCL schema",
 			m.g.PrototypesDir, proto, failure)
@@ -1026,6 +1027,14 @@ func (w *kclWriter) writeComments(path string, indent int) {
 	}
 }
 
+// writeTrailingComments ends the file with the blocks its sources ended with.
+func (w *kclWriter) writeTrailingComments() {
+	if lines := w.comments[trailingCommentsPath]; len(lines) > 0 {
+		w.WriteString("\n")
+		w.writeComments(trailingCommentsPath, 0)
+	}
+}
+
 // sortKeys orders the keys of the mapping at a dotted path the way the source files stated
 // them. A key no source file stated comes after those, alphabetically.
 func (w *kclWriter) sortKeys(path string, keys []string) []string {
@@ -1109,6 +1118,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 			b.WriteString(appsFoldComment)
 			b.printf("env = %s | {applications = %s}\n", levelVarName, appsFoldExpr)
 		}
+		b.writeTrailingComments()
 		return b.String(), b.err
 	}
 
@@ -1150,6 +1160,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 	} else if levelVar != "env" {
 		b.printf("env = %s\n", expr)
 	}
+	b.writeTrailingComments()
 	return b.String(), b.err
 }
 
@@ -1254,6 +1265,7 @@ func (m *migrator) renderAppK(node *migNode, name string) (string, error) {
 		b.WriteString("\n}\n")
 		b.derived = declDerived
 	}
+	b.writeTrailingComments()
 	return b.String(), b.err
 }
 
@@ -1323,7 +1335,9 @@ func writeKclValue(b *kclWriter, value any, indent int, merge bool, path string)
 		}
 		b.WriteString("[\n")
 		for i, element := range typed {
-			b.writeComments(elementPath(path, i), indent+4)
+			if path != "" {
+				b.writeComments(elementPath(path, i), indent+4)
+			}
 			b.WriteString(pad)
 			b.WriteString("    ")
 			// A list element is a fresh value, not a union; its path is its index, which is
@@ -1351,7 +1365,7 @@ const kclLineWidth = 100
 func inlineKclList(b *kclWriter, list []any, path string) (string, bool) {
 	elements := make([]string, 0, len(list))
 	for i, element := range list {
-		if b.derived.hasPath(elementPath(path, i)) || len(b.comments[elementPath(path, i)]) > 0 {
+		if b.derived.hasPath(elementPath(path, i)) || (path != "" && len(b.comments[elementPath(path, i)]) > 0) {
 			return "", false
 		}
 		switch typed := element.(type) {

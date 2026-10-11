@@ -705,3 +705,16 @@ func TestKclScalarRoundTrip(t *testing.T) {
 		assert.Equal(t, value, evaluated[fmt.Sprintf("v%d", i)], "literal %d:\n%s", i, b.String())
 	}
 }
+
+func TestMergeComments(t *testing.T) {
+	t.Parallel()
+	merged := mergeComments(
+		map[string][]string{".a": {"# first"}, keyOrderPath(""): {"b", "a"}, trailingCommentsPath: {"# end one"}},
+		map[string][]string{".a": {"# second"}, keyOrderPath(""): {"c", "a"}, trailingCommentsPath: {"# end two"}},
+	)
+	assert.Equal(t, map[string][]string{
+		".a":                 {"# second"},
+		keyOrderPath(""):     {"b", "a", "c"},
+		trailingCommentsPath: {"# end one", "", "# end two"},
+	}, merged)
+}

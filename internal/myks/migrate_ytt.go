@@ -384,19 +384,22 @@ func yttComments(content []byte, schema bool) ([]yttComment, error) {
 		collectComments(doc.Content[0], lines, "", schema, &found)
 	}
 	if trailing := trailingComments(lines); len(trailing) > 0 {
-		found = append(found, yttComment{lines: trailing})
+		found = append(found, yttComment{path: trailingCommentsPath, lines: trailing})
 	}
 	return found, nil
 }
+
+// trailingCommentsPath is where the comment index of a file keeps the block the file ends
+// with: no value path is empty.
+const trailingCommentsPath = ""
 
 // keyOrderPath is where the comment index of a file keeps the key order of the mapping at a
 // dotted path. The prefix is no possible start of a value path, which always starts with a dot.
 func keyOrderPath(path string) string { return "\x02" + path }
 
-// trailingComments returns the comment block a file ends with, which sits above no value and
-// therefore reaches no attribute of the generated KCL. It is reported so that a note left
-// there — a Renovate marker tracking a version the file does not state, say — is not lost
-// with the legacy file.
+// trailingComments returns the comment block a file ends with, which sits above no value. The
+// generated file ends with it too, so that a note left there — a Renovate marker tracking a
+// version the file does not state, say — is not lost with the legacy file.
 func trailingComments(lines []string) []string {
 	var block []string
 	for i := len(lines) - 1; i >= 0; i-- {
