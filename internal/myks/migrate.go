@@ -1187,8 +1187,31 @@ func (m *migrator) planPrototypeSchemas() {
 		m.protoSchemas[proto] = kclSchemaName(proto)
 		plan := newProtoSchemaPlan(m.protoSchemas[proto], values, m.protoInspected[proto])
 		plan.externalSchema = m.protoSchemaOutside[proto]
+		plan.requireStatedFields(m.statedValues(proto))
 		m.protoPlans[proto] = plan
 	}
+}
+
+// statedValues lists every value set the sources state for applications of one prototype:
+// the prototype's own, every level's `_proto/` contribution, and the `_apps/` contribution of
+// every application a roster declares with it.
+func (m *migrator) statedValues(proto string) []map[string]any {
+	stated := []map[string]any{m.protoBase[proto]}
+	apps := map[string]bool{}
+	for _, node := range m.nodes {
+		stated = append(stated, node.protoValues[proto])
+		for _, entry := range node.rawRoster {
+			if entry.proto == proto {
+				apps[entry.name] = true
+			}
+		}
+	}
+	for _, node := range m.nodes {
+		for app := range apps {
+			stated = append(stated, node.appValues[app])
+		}
+	}
+	return stated
 }
 
 // kclSchemaName turns a prototype directory name into its schema name: web_app -> WebApp.

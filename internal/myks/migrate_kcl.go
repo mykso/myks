@@ -330,7 +330,10 @@ func pathKey(path []string) string { return strings.Join(path, "\x00") }
 type protoSchemaPlan struct {
 	values   map[string]any
 	schema   *inspectedSchema
-	demanded map[string]bool   // path key -> generated without a default
+	demanded map[string]bool // path key -> generated without a default
+	// required holds the element fields generated as required, without the default the ytt
+	// schema gave them (requireStatedFields), by path key.
+	required map[string]bool
 	names    map[string]string // path key -> schema name; the root is the empty path
 	items    map[string]string // path key of an array -> its element schema name
 	taken    map[string]bool   // the schema names claimed so far
@@ -344,11 +347,12 @@ type protoSchemaPlan struct {
 
 func newProtoSchemaPlan(root string, values map[string]any, schema *inspectedSchema) *protoSchemaPlan {
 	p := &protoSchemaPlan{
-		values: values,
-		schema: schema,
-		names:  map[string]string{"": root},
-		items:  map[string]string{},
-		taken:  map[string]bool{root: true},
+		values:   values,
+		schema:   schema,
+		names:    map[string]string{"": root},
+		items:    map[string]string{},
+		required: map[string]bool{},
+		taken:    map[string]bool{root: true},
 	}
 	// A data key could otherwise name a schema after a KCL literal (`Undefined`), or after a
 	// schema of the myks package, which a reader would take for it.
@@ -555,12 +559,14 @@ func (p *protoSchemaPlan) attributes(path []string, values map[string]any) []str
 	if prefix != "" {
 		prefix += "\x00"
 	}
-	for key := range p.demanded {
-		child, found := strings.CutPrefix(key, prefix)
-		if !found || child == "" || strings.Contains(child, "\x00") {
-			continue
+	for _, generated := range []map[string]bool{p.demanded, p.required} {
+		for key := range generated {
+			child, found := strings.CutPrefix(key, prefix)
+			if !found || child == "" || strings.Contains(child, "\x00") {
+				continue
+			}
+			names = append(names, child)
 		}
-		names = append(names, child)
 	}
 	slices.Sort(names)
 	return slices.Compact(names)
@@ -655,7 +661,7 @@ func (p *protoSchemaPlan) pruneElementDefaults(values map[string]any, path []str
 				continue
 			}
 			itemsPath := append(slices.Clone(childPath), itemsKey)
-			defaults := schemaDefaults(p.schema.nodeAt(itemsPath))
+			defaults := p.elementDefaults(itemsPath)
 			for _, raw := range typed {
 				element, ok := raw.(map[string]any)
 				if !ok {
@@ -678,7 +684,7 @@ func (p *protoSchemaPlan) pruneElementDefaults(values map[string]any, path []str
 // in from it.
 func (p *protoSchemaPlan) completeElements(list []any, path []string) []any {
 	itemsPath := append(slices.Clone(path), itemsKey)
-	defaults := schemaDefaults(p.schema.nodeAt(itemsPath))
+	defaults := p.elementDefaults(itemsPath)
 	out := slices.Clone(list)
 	for i, raw := range out {
 		element, ok := raw.(map[string]any)
@@ -696,12 +702,87 @@ func (p *protoSchemaPlan) completeElements(list []any, path []string) []any {
 	return out
 }
 
+// elementDefaults returns the defaults the ytt schema gives the value at path inside an array
+// element, less those of the fields generated as required.
+func (p *protoSchemaPlan) elementDefaults(path []string) map[string]any {
+	defaults := schemaDefaults(p.schema.nodeAt(path))
+	for name := range defaults {
+		if p.required[pathKey(append(slices.Clone(path), name))] {
+			delete(defaults, name)
+		}
+	}
+	return defaults
+}
+
+// requireStatedFields generates as required, without a default, every scalar element field
+// that each element stated anywhere sets. A ytt array item's values are both the default of every
+// element and the example of its shape, and as KCL defaults they read like values someone
+// chose (`name: str = "Arch"`). Required instead, the field changes nothing the tree renders —
+// every element states it — and an element added later has to state it too. A field no
+// element was stated for keeps its default; so does a nullable one, and so does every field
+// where a schema outside the prototype also governs the scope.
+func (p *protoSchemaPlan) requireStatedFields(stated []map[string]any) {
+	if p.schema == nil || p.externalSchema || len(p.items) == 0 {
+		return
+	}
+	elements := map[string]int{}       // items path key -> elements stated there
+	set := map[string]map[string]int{} // items path key -> field -> elements setting it
+	var walk func(values map[string]any, path []string)
+	walk = func(values map[string]any, path []string) {
+		for key, value := range values {
+			childPath := append(slices.Clone(path), key)
+			switch typed := value.(type) {
+			case map[string]any:
+				walk(typed, childPath)
+			case []any:
+				if _, ok := p.items[pathKey(childPath)]; !ok {
+					continue
+				}
+				itemsPath := append(childPath, itemsKey)
+				at := pathKey(itemsPath)
+				for _, raw := range typed {
+					elements[at]++
+					element, _ := raw.(map[string]any)
+					for name, field := range element {
+						if field == nil {
+							continue
+						}
+						if set[at] == nil {
+							set[at] = map[string]int{}
+						}
+						set[at][name]++
+					}
+					walk(element, itemsPath)
+				}
+			}
+		}
+	}
+	for _, values := range stated {
+		walk(values, nil)
+	}
+	for at, count := range elements {
+		itemsPath := strings.Split(at, "\x00")
+		node := p.schema.nodeAt(itemsPath)
+		for name, value := range schemaDefaults(node) {
+			if _, ok := inlineScalar(value); !ok {
+				// An empty collection is no example of anything.
+				continue
+			}
+			field := pathKey(append(slices.Clone(itemsPath), name))
+			prop := node.Properties[name]
+			if set[at][name] == count && !p.demanded[field] && prop != nil && !prop.Nullable {
+				p.required[field] = true
+			}
+		}
+	}
+}
+
 // valuesAt returns the prototype's values at path. Below an array element there are none —
 // the prototype states the array, not its elements — so the ytt schema's own defaults for the
 // element stand in, which is what KCL will fill into every element written there.
 func (p *protoSchemaPlan) valuesAt(path []string) map[string]any {
 	if slices.Contains(path, itemsKey) {
-		return schemaDefaults(p.schema.nodeAt(path))
+		return p.elementDefaults(path)
 	}
 	values := p.values
 	for _, key := range path {
@@ -739,6 +820,10 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 		if p.demanded[pathKey(child)] {
 			// No default: the prototype validates this value without supplying a valid one.
 			b.printf("    %s?: %s\n", key, p.attributeType(child, nil))
+			continue
+		}
+		if p.required[pathKey(child)] {
+			b.printf("    %s: %s\n", key, p.attributeType(child, nil))
 			continue
 		}
 		value := values[key]

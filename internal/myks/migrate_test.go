@@ -647,6 +647,69 @@ components:
 	}}, builder["config"])
 }
 
+// TestRequireStatedFields pins that an element field every stated element sets loses the
+// ytt default that was only an example of the element's shape, and that the simulation no
+// longer fills it in.
+func TestRequireStatedFields(t *testing.T) {
+	t.Parallel()
+	schema, err := parseSchemaInspect([]byte(`
+components:
+  schemas:
+    dataValues:
+      type: object
+      additionalProperties: false
+      properties:
+        application:
+          type: object
+          additionalProperties: false
+          properties:
+            config:
+              type: array
+              default: []
+              items:
+                type: object
+                additionalProperties: false
+                properties:
+                  category: {type: string, default: Category}
+                  note: {type: string, default: "", nullable: true}
+                  services:
+                    type: array
+                    default: []
+                    items:
+                      type: object
+                      additionalProperties: false
+                      properties:
+                        name: {type: string, default: Arch}
+                        iconBubble: {type: boolean, default: true}
+`))
+	require.NoError(t, err)
+	plan := newProtoSchemaPlan("Home", schema.defaults, schema)
+	plan.requireStatedFields([]map[string]any{
+		{"application": map[string]any{"config": []any{
+			map[string]any{"category": "Apps", "note": "x", "services": []any{map[string]any{"name": "ArgoCD"}}},
+		}}},
+		{"application": map[string]any{"config": []any{
+			map[string]any{"category": "Media", "note": "y", "services": []any{map[string]any{"name": "Jellyfin", "iconBubble": false}}},
+		}}},
+	})
+	b := &kclWriter{}
+	plan.render(b, "home")
+	require.NoError(t, b.err)
+	assert.Contains(t, b.String(), "schema ConfigItem:\n    category: str\n    note?: str = \"\"\n    services: [Service] = []\n",
+		"a nullable field keeps its default")
+	assert.Contains(t, b.String(), "schema Service:\n    iconBubble: bool = True\n    name: str\n",
+		"a field one element leaves out keeps its default")
+
+	completed := plan.withElementDefaults(map[string]any{"application": map[string]any{"config": []any{
+		map[string]any{"category": "Apps", "services": []any{map[string]any{"name": "ArgoCD"}}},
+	}}}, nil)
+	assert.Equal(t, []any{map[string]any{
+		"category": "Apps",
+		"note":     "",
+		"services": []any{map[string]any{"name": "ArgoCD", "iconBubble": true}},
+	}}, completed["application"].(map[string]any)["config"])
+}
+
 func TestClaimName(t *testing.T) {
 	t.Parallel()
 	p := newProtoSchemaPlan("Webapp", nil, nil)
