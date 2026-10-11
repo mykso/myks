@@ -1408,7 +1408,7 @@ func writeKclEntries(b *kclWriter, values map[string]any, indent int, merge bool
 func writeKclValue(b *kclWriter, value any, indent int, merge bool, path string) {
 	if expr, ok := b.derived.expr(path); ok {
 		// ytt computed this value; the file states the computation instead of its result.
-		b.WriteString(expr)
+		b.WriteString(wrapKclExpr(expr, b.column(), indent))
 		return
 	}
 	pad := strings.Repeat(" ", indent)
@@ -1488,6 +1488,110 @@ func inlineKclList(b *kclWriter, list []any, path string) (string, bool) {
 func (w *kclWriter) column() int {
 	s := w.b.String()
 	return len(s) - strings.LastIndex(s, "\n") - 1
+}
+
+// wrapKclExpr breaks a derivation too long for its line at its first bracket group: the
+// elements of the group go one per line, each wrapped the same way, and what surrounds the
+// group stays around it — `[{...} for x in xs]` keeps its `for` clause after the element it
+// repeats. A dict or list states its elements on lines of their own; the arguments of a call
+// keep their commas.
+func wrapKclExpr(expr string, column, indent int) string {
+	if strings.Contains(expr, "\n") || column+len(expr) <= kclLineWidth {
+		return expr
+	}
+	open := firstBracket(expr)
+	if open < 0 {
+		return expr
+	}
+	closing := matchingBracket(expr, open)
+	if closing < 0 {
+		return expr
+	}
+	elements := splitTopLevel(expr[open+1 : closing])
+	if len(elements) == 0 {
+		return expr
+	}
+	pad := strings.Repeat(" ", indent+4)
+	separator := "\n"
+	if expr[open] == '(' {
+		separator = ",\n"
+	}
+	wrapped := make([]string, len(elements))
+	for i, element := range elements {
+		wrapped[i] = pad + wrapKclExpr(element, len(pad), indent+4)
+	}
+	return expr[:open+1] + "\n" + strings.Join(wrapped, separator) + "\n" +
+		strings.Repeat(" ", indent) + expr[closing:]
+}
+
+// firstBracket returns the index of the first bracket outside a string, or -1.
+func firstBracket(expr string) int {
+	for i := 0; i < len(expr); i++ {
+		switch expr[i] {
+		case '"', '\'':
+			i = stringEnd(expr, i)
+		case '(', '[', '{':
+			return i
+		}
+	}
+	return -1
+}
+
+// matchingBracket returns the index of the bracket closing the one at open, or -1.
+func matchingBracket(expr string, open int) int {
+	depth := 0
+	for i := open; i < len(expr); i++ {
+		switch expr[i] {
+		case '"', '\'':
+			i = stringEnd(expr, i)
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			if depth--; depth == 0 {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+// splitTopLevel splits a bracket group's content at the commas outside nested groups and
+// strings, trimming each element.
+func splitTopLevel(content string) []string {
+	var elements []string
+	depth, start := 0, 0
+	for i := 0; i < len(content); i++ {
+		switch content[i] {
+		case '"', '\'':
+			i = stringEnd(content, i)
+		case '(', '[', '{':
+			depth++
+		case ')', ']', '}':
+			depth--
+		case ',':
+			if depth == 0 {
+				elements = append(elements, strings.TrimSpace(content[start:i]))
+				start = i + 1
+			}
+		}
+	}
+	if last := strings.TrimSpace(content[start:]); last != "" {
+		elements = append(elements, last)
+	}
+	return elements
+}
+
+// stringEnd returns the index of the quote closing the string literal opening at start.
+func stringEnd(expr string, start int) int {
+	quote := expr[start]
+	i := start + 1
+	for i < len(expr) && expr[i] != quote {
+		if expr[i] == '\\' {
+			i++
+		}
+		i++
+	}
+	return i
 }
 
 // kclLiteral renders a value map as a KCL dict literal.

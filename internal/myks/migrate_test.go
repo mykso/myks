@@ -878,3 +878,23 @@ func TestReadCommentsWarnsOnLegacyFileRefs(t *testing.T) {
 	assert.Contains(t, m.warnings[0], "# Must be set in envs/_apps/kb-mcp/app-data.ytt.yaml")
 	assert.NotContains(t, m.warnings[0], "OAuth")
 }
+
+func TestWrapKclExpr(t *testing.T) {
+	t.Parallel()
+	short := `[{a = 1} for x in _xs]`
+	assert.Equal(t, short, wrapKclExpr(short, 4, 4))
+
+	long := `[{match = {registry = reg.replace(".", "\\."), repository = "(.+)"}, replace = {registry = "oci.zebradil.dev", repository = reg + "-cache/$1"}} for reg in _registries]`
+	assert.Equal(t, `[
+        {
+            match = {registry = reg.replace(".", "\\."), repository = "(.+)"}
+            replace = {registry = "oci.zebradil.dev", repository = reg + "-cache/$1"}
+        } for reg in _registries
+    ]`, wrapKclExpr(long, 20, 4))
+
+	call := `lib.format("` + strings.Repeat("x", 60) + `", "` + strings.Repeat("y", 40) + `, {not a group}")`
+	assert.Equal(t, `lib.format(
+    "`+strings.Repeat("x", 60)+`",
+    "`+strings.Repeat("y", 40)+`, {not a group}"
+)`, wrapKclExpr(call, 0, 0))
+}
