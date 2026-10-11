@@ -1453,20 +1453,50 @@ func writeFrozenValuesComment(b *kclWriter) {
 
 // writeKclEntries renders a map's entries, one per line, in source order. In merge style
 // (dict-union patches) map values use `key: {...}` so nested dicts merge instead of
-// replacing; everything else uses `key = value`.
+// replacing, and a chain of single-entry maps is one dotted key, which merges the same way;
+// everything else uses `key = value`.
 func writeKclEntries(b *kclWriter, values map[string]any, indent int, merge bool, path string) {
 	pad := strings.Repeat(" ", indent)
 	for _, key := range b.sortKeys(path, slices.Collect(maps.Keys(values))) {
 		value := values[key]
 		keyPath := path + "." + key
 		b.writeComments(keyPath, indent)
+		label := kclKey(key)
+		if merge {
+			label, value, keyPath = b.chainKey(key, value, keyPath)
+		}
 		if _, isMap := value.(map[string]any); isMap && merge {
-			b.printf("%s%s: ", pad, kclKey(key))
+			b.printf("%s%s: ", pad, label)
 		} else {
-			b.printf("%s%s = ", pad, kclKey(key))
+			b.printf("%s%s = ", pad, label)
 		}
 		writeKclValue(b, value, indent, merge, keyPath)
 		b.WriteString("\n")
+	}
+}
+
+// chainKey follows a map of one entry down to the first value that is not one, so that
+// `storage: {media: {size = x}}` is written `storage.media.size = x`. It returns the dotted
+// key, the value it leads to, and that value's path. The chain stops above a link that is no
+// identifier or has a comment of its own, and at a map a derivation states whole.
+func (w *kclWriter) chainKey(key string, value any, path string) (string, any, string) {
+	if !isKclIdentifier(key) {
+		return kclKey(key), value, path
+	}
+	label := key
+	for {
+		inner, ok := value.(map[string]any)
+		if !ok || len(inner) != 1 || w.derived.hasPath(path) {
+			return label, value, path
+		}
+		var child string
+		for child = range inner {
+		}
+		childPath := path + "." + child
+		if !isKclIdentifier(child) || len(w.comments[childPath]) > 0 {
+			return label, value, path
+		}
+		label, value, path = label+"."+child, inner[child], childPath
 	}
 }
 
@@ -1481,6 +1511,10 @@ func writeKclValue(b *kclWriter, value any, indent int, merge bool, path string)
 	case map[string]any:
 		if len(typed) == 0 {
 			b.WriteString("{}")
+			return
+		}
+		if inline, ok := inlineKclDict(b, typed, path); ok {
+			b.WriteString(inline)
 			return
 		}
 		b.WriteString("{\n")
@@ -1531,22 +1565,48 @@ func inlineKclList(b *kclWriter, list []any, path string) (string, bool) {
 		if b.derived.hasPath(elementPath(path, i)) || (path != "" && len(b.comments[elementPath(path, i)]) > 0) {
 			return "", false
 		}
-		switch typed := element.(type) {
-		case map[string]any, []any:
-			return "", false
-		case string:
-			if strings.Contains(typed, "\n") {
-				return "", false
-			}
-		}
-		scalar, err := kclScalar(element)
-		if err != nil {
+		scalar, ok := inlineScalar(element)
+		if !ok {
 			return "", false
 		}
 		elements = append(elements, scalar)
 	}
 	inline := "[" + strings.Join(elements, ", ") + "]"
 	return inline, b.column()+len(inline) <= kclLineWidth
+}
+
+// inlineKclDict renders a dict of plain scalars on one line, when it fits on the current one.
+// A dict holding a container, a multi-line string, a derivation or a commented entry keeps
+// one entry per line.
+func inlineKclDict(b *kclWriter, values map[string]any, path string) (string, bool) {
+	entries := make([]string, 0, len(values))
+	for _, key := range b.sortKeys(path, slices.Collect(maps.Keys(values))) {
+		keyPath := path + "." + key
+		if b.derived.hasPath(keyPath) || len(b.comments[keyPath]) > 0 {
+			return "", false
+		}
+		scalar, ok := inlineScalar(values[key])
+		if !ok {
+			return "", false
+		}
+		entries = append(entries, kclKey(key)+" = "+scalar)
+	}
+	inline := "{" + strings.Join(entries, ", ") + "}"
+	return inline, b.column()+len(inline) <= kclLineWidth
+}
+
+// inlineScalar renders a value that fits on one line of a collection literal.
+func inlineScalar(value any) (string, bool) {
+	switch typed := value.(type) {
+	case map[string]any, []any:
+		return "", false
+	case string:
+		if strings.Contains(typed, "\n") {
+			return "", false
+		}
+	}
+	scalar, err := kclScalar(value)
+	return scalar, err == nil
 }
 
 // column is the length of the line written so far.

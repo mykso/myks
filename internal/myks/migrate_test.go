@@ -139,18 +139,14 @@ func TestWriteKclEntries(t *testing.T) {
 emptyList = []
 floatValue = 2.0
 list = [
-    {
-        name = "a"
-    }
+    {name = "a"}
     2
 ]
 long = [
     "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
     "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy"
 ]
-nested = {
-    inner = 1
-}
+nested = {inner = 1}
 nullValue = None
 plain = "v"
 scalars = ["a", 1, True]
@@ -159,11 +155,27 @@ scalars = ["a", 1, True]
 
 	merge := &kclWriter{}
 	writeKclEntries(merge, map[string]any{"nested": map[string]any{"inner": 1}, "scalar": "v"}, 0, true, "")
-	assert.Equal(t, `nested: {
-    inner = 1
-}
+	assert.Equal(t, `nested.inner = 1
 scalar = "v"
 `, merge.String())
+
+	chains := &kclWriter{comments: map[string][]string{".noted.media": {"# why"}}}
+	writeKclEntries(chains, map[string]any{
+		"storage": map[string]any{"media": map[string]any{"size": "1Gi", "path": "/m", "class": map[string]any{"name": "x"}}},
+		"noted":   map[string]any{"media": map[string]any{"size": "2Gi"}},
+		"web-ui":  map[string]any{"port": 80},
+	}, 0, true, "")
+	assert.Equal(t, `noted: {
+    # why
+    media.size = "2Gi"
+}
+storage.media: {
+    class.name = "x"
+    path = "/m"
+    size = "1Gi"
+}
+"web-ui": {port = 80}
+`, chains.String(), "a chain stops above a commented link, at a map of several entries, and at a key that is no identifier")
 }
 
 func TestExtractEnvironmentScope(t *testing.T) {
@@ -480,8 +492,8 @@ func TestRenderLevelFiles(t *testing.T) {
 	// Declaration and frozen values of one application, in that order: the later block wins.
 	assert.Contains(t, files["app-web.k"],
 		"_apps: myks.Apps {\n    web = myks.App {\n        replicas = 3\n    }\n}\n")
-	assert.Contains(t, files["app-web.k"], "_apps: myks.Apps {\n    web: {\n        computed = \"x\"\n    }\n}\n")
-	assert.Contains(t, files["app-cache.k"], "_apps: myks.Apps {\n    cache: {\n        replicas = 1\n    }\n}\n")
+	assert.Contains(t, files["app-web.k"], "_apps: myks.Apps {\n    web: {computed = \"x\"}\n}\n")
+	assert.Contains(t, files["app-cache.k"], "_apps: myks.Apps {\n    cache: {replicas = 1}\n}\n")
 
 	assert.Contains(t, files[patchKFileName], "_patch = {\n    computed = \"y\"\n}\n")
 }
@@ -962,7 +974,7 @@ components:
 	text := string(content)
 	assert.Less(t, strings.Index(text, "schema Requests:"), strings.Index(text, "schema Limits:"))
 	assert.Less(t, strings.Index(text, `"application.zone must`), strings.Index(text, `"application.image must`))
-	assert.Contains(t, text, "name = \"default\"\n                uri = \"http://example\"\n                proxy = True\n")
+	assert.Contains(t, text, "{name = \"default\", uri = \"http://example\", proxy = True}")
 	assert.Contains(t, text, "    zone: str = \"a\"\n", "a typed, non-nullable value is required: ytt rejected its null too")
 	assert.Contains(t, text, "    config?: any = {\n", "a nullable value stays optional")
 }
