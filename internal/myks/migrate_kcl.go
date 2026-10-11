@@ -224,7 +224,7 @@ func (m *migrator) protoKPath(proto string) string {
 func (m *migrator) writeProtoK(proto string) error {
 	plan := m.protoPlans[proto]
 	b := &kclWriter{derived: m.protoDerived[proto], comments: m.protoComments[proto]}
-	b.WriteString("import myks as m\n")
+	b.WriteString("import myks\n")
 	writeDerivationHeader(b, b.derived)
 	plan.render(b, proto)
 	for _, failure := range plan.failed {
@@ -609,12 +609,12 @@ func (p *protoSchemaPlan) renderSchema(b *kclWriter, path []string, values map[s
 	}
 	b.WriteString("\n")
 	if len(path) == 0 {
-		b.printf("schema %s(m.App):\n", p.names[""])
+		b.printf("schema %s(myks.App):\n", p.names[""])
 	} else {
 		b.printf("schema %s:\n", p.names[pathKey(path)])
 	}
 	if p.openScope(path, names) {
-		// KCL does not inherit an index signature into a subclass, so m.App's has to be
+		// KCL does not inherit an index signature into a subclass, so myks.App's has to be
 		// repeated on the root: without it an application could only set the keys below.
 		b.WriteString("    [...str]: any\n")
 	}
@@ -943,8 +943,13 @@ func (m *migrator) writeMainK() error {
 	b.WriteString("import myks\n")
 
 	leafDirs := slices.Sorted(maps.Keys(m.g.environments))
+	refs := leafImportNames(leafDirs)
 	for i, dir := range leafDirs {
-		b.printf("import %s as env_%d\n", packagePath(dir), i+1)
+		if refs[i] == filepath.Base(dir) {
+			b.printf("import %s\n", packagePath(dir))
+		} else {
+			b.printf("import %s as %s\n", packagePath(dir), refs[i])
+		}
 	}
 
 	b.WriteString("\nmyksSchemaVersion = myks.SCHEMA_VERSION\n")
@@ -954,11 +959,29 @@ func (m *migrator) writeMainK() error {
 		if err != nil {
 			return fmt.Errorf("resolving environment path %s: %w", dir, err)
 		}
-		b.printf("    %s = env_%d.env\n", quoteKclString(filepath.ToSlash(rel)), i+1)
+		b.printf("    %s = %s.env\n", quoteKclString(filepath.ToSlash(rel)), refs[i])
 	}
 	b.WriteString("}\n")
 
 	return writeFile(filepath.Join(m.g.RootDir, "main.k"), []byte(b.String()))
+}
+
+// leafImportNames names the import of every leaf package in main.k: its directory name, which
+// is what KCL binds an unaliased import to, unless another leaf, the schema package or a
+// variable of main.k claims the same name; then every leaf of that name is numbered.
+func leafImportNames(leafDirs []string) []string {
+	count := map[string]int{"myks": 1, "environments": 1, "myksSchemaVersion": 1}
+	for _, dir := range leafDirs {
+		count[filepath.Base(dir)]++
+	}
+	names := make([]string, len(leafDirs))
+	for i, dir := range leafDirs {
+		names[i] = filepath.Base(dir)
+		if count[names[i]] > 1 {
+			names[i] = fmt.Sprintf("env_%d", i+1)
+		}
+	}
+	return names
 }
 
 func packagePath(dir string) string {
@@ -1064,7 +1087,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 
 	hasApps := nodeHasApps(node)
 	if node == m.root {
-		b.WriteString("import myks as m\n")
+		b.WriteString("import myks\n")
 		writeDerivationHeader(b, b.derived)
 		b.WriteString("\n")
 		writeAppsBase(b, node)
@@ -1072,7 +1095,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 		if hasApps {
 			rootVar = levelVarName
 		}
-		b.printf("%s = m.Environment {\n", rootVar)
+		b.printf("%s = myks.Environment {\n", rootVar)
 		writeKclEntries(b, node.envValues, 4, false, "")
 		b.WriteString("}\n")
 		if hasApps {
@@ -1083,7 +1106,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 
 	if node.env != nil || hasApps {
 		// The schema package is needed for finalize on a leaf and for the `_apps` accumulator.
-		b.WriteString("import myks as m\n")
+		b.WriteString("import myks\n")
 	}
 	b.printf("import %s as parent\n", packagePath(parent.dir))
 	writeDerivationHeader(b, b.derived)
@@ -1114,7 +1137,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 		expr = fmt.Sprintf("%s | {applications: %s}", levelVar, appsFoldExpr)
 	}
 	if node.env != nil {
-		b.printf("env = m.finalize(%s)\n", expr)
+		b.printf("env = myks.finalize(%s)\n", expr)
 	} else if levelVar != "env" {
 		b.printf("env = %s\n", expr)
 	}
@@ -1125,7 +1148,7 @@ func (m *migrator) renderEnvK(node, parent *migNode) (string, error) {
 // so the level keeps resolving when the last of those files is deleted by hand.
 func writeAppsBase(b *kclWriter, node *migNode) {
 	if nodeHasApps(node) {
-		b.WriteString("_apps: m.Apps {}\n\n")
+		b.WriteString("_apps: myks.Apps {}\n\n")
 	}
 }
 
@@ -1135,9 +1158,17 @@ func writeAppsBase(b *kclWriter, node *migNode) {
 // frozen values win over the declaration above them.
 func (m *migrator) renderAppK(node *migNode, name string) (string, error) {
 	b := &kclWriter{}
-	b.WriteString("import myks as m\n")
-
 	app, declared := node.declared[name]
+	// Inside the `_apps` block the application's name is a key, which shadows a package of
+	// the same name for the rest of the block; so does a prototype package named like the
+	// schema package. Only then does the schema package take an alias.
+	myks := "myks"
+	if name == myks || (declared && app.proto == myks) {
+		myks = "m"
+		b.WriteString("import myks as m\n")
+	} else {
+		b.WriteString("import myks\n")
+	}
 	if declared {
 		b.derived = m.declarationDerived(node, name, app.proto)
 		b.comments = m.declarationComments(node, name, app.proto)
@@ -1149,7 +1180,7 @@ func (m *migrator) renderAppK(node *migNode, name string) (string, error) {
 	// The frozen block states its own derivations, which read the level variable; their
 	// prelude and imports belong in the same header.
 	patchDerived := node.appPatchDerived[name]
-	// A prototype with a generated base schema is instantiated instead of m.App: its defaults
+	// A prototype with a generated base schema is instantiated instead of myks.App: its defaults
 	// come from the schema, so the declaration's values are a union on top.
 	schema := ""
 	if declared {
@@ -1169,11 +1200,11 @@ func (m *migrator) renderAppK(node *migNode, name string) (string, error) {
 		blocks++
 	}
 	openBlock := func() {
-		b.printf("_apps: m.Apps {\n    %s", kclKey(name))
+		b.printf("_apps: %s.Apps {\n    %s", myks, kclKey(name))
 	}
 
 	if declared {
-		constructor, declMerge := "m.App", false
+		constructor, declMerge := myks+".App", false
 		if schema != "" {
 			constructor, declMerge = app.proto+"."+schema, true
 		}
