@@ -1,5 +1,19 @@
 # Changelog
 
+## [5.15.0](https://github.com/mykso/myks/compare/v5.14.1...v5.15.0) (2026-10-17)
+
+
+### Features
+
+* **migrate:** close engine scopes, require demanded values, format the seed ([#912](https://github.com/mykso/myks/issues/912)) ([7a500fc](https://github.com/mykso/myks/commit/7a500fc741034a88bfb4d1493b73c9d9bb655431))
+* **migrate:** readable output from homelab review ([#911](https://github.com/mykso/myks/issues/911)) ([c84ff25](https://github.com/mykso/myks/commit/c84ff258c9cd85ba58e21a2ccbd14cf4fe45eb73))
+* **migrate:** readable, lossless KCL output ([#909](https://github.com/mykso/myks/issues/909)) ([1681927](https://github.com/mykso/myks/commit/16819276f7647b07f693598167b11f74fcdd837d))
+
+
+### Bug Fixes
+
+* **deps:** update module kcl-lang.io/kcl-go to v0.13.1 ([#918](https://github.com/mykso/myks/issues/918)) ([ac34681](https://github.com/mykso/myks/commit/ac34681b25534d7972c5a1c9dff94dc8f3bc0a27))
+
 ## [5.14.1](https://github.com/mykso/myks/compare/v5.14.0...v5.14.1) (2026-10-09)
 
 
