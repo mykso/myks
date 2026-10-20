@@ -3,12 +3,12 @@ module github.com/mykso/myks
 go 1.26.5
 
 require (
-	carvel.dev/kbld v0.49.1
+	carvel.dev/kbld v0.49.2
 	carvel.dev/vendir v0.46.2
-	carvel.dev/ytt v0.55.2
+	carvel.dev/ytt v0.55.3
 	github.com/alecthomas/chroma/v2 v2.27.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
-	github.com/creasty/defaults v1.10.0
+	github.com/creasty/defaults v1.11.0
 	github.com/google/go-containerregistry v0.22.1
 	github.com/hashicorp/go-version v1.9.0
 	github.com/logrusorgru/aurora/v4 v4.0.0
@@ -18,9 +18,9 @@ require (
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.12.1
 	go.starlark.net v0.0.0-20260308204554-5a23e8e5ecd1
-	golang.org/x/sync v0.23.0
-	golang.org/x/sys v0.48.0
-	golang.org/x/term v0.46.0
+	golang.org/x/sync v0.24.0
+	golang.org/x/sys v0.49.0
+	golang.org/x/term v0.47.0
 	gopkg.in/yaml.v3 v3.0.1
 	kcl-lang.io/kcl-go v0.13.1
 	sigs.k8s.io/yaml v1.6.0
