@@ -80,9 +80,9 @@ homebrew_casks:
     hooks:
       post:
         # This is a workaround for the quarantine attribute that macOS applies to downloaded files.
-        install: |
-          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/myks"]
+        install_steps: |
+          on_macos do
+            run "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "{{ .StagedPath }}/myks"]
           end
 dockers_v2:
   - images:
