@@ -1,5 +1,13 @@
 # Changelog
 
+## [5.15.1](https://github.com/mykso/myks/compare/v5.15.0...v5.15.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **brew:** replace deprecated cask postflight with postflight_steps ([#926](https://github.com/mykso/myks/issues/926)) ([731f66c](https://github.com/mykso/myks/commit/731f66c6ee9b87cb2bd0e31195f627f590ae9eca))
+* **brew:** skip quarantine removal on Linux ([#922](https://github.com/mykso/myks/issues/922)) ([b45d265](https://github.com/mykso/myks/commit/b45d265086c0385872f47a02da1f8cbf357233fb))
+
 ## [5.15.0](https://github.com/mykso/myks/compare/v5.14.1...v5.15.0) (2026-10-17)
 
 
