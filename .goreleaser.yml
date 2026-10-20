@@ -80,8 +80,9 @@ homebrew_casks:
     hooks:
       post:
         # This is a workaround for the quarantine attribute that macOS applies to downloaded files.
+        # Linux has no /usr/bin/xattr, and system_command fails the install when it is missing.
         install: |
-          if system_command("/usr/bin/xattr", args: ["-h"]).exit_status == 0
+          if OS.mac?
             system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/myks"]
           end
 dockers_v2:

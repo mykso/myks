@@ -113,9 +113,8 @@ docker pull ghcr.io/mykso/myks:latest
 
 ### Homebrew
 
-```
-brew tap mykso/tap
-brew install myks
+```shell
+brew install --cask mykso/tap/myks
 ```
 
 ### Nix
