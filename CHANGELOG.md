@@ -1,5 +1,12 @@
 # Changelog
 
+## [5.15.2](https://github.com/mykso/myks/compare/v5.15.1...v5.15.2) (2026-10-20)
+
+
+### Bug Fixes
+
+* **deps:** update go.starlark.net digest to 89a6a09 ([#898](https://github.com/mykso/myks/issues/898)) ([69b1b98](https://github.com/mykso/myks/commit/69b1b98440bc8b3d26aecf99bd2c9338c9ee9690))
+
 ## [5.15.1](https://github.com/mykso/myks/compare/v5.15.0...v5.15.1) (2026-10-20)
 
 
