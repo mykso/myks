@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -215,6 +216,9 @@ Examples:
   # Show which data-values file sets each final value
   {{.CommandPath}} prod app1 --provenance
 
+  # Also list the values no data-values file sets
+  {{.CommandPath}} prod app1 --provenance --with-defaults
+
   # Fail when a data-values file sets a value to the one it already inherits (for CI)
   {{.CommandPath}} --redundant
 `
@@ -228,6 +232,10 @@ func newInspectAppsCmd() *cobra.Command {
 		Args:              cobra.MaximumNArgs(2),
 		ValidArgsFunction: shellCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if opts.WithDefaults && !opts.Provenance {
+				return errors.New("--with-defaults requires --provenance")
+			}
+
 			g := getGlobe()
 			if err := g.ValidateRootDir(); err != nil {
 				return fmt.Errorf("root directory is not suitable for myks: %w", err)
@@ -238,7 +246,7 @@ func newInspectAppsCmd() *cobra.Command {
 				return fmt.Errorf("unable to initialize: %w", err)
 			}
 
-			apps, err := g.InspectApplications(opts)
+			apps, err := g.InspectApplications(asyncLevel, opts)
 			if err != nil {
 				return fmt.Errorf("inspect failed: %w", err)
 			}
@@ -261,6 +269,7 @@ func newInspectAppsCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.DataValues, "data-values", false, "include final resolved ytt data values")
 	cmd.Flags().BoolVar(&opts.Rendered, "rendered", false, "include rendered artifacts from .myks/ if available")
 	cmd.Flags().BoolVar(&opts.Provenance, "provenance", false, "include the data-values file that sets each final data value")
+	cmd.Flags().BoolVar(&opts.WithDefaults, "with-defaults", false, "with --provenance, also list the values no data-values file sets")
 	cmd.Flags().BoolVar(&opts.Redundant, "redundant", false, "include data values a file sets to the value it already inherits; exit non-zero if any")
 	cmd.SetUsageTemplate(inspectAppsUsageTemplate)
 	return cmd

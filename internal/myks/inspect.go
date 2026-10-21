@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 )
 
 // InspectEnvironment holds inspection data for a single environment.
@@ -56,6 +57,8 @@ type InspectAppsOptions struct {
 	Rendered bool
 	// Provenance includes, for each final data value, the data-values file that set it.
 	Provenance bool
+	// WithDefaults keeps the values no data-values file sets in Provenance.
+	WithDefaults bool
 	// Redundant includes data values that a file sets to the value it already inherits.
 	Redundant bool
 }
@@ -134,21 +137,38 @@ func (g *Globe) InspectEnvironments(includeDataValues bool) ([]InspectEnvironmen
 }
 
 // InspectApplications returns inspection data for all initialized applications, grouped by name.
-func (g *Globe) InspectApplications(opts InspectAppsOptions) ([]InspectApplication, error) {
-	byName := map[string]*InspectApplication{}
-
+// asyncLevel limits how many applications are inspected at once; 0 means no limit.
+func (g *Globe) InspectApplications(asyncLevel int, opts InspectAppsOptions) ([]InspectApplication, error) {
+	var apps []*Application
 	for _, env := range g.environments {
-		for _, app := range env.Applications {
+		apps = append(apps, env.Applications...)
+	}
+
+	instances := make([]InspectAppInstance, len(apps))
+	var eg errgroup.Group
+	if asyncLevel > 0 {
+		eg.SetLimit(asyncLevel)
+	}
+	for i, app := range apps {
+		eg.Go(func() error {
 			instance, err := app.inspectInstance(opts)
 			if err != nil {
-				return nil, fmt.Errorf("inspecting %s/%s: %w", env.ID, app.Name, err)
+				return fmt.Errorf("inspecting %s/%s: %w", app.e.ID, app.Name, err)
 			}
+			instances[i] = instance
+			return nil
+		})
+	}
+	if err := eg.Wait(); err != nil {
+		return nil, fmt.Errorf("inspecting applications: %w", err)
+	}
 
-			if _, ok := byName[app.Name]; !ok {
-				byName[app.Name] = &InspectApplication{Name: app.Name}
-			}
-			byName[app.Name].Instances = append(byName[app.Name].Instances, instance)
+	byName := map[string]*InspectApplication{}
+	for i, app := range apps {
+		if _, ok := byName[app.Name]; !ok {
+			byName[app.Name] = &InspectApplication{Name: app.Name}
 		}
+		byName[app.Name].Instances = append(byName[app.Name].Instances, instances[i])
 	}
 
 	result := make([]InspectApplication, 0, len(byName))
@@ -257,11 +277,14 @@ func (a *Application) inspectInstance(opts InspectAppsOptions) (InspectAppInstan
 	}
 
 	if opts.Provenance || opts.Redundant {
-		sources, redundant, err := a.inspectOverrides()
+		sources, redundant, err := a.inspectOverrides(opts.Redundant)
 		if err != nil {
 			return InspectAppInstance{}, fmt.Errorf("resolving data values by level: %w", err)
 		}
 		if opts.Provenance {
+			if !opts.WithDefaults {
+				sources = slices.DeleteFunc(sources, func(s InspectValueSource) bool { return s.File == "" })
+			}
 			instance.Provenance = sources
 		}
 		if opts.Redundant {

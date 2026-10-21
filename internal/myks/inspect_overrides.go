@@ -14,7 +14,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/rs/zerolog/log"
 	yaml "gopkg.in/yaml.v3"
 )
 
@@ -35,8 +34,9 @@ type InspectRedundantOverride struct {
 // inspectOverrides resolves the application's data values one data-values file at a time and
 // reports where each final value comes from and which values a file sets without changing them.
 // Each level is rendered by ytt cumulatively, so overlays are judged by what ytt computes rather
-// than by a reimplementation of their semantics.
-func (a *Application) inspectOverrides() ([]InspectValueSource, []InspectRedundantOverride, error) {
+// than by a reimplementation of their semantics. withVendir also checks the data values found
+// among the vendir templates for redundancy.
+func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, []InspectRedundantOverride, error) {
 	if a.e.kclMode {
 		return nil, nil, errors.New("value provenance and redundant overrides are not supported in KCL mode")
 	}
@@ -55,63 +55,95 @@ func (a *Application) inspectOverrides() ([]InspectValueSource, []InspectRedunda
 			dataFiles = append(dataFiles, f)
 		}
 	}
-	// The sync stage adds the data values found among its vendir templates, which is where a
-	// chart version is typically pinned per environment.
+	schemas, layers, setPaths, err := splitDataFiles(dataFiles)
+	if err != nil {
+		return nil, nil, err
+	}
+	base = append(base, schemas...)
+	values, err := a.renderLevels(base, layers)
+	if err != nil {
+		return nil, nil, err
+	}
+	sources := valueSources(layers, values)
+	redundant := redundantOverrides(layers, values, setPaths)
+	if !withVendir {
+		return sources, redundant, nil
+	}
+
 	vendirDirs, err := a.vendirSourceFiles()
 	if err != nil {
 		return nil, nil, err
 	}
+	var vendirFiles []string
 	for _, dir := range vendirDirs {
 		files, err := dataValuesFilesIn(dir)
 		if err != nil {
 			return nil, nil, fmt.Errorf("collecting data values files in %s: %w", dir, err)
 		}
-		dataFiles = append(dataFiles, files...)
+		vendirFiles = append(vendirFiles, files...)
 	}
+	vendirSchemas, vendirLayers, vendirSetPaths, err := splitDataFiles(vendirFiles)
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(vendirLayers) == 0 {
+		return sources, redundant, nil
+	}
+	// Only the vendir config sees these data values, on top of the application's final ones;
+	// the render steps never do, so they are no source of a final value.
+	vendirValues, err := a.renderLevels(slices.Concat(base, vendirSchemas, layers), vendirLayers)
+	if err != nil {
+		return nil, nil, err
+	}
+	redundant = append(redundant, redundantOverrides(vendirLayers, vendirValues, vendirSetPaths)...)
+	return sources, redundant, nil
+}
 
-	var layers []string
-	var setPaths [][][]string
-	for _, f := range dataFiles {
+// splitDataFiles separates data-values schemas from data values and reads the keys each data
+// values file sets. ytt applies every schema before any data values, whatever the file order,
+// so schemas are defaults rather than levels.
+func splitDataFiles(files []string) (schemas, layers []string, setPaths [][][]string, err error) {
+	for _, f := range files {
 		content, err := os.ReadFile(f)
 		if err != nil {
-			return nil, nil, fmt.Errorf("reading data file %s: %w", f, err)
+			return nil, nil, nil, fmt.Errorf("reading data file %s: %w", f, err)
 		}
-		// ytt applies every schema before any data values, whatever the file order, so schemas
-		// are defaults rather than levels.
 		if schemaDocRe.Match(content) {
-			base = append(base, f)
+			schemas = append(schemas, f)
 			continue
 		}
 		paths, err := dataFileSetPaths(content)
 		if err != nil {
-			log.Warn().Err(err).Str("file", f).Msg(a.Msg("inspect", "Unable to read data value keys, skipping redundancy check for the file"))
+			return nil, nil, nil, fmt.Errorf("reading data value keys of %s: %w", f, err)
 		}
 		layers = append(layers, f)
 		setPaths = append(setPaths, paths)
 	}
+	return schemas, layers, setPaths, nil
+}
 
+// renderLevels returns the data values of base alone, then of base plus each further layer.
+func (a *Application) renderLevels(base, layers []string) ([]any, error) {
 	values := make([]any, 0, len(layers)+1)
 	for i := 0; i <= len(layers); i++ {
 		// Validations hold for the final data values only; a partial level may legitimately miss a
 		// required value that a later file sets.
 		dataYaml, err := a.renderDataYaml(concatenate(base, layers[:i]), "--dangerous-data-values-disable-validation")
 		if err != nil {
-			return nil, nil, fmt.Errorf("rendering data values up to level %d: %w", i, err)
+			return nil, fmt.Errorf("rendering data values up to level %d: %w", i, err)
 		}
 		var v any
 		if err := yaml.Unmarshal(dataYaml, &v); err != nil {
-			return nil, nil, fmt.Errorf("parsing data values up to level %d: %w", i, err)
+			return nil, fmt.Errorf("parsing data values up to level %d: %w", i, err)
 		}
 		values = append(values, v)
 	}
-
-	sources, redundant := resolveOverrides(layers, values, setPaths)
-	return sources, redundant, nil
+	return values, nil
 }
 
-// resolveOverrides compares cumulative data values: values[0] holds the defaults and
-// values[i] the data values after layers[i-1] is applied; setPaths[i] lists the keys layers[i] sets.
-func resolveOverrides(layers []string, values []any, setPaths [][][]string) ([]InspectValueSource, []InspectRedundantOverride) {
+// valueSources names, for every final value, the last layer that changed it. values[i] holds
+// the data values of the defaults plus layers[:i].
+func valueSources(layers []string, values []any) []InspectValueSource {
 	var sources []InspectValueSource
 	for _, path := range leafPaths(values[len(values)-1], nil) {
 		source := InspectValueSource{Path: strings.Join(path, ".")}
@@ -126,10 +158,22 @@ func resolveOverrides(layers []string, values []any, setPaths [][][]string) ([]I
 		sources = append(sources, source)
 	}
 	sort.Slice(sources, func(i, j int) bool { return sources[i].Path < sources[j].Path })
+	return sources
+}
 
+// runtimeDataKey holds the data values myks detects from the checkout, e.g. the git remote.
+const runtimeDataKey = "myks"
+
+// redundantOverrides lists the keys layers[i] sets, setPaths[i], whose value is the same before
+// and after it. values[i] holds the data values of the defaults plus layers[:i].
+func redundantOverrides(layers []string, values []any, setPaths [][][]string) []InspectRedundantOverride {
 	var redundant []InspectRedundantOverride
 	for i, paths := range setPaths {
 		for _, path := range paths {
+			// A file pins runtime data because another checkout may detect something else.
+			if path[0] == runtimeDataKey {
+				continue
+			}
 			prev, prevOk := lookupPath(values[i], path)
 			cur, curOk := lookupPath(values[i+1], path)
 			if prevOk && curOk && reflect.DeepEqual(cur, prev) {
@@ -137,7 +181,7 @@ func resolveOverrides(layers []string, values []any, setPaths [][][]string) ([]I
 			}
 		}
 	}
-	return sources, redundant
+	return redundant
 }
 
 // leafPaths lists the paths to every non-mapping value in v. Sequences are leaves: their items
@@ -179,8 +223,15 @@ func dataValuesFilesIn(root string) ([]string, error) {
 	var files []string
 	fsys := os.DirFS(root)
 	err := fs.WalkDir(fsys, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
 			return err
+		}
+		if d.IsDir() {
+			// Data values of a private library apply to that library only, never to the root.
+			if d.Name() == "_ytt_lib" {
+				return fs.SkipDir
+			}
+			return nil
 		}
 		if ext := filepath.Ext(path); ext != ".yaml" && ext != ".yml" {
 			return nil
@@ -200,9 +251,9 @@ func dataValuesFilesIn(root string) ([]string, error) {
 	return files, nil
 }
 
-// dataFileSetPaths returns the leaf keys a data-values file sets, read statically: ytt
-// annotations are YAML comments, so a computed value still shows its key. Keys a Starlark
-// loop generates are not visible and never reported.
+// dataFileSetPaths returns the leaf keys a data-values file sets, sorted and each once, read
+// statically: ytt annotations are YAML comments, so a computed value still shows its key. Keys a
+// Starlark loop generates are not visible and never reported.
 func dataFileSetPaths(content []byte) ([][]string, error) {
 	var paths [][]string
 	decoder := yaml.NewDecoder(bytes.NewReader(content))
@@ -219,7 +270,9 @@ func dataFileSetPaths(content []byte) ([][]string, error) {
 		}
 		paths = append(paths, mappingLeafPaths(doc.Content[0], nil)...)
 	}
-	return paths, nil
+	// Several documents of one file may set the same key; the file is judged as a whole.
+	slices.SortFunc(paths, slices.Compare[[]string])
+	return slices.CompactFunc(paths, slices.Equal[[]string]), nil
 }
 
 func mappingLeafPaths(node *yaml.Node, prefix []string) [][]string {
