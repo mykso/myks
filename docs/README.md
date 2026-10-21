@@ -25,8 +25,8 @@ first.
   configuration validation
 - **Idempotent output**: Generate consistent, reproducible manifests across
   environments
-- **Automatic ArgoCD resource generation**: Built-in integration with ArgoCD for
-  GitOps workflows
+- **Automatic ArgoCD resource generation**: Built-in [integration](/docs/argocd.md)
+  with ArgoCD for GitOps workflows
 - **Environment-based configuration inheritance**: Hierarchical configuration
   management with environment-specific overrides
 - **Intelligent change detection**: [Smart Mode](/docs/smart-mode.md)
