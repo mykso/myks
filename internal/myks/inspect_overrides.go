@@ -30,6 +30,9 @@ type InspectRedundantOverride struct {
 	Path  string `json:"path"`
 	File  string `json:"file"`
 	Value any    `json:"value"`
+	// InheritedFrom is the last earlier file that changed the value, so redundant files in between
+	// are skipped; empty means the myks built-in defaults.
+	InheritedFrom string `json:"inheritedFrom"`
 }
 
 // inspectOverrides resolves the application's data values one schema or data-values file at a
@@ -65,7 +68,8 @@ func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, [
 		return nil, nil, err
 	}
 	sources := valueSources(levels, values)
-	redundant := redundantOverrides(layers, values[len(schemas):], setPaths)
+	// Schemas set no keys of their own, but stay levels so an inherited default names its schema.
+	redundant := redundantOverrides(levels, values, slices.Concat(make([][][]string, len(schemas)), setPaths))
 	if !withVendir {
 		return sources, redundant, nil
 	}
@@ -91,11 +95,22 @@ func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, [
 	}
 	// Only the vendir config sees these data values, on top of the application's final ones;
 	// the render steps never do, so they are no source of a final value.
-	vendirValues, err := a.renderLevels(slices.Concat(base, schemas, vendirSchemas, layers), vendirLayers)
+	vendirLevels := slices.Concat(vendirSchemas, vendirLayers)
+	vendirValues, err := a.renderLevels(slices.Concat(base, levels), vendirLevels)
 	if err != nil {
 		return nil, nil, err
 	}
-	redundant = append(redundant, redundantOverrides(vendirLayers, vendirValues, vendirSetPaths)...)
+	// A value no vendir file changed is inherited from the application's final data values.
+	sourceOf := map[string]string{}
+	for _, s := range sources {
+		sourceOf[s.Path] = s.File
+	}
+	for _, r := range redundantOverrides(vendirLevels, vendirValues, slices.Concat(make([][][]string, len(vendirSchemas)), vendirSetPaths)) {
+		if r.InheritedFrom == "" {
+			r.InheritedFrom = sourceOf[r.Path]
+		}
+		redundant = append(redundant, r)
+	}
 	return sources, redundant, nil
 }
 
@@ -150,19 +165,23 @@ func (a *Application) renderLevels(base, layers []string) ([]any, error) {
 func valueSources(layers []string, values []any) []InspectValueSource {
 	var sources []InspectValueSource
 	for _, path := range leafPaths(values[len(values)-1], nil) {
-		source := InspectValueSource{Path: strings.Join(path, ".")}
-		for i := len(layers); i > 0; i-- {
-			cur, curOk := lookupPath(values[i], path)
-			prev, prevOk := lookupPath(values[i-1], path)
-			if curOk != prevOk || !reflect.DeepEqual(cur, prev) {
-				source.File = layers[i-1]
-				break
-			}
-		}
-		sources = append(sources, source)
+		sources = append(sources, InspectValueSource{Path: strings.Join(path, "."), File: lastChange(layers, values, len(layers), path)})
 	}
 	sort.Slice(sources, func(i, j int) bool { return sources[i].Path < sources[j].Path })
 	return sources
+}
+
+// lastChange returns the last of layers[:n] that changed the value at path, or "" if none did.
+// values[i] holds the data values of the defaults plus layers[:i].
+func lastChange(layers []string, values []any, n int, path []string) string {
+	for i := n; i > 0; i-- {
+		cur, curOk := lookupPath(values[i], path)
+		prev, prevOk := lookupPath(values[i-1], path)
+		if curOk != prevOk || !reflect.DeepEqual(cur, prev) {
+			return layers[i-1]
+		}
+	}
+	return ""
 }
 
 // redundantOverrides lists the keys layers[i] sets, setPaths[i], whose value is the same before
@@ -174,7 +193,12 @@ func redundantOverrides(layers []string, values []any, setPaths [][][]string) []
 			prev, prevOk := lookupPath(values[i], path)
 			cur, curOk := lookupPath(values[i+1], path)
 			if prevOk && curOk && reflect.DeepEqual(cur, prev) {
-				redundant = append(redundant, InspectRedundantOverride{Path: strings.Join(path, "."), File: layers[i], Value: cur})
+				redundant = append(redundant, InspectRedundantOverride{
+					Path:          strings.Join(path, "."),
+					File:          layers[i],
+					Value:         cur,
+					InheritedFrom: lastChange(layers, values, i, path),
+				})
 			}
 		}
 	}

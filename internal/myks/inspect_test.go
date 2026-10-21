@@ -132,13 +132,13 @@ func Test_inspectOverrides(t *testing.T) {
 	app.e.extraYttPaths = []string{"./assets/data-schema.ytt.yaml"}
 	schema := writeAppFile(t, app, "prototypes/test-proto/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  #@schema/validation min_len=1\n  name: \"\"\n  version: \"1.0\"\n  hosts: [\"\"]\n  port: 80\n  replicas: 1\n")
 	proto := writeAppFile(t, app, "prototypes/test-proto/app-data.yaml", "#@data/values\n---\napplication:\n  name: #@ \"app\"\n  version: \"1.0\"\nmyks:\n  gitRepoBranch: \"\"\n")
-	env := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  hosts: [a]\n  extra: x\n")
+	env := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.yaml", "#@data/values\n---\napplication:\n  name: app\n  version: \"2.0\"\n  hosts: [a]\n  extra: x\n")
 	// The second document sets name again: one finding per file and key.
 	again := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.again.yaml", "#@data/values\n---\napplication:\n  #@overlay/replace\n  hosts: [a]\n  name: app\n#@data/values\n---\napplication:\n  name: app\n")
 	// A schema applies before every data value, even one in an earlier file.
 	lateSchema := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  extra: \"\"\n  replicas: 2\n")
-	vendir := writeAppFile(t, app, "prototypes/test-proto/vendir/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  chart: \"1.2\"\n")
-	writeAppFile(t, app, "prototypes/test-proto/vendir/schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  chart: \"\"\n")
+	vendir := writeAppFile(t, app, "prototypes/test-proto/vendir/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  chart: \"1.2\"\n  repo: r\n")
+	vendirSchema := writeAppFile(t, app, "prototypes/test-proto/vendir/schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  chart: \"\"\n  repo: r\n")
 	writeAppFile(t, app, "prototypes/test-proto/vendir/vendir.yaml", "apiVersion: vendir.k14s.io/v1alpha1\nkind: Config\n")
 	// Data values of a private library never reach the root.
 	writeAppFile(t, app, "prototypes/test-proto/vendir/_ytt_lib/lib/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n")
@@ -161,10 +161,13 @@ func Test_inspectOverrides(t *testing.T) {
 	assert.NotContains(t, sourceOf, "application.chart", "vendir data values never reach the render steps")
 
 	assert.Equal(t, []InspectRedundantOverride{
-		{Path: "application.version", File: proto, Value: "1.0"},
-		{Path: "application.hosts", File: again, Value: []any{"a"}},
-		{Path: "application.name", File: again, Value: "app"},
-		{Path: "application.version", File: vendir, Value: "2.0"},
+		{Path: "application.version", File: proto, Value: "1.0", InheritedFrom: schema},
+		{Path: "application.name", File: env, Value: "app", InheritedFrom: proto},
+		{Path: "application.hosts", File: again, Value: []any{"a"}, InheritedFrom: env},
+		// The redundant env file in between is skipped: proto holds the value.
+		{Path: "application.name", File: again, Value: "app", InheritedFrom: proto},
+		{Path: "application.repo", File: vendir, Value: "r", InheritedFrom: vendirSchema},
+		{Path: "application.version", File: vendir, Value: "2.0", InheritedFrom: env},
 	}, redundant)
 }
 
@@ -205,13 +208,13 @@ func Test_inspectValuesOverrides(t *testing.T) {
 	assert.Equal(t, map[string][]InspectRedundantOverride{
 		// Unlike in data values, a myks key in a values file is no runtime data.
 		"db": {
-			{Path: "myks", File: appGlobal, Value: "x"},
-			{Path: "replicas", File: appGlobal, Value: 1},
+			{Path: "myks", File: appGlobal, Value: "x", InheritedFrom: protoGlobal},
+			{Path: "replicas", File: appGlobal, Value: 1, InheritedFrom: protoGlobal},
 		},
 		"web": {
-			{Path: "myks", File: appGlobal, Value: "x"},
-			{Path: "replicas", File: appGlobal, Value: 1},
-			{Path: "image.tag", File: appWeb, Value: "v2"},
+			{Path: "myks", File: appGlobal, Value: "x", InheritedFrom: protoGlobal},
+			{Path: "replicas", File: appGlobal, Value: 1, InheritedFrom: protoGlobal},
+			{Path: "image.tag", File: appWeb, Value: "v2", InheritedFrom: protoWeb},
 		},
 	}, redundant)
 }
@@ -223,12 +226,12 @@ func Test_inspectInstanceOverridesKclMode(t *testing.T) {
 	// Generated data values hold no override to trace; ytt-pkg values files are still checked.
 	// Nothing is vendored yet, so the values file names give the packages.
 	app.yttDataFiles = []string{writeAppFile(t, app, ".myks/envs/test-env/_apps/test-app/app-data.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  version: \"1.0\"\n")}
-	writeAppFile(t, app, "prototypes/test-proto/ytt-pkg/pkg.yaml", "a: 1\n")
+	protoPkg := writeAppFile(t, app, "prototypes/test-proto/ytt-pkg/pkg.yaml", "a: 1\n")
 	appPkg := writeAppFile(t, app, "envs/test-env/_apps/test-app/ytt-pkg/pkg.yaml", "a: 1\n")
 
 	var instance InspectAppInstance
 	require.NoError(t, app.inspectInstanceOverrides(&instance, InspectAppsOptions{Provenance: true, Redundant: true}))
 	assert.Empty(t, instance.Provenance)
 	assert.Empty(t, instance.Redundant)
-	assert.Equal(t, map[string][]InspectRedundantOverride{"pkg": {{Path: "a", File: appPkg, Value: 1}}}, instance.YttPkgRedundant)
+	assert.Equal(t, map[string][]InspectRedundantOverride{"pkg": {{Path: "a", File: appPkg, Value: 1, InheritedFrom: protoPkg}}}, instance.YttPkgRedundant)
 }
