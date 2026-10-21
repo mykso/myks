@@ -14,6 +14,6 @@ pkgs.mkShell {
   ];
   shellHook = ''
     mise install
-    source <(mise activate)
+    eval "$(mise env -s bash)"
   '';
 }
