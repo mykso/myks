@@ -95,12 +95,6 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles, syncOnly bool) EnvAppMap
 		envAppMap[env] = nil
 	}
 
-	for env, apps := range envAppMap {
-		if apps != nil {
-			envAppMap[env] = unique(apps)
-		}
-	}
-
 	g.filterStaleEnvApps(envAppMap)
 	pruneNestedEnvAppMap(envAppMap)
 	return envAppMap
@@ -239,26 +233,36 @@ func (g *Globe) classifyChangedPaths(
 	return squashEnvPaths(changedEnvs), changedPrototypes, false
 }
 
-// filterStaleEnvApps removes environments not found in the filesystem and
-// removes individual applications not present in their environment's found apps.
+// filterStaleEnvApps removes environments not found in the filesystem and narrows each
+// application list to the applications its environments actually have. A key that is a
+// parent directory of environments is expanded into those environments, so an application
+// change near the tree root is not attributed to environments lacking that application.
+// A nil application list means "all applications" and is kept as is.
 func (g *Globe) filterStaleEnvApps(envAppMap EnvAppMap) {
-	for env, apps := range envAppMap {
-		matchedEnvs := g.getEnvironmentsUnderRoot(env)
-		if len(matchedEnvs) == 0 {
-			delete(envAppMap, env)
-			continue
-		}
-		knownEnv, knownEnvExists := g.environments[env]
-		if !knownEnvExists {
-			// env can be a parent directory of an environment;
-			// TODO: implement smarter lookup logic instead
-			continue
-		}
-		for _, app := range apps {
-			if _, ok := knownEnv.foundApplications[app]; !ok {
-				envAppMap[env] = filterSlice(envAppMap[env], func(s string) bool { return s != app })
+	filtered := EnvAppMap{}
+	for root, apps := range envAppMap {
+		for _, envPath := range g.getEnvironmentsUnderRoot(root) {
+			if apps == nil {
+				filtered[root] = nil
+				break
+			}
+			if existing, ok := filtered[envPath]; ok && existing == nil {
+				continue
+			}
+			found := g.environments[envPath].foundApplications
+			for _, app := range apps {
+				if _, ok := found[app]; ok {
+					filtered[envPath] = append(filtered[envPath], app)
+				}
 			}
 		}
+	}
+	clear(envAppMap)
+	for env, apps := range filtered {
+		if apps != nil {
+			apps = unique(apps)
+		}
+		envAppMap[env] = apps
 	}
 }
 

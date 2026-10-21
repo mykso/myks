@@ -262,6 +262,24 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			},
 		},
 		{
+			"change to app in parent dir affects only envs having the app",
+			ChangedFiles{
+				"envs/_apps/app3/app-data.variable.yaml": "M",
+				"envs/_apps/app2/ytt/some-file.yaml":     "M",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env1": {"app2"},
+				"envs/env2": {"app2", "app3"},
+			},
+		},
+		{
+			"change to app unknown to env",
+			ChangedFiles{"envs/env1/_apps/app3/app-data.variable.yaml": "M"},
+			renderedEnvApps,
+			EnvAppMap{},
+		},
+		{
 			"change to env",
 			ChangedFiles{
 				"envs/env1/env-data.ytt.yaml":            "M",
