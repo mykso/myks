@@ -121,3 +121,18 @@ A complete rendering of all environments and all applications is currently
 required only when the common lib directory has changed, for example:
 
 - `/lib/common.lib.star`
+
+### Sync only
+
+With `myks render --sync`, Smart Mode ignores changes that can only affect
+rendering, since they cannot change what gets downloaded:
+
+- environment plugins: `.../_env/ytt/...`, `.../_env/argocd/...`
+- application and prototype plugins other than `vendir` and `lib`, for example
+  `.../ytt/...`, `.../helm/...`, `.../static/...`
+- rendered output: `rendered/envs/...`, `rendered/argocd/...`
+- applications missing from the rendered output
+
+Changes to data files (`env-data.ytt.yaml`, `app-data.ytt.yaml`), `vendir`
+directories, `prototypes/_vendir`, and the common lib directory are still
+detected, because they feed the vendir configuration.

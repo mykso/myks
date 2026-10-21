@@ -10,7 +10,9 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error) {
+// DetectChangedEnvsAndApps returns environments and applications affected by changes since baseRevision.
+// With syncOnly, changes that can only affect rendering are ignored.
+func (g *Globe) DetectChangedEnvsAndApps(baseRevision string, syncOnly bool) (EnvAppMap, error) {
 	if !g.WithGit {
 		return nil, errors.New("git is unavailable")
 	}
@@ -41,7 +43,7 @@ func (g *Globe) DetectChangedEnvsAndApps(baseRevision string) (EnvAppMap, error)
 		return nil, err
 	}
 	log.Trace().Interface("changedFiles", changedFiles).Msg(g.Msg("Detected changes"))
-	envAppMap := g.runSmartMode(changedFiles)
+	envAppMap := g.runSmartMode(changedFiles, syncOnly)
 	for env, apps := range envAppMap {
 		log.Debug().Str("env", env).Strs("apps", apps).Msg(g.Msg("Detected changes"))
 	}
@@ -66,12 +68,17 @@ func (g *Globe) missingApplications() (EnvAppMap, error) {
 	return envsWithMissingApps, nil
 }
 
-func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
-	regexps := g.buildSmartModeRegexps()
+func (g *Globe) runSmartMode(changedFiles ChangedFiles, syncOnly bool) EnvAppMap {
+	regexps := g.buildSmartModeRegexps(syncOnly)
 
-	envAppMap, err := g.missingApplications()
-	if err != nil {
-		log.Err(err).Msg(g.Msg("Failed to get missing applications"))
+	envAppMap := EnvAppMap{}
+	// Missing rendered output is fixed by rendering, syncing does not help.
+	if !syncOnly {
+		var err error
+		if envAppMap, err = g.missingApplications(); err != nil {
+			log.Err(err).Msg(g.Msg("Failed to get missing applications"))
+			envAppMap = EnvAppMap{}
+		}
 	}
 
 	changedEnvs, changedPrototypes, globalChange := g.classifyChangedPaths(changedFiles, regexps, envAppMap)
@@ -100,7 +107,8 @@ func (g *Globe) runSmartMode(changedFiles ChangedFiles) EnvAppMap {
 }
 
 // buildSmartModeRegexps constructs the set of path-matching regexps used by runSmartMode.
-func (g *Globe) buildSmartModeRegexps() map[string][]*regexp.Regexp {
+// With syncOnly, only paths that feed the vendir config (data values, vendir and lib dirs) are matched.
+func (g *Globe) buildSmartModeRegexps(syncOnly bool) map[string][]*regexp.Regexp {
 	e := func(sample string) *regexp.Regexp {
 		return regexp.MustCompile("^" + g.GitPathPrefix + sample + "$")
 	}
@@ -109,18 +117,19 @@ func (g *Globe) buildSmartModeRegexps() map[string][]*regexp.Regexp {
 		return strings.ReplaceAll(r, "*", ".*")
 	}
 
-	plugins := []string{
-		g.ArgoCDDataDirName,
-		g.HelmStepDirName,
-		g.StaticFilesDirName,
-		g.VendirStepDirName,
-		g.YttPkgStepDirName,
-		g.YttStepDirName,
-		"lib",
+	plugins := []string{g.VendirStepDirName, "lib"}
+	if !syncOnly {
+		plugins = append(plugins,
+			g.ArgoCDDataDirName,
+			g.HelmStepDirName,
+			g.StaticFilesDirName,
+			g.YttPkgStepDirName,
+			g.YttStepDirName,
+		)
 	}
 	pluginsPattern := "(?:" + strings.Join(plugins, "|") + ")"
 
-	return map[string][]*regexp.Regexp{
+	regexps := map[string][]*regexp.Regexp{
 		// No submatches needed
 		"global": {
 			e(g.YttLibraryDirName + "/.*"),
@@ -128,8 +137,6 @@ func (g *Globe) buildSmartModeRegexps() map[string][]*regexp.Regexp {
 		},
 		// Env search path is the only submatch
 		"env": {
-			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvsDir + "/" + g.YttStepDirName + "/.*"),
-			e("(" + g.EnvironmentBaseDir + ".*)/" + g.EnvsDir + "/" + g.ArgoCDDataDirName + "/.*"),
 			e("(" + g.EnvironmentBaseDir + ".*)/" + globToRegexp(g.EnvironmentDataFileName)),
 		},
 		// Prototype name is the only submatch
@@ -153,6 +160,16 @@ func (g *Globe) buildSmartModeRegexps() map[string][]*regexp.Regexp {
 			e(g.RenderedArgoDir + "/([^/]+)/app-([^/]+)\\.yaml"),
 		},
 	}
+
+	if syncOnly {
+		delete(regexps, "rendered-app")
+	} else {
+		regexps["env"] = append(regexps["env"],
+			e("("+g.EnvironmentBaseDir+".*)/"+g.EnvsDir+"/"+g.YttStepDirName+"/.*"),
+			e("("+g.EnvironmentBaseDir+".*)/"+g.EnvsDir+"/"+g.ArgoCDDataDirName+"/.*"),
+		)
+	}
+	return regexps
 }
 
 // classifyChangedPaths categorises each changed file path, mutates envAppMap with

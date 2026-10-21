@@ -460,7 +460,7 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				}
 			}()
 
-			envAppsMap := g.runSmartMode(tt.changedFiles)
+			envAppsMap := g.runSmartMode(tt.changedFiles, false)
 			for _, apps := range envAppsMap {
 				sort.Strings(apps)
 			}
@@ -468,6 +468,50 @@ func TestGlobe_runSmartMode(t *testing.T) {
 				sort.Strings(apps)
 			}
 			assertEqual(t, envAppsMap, tt.envAppsMap)
+		})
+	}
+}
+
+func TestGlobe_runSmartMode_syncOnly(t *testing.T) {
+	g := createGlobe(t)
+	// Rendered output is missing for every app: render mode would select them all, sync mode must not.
+	g.RootDir = t.TempDir()
+	g.environments = map[string]*Environment{
+		"envs/env1": {
+			Dir:               "envs/env1",
+			g:                 g,
+			cfg:               &g.Config,
+			ID:                "env1",
+			foundApplications: map[string]string{"app1": "app1", "app2": "app2"},
+		},
+	}
+	tests := []struct {
+		name         string
+		changedFiles ChangedFiles
+		want         EnvAppMap
+	}{
+		{"global lib", ChangedFiles{"lib/file1": "M"}, EnvAppMap{g.EnvironmentBaseDir: nil}},
+		{"env data", ChangedFiles{"envs/env1/env-data.ytt.yaml": "M"}, EnvAppMap{"envs/env1": nil}},
+		{"prototype vendir", ChangedFiles{"prototypes/app1/vendir/vendir.yaml": "M"}, EnvAppMap{"envs/env1": {"app1"}}},
+		{"app data", ChangedFiles{"envs/env1/_apps/app2/app-data.ytt.yaml": "M"}, EnvAppMap{"envs/env1": {"app2"}}},
+		{
+			"render-only changes",
+			ChangedFiles{
+				"envs/env1/_env/ytt/some-file.yaml":       "M",
+				"envs/env1/_env/argocd/some-file.yaml":    "M",
+				"prototypes/app1/ytt/some-file.yaml":      "M",
+				"prototypes/app1/helm/values.yaml":        "M",
+				"envs/env1/_apps/app2/static/file.txt":    "M",
+				"envs/env1/_proto/app2/ytt/some-file.yml": "M",
+				"rendered/envs/env1/app1/some-file.yaml":  "M",
+				"rendered/argocd/env1/app-app1.yaml":      "M",
+			},
+			EnvAppMap{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assertEqual(t, g.runSmartMode(tt.changedFiles, true), tt.want)
 		})
 	}
 }
