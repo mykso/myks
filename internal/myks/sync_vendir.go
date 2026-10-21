@@ -443,11 +443,13 @@ const vendirAPIVersion = "vendir.k14s.io/v1alpha1"
 
 // validateVendirConfig validates the rendered vendir configuration YAML.
 // It checks for:
-// - Single YAML document (no multiple documents separated by ---)
-// - Required apiVersion field with correct value
-// - Required kind field with correct value
-// - At least one directory defined
-// - Each directory has a path and at least one content entry
+//   - Single YAML document (no multiple documents separated by ---)
+//   - Required apiVersion field with correct value
+//   - Required kind field with correct value
+//   - At least one directory defined
+//   - Each directory has a path and at least one content entry
+//   - Vendir's own rules (e.g. no overlapping directory paths), which never run
+//     otherwise because myks syncs each content entry as a separate vendir config
 func validateVendirConfig(configYaml string) error {
 	// Check for multiple YAML documents
 	// A document separator is "\n---" which indicates the start of a new document after content
@@ -492,6 +494,16 @@ func validateVendirConfig(configYaml string) error {
 		}
 	}
 
+	// Directory paths are relative to the vendor dir, so myks accepts "." which vendir
+	// disallows; prefixing keeps vendir's overlap semantics while allowing it.
+	prefixed := config
+	prefixed.Directories = slices.Clone(config.Directories)
+	for i := range prefixed.Directories {
+		prefixed.Directories[i].Path = filepath.Join("vendor", prefixed.Directories[i].Path)
+	}
+	if err := prefixed.Validate(); err != nil {
+		return fmt.Errorf("vendir validation failed: %w", err)
+	}
 	return nil
 }
 

@@ -254,6 +254,79 @@ directories:
 			wantErr:     true,
 			errContains: "multiple YAML documents",
 		},
+		{
+			name: "same directory path used twice",
+			config: `apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+- path: charts/
+  contents:
+  - path: cert-manager
+    helmChart:
+      name: cert-manager
+- path: charts/
+  contents:
+  - path: multus-cni
+    helmChart:
+      name: multus-cni
+`,
+			wantErr:     true,
+			errContains: "Expected to not manage overlapping paths",
+		},
+		{
+			name: "nested directory paths",
+			config: `apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+- path: charts
+  contents:
+  - path: cert-manager
+    helmChart:
+      name: cert-manager
+- path: charts/multus-cni
+  contents:
+  - path: .
+    helmChart:
+      name: multus-cni
+`,
+			wantErr:     true,
+			errContains: "Expected to not manage overlapping paths",
+		},
+		{
+			name: "root directory path with other directories",
+			config: `apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+- path: .
+  contents:
+  - path: charts/cert-manager
+    helmChart:
+      name: cert-manager
+- path: charts/multus-cni
+  contents:
+  - path: .
+    helmChart:
+      name: multus-cni
+`,
+			wantErr:     true,
+			errContains: "Expected to not manage overlapping paths",
+		},
+		{
+			name: "root directory path with multiple contents",
+			config: `apiVersion: vendir.k14s.io/v1alpha1
+kind: Config
+directories:
+- path: .
+  contents:
+  - path: charts/cert-manager
+    helmChart:
+      name: cert-manager
+  - path: charts/multus-cni
+    helmChart:
+      name: multus-cni
+`,
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
