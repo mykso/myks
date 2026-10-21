@@ -473,10 +473,55 @@ func printInspectRedundant(title string, redundant []myks.InspectRedundantOverri
 	}
 	fmt.Println()
 	fmt.Printf("  %s\n", aurora.Yellow(title))
-	for _, r := range redundant {
-		value, _ := json.Marshal(r.Value)
-		fmt.Printf("    %s = %s %s\n", aurora.Red(r.Path), value, aurora.Faint(r.File))
+	for _, g := range groupRedundant(redundant) {
+		keptIn := g.keptIn
+		if keptIn == "" {
+			keptIn = "(built-in defaults)"
+		}
+		fmt.Printf("    kept in %s\n", aurora.Green(keptIn))
+		for _, f := range g.repeatedIn {
+			fmt.Printf("    repeated in %s\n", aurora.Red(f))
+		}
+		for _, k := range g.keys {
+			value, _ := json.Marshal(k.Value)
+			fmt.Printf("      %s = %s\n", k.Path, value)
+		}
 	}
+}
+
+type redundantGroup struct {
+	keptIn     string
+	repeatedIn []string
+	keys       []myks.InspectRedundantOverride
+}
+
+// groupRedundant gathers the keys that the same files repeat from the same file into one group,
+// in the order the keys first appear. Every repeat of a key holds the value it inherits, so one
+// key and value stand for all of its files.
+func groupRedundant(redundant []myks.InspectRedundantOverride) []redundantGroup {
+	type key struct{ path, keptIn string }
+	var keys []myks.InspectRedundantOverride
+	files := map[key][]string{}
+	for _, r := range redundant {
+		k := key{r.Path, r.InheritedFrom}
+		if _, ok := files[k]; !ok {
+			keys = append(keys, r)
+		}
+		files[k] = append(files[k], r.File)
+	}
+	var groups []redundantGroup
+	for _, r := range keys {
+		repeatedIn := files[key{r.Path, r.InheritedFrom}]
+		i := slices.IndexFunc(groups, func(g redundantGroup) bool {
+			return g.keptIn == r.InheritedFrom && slices.Equal(g.repeatedIn, repeatedIn)
+		})
+		if i < 0 {
+			groups = append(groups, redundantGroup{keptIn: r.InheritedFrom, repeatedIn: repeatedIn})
+			i = len(groups) - 1
+		}
+		groups[i].keys = append(groups[i].keys, r)
+	}
+	return groups
 }
 
 func countRedundantOverrides(apps []myks.InspectApplication) int {
