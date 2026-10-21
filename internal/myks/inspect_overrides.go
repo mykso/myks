@@ -17,10 +17,11 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// InspectValueSource names the data-values file that last changed a final data value.
+// InspectValueSource names the data-values or schema file that last changed a final data value.
 type InspectValueSource struct {
 	Path string `json:"path"`
-	// File is empty when no data-values file changed the value: it comes from the defaults.
+	// File is empty when no data-values or schema file of the application changed the value: it
+	// comes from the myks built-in defaults.
 	File string `json:"file"`
 }
 
@@ -31,8 +32,9 @@ type InspectRedundantOverride struct {
 	Value any    `json:"value"`
 }
 
-// inspectOverrides resolves the application's data values one data-values file at a time and
-// reports where each final value comes from and which values a file sets without changing them.
+// inspectOverrides resolves the application's data values one schema or data-values file at a
+// time and reports where each final value comes from and which values a file sets without
+// changing them.
 // Each level is rendered by ytt cumulatively, so overlays are judged by what ytt computes rather
 // than by a reimplementation of their semantics. withVendir also checks the data values found
 // among the vendir templates for redundancy.
@@ -59,13 +61,15 @@ func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, [
 	if err != nil {
 		return nil, nil, err
 	}
-	base = append(base, schemas...)
-	values, err := a.renderLevels(base, layers)
+	// Schemas are the first levels, so each default is traced to the schema that declares it.
+	// Levels are cumulative, so a schema extending an earlier one still loads.
+	levels := slices.Concat(schemas, layers)
+	values, err := a.renderLevels(base, levels)
 	if err != nil {
 		return nil, nil, err
 	}
-	sources := valueSources(layers, values)
-	redundant := redundantOverrides(layers, values, setPaths)
+	sources := valueSources(levels, values)
+	redundant := redundantOverrides(layers, values[len(schemas):], setPaths)
 	if !withVendir {
 		return sources, redundant, nil
 	}
@@ -91,7 +95,7 @@ func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, [
 	}
 	// Only the vendir config sees these data values, on top of the application's final ones;
 	// the render steps never do, so they are no source of a final value.
-	vendirValues, err := a.renderLevels(slices.Concat(base, vendirSchemas, layers), vendirLayers)
+	vendirValues, err := a.renderLevels(slices.Concat(base, schemas, vendirSchemas, layers), vendirLayers)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -100,8 +104,7 @@ func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, [
 }
 
 // splitDataFiles separates data-values schemas from data values and reads the keys each data
-// values file sets. ytt applies every schema before any data values, whatever the file order,
-// so schemas are defaults rather than levels.
+// values file sets. ytt applies every schema before any data values, whatever the file order.
 func splitDataFiles(files []string) (schemas, layers []string, setPaths [][][]string, err error) {
 	for _, f := range files {
 		content, err := os.ReadFile(f)
@@ -142,7 +145,7 @@ func (a *Application) renderLevels(base, layers []string) ([]any, error) {
 }
 
 // valueSources names, for every final value, the last layer that changed it. values[i] holds
-// the data values of the defaults plus layers[:i].
+// the data values of the built-in defaults plus layers[:i].
 func valueSources(layers []string, values []any) []InspectValueSource {
 	var sources []InspectValueSource
 	for _, path := range leafPaths(values[len(values)-1], nil) {
