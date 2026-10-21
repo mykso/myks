@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"maps"
 	"slices"
@@ -217,14 +216,22 @@ Examples:
   {{.CommandPath}} prod app1 --provenance
 
   # Also list the values no data-values file sets
-  {{.CommandPath}} prod app1 --provenance --with-defaults
+  {{.CommandPath}} prod app1 --provenance=all
 
   # Fail when a data-values file sets a value to the one it already inherits (for CI)
   {{.CommandPath}} --redundant
 `
 
+// --provenance modes: the text output lists only the values a data-values file sets, or all of
+// them. JSON always lists all, so a consumer filters on an empty file itself.
+const (
+	provenanceSet = "set"
+	provenanceAll = "all"
+)
+
 func newInspectAppsCmd() *cobra.Command {
 	var opts myks.InspectAppsOptions
+	var provenance string
 
 	cmd := &cobra.Command{
 		Use:               "apps [env-selector [app-selector]]",
@@ -232,9 +239,12 @@ func newInspectAppsCmd() *cobra.Command {
 		Args:              cobra.MaximumNArgs(2),
 		ValidArgsFunction: shellCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if opts.WithDefaults && !opts.Provenance {
-				return errors.New("--with-defaults requires --provenance")
+			switch provenance {
+			case "", provenanceSet, provenanceAll:
+			default:
+				return fmt.Errorf("unsupported --provenance value %q: want %q or %q", provenance, provenanceSet, provenanceAll)
 			}
+			opts.Provenance = provenance != ""
 
 			g := getGlobe()
 			if err := g.ValidateRootDir(); err != nil {
@@ -252,7 +262,7 @@ func newInspectAppsCmd() *cobra.Command {
 			}
 
 			if err := printOutput(cmd, apps, func() {
-				printInspectApps(apps)
+				printInspectApps(apps, provenance == provenanceAll)
 			}); err != nil {
 				return err
 			}
@@ -268,8 +278,8 @@ func newInspectAppsCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&opts.DataValues, "data-values", false, "include final resolved ytt data values")
 	cmd.Flags().BoolVar(&opts.Rendered, "rendered", false, "include rendered artifacts from .myks/ if available")
-	cmd.Flags().BoolVar(&opts.Provenance, "provenance", false, "include the data-values file that sets each final data value")
-	cmd.Flags().BoolVar(&opts.WithDefaults, "with-defaults", false, "with --provenance, also list the values no data-values file sets")
+	cmd.Flags().StringVar(&provenance, "provenance", "", `include the data-values file that sets each final data value; "all" also lists the defaults in the text output`)
+	cmd.Flags().Lookup("provenance").NoOptDefVal = provenanceSet
 	cmd.Flags().BoolVar(&opts.Redundant, "redundant", false, "include data values a file sets to the value it already inherits; exit non-zero if any")
 	cmd.SetUsageTemplate(inspectAppsUsageTemplate)
 	return cmd
@@ -378,7 +388,7 @@ func printInspectEnv(env *myks.InspectEnvironment) {
 // knownStepOrder defines the display order for pipeline steps.
 var knownStepOrder = []string{"sync-vendir", "render-helm", "render-ytt", "render-ytt-pkg", "global-ytt", "static-files", "argocd"}
 
-func printInspectApps(apps []myks.InspectApplication) {
+func printInspectApps(apps []myks.InspectApplication, withDefaults bool) {
 	for i := range apps {
 		if i > 0 {
 			fmt.Println()
@@ -386,12 +396,12 @@ func printInspectApps(apps []myks.InspectApplication) {
 		fmt.Printf("%s %s\n", aurora.Bold(aurora.Cyan("Application:")), aurora.Bold(aurora.Cyan(apps[i].Name)))
 		for j := range apps[i].Instances {
 			fmt.Println()
-			printInspectAppInstance(&apps[i].Instances[j])
+			printInspectAppInstance(&apps[i].Instances[j], withDefaults)
 		}
 	}
 }
 
-func printInspectAppInstance(inst *myks.InspectAppInstance) {
+func printInspectAppInstance(inst *myks.InspectAppInstance, withDefaults bool) {
 	fmt.Printf("  %s %s %s\n", aurora.Bold(aurora.Cyan("Environment:")), aurora.Cyan(inst.EnvironmentID), aurora.Faint("("+inst.EnvironmentDir+")"))
 	fmt.Printf("  %s %s\n", aurora.Bold("Prototype: "), aurora.Green(inst.Prototype))
 	fmt.Printf("  %s %s\n", aurora.Bold("Rendered:  "), aurora.Faint(inst.RenderedDir))
@@ -422,10 +432,14 @@ func printInspectAppInstance(inst *myks.InspectAppInstance) {
 		printInspectRendered(inst.Rendered)
 	}
 
-	if len(inst.Provenance) > 0 {
+	sources := inst.Provenance
+	if !withDefaults {
+		sources = slices.DeleteFunc(slices.Clone(sources), func(s myks.InspectValueSource) bool { return s.File == "" })
+	}
+	if len(sources) > 0 {
 		fmt.Println()
 		fmt.Printf("  %s\n", aurora.Yellow("Provenance:"))
-		for _, s := range inst.Provenance {
+		for _, s := range sources {
 			file := s.File
 			if file == "" {
 				file = "(defaults)"

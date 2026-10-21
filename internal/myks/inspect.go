@@ -57,8 +57,6 @@ type InspectAppsOptions struct {
 	Rendered bool
 	// Provenance includes, for each final data value, the data-values file that set it.
 	Provenance bool
-	// WithDefaults keeps the values no data-values file sets in Provenance.
-	WithDefaults bool
 	// Redundant includes data values that a file sets to the value it already inherits.
 	Redundant bool
 }
@@ -282,9 +280,6 @@ func (a *Application) inspectInstance(opts InspectAppsOptions) (InspectAppInstan
 			return InspectAppInstance{}, fmt.Errorf("resolving data values by level: %w", err)
 		}
 		if opts.Provenance {
-			if !opts.WithDefaults {
-				sources = slices.DeleteFunc(sources, func(s InspectValueSource) bool { return s.File == "" })
-			}
 			instance.Provenance = sources
 		}
 		if opts.Redundant {
