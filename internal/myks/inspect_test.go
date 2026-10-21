@@ -165,9 +165,67 @@ func Test_inspectOverrides(t *testing.T) {
 	}, redundant)
 }
 
-func Test_inspectOverridesKclMode(t *testing.T) {
+func Test_inspectValuesOverrides(t *testing.T) {
+	app := newTestApp(t)
+	app.e.extraYttPaths = []string{"./assets/data-schema.ytt.yaml"}
+	write := func(rel, content string) string {
+		path := filepath.Join(app.cfg.RootDir, rel)
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+		return path
+	}
+	app.yttDataFiles = []string{write("prototypes/test-proto/app-data.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  name: app\n")}
+	protoGlobal := write("prototypes/test-proto/helm/_global.yaml", "#@ load(\"@ytt:data\", \"data\")\n---\nchart: #@ data.values.myks.context.helm.chart\nreplicas: 1\nimage:\n  tag: v1\n")
+	protoWeb := write("prototypes/test-proto/helm/web.yaml", "#@ load(\"@ytt:data\", \"data\")\n---\nname: #@ data.values.application.name\nimage:\n  tag: v2\n")
+	appGlobal := write("envs/test-env/_apps/test-app/helm/_global.yaml", "replicas: 1\n")
+	appWeb := write("envs/test-env/_apps/test-app/helm/web.yaml", "image:\n  tag: v2\nport: 8080\n")
+	// A vendored chart without values files of its own still gets the global ones.
+	require.NoError(t, os.MkdirAll(filepath.Join(app.expandVendorPath(app.cfg.HelmChartsDirName), "db"), 0o700))
+
+	sources, redundant, err := app.inspectValuesOverrides(app.cfg.HelmStepDirName, app.cfg.HelmChartsDirName)
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string][]InspectValueSource{
+		"db": {
+			{Path: "chart", File: protoGlobal},
+			{Path: "image.tag", File: protoGlobal},
+			{Path: "replicas", File: protoGlobal},
+		},
+		"web": {
+			{Path: "chart", File: protoGlobal},
+			{Path: "image.tag", File: protoWeb},
+			{Path: "name", File: protoWeb},
+			{Path: "port", File: appWeb},
+			{Path: "replicas", File: protoGlobal},
+		},
+	}, sources)
+	assert.Equal(t, map[string][]InspectRedundantOverride{
+		"db": {{Path: "replicas", File: appGlobal, Value: 1}},
+		"web": {
+			{Path: "replicas", File: appGlobal, Value: 1},
+			{Path: "image.tag", File: appWeb, Value: "v2"},
+		},
+	}, redundant)
+}
+
+func Test_inspectInstanceOverridesKclMode(t *testing.T) {
 	app := newTestApp(t)
 	app.e.kclMode = true
-	_, _, err := app.inspectOverrides(true)
-	assert.ErrorContains(t, err, "not supported in KCL mode")
+	app.e.extraYttPaths = []string{"./assets/data-schema.ytt.yaml"}
+	write := func(rel, content string) string {
+		path := filepath.Join(app.cfg.RootDir, rel)
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+		return path
+	}
+	// Generated data values hold no override to trace; ytt-pkg values files are still checked.
+	app.yttDataFiles = []string{write(".myks/envs/test-env/_apps/test-app/app-data.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  version: \"1.0\"\n")}
+	write("prototypes/test-proto/ytt-pkg/pkg.yaml", "a: 1\n")
+	appPkg := write("envs/test-env/_apps/test-app/ytt-pkg/pkg.yaml", "a: 1\n")
+
+	var instance InspectAppInstance
+	require.NoError(t, app.inspectInstanceOverrides(&instance, InspectAppsOptions{Provenance: true, Redundant: true}))
+	assert.Empty(t, instance.Provenance)
+	assert.Empty(t, instance.Redundant)
+	assert.Equal(t, map[string][]InspectRedundantOverride{"pkg": {{Path: "a", File: appPkg, Value: 1}}}, instance.YttPkgRedundant)
 }

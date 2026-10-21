@@ -17,15 +17,15 @@ import (
 	yaml "gopkg.in/yaml.v3"
 )
 
-// InspectValueSource names the data-values or schema file that last changed a final data value.
+// InspectValueSource names the file that last changed a final data value or helm or ytt-pkg value.
 type InspectValueSource struct {
 	Path string `json:"path"`
-	// File is empty when no data-values or schema file of the application changed the value: it
-	// comes from the myks built-in defaults.
+	// File is empty when no data-values or schema file of the application changed a data value:
+	// it comes from the myks built-in defaults.
 	File string `json:"file"`
 }
 
-// InspectRedundantOverride is a data value that a file sets to the value it already inherits.
+// InspectRedundantOverride is a data value or helm or ytt-pkg value that a file sets to the value it already inherits.
 type InspectRedundantOverride struct {
 	Path  string `json:"path"`
 	File  string `json:"file"`
@@ -39,10 +39,6 @@ type InspectRedundantOverride struct {
 // than by a reimplementation of their semantics. withVendir also checks the data values found
 // among the vendir templates for redundancy.
 func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, []InspectRedundantOverride, error) {
-	if a.e.kclMode {
-		return nil, nil, errors.New("value provenance and redundant overrides are not supported in KCL mode")
-	}
-
 	base := slices.Clone(a.e.extraYttPaths)
 	var dataFiles []string
 	for _, f := range a.yttDataFiles {
@@ -289,4 +285,101 @@ func mappingLeafPaths(node *yaml.Node, prefix []string) [][]string {
 		}
 	}
 	return paths
+}
+
+// inspectValuesOverrides resolves the values of every chart, or ytt package, of the step
+// directory dirName one values file at a time, in the order prepareValuesFile applies them, and
+// reports per chart where each final value comes from and which values a file sets without
+// changing them. The charts are those with values files of their own plus those vendored in
+// vendorDirName, which still get the global values files.
+func (a *Application) inspectValuesOverrides(dirName, vendorDirName string) (sources map[string][]InspectValueSource, redundant map[string][]InspectRedundantOverride, err error) {
+	names, err := a.valuesFileTargets(dirName, vendorDirName)
+	if err != nil {
+		return nil, nil, err
+	}
+	sources = map[string][]InspectValueSource{}
+	redundant = map[string][]InspectRedundantOverride{}
+	for _, name := range names {
+		levels, err := a.valuesFiles(dirName, name)
+		if err != nil {
+			return nil, nil, fmt.Errorf("collecting values files of %s: %w", name, err)
+		}
+		setPaths := make([][][]string, len(levels))
+		for i, f := range levels {
+			content, err := os.ReadFile(f)
+			if err != nil {
+				return nil, nil, fmt.Errorf("reading values file %s: %w", f, err)
+			}
+			// Values files are ytt templates too, so their keys are read the same way.
+			if setPaths[i], err = dataFileSetPaths(content); err != nil {
+				return nil, nil, fmt.Errorf("reading value keys of %s: %w", f, err)
+			}
+		}
+		values := []any{nil}
+		for i := range levels {
+			v, err := a.mergedValues(name, levels[:i+1])
+			if err != nil {
+				return nil, nil, fmt.Errorf("resolving values of %s up to level %d: %w", name, i+1, err)
+			}
+			values = append(values, v)
+		}
+		if s := valueSources(levels, values); len(s) > 0 {
+			sources[name] = s
+		}
+		if r := redundantOverrides(levels, values, setPaths); len(r) > 0 {
+			redundant[name] = r
+		}
+	}
+	return sources, redundant, nil
+}
+
+// valuesFileTargets returns the sorted names of the charts that values files in dirName or the
+// vendored directory vendorDirName imply.
+func (a *Application) valuesFileTargets(dirName, vendorDirName string) ([]string, error) {
+	files, err := a.collectAllFilesByGlob(filepath.Join(dirName, "*.*yaml"))
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for _, f := range files {
+		// prepareValuesFile matches `<chart>.*yaml`, so the chart name ends at the first dot.
+		if name, _, _ := strings.Cut(filepath.Base(f), "."); name != "_global" {
+			names = append(names, name)
+		}
+	}
+	vendorDir := a.expandVendorPath(vendorDirName)
+	entries, err := os.ReadDir(vendorDir)
+	if err != nil && !os.IsNotExist(err) {
+		return nil, fmt.Errorf("reading %s: %w", vendorDir, err)
+	}
+	for _, entry := range entries {
+		// Vendored charts are often symlinks, so the entry type alone does not tell.
+		if ok, err := isDir(filepath.Join(vendorDir, entry.Name())); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("checking %s: %w", entry.Name(), err)
+		} else if ok {
+			names = append(names, entry.Name())
+		}
+	}
+	slices.Sort(names)
+	return slices.Compact(names), nil
+}
+
+// mergedValues renders and merges the values files of chartName the way prepareValuesFile does.
+func (a *Application) mergedValues(chartName string, files []string) (any, error) {
+	unmerged, err := a.renderValuesFiles(chartName, files)
+	if err != nil {
+		return nil, err
+	}
+	if unmerged.Stdout == "" {
+		return nil, nil
+	}
+	merged, err := a.mergeValuesYaml(renderStepName, "-", strings.NewReader(unmerged.Stdout))
+	if err != nil {
+		return nil, err
+	}
+	var v any
+	if err := yaml.Unmarshal([]byte(merged.Stdout), &v); err != nil {
+		return nil, fmt.Errorf("parsing merged values: %w", err)
+	}
+	return v, nil
 }

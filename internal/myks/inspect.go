@@ -47,6 +47,11 @@ type InspectAppInstance struct {
 	Rendered       *InspectRendered           `json:"rendered,omitempty"`
 	Provenance     []InspectValueSource       `json:"provenance,omitempty"`
 	Redundant      []InspectRedundantOverride `json:"redundantOverrides,omitempty"`
+	// The helm and ytt-pkg fields are keyed by chart or package name.
+	HelmProvenance   map[string][]InspectValueSource       `json:"helmProvenance,omitempty"`
+	HelmRedundant    map[string][]InspectRedundantOverride `json:"helmRedundantOverrides,omitempty"`
+	YttPkgProvenance map[string][]InspectValueSource       `json:"yttPkgProvenance,omitempty"`
+	YttPkgRedundant  map[string][]InspectRedundantOverride `json:"yttPkgRedundantOverrides,omitempty"`
 }
 
 // InspectAppsOptions selects the optional, more expensive parts of an application inspection.
@@ -55,9 +60,10 @@ type InspectAppsOptions struct {
 	DataValues bool
 	// Rendered includes rendered artifacts from .myks/ if available.
 	Rendered bool
-	// Provenance includes, for each final data value, the data-values file that set it.
+	// Provenance includes, for each final data value and helm or ytt-pkg value, the file that set it.
 	Provenance bool
-	// Redundant includes data values that a file sets to the value it already inherits.
+	// Redundant includes data values and helm or ytt-pkg values that a file sets to the value it
+	// already inherits.
 	Redundant bool
 }
 
@@ -275,9 +281,25 @@ func (a *Application) inspectInstance(opts InspectAppsOptions) (InspectAppInstan
 	}
 
 	if opts.Provenance || opts.Redundant {
+		if err := a.inspectInstanceOverrides(&instance, opts); err != nil {
+			return InspectAppInstance{}, err
+		}
+	}
+
+	return instance, nil
+}
+
+// inspectInstanceOverrides fills in the provenance and redundant overrides opts asks for, of the
+// data values and of the helm and ytt-pkg values files.
+func (a *Application) inspectInstanceOverrides(instance *InspectAppInstance, opts InspectAppsOptions) error {
+	// KCL mode generates the data values files, so they hold no override to trace. Helm and
+	// ytt-pkg values files are collected the same way in both modes.
+	if a.e.kclMode {
+		log.Warn().Msg(a.Msg("inspect", "Data value provenance and redundant overrides are not supported in KCL mode"))
+	} else {
 		sources, redundant, err := a.inspectOverrides(opts.Redundant)
 		if err != nil {
-			return InspectAppInstance{}, fmt.Errorf("resolving data values by level: %w", err)
+			return fmt.Errorf("resolving data values by level: %w", err)
 		}
 		if opts.Provenance {
 			instance.Provenance = sources
@@ -287,7 +309,23 @@ func (a *Application) inspectInstance(opts InspectAppsOptions) (InspectAppInstan
 		}
 	}
 
-	return instance, nil
+	helmSources, helmRedundant, err := a.inspectValuesOverrides(a.cfg.HelmStepDirName, a.cfg.HelmChartsDirName)
+	if err != nil {
+		return fmt.Errorf("resolving helm values by level: %w", err)
+	}
+	yttPkgSources, yttPkgRedundant, err := a.inspectValuesOverrides(a.cfg.YttPkgStepDirName, a.cfg.YttPkgStepDirName)
+	if err != nil {
+		return fmt.Errorf("resolving ytt-pkg values by level: %w", err)
+	}
+	if opts.Provenance {
+		instance.HelmProvenance = helmSources
+		instance.YttPkgProvenance = yttPkgSources
+	}
+	if opts.Redundant {
+		instance.HelmRedundant = helmRedundant
+		instance.YttPkgRedundant = yttPkgRedundant
+	}
+	return nil
 }
 
 // inspectStepFiles returns a map of pipeline step name to its source file paths.
