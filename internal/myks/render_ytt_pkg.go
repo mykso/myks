@@ -126,7 +126,7 @@ func (y *YttPkg) Render(_ string) (string, error) {
 //   - envs/**/_apps/<app>/ytt-pkg/ (at each env hierarchy level)
 //
 // Used by both ytt-pkg render and inspect.
-func (a *Application) yttPkgValuesSourceFiles() []string {
+func (a *Application) yttPkgValuesSourceFiles() ([]string, error) {
 	return a.collectAllFilesByGlob(filepath.Join(a.cfg.YttPkgStepDirName, "*.*yaml"))
 }
 

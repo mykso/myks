@@ -103,3 +103,17 @@ func Test_isInternalDir(t *testing.T) {
 		})
 	}
 }
+
+func Test_collectFiles_malformedPattern(t *testing.T) {
+	app := newTestApp(t)
+
+	_, err := app.collectAllFilesByGlob("helm/[")
+	require.ErrorIs(t, err, filepath.ErrBadPattern)
+
+	_, err = app.e.collectBySubpath("env-data[.yaml")
+	require.ErrorIs(t, err, filepath.ErrBadPattern)
+
+	app.cfg.HelmStepDirName = "helm["
+	_, err = app.inspectStepFiles()
+	require.ErrorIs(t, err, filepath.ErrBadPattern)
+}

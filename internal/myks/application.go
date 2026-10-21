@@ -80,7 +80,9 @@ func NewApplication(e *Environment, name, prototypeName string) (*Application, e
 
 // Init initializes the application by collecting data files and rendering data yaml.
 func (a *Application) Init() error {
-	a.collectDataFiles()
+	if err := a.collectDataFiles(); err != nil {
+		return err
+	}
 
 	dataYaml, err := a.renderDataYaml(concatenate(a.e.extraYttPaths, a.yttDataFiles))
 	if err != nil {
@@ -140,9 +142,12 @@ func (a *Application) writeServiceFile(name, content string) error {
 //   - application data files: `envs/**/_apps/<app>/add-data.*.yaml`
 //
 // Note: The order of the libs is inverted, so that the most specific ones take precedence.
-func (a *Application) collectDataFiles() {
+func (a *Application) collectDataFiles() error {
 	APILibraries := []string{a.e.getYttLibAPIDir()}
-	appLibraries := a.collectAllFilesByGlob(a.cfg.YttLibraryDirName)
+	appLibraries, err := a.collectAllFilesByGlob(a.cfg.YttLibraryDirName)
+	if err != nil {
+		return err
+	}
 	if a.e.kclMode {
 		// KCL mode: the resolved config comes frozen from the KCL tree as generated bridge
 		// files (env-level, then app-level, so app values win — mirroring the legacy order);
@@ -156,16 +161,23 @@ func (a *Application) collectDataFiles() {
 				a.expandServicePath(kclAppValuesFileName),
 			},
 		)
-		return
+		return nil
 	}
-	envDataFiles := a.e.collectBySubpath(a.cfg.EnvironmentDataFileName)
-	appDataFiles := a.collectAllFilesByGlob(a.cfg.ApplicationDataFileName)
+	envDataFiles, err := a.e.collectBySubpath(a.cfg.EnvironmentDataFileName)
+	if err != nil {
+		return err
+	}
+	appDataFiles, err := a.collectAllFilesByGlob(a.cfg.ApplicationDataFileName)
+	if err != nil {
+		return err
+	}
 	a.yttDataFiles = slices.Concat(
 		APILibraries,
 		appLibraries,
 		envDataFiles,
 		appDataFiles,
 	)
+	return nil
 }
 
 // Msg formats a log message with the application's environment and name as context.

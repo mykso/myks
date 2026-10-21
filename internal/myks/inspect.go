@@ -80,12 +80,16 @@ func (g *Globe) InspectEnvironments(includeDataValues bool) ([]InspectEnvironmen
 	var result []InspectEnvironment
 
 	for _, env := range g.environments {
+		envDataFiles, err := env.collectBySubpath(g.EnvironmentDataFileName)
+		if err != nil {
+			return nil, fmt.Errorf("collecting env data files for %s: %w", env.ID, err)
+		}
 		entry := InspectEnvironment{
 			ID:          env.ID,
 			Dir:         env.Dir,
 			RenderedDir: filepath.Join(g.RootDir, g.RenderedEnvsDir, env.ID),
 			ArgoDir:     filepath.Join(g.RootDir, g.RenderedArgoDir, env.ID),
-			ConfigFiles: env.collectBySubpath(g.EnvironmentDataFileName),
+			ConfigFiles: envDataFiles,
 		}
 
 		for name, proto := range env.foundApplications {
@@ -99,7 +103,6 @@ func (g *Globe) InspectEnvironments(includeDataValues bool) ([]InspectEnvironmen
 		})
 
 		if includeDataValues {
-			envDataFiles := env.collectBySubpath(g.EnvironmentDataFileName)
 			dataYaml, err := env.renderEnvData(envDataFiles)
 			if err != nil {
 				return nil, fmt.Errorf("rendering env data values for %s: %w", env.ID, err)
@@ -258,8 +261,12 @@ func (a *Application) inspectStepFiles() (map[string][]string, error) {
 		result["sync-vendir"] = vendirFiles
 	}
 
-	if files := a.helmValuesSourceFiles(); len(files) > 0 {
-		result["render-helm"] = files
+	helmFiles, err := a.helmValuesSourceFiles()
+	if err != nil {
+		return nil, fmt.Errorf("collecting helm values source files: %w", err)
+	}
+	if len(helmFiles) > 0 {
+		result["render-helm"] = helmFiles
 	}
 
 	yttFiles, err := a.yttSourceFiles()
@@ -270,12 +277,20 @@ func (a *Application) inspectStepFiles() (map[string][]string, error) {
 		result["render-ytt"] = yttFiles
 	}
 
-	if files := a.yttPkgValuesSourceFiles(); len(files) > 0 {
-		result["render-ytt-pkg"] = files
+	yttPkgFiles, err := a.yttPkgValuesSourceFiles()
+	if err != nil {
+		return nil, fmt.Errorf("collecting ytt-pkg values source files: %w", err)
+	}
+	if len(yttPkgFiles) > 0 {
+		result["render-ytt-pkg"] = yttPkgFiles
 	}
 
-	if files := a.globalYttSourceFiles(); len(files) > 0 {
-		result["global-ytt"] = files
+	globalYttFiles, err := a.globalYttSourceFiles()
+	if err != nil {
+		return nil, fmt.Errorf("collecting global ytt source files: %w", err)
+	}
+	if len(globalYttFiles) > 0 {
+		result["global-ytt"] = globalYttFiles
 	}
 
 	staticDirs, err := a.staticFilesSourceDirs()

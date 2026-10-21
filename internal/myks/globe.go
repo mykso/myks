@@ -752,7 +752,11 @@ func (g *Globe) ResolveEnvIDToPath(envID string) string {
 
 		// Check for env-data files
 		files, err := filepath.Glob(filepath.Join(path, g.EnvironmentDataFileName))
-		if err != nil || len(files) == 0 {
+		if err != nil {
+			log.Warn().Err(err).Str("path", path).Msg(g.Msg("Unable to collect environment data files"))
+			return fs.SkipAll
+		}
+		if len(files) == 0 {
 			return nil
 		}
 

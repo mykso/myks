@@ -126,7 +126,11 @@ func (a *Application) vendirSourceFiles() ([]string, error) {
 		files = append(files, protoVendirDir)
 	}
 
-	files = append(files, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.VendirStepDirName))...)
+	appVendirDirs, err := a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.VendirStepDirName))
+	if err != nil {
+		return nil, err
+	}
+	files = append(files, appVendirDirs...)
 
 	if len(files) == 0 {
 		return nil, nil

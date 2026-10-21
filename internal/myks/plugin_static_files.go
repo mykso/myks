@@ -26,9 +26,17 @@ func (a *Application) staticFilesSourceDirs() ([]string, error) {
 	} else if ok {
 		dirs = append(dirs, prototypeStaticFilesDir)
 	}
-	dirs = append(dirs, a.e.collectBySubpath(filepath.Join(a.cfg.PrototypeOverrideDir, a.prototypeDirName(), a.cfg.StaticFilesDirName))...)
-	dirs = append(dirs, a.e.collectBySubpath(filepath.Join(a.cfg.EnvsDir, a.cfg.StaticFilesDirName))...)
-	dirs = append(dirs, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.StaticFilesDirName))...)
+	for _, subpath := range []string{
+		filepath.Join(a.cfg.PrototypeOverrideDir, a.prototypeDirName(), a.cfg.StaticFilesDirName),
+		filepath.Join(a.cfg.EnvsDir, a.cfg.StaticFilesDirName),
+		filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.StaticFilesDirName),
+	} {
+		found, err := a.e.collectBySubpath(subpath)
+		if err != nil {
+			return nil, err
+		}
+		dirs = append(dirs, found...)
+	}
 
 	return dirs, nil
 }
