@@ -6,38 +6,32 @@ name: 'job-lint'
 
 jobs:
   lint:
-    runs-on: ubuntu-slim
+    # Type-checking the dependency tree is CPU-bound; ubuntu-slim has a single vCPU.
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          # issues.new-from-rev in .golangci.yml needs the history.
           fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          cache: false
           go-version-file: go.mod
-
-      - name: Install gofumpt
-        # TODO: ensure renovate detects this version
-        run: go install mvdan.cc/gofumpt@v0.9.2
-
-      - name: Check code formatting
-        run: |
-          set -euo pipefail
-          gofumpt -l $( \
-              git diff-tree -r --no-commit-id --name-only --diff-filter=ACMRT \
-                "origin/$GITHUB_BASE_REF..origin/$GITHUB_HEAD_REF" \
-              | grep '\.go$' \
-            ) \
-            | tee /dev/stderr \
-            | test $(wc -l) -eq 0
+          # A key distinct from job-test's, so this job never saves a cache without
+          # the race-instrumented build artifacts that job-test relies on.
+          cache-dependency-path: |
+            go.sum
+            .golangci.yml
 
       - name: Install mise
         uses: jdx/mise-action@fc42bcc7ddbf51124c30f95a877a0c5168a3bfde # v5.2.1
 
       - name: Run golangci-lint
-        run: golangci-lint run
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          # The version is pinned in .mise.toml.
+          install-mode: none
