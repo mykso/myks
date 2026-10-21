@@ -12,7 +12,7 @@ resolving images, and generating ArgoCD resources.
 ```bash
 # Build
 task go:build                    # Build with goreleaser (recommended)
-goreleaser build --snapshot --clean --single-target --output bin/myks
+mkdir -p bin && goreleaser build --snapshot --clean --single-target --output bin/myks
 
 # Test (builds binary first, needs it on PATH)
 task go:test                     # Build + test with race detector
