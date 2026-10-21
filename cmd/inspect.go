@@ -212,18 +212,18 @@ Examples:
   # Inspect specific apps in specific environments
   {{.CommandPath}} prod,stage app1,app2
 
-  # Show which data-values file sets each final value
+  # Show which data-values or schema file sets each final value
   {{.CommandPath}} prod app1 --provenance
 
-  # Also list the values no data-values file sets
+  # Also list the values that come from the myks built-in defaults
   {{.CommandPath}} prod app1 --provenance=all
 
   # Fail when a data-values file sets a value to the one it already inherits (for CI)
   {{.CommandPath}} --redundant
 `
 
-// --provenance modes: the text output lists only the values a data-values file sets, or all of
-// them. JSON always lists all, so a consumer filters on an empty file itself.
+// --provenance modes: the text output lists only the values a data-values or schema file sets,
+// or all of them. JSON always lists all, so a consumer filters on an empty file itself.
 const (
 	provenanceSet = "set"
 	provenanceAll = "all"
@@ -278,7 +278,7 @@ func newInspectAppsCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&opts.DataValues, "data-values", false, "include final resolved ytt data values")
 	cmd.Flags().BoolVar(&opts.Rendered, "rendered", false, "include rendered artifacts from .myks/ if available")
-	cmd.Flags().StringVar(&provenance, "provenance", "", `include the data-values file that sets each final data value; "all" also lists the defaults in the text output`)
+	cmd.Flags().StringVar(&provenance, "provenance", "", `include the data-values or schema file that sets each final data value; "all" also lists the myks built-in defaults in the text output`)
 	cmd.Flags().Lookup("provenance").NoOptDefVal = provenanceSet
 	cmd.Flags().BoolVar(&opts.Redundant, "redundant", false, "include data values a file sets to the value it already inherits; exit non-zero if any")
 	cmd.SetUsageTemplate(inspectAppsUsageTemplate)
@@ -442,7 +442,7 @@ func printInspectAppInstance(inst *myks.InspectAppInstance, withDefaults bool) {
 		for _, s := range sources {
 			file := s.File
 			if file == "" {
-				file = "(defaults)"
+				file = "(built-in defaults)"
 			}
 			fmt.Printf("    %s %s\n", aurora.Green(s.Path), aurora.Faint(file))
 		}
