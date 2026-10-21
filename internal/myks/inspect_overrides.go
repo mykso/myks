@@ -99,8 +99,11 @@ func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, [
 	return sources, redundant, nil
 }
 
+// runtimeDataKey holds the data values myks detects from the checkout, e.g. the git remote.
+const runtimeDataKey = "myks"
+
 // splitDataFiles separates data-values schemas from data values and reads the keys each data
-// values file sets. ytt applies every schema before any data values, whatever the file order.
+// values file sets, except runtime data. ytt applies every schema before any data values, whatever the file order.
 func splitDataFiles(files []string) (schemas, layers []string, setPaths [][][]string, err error) {
 	for _, f := range files {
 		content, err := os.ReadFile(f)
@@ -115,6 +118,8 @@ func splitDataFiles(files []string) (schemas, layers []string, setPaths [][][]st
 		if err != nil {
 			return nil, nil, nil, fmt.Errorf("reading data value keys of %s: %w", f, err)
 		}
+		// A file pins runtime data because another checkout may detect something else.
+		paths = slices.DeleteFunc(paths, func(p []string) bool { return p[0] == runtimeDataKey })
 		layers = append(layers, f)
 		setPaths = append(setPaths, paths)
 	}
@@ -160,19 +165,12 @@ func valueSources(layers []string, values []any) []InspectValueSource {
 	return sources
 }
 
-// runtimeDataKey holds the data values myks detects from the checkout, e.g. the git remote.
-const runtimeDataKey = "myks"
-
 // redundantOverrides lists the keys layers[i] sets, setPaths[i], whose value is the same before
 // and after it. values[i] holds the data values of the defaults plus layers[:i].
 func redundantOverrides(layers []string, values []any, setPaths [][][]string) []InspectRedundantOverride {
 	var redundant []InspectRedundantOverride
 	for i, paths := range setPaths {
 		for _, path := range paths {
-			// A file pins runtime data because another checkout may detect something else.
-			if path[0] == runtimeDataKey {
-				continue
-			}
 			prev, prevOk := lookupPath(values[i], path)
 			cur, curOk := lookupPath(values[i+1], path)
 			if prevOk && curOk && reflect.DeepEqual(cur, prev) {
@@ -333,9 +331,31 @@ func (a *Application) inspectValuesOverrides(dirName, vendorDirName string) (sou
 	return sources, redundant, nil
 }
 
-// valuesFileTargets returns the sorted names of the charts that values files in dirName or the
-// vendored directory vendorDirName imply.
+// valuesFileTargets returns the sorted names of the charts vendored in vendorDirName, the ones
+// render applies values files to. Before the first sync there is no vendored directory, so it
+// falls back to the names the values files in dirName imply.
 func (a *Application) valuesFileTargets(dirName, vendorDirName string) ([]string, error) {
+	vendorDir := a.expandVendorPath(vendorDirName)
+	entries, err := os.ReadDir(vendorDir)
+	if os.IsNotExist(err) {
+		return a.valuesFileNames(dirName)
+	} else if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", vendorDir, err)
+	}
+	var names []string
+	for _, entry := range entries {
+		// Vendored charts are often symlinks, so the entry type alone does not tell.
+		if ok, err := isDir(filepath.Join(vendorDir, entry.Name())); err != nil && !os.IsNotExist(err) {
+			return nil, fmt.Errorf("checking %s: %w", entry.Name(), err)
+		} else if ok {
+			names = append(names, entry.Name())
+		}
+	}
+	return names, nil
+}
+
+// valuesFileNames returns the sorted chart names that the values files in dirName are named for.
+func (a *Application) valuesFileNames(dirName string) ([]string, error) {
 	files, err := a.collectAllFilesByGlob(filepath.Join(dirName, "*.*yaml"))
 	if err != nil {
 		return nil, err
@@ -345,19 +365,6 @@ func (a *Application) valuesFileTargets(dirName, vendorDirName string) ([]string
 		// prepareValuesFile matches `<chart>.*yaml`, so the chart name ends at the first dot.
 		if name, _, _ := strings.Cut(filepath.Base(f), "."); name != "_global" {
 			names = append(names, name)
-		}
-	}
-	vendorDir := a.expandVendorPath(vendorDirName)
-	entries, err := os.ReadDir(vendorDir)
-	if err != nil && !os.IsNotExist(err) {
-		return nil, fmt.Errorf("reading %s: %w", vendorDir, err)
-	}
-	for _, entry := range entries {
-		// Vendored charts are often symlinks, so the entry type alone does not tell.
-		if ok, err := isDir(filepath.Join(vendorDir, entry.Name())); err != nil && !os.IsNotExist(err) {
-			return nil, fmt.Errorf("checking %s: %w", entry.Name(), err)
-		} else if ok {
-			names = append(names, entry.Name())
 		}
 	}
 	slices.Sort(names)

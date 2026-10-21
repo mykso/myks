@@ -31,6 +31,15 @@ func newTestApp(t *testing.T) *Application {
 	}
 }
 
+// writeAppFile writes content to rel under the root of app and returns the full path.
+func writeAppFile(t *testing.T, app *Application, rel, content string) string {
+	t.Helper()
+	path := filepath.Join(app.cfg.RootDir, rel)
+	require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+	return path
+}
+
 func Test_inspectRenderedArtifacts(t *testing.T) {
 	t.Run("returns nil when no artifacts exist", func(t *testing.T) {
 		app := newTestApp(t)
@@ -121,24 +130,18 @@ func Test_collectFiles_malformedPattern(t *testing.T) {
 func Test_inspectOverrides(t *testing.T) {
 	app := newTestApp(t)
 	app.e.extraYttPaths = []string{"./assets/data-schema.ytt.yaml"}
-	write := func(rel, content string) string {
-		path := filepath.Join(app.cfg.RootDir, rel)
-		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
-		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
-		return path
-	}
-	schema := write("prototypes/test-proto/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  #@schema/validation min_len=1\n  name: \"\"\n  version: \"1.0\"\n  hosts: [\"\"]\n  port: 80\n  replicas: 1\n")
-	proto := write("prototypes/test-proto/app-data.yaml", "#@data/values\n---\napplication:\n  name: #@ \"app\"\n  version: \"1.0\"\nmyks:\n  gitRepoBranch: \"\"\n")
-	env := write("envs/test-env/_apps/test-app/app-data.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  hosts: [a]\n  extra: x\n")
+	schema := writeAppFile(t, app, "prototypes/test-proto/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  #@schema/validation min_len=1\n  name: \"\"\n  version: \"1.0\"\n  hosts: [\"\"]\n  port: 80\n  replicas: 1\n")
+	proto := writeAppFile(t, app, "prototypes/test-proto/app-data.yaml", "#@data/values\n---\napplication:\n  name: #@ \"app\"\n  version: \"1.0\"\nmyks:\n  gitRepoBranch: \"\"\n")
+	env := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  hosts: [a]\n  extra: x\n")
 	// The second document sets name again: one finding per file and key.
-	again := write("envs/test-env/_apps/test-app/app-data.again.yaml", "#@data/values\n---\napplication:\n  #@overlay/replace\n  hosts: [a]\n  name: app\n#@data/values\n---\napplication:\n  name: app\n")
+	again := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.again.yaml", "#@data/values\n---\napplication:\n  #@overlay/replace\n  hosts: [a]\n  name: app\n#@data/values\n---\napplication:\n  name: app\n")
 	// A schema applies before every data value, even one in an earlier file.
-	lateSchema := write("envs/test-env/_apps/test-app/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  extra: \"\"\n  replicas: 2\n")
-	vendir := write("prototypes/test-proto/vendir/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  chart: \"1.2\"\n")
-	write("prototypes/test-proto/vendir/schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  chart: \"\"\n")
-	write("prototypes/test-proto/vendir/vendir.yaml", "apiVersion: vendir.k14s.io/v1alpha1\nkind: Config\n")
+	lateSchema := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  extra: \"\"\n  replicas: 2\n")
+	vendir := writeAppFile(t, app, "prototypes/test-proto/vendir/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  chart: \"1.2\"\n")
+	writeAppFile(t, app, "prototypes/test-proto/vendir/schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  chart: \"\"\n")
+	writeAppFile(t, app, "prototypes/test-proto/vendir/vendir.yaml", "apiVersion: vendir.k14s.io/v1alpha1\nkind: Config\n")
 	// Data values of a private library never reach the root.
-	write("prototypes/test-proto/vendir/_ytt_lib/lib/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n")
+	writeAppFile(t, app, "prototypes/test-proto/vendir/_ytt_lib/lib/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n")
 	app.yttDataFiles = []string{schema, proto, env, again, lateSchema}
 
 	sources, redundant, err := app.inspectOverrides(true)
@@ -168,19 +171,17 @@ func Test_inspectOverrides(t *testing.T) {
 func Test_inspectValuesOverrides(t *testing.T) {
 	app := newTestApp(t)
 	app.e.extraYttPaths = []string{"./assets/data-schema.ytt.yaml"}
-	write := func(rel, content string) string {
-		path := filepath.Join(app.cfg.RootDir, rel)
-		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
-		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
-		return path
-	}
-	app.yttDataFiles = []string{write("prototypes/test-proto/app-data.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  name: app\n")}
-	protoGlobal := write("prototypes/test-proto/helm/_global.yaml", "#@ load(\"@ytt:data\", \"data\")\n---\nchart: #@ data.values.myks.context.helm.chart\nreplicas: 1\nimage:\n  tag: v1\n")
-	protoWeb := write("prototypes/test-proto/helm/web.yaml", "#@ load(\"@ytt:data\", \"data\")\n---\nname: #@ data.values.application.name\nimage:\n  tag: v2\n")
-	appGlobal := write("envs/test-env/_apps/test-app/helm/_global.yaml", "replicas: 1\n")
-	appWeb := write("envs/test-env/_apps/test-app/helm/web.yaml", "image:\n  tag: v2\nport: 8080\n")
+	app.yttDataFiles = []string{writeAppFile(t, app, "prototypes/test-proto/app-data.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  name: app\n")}
+	protoGlobal := writeAppFile(t, app, "prototypes/test-proto/helm/_global.yaml", "#@ load(\"@ytt:data\", \"data\")\n---\nchart: #@ data.values.myks.context.helm.chart\nreplicas: 1\nimage:\n  tag: v1\nmyks: x\n")
+	protoWeb := writeAppFile(t, app, "prototypes/test-proto/helm/web.yaml", "#@ load(\"@ytt:data\", \"data\")\n---\nname: #@ data.values.application.name\nimage:\n  tag: v2\n")
+	appGlobal := writeAppFile(t, app, "envs/test-env/_apps/test-app/helm/_global.yaml", "replicas: 1\nmyks: x\n")
+	appWeb := writeAppFile(t, app, "envs/test-env/_apps/test-app/helm/web.yaml", "image:\n  tag: v2\nport: 8080\n")
+	// Render never sees values files of a chart that is not vendored.
+	writeAppFile(t, app, "envs/test-env/_apps/test-app/helm/gone.yaml", "replicas: 2\n")
 	// A vendored chart without values files of its own still gets the global ones.
-	require.NoError(t, os.MkdirAll(filepath.Join(app.expandVendorPath(app.cfg.HelmChartsDirName), "db"), 0o700))
+	for _, chart := range []string{"db", "web"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(app.expandVendorPath(app.cfg.HelmChartsDirName), chart), 0o700))
+	}
 
 	sources, redundant, err := app.inspectValuesOverrides(app.cfg.HelmStepDirName, app.cfg.HelmChartsDirName)
 	require.NoError(t, err)
@@ -189,19 +190,26 @@ func Test_inspectValuesOverrides(t *testing.T) {
 		"db": {
 			{Path: "chart", File: protoGlobal},
 			{Path: "image.tag", File: protoGlobal},
+			{Path: "myks", File: protoGlobal},
 			{Path: "replicas", File: protoGlobal},
 		},
 		"web": {
 			{Path: "chart", File: protoGlobal},
 			{Path: "image.tag", File: protoWeb},
+			{Path: "myks", File: protoGlobal},
 			{Path: "name", File: protoWeb},
 			{Path: "port", File: appWeb},
 			{Path: "replicas", File: protoGlobal},
 		},
 	}, sources)
 	assert.Equal(t, map[string][]InspectRedundantOverride{
-		"db": {{Path: "replicas", File: appGlobal, Value: 1}},
+		// Unlike in data values, a myks key in a values file is no runtime data.
+		"db": {
+			{Path: "myks", File: appGlobal, Value: "x"},
+			{Path: "replicas", File: appGlobal, Value: 1},
+		},
 		"web": {
+			{Path: "myks", File: appGlobal, Value: "x"},
 			{Path: "replicas", File: appGlobal, Value: 1},
 			{Path: "image.tag", File: appWeb, Value: "v2"},
 		},
@@ -212,16 +220,11 @@ func Test_inspectInstanceOverridesKclMode(t *testing.T) {
 	app := newTestApp(t)
 	app.e.kclMode = true
 	app.e.extraYttPaths = []string{"./assets/data-schema.ytt.yaml"}
-	write := func(rel, content string) string {
-		path := filepath.Join(app.cfg.RootDir, rel)
-		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
-		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
-		return path
-	}
 	// Generated data values hold no override to trace; ytt-pkg values files are still checked.
-	app.yttDataFiles = []string{write(".myks/envs/test-env/_apps/test-app/app-data.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  version: \"1.0\"\n")}
-	write("prototypes/test-proto/ytt-pkg/pkg.yaml", "a: 1\n")
-	appPkg := write("envs/test-env/_apps/test-app/ytt-pkg/pkg.yaml", "a: 1\n")
+	// Nothing is vendored yet, so the values file names give the packages.
+	app.yttDataFiles = []string{writeAppFile(t, app, ".myks/envs/test-env/_apps/test-app/app-data.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  version: \"1.0\"\n")}
+	writeAppFile(t, app, "prototypes/test-proto/ytt-pkg/pkg.yaml", "a: 1\n")
+	appPkg := writeAppFile(t, app, "envs/test-env/_apps/test-app/ytt-pkg/pkg.yaml", "a: 1\n")
 
 	var instance InspectAppInstance
 	require.NoError(t, app.inspectInstanceOverrides(&instance, InspectAppsOptions{Provenance: true, Redundant: true}))

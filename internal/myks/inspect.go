@@ -148,6 +148,10 @@ func (g *Globe) InspectApplications(asyncLevel int, opts InspectAppsOptions) ([]
 		apps = append(apps, env.Applications...)
 	}
 
+	if (opts.Provenance || opts.Redundant) && slices.ContainsFunc(apps, func(app *Application) bool { return app.e.kclMode }) {
+		log.Warn().Msg("Data value provenance and redundant overrides are not supported in KCL mode; only helm and ytt-pkg values files are inspected")
+	}
+
 	instances := make([]InspectAppInstance, len(apps))
 	var eg errgroup.Group
 	if asyncLevel > 0 {
@@ -294,9 +298,7 @@ func (a *Application) inspectInstance(opts InspectAppsOptions) (InspectAppInstan
 func (a *Application) inspectInstanceOverrides(instance *InspectAppInstance, opts InspectAppsOptions) error {
 	// KCL mode generates the data values files, so they hold no override to trace. Helm and
 	// ytt-pkg values files are collected the same way in both modes.
-	if a.e.kclMode {
-		log.Warn().Msg(a.Msg("inspect", "Data value provenance and redundant overrides are not supported in KCL mode"))
-	} else {
+	if !a.e.kclMode {
 		sources, redundant, err := a.inspectOverrides(opts.Redundant)
 		if err != nil {
 			return fmt.Errorf("resolving data values by level: %w", err)
