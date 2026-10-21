@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"fmt"
 	"path/filepath"
+	"slices"
 	"text/template"
 
 	"github.com/rs/zerolog/log"
@@ -34,11 +35,16 @@ argocd:
 // argoCDEnvSourceFiles returns the source files used to render the ArgoCD environment (AppProject) yaml.
 // It includes the API library, env-data files, and environment-level argocd overlays.
 // Used by both ArgoCD env render and inspect.
-func (e *Environment) argoCDEnvSourceFiles() []string {
-	files := []string{e.getYttLibAPIDir()}
-	files = append(files, e.envDataFiles()...)
-	files = append(files, e.collectBySubpath(filepath.Join(e.cfg.EnvsDir, e.cfg.ArgoCDDataDirName))...)
-	return files
+func (e *Environment) argoCDEnvSourceFiles() ([]string, error) {
+	envDataFiles, err := e.envDataFiles()
+	if err != nil {
+		return nil, err
+	}
+	argoCDFiles, err := e.collectBySubpath(filepath.Join(e.cfg.EnvsDir, e.cfg.ArgoCDDataDirName))
+	if err != nil {
+		return nil, err
+	}
+	return slices.Concat([]string{e.getYttLibAPIDir()}, envDataFiles, argoCDFiles), nil
 }
 
 func (e *Environment) renderArgoCD() error {
@@ -47,7 +53,10 @@ func (e *Environment) renderArgoCD() error {
 		return nil
 	}
 
-	yttFiles := e.argoCDEnvSourceFiles()
+	yttFiles, err := e.argoCDEnvSourceFiles()
+	if err != nil {
+		return err
+	}
 
 	res, err := e.yttS(
 		"create ArgoCD project yaml",
@@ -88,8 +97,16 @@ func (a *Application) argoCDAppSourceFiles() ([]string, error) {
 	} else if ok {
 		files = append(files, prototypeArgoCDDir)
 	}
-	files = append(files, a.e.collectBySubpath(filepath.Join(a.cfg.EnvsDir, a.cfg.ArgoCDDataDirName))...)
-	files = append(files, a.e.collectBySubpath(filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.ArgoCDDataDirName))...)
+	for _, subpath := range []string{
+		filepath.Join(a.cfg.EnvsDir, a.cfg.ArgoCDDataDirName),
+		filepath.Join(a.cfg.AppsDir, a.Name, a.cfg.ArgoCDDataDirName),
+	} {
+		found, err := a.e.collectBySubpath(subpath)
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, found...)
+	}
 
 	return files, nil
 }

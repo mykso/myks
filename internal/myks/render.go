@@ -196,10 +196,15 @@ func genRenderedResourceFileName(resource map[string]any, includeNamespace bool)
 func (a *Application) prepareValuesFile(dirName, chartName string) (string, error) {
 	yttArgs := []string{"-v", "myks.context.helm.chart=" + chartName}
 
-	valuesFiles := slices.Concat(
-		a.collectAllFilesByGlob(filepath.Join(dirName, "_global.*yaml")),
-		a.collectAllFilesByGlob(filepath.Join(dirName, chartName+".*yaml")),
-	)
+	globalValuesFiles, err := a.collectAllFilesByGlob(filepath.Join(dirName, "_global.*yaml"))
+	if err != nil {
+		return "", err
+	}
+	chartValuesFiles, err := a.collectAllFilesByGlob(filepath.Join(dirName, chartName+".*yaml"))
+	if err != nil {
+		return "", err
+	}
+	valuesFiles := slices.Concat(globalValuesFiles, chartValuesFiles)
 
 	if len(valuesFiles) == 0 {
 		log.Debug().Str("resource", chartName).Msg(a.Msg(renderStepName, "No values files found"))
@@ -266,24 +271,20 @@ func (a *Application) collectFilesByGlob(subpathPattern string) ([]string, error
 //   - application files in env dirs: `envs/**/_apps/<app>/<pattern>`
 //
 // It returns a combined list of all matching files.
-// It panics on malformed glob patterns.
-func (a *Application) collectAllFilesByGlob(pattern string) []string {
+func (a *Application) collectAllFilesByGlob(pattern string) ([]string, error) {
 	protoFiles, err := filepath.Glob(filepath.Join(a.Prototype, pattern))
 	if err != nil {
-		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect prototype files"))
-		return nil
+		return nil, fmt.Errorf("collecting prototype files by %q: %w", pattern, err)
 	}
 	protoOverrideFiles, err := a.collectFilesByGlob(filepath.Join(a.cfg.PrototypeOverrideDir, a.prototypeDirName(), pattern))
 	if err != nil {
-		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect prototype override files"))
-		return nil
+		return nil, fmt.Errorf("collecting prototype override files by %q: %w", pattern, err)
 	}
 	files, err := a.collectFilesByGlob(filepath.Join(a.cfg.AppsDir, a.Name, pattern))
 	if err != nil {
-		log.Fatal().Err(err).Msg(a.Msg(renderStepName, "Unable to collect application files"))
-		return nil
+		return nil, fmt.Errorf("collecting application files by %q: %w", pattern, err)
 	}
-	return slices.Concat(protoFiles, protoOverrideFiles, files)
+	return slices.Concat(protoFiles, protoOverrideFiles, files), nil
 }
 
 // AcquireRenderLock acquires a read or write lock on the vendor paths relevant to this application,

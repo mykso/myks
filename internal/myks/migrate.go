@@ -804,6 +804,7 @@ func (m *migrator) translateYttLibrary() {
 	m.libPackage = packagePath(m.g.YttLibraryDirName)
 	files, err := filepath.Glob(filepath.Join(m.g.RootDir, m.g.YttLibraryDirName, "*.star"))
 	if err != nil {
+		log.Warn().Err(err).Msg(m.g.Msg("Unable to collect ytt library files; library is not translated"))
 		return
 	}
 	exported := map[string]string{}
@@ -1500,7 +1501,11 @@ func (m *migrator) computePatches() error {
 		for _, node := range chain {
 			treeEnv = mergeValues(treeEnv, node.envValues)
 		}
-		legacyEnvYaml, err := leaf.env.renderEnvData(leaf.env.envDataFiles())
+		legacyEnvFiles, err := leaf.env.envDataFiles()
+		if err != nil {
+			return fmt.Errorf("collecting legacy env data files of %s: %w", leafDir, err)
+		}
+		legacyEnvYaml, err := leaf.env.renderEnvData(legacyEnvFiles)
 		if err != nil {
 			return fmt.Errorf("resolving legacy env data of %s: %w", leafDir, err)
 		}

@@ -187,7 +187,10 @@ func (e *Environment) setID() error {
 }
 
 func (e *Environment) initEnvData() error {
-	envDataFiles := e.envDataFiles()
+	envDataFiles, err := e.envDataFiles()
+	if err != nil {
+		return err
+	}
 	envDataYaml, err := e.renderEnvData(envDataFiles)
 	if err != nil {
 		log.Warn().Err(err).Str("dir", e.Dir).Msg(e.Msg("Unable to render environment data"))
@@ -212,9 +215,9 @@ func (e *Environment) initEnvData() error {
 
 // envDataFiles returns the environment's data-values source files:
 // the generated bridge files in KCL mode, the env-data files of the dir hierarchy otherwise.
-func (e *Environment) envDataFiles() []string {
+func (e *Environment) envDataFiles() ([]string, error) {
 	if e.kclMode {
-		return e.kclDataFiles
+		return e.kclDataFiles, nil
 	}
 	return e.collectBySubpath(e.cfg.EnvironmentDataFileName)
 }
@@ -344,7 +347,7 @@ func (e *Environment) initApplications(applicationNames []string) error {
 	return nil
 }
 
-func (e *Environment) collectBySubpath(subpath string) []string {
+func (e *Environment) collectBySubpath(subpath string) ([]string, error) {
 	items := []string{}
 	currentPath := e.cfg.RootDir
 	envRelDir := strings.TrimPrefix(e.Dir, e.cfg.RootDir+string(filepath.Separator))
@@ -355,11 +358,13 @@ func (e *Environment) collectBySubpath(subpath string) []string {
 		}
 		currentPath = filepath.Join(currentPath, level)
 		item := filepath.Join(currentPath, subpath)
-		if files, err := filepath.Glob(item); err == nil {
-			items = append(items, files...)
+		files, err := filepath.Glob(item)
+		if err != nil {
+			return nil, fmt.Errorf("collecting files by %q: %w", item, err)
 		}
+		items = append(items, files...)
 	}
-	return items
+	return items, nil
 }
 
 // Msg formats a log message with the environment ID as context.
