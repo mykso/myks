@@ -8,6 +8,7 @@ import (
 	"sort"
 
 	"github.com/rs/zerolog/log"
+	"golang.org/x/sync/errgroup"
 )
 
 // InspectEnvironment holds inspection data for a single environment.
@@ -35,15 +36,29 @@ type InspectApplication struct {
 
 // InspectAppInstance holds inspection data for one (environment, application) pair.
 type InspectAppInstance struct {
-	EnvironmentID  string              `json:"environmentId"`
-	EnvironmentDir string              `json:"environmentDir"`
-	Prototype      string              `json:"prototype"`
-	RenderedDir    string              `json:"renderedDir"`
-	ServiceDir     string              `json:"serviceDir"`
-	CommonFiles    InspectCommonFiles  `json:"commonFiles"`
-	StepFiles      map[string][]string `json:"stepFiles"`
-	DataValues     string              `json:"dataValues,omitempty"`
-	Rendered       *InspectRendered    `json:"rendered,omitempty"`
+	EnvironmentID  string                     `json:"environmentId"`
+	EnvironmentDir string                     `json:"environmentDir"`
+	Prototype      string                     `json:"prototype"`
+	RenderedDir    string                     `json:"renderedDir"`
+	ServiceDir     string                     `json:"serviceDir"`
+	CommonFiles    InspectCommonFiles         `json:"commonFiles"`
+	StepFiles      map[string][]string        `json:"stepFiles"`
+	DataValues     string                     `json:"dataValues,omitempty"`
+	Rendered       *InspectRendered           `json:"rendered,omitempty"`
+	Provenance     []InspectValueSource       `json:"provenance,omitempty"`
+	Redundant      []InspectRedundantOverride `json:"redundantOverrides,omitempty"`
+}
+
+// InspectAppsOptions selects the optional, more expensive parts of an application inspection.
+type InspectAppsOptions struct {
+	// DataValues includes the final resolved ytt data values.
+	DataValues bool
+	// Rendered includes rendered artifacts from .myks/ if available.
+	Rendered bool
+	// Provenance includes, for each final data value, the data-values file that set it.
+	Provenance bool
+	// Redundant includes data values that a file sets to the value it already inherits.
+	Redundant bool
 }
 
 // InspectCommonFiles holds the file paths shared across all rendering steps.
@@ -120,23 +135,38 @@ func (g *Globe) InspectEnvironments(includeDataValues bool) ([]InspectEnvironmen
 }
 
 // InspectApplications returns inspection data for all initialized applications, grouped by name.
-// If includeDataValues is true, each instance includes its final resolved ytt data values.
-// If includeRendered is true, rendered artifacts from .myks/ are included if available.
-func (g *Globe) InspectApplications(includeDataValues, includeRendered bool) ([]InspectApplication, error) {
-	byName := map[string]*InspectApplication{}
-
+// asyncLevel limits how many applications are inspected at once; 0 means no limit.
+func (g *Globe) InspectApplications(asyncLevel int, opts InspectAppsOptions) ([]InspectApplication, error) {
+	var apps []*Application
 	for _, env := range g.environments {
-		for _, app := range env.Applications {
-			instance, err := app.inspectInstance(includeDataValues, includeRendered)
-			if err != nil {
-				return nil, fmt.Errorf("inspecting %s/%s: %w", env.ID, app.Name, err)
-			}
+		apps = append(apps, env.Applications...)
+	}
 
-			if _, ok := byName[app.Name]; !ok {
-				byName[app.Name] = &InspectApplication{Name: app.Name}
+	instances := make([]InspectAppInstance, len(apps))
+	var eg errgroup.Group
+	if asyncLevel > 0 {
+		eg.SetLimit(asyncLevel)
+	}
+	for i, app := range apps {
+		eg.Go(func() error {
+			instance, err := app.inspectInstance(opts)
+			if err != nil {
+				return fmt.Errorf("inspecting %s/%s: %w", app.e.ID, app.Name, err)
 			}
-			byName[app.Name].Instances = append(byName[app.Name].Instances, instance)
+			instances[i] = instance
+			return nil
+		})
+	}
+	if err := eg.Wait(); err != nil {
+		return nil, fmt.Errorf("inspecting applications: %w", err)
+	}
+
+	byName := map[string]*InspectApplication{}
+	for i, app := range apps {
+		if _, ok := byName[app.Name]; !ok {
+			byName[app.Name] = &InspectApplication{Name: app.Name}
 		}
+		byName[app.Name].Instances = append(byName[app.Name].Instances, instances[i])
 	}
 
 	result := make([]InspectApplication, 0, len(byName))
@@ -213,7 +243,7 @@ func isInternalDir(name string) bool {
 }
 
 // inspectInstance builds an InspectAppInstance for this application.
-func (a *Application) inspectInstance(includeDataValues, includeRendered bool) (InspectAppInstance, error) {
+func (a *Application) inspectInstance(opts InspectAppsOptions) (InspectAppInstance, error) {
 	stepFiles, err := a.inspectStepFiles()
 	if err != nil {
 		return InspectAppInstance{}, err
@@ -232,16 +262,29 @@ func (a *Application) inspectInstance(includeDataValues, includeRendered bool) (
 		StepFiles: stepFiles,
 	}
 
-	if includeDataValues {
-		dataYaml, err := a.renderDataYaml(append(a.e.extraYttPaths, a.yttDataFiles...))
+	if opts.DataValues {
+		dataYaml, err := a.renderDataYaml(concatenate(a.e.extraYttPaths, a.yttDataFiles))
 		if err != nil {
 			return InspectAppInstance{}, fmt.Errorf("rendering data values: %w", err)
 		}
 		instance.DataValues = string(dataYaml)
 	}
 
-	if includeRendered {
+	if opts.Rendered {
 		instance.Rendered = a.inspectRenderedArtifacts()
+	}
+
+	if opts.Provenance || opts.Redundant {
+		sources, redundant, err := a.inspectOverrides(opts.Redundant)
+		if err != nil {
+			return InspectAppInstance{}, fmt.Errorf("resolving data values by level: %w", err)
+		}
+		if opts.Provenance {
+			instance.Provenance = sources
+		}
+		if opts.Redundant {
+			instance.Redundant = redundant
+		}
 	}
 
 	return instance, nil

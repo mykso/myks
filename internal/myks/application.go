@@ -202,13 +202,14 @@ func (a *Application) logCmd(step, cmd string, err error, stderr string) {
 	}
 }
 
-func (a *Application) renderDataYaml(dataFiles []string) ([]byte, error) {
+func (a *Application) renderDataYaml(dataFiles []string, extraArgs ...string) ([]byte, error) {
 	args := []string{
 		"-v", "myks.context.step=init", // in the logs this step is called init
 		"-v", "myks.context.app=" + a.Name,
 		"-v", "myks.context.prototype=" + a.Prototype,
 		"--data-values-inspect",
 	}
+	args = append(args, extraArgs...)
 	if len(dataFiles) == 0 {
 		return nil, errors.New("no data files found")
 	}

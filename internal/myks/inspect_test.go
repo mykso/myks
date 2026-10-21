@@ -117,3 +117,55 @@ func Test_collectFiles_malformedPattern(t *testing.T) {
 	_, err = app.inspectStepFiles()
 	require.ErrorIs(t, err, filepath.ErrBadPattern)
 }
+
+func Test_inspectOverrides(t *testing.T) {
+	app := newTestApp(t)
+	app.e.extraYttPaths = []string{"./assets/data-schema.ytt.yaml"}
+	write := func(rel, content string) string {
+		path := filepath.Join(app.cfg.RootDir, rel)
+		require.NoError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
+		return path
+	}
+	schema := write("prototypes/test-proto/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  #@schema/validation min_len=1\n  name: \"\"\n  version: \"1.0\"\n  hosts: [\"\"]\n")
+	proto := write("prototypes/test-proto/app-data.yaml", "#@data/values\n---\napplication:\n  name: #@ \"app\"\n  version: \"1.0\"\nmyks:\n  gitRepoBranch: \"\"\n")
+	env := write("envs/test-env/_apps/test-app/app-data.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  hosts: [a]\n  extra: x\n")
+	// The second document sets name again: one finding per file and key.
+	again := write("envs/test-env/_apps/test-app/app-data.again.yaml", "#@data/values\n---\napplication:\n  #@overlay/replace\n  hosts: [a]\n  name: app\n#@data/values\n---\napplication:\n  name: app\n")
+	// A schema applies before every data value, even one in an earlier file.
+	lateSchema := write("envs/test-env/_apps/test-app/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  extra: \"\"\n")
+	vendir := write("prototypes/test-proto/vendir/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  chart: \"1.2\"\n")
+	write("prototypes/test-proto/vendir/schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  chart: \"\"\n")
+	write("prototypes/test-proto/vendir/vendir.yaml", "apiVersion: vendir.k14s.io/v1alpha1\nkind: Config\n")
+	// Data values of a private library never reach the root.
+	write("prototypes/test-proto/vendir/_ytt_lib/lib/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n")
+	app.yttDataFiles = []string{schema, proto, env, again, lateSchema}
+
+	sources, redundant, err := app.inspectOverrides(true)
+	require.NoError(t, err)
+
+	sourceOf := map[string]string{}
+	for _, s := range sources {
+		sourceOf[s.Path] = s.File
+	}
+	assert.Equal(t, proto, sourceOf["application.name"])
+	assert.Equal(t, env, sourceOf["application.version"])
+	assert.Equal(t, env, sourceOf["application.hosts"])
+	assert.Equal(t, env, sourceOf["application.extra"])
+	assert.Empty(t, sourceOf["helm.namespace"], "untouched values come from the defaults")
+	assert.NotContains(t, sourceOf, "application.chart", "vendir data values never reach the render steps")
+
+	assert.Equal(t, []InspectRedundantOverride{
+		{Path: "application.version", File: proto, Value: "1.0"},
+		{Path: "application.hosts", File: again, Value: []any{"a"}},
+		{Path: "application.name", File: again, Value: "app"},
+		{Path: "application.version", File: vendir, Value: "2.0"},
+	}, redundant)
+}
+
+func Test_inspectOverridesKclMode(t *testing.T) {
+	app := newTestApp(t)
+	app.e.kclMode = true
+	_, _, err := app.inspectOverrides(true)
+	assert.ErrorContains(t, err, "not supported in KCL mode")
+}

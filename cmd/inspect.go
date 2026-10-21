@@ -211,11 +211,27 @@ Examples:
 
   # Inspect specific apps in specific environments
   {{.CommandPath}} prod,stage app1,app2
+
+  # Show which data-values file sets each final value
+  {{.CommandPath}} prod app1 --provenance
+
+  # Also list the values no data-values file sets
+  {{.CommandPath}} prod app1 --provenance=all
+
+  # Fail when a data-values file sets a value to the one it already inherits (for CI)
+  {{.CommandPath}} --redundant
 `
 
+// --provenance modes: the text output lists only the values a data-values file sets, or all of
+// them. JSON always lists all, so a consumer filters on an empty file itself.
+const (
+	provenanceSet = "set"
+	provenanceAll = "all"
+)
+
 func newInspectAppsCmd() *cobra.Command {
-	var dataValues bool
-	var rendered bool
+	var opts myks.InspectAppsOptions
+	var provenance string
 
 	cmd := &cobra.Command{
 		Use:               "apps [env-selector [app-selector]]",
@@ -223,6 +239,13 @@ func newInspectAppsCmd() *cobra.Command {
 		Args:              cobra.MaximumNArgs(2),
 		ValidArgsFunction: shellCompletion,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			switch provenance {
+			case "", provenanceSet, provenanceAll:
+			default:
+				return fmt.Errorf("unsupported --provenance value %q: want %q or %q", provenance, provenanceSet, provenanceAll)
+			}
+			opts.Provenance = provenance != ""
+
 			g := getGlobe()
 			if err := g.ValidateRootDir(); err != nil {
 				return fmt.Errorf("root directory is not suitable for myks: %w", err)
@@ -233,19 +256,31 @@ func newInspectAppsCmd() *cobra.Command {
 				return fmt.Errorf("unable to initialize: %w", err)
 			}
 
-			apps, err := g.InspectApplications(dataValues, rendered)
+			apps, err := g.InspectApplications(asyncLevel, opts)
 			if err != nil {
 				return fmt.Errorf("inspect failed: %w", err)
 			}
 
-			return printOutput(cmd, apps, func() {
-				printInspectApps(apps)
-			})
+			if err := printOutput(cmd, apps, func() {
+				printInspectApps(apps, provenance == provenanceAll)
+			}); err != nil {
+				return err
+			}
+
+			if n := countRedundantOverrides(apps); n > 0 {
+				// A finding, not a misuse: the usage text would only bury it.
+				cmd.SilenceUsage = true
+				return fmt.Errorf("found %d redundant data value overrides", n)
+			}
+			return nil
 		},
 	}
 
-	cmd.Flags().BoolVar(&dataValues, "data-values", false, "include final resolved ytt data values")
-	cmd.Flags().BoolVar(&rendered, "rendered", false, "include rendered artifacts from .myks/ if available")
+	cmd.Flags().BoolVar(&opts.DataValues, "data-values", false, "include final resolved ytt data values")
+	cmd.Flags().BoolVar(&opts.Rendered, "rendered", false, "include rendered artifacts from .myks/ if available")
+	cmd.Flags().StringVar(&provenance, "provenance", "", `include the data-values file that sets each final data value; "all" also lists the defaults in the text output`)
+	cmd.Flags().Lookup("provenance").NoOptDefVal = provenanceSet
+	cmd.Flags().BoolVar(&opts.Redundant, "redundant", false, "include data values a file sets to the value it already inherits; exit non-zero if any")
 	cmd.SetUsageTemplate(inspectAppsUsageTemplate)
 	return cmd
 }
@@ -353,7 +388,7 @@ func printInspectEnv(env *myks.InspectEnvironment) {
 // knownStepOrder defines the display order for pipeline steps.
 var knownStepOrder = []string{"sync-vendir", "render-helm", "render-ytt", "render-ytt-pkg", "global-ytt", "static-files", "argocd"}
 
-func printInspectApps(apps []myks.InspectApplication) {
+func printInspectApps(apps []myks.InspectApplication, withDefaults bool) {
 	for i := range apps {
 		if i > 0 {
 			fmt.Println()
@@ -361,12 +396,12 @@ func printInspectApps(apps []myks.InspectApplication) {
 		fmt.Printf("%s %s\n", aurora.Bold(aurora.Cyan("Application:")), aurora.Bold(aurora.Cyan(apps[i].Name)))
 		for j := range apps[i].Instances {
 			fmt.Println()
-			printInspectAppInstance(&apps[i].Instances[j])
+			printInspectAppInstance(&apps[i].Instances[j], withDefaults)
 		}
 	}
 }
 
-func printInspectAppInstance(inst *myks.InspectAppInstance) {
+func printInspectAppInstance(inst *myks.InspectAppInstance, withDefaults bool) {
 	fmt.Printf("  %s %s %s\n", aurora.Bold(aurora.Cyan("Environment:")), aurora.Cyan(inst.EnvironmentID), aurora.Faint("("+inst.EnvironmentDir+")"))
 	fmt.Printf("  %s %s\n", aurora.Bold("Prototype: "), aurora.Green(inst.Prototype))
 	fmt.Printf("  %s %s\n", aurora.Bold("Rendered:  "), aurora.Faint(inst.RenderedDir))
@@ -396,6 +431,41 @@ func printInspectAppInstance(inst *myks.InspectAppInstance) {
 	if inst.Rendered != nil {
 		printInspectRendered(inst.Rendered)
 	}
+
+	sources := inst.Provenance
+	if !withDefaults {
+		sources = slices.DeleteFunc(slices.Clone(sources), func(s myks.InspectValueSource) bool { return s.File == "" })
+	}
+	if len(sources) > 0 {
+		fmt.Println()
+		fmt.Printf("  %s\n", aurora.Yellow("Provenance:"))
+		for _, s := range sources {
+			file := s.File
+			if file == "" {
+				file = "(defaults)"
+			}
+			fmt.Printf("    %s %s\n", aurora.Green(s.Path), aurora.Faint(file))
+		}
+	}
+
+	if len(inst.Redundant) > 0 {
+		fmt.Println()
+		fmt.Printf("  %s\n", aurora.Yellow("Redundant Overrides:"))
+		for _, r := range inst.Redundant {
+			value, _ := json.Marshal(r.Value)
+			fmt.Printf("    %s = %s %s\n", aurora.Red(r.Path), value, aurora.Faint(r.File))
+		}
+	}
+}
+
+func countRedundantOverrides(apps []myks.InspectApplication) int {
+	n := 0
+	for _, app := range apps {
+		for i := range app.Instances {
+			n += len(app.Instances[i].Redundant)
+		}
+	}
+	return n
 }
 
 func printInspectStepFiles(stepFiles map[string][]string) {
