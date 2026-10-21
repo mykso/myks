@@ -212,13 +212,13 @@ Examples:
   # Inspect specific apps in specific environments
   {{.CommandPath}} prod,stage app1,app2
 
-  # Show which data-values or schema file sets each final value
+  # Show which data-values, schema, helm or ytt-pkg values file sets each final value
   {{.CommandPath}} prod app1 --provenance
 
   # Also list the values that come from the myks built-in defaults
   {{.CommandPath}} prod app1 --provenance=all
 
-  # Fail when a data-values file sets a value to the one it already inherits (for CI)
+  # Fail when a data-values, helm or ytt-pkg values file sets a value to the one it already inherits (for CI)
   {{.CommandPath}} --redundant
 `
 
@@ -270,7 +270,7 @@ func newInspectAppsCmd() *cobra.Command {
 			if n := countRedundantOverrides(apps); n > 0 {
 				// A finding, not a misuse: the usage text would only bury it.
 				cmd.SilenceUsage = true
-				return fmt.Errorf("found %d redundant data value overrides", n)
+				return fmt.Errorf("found %d redundant overrides", n)
 			}
 			return nil
 		},
@@ -278,9 +278,9 @@ func newInspectAppsCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&opts.DataValues, "data-values", false, "include final resolved ytt data values")
 	cmd.Flags().BoolVar(&opts.Rendered, "rendered", false, "include rendered artifacts from .myks/ if available")
-	cmd.Flags().StringVar(&provenance, "provenance", "", `include the data-values or schema file that sets each final data value; "all" also lists the myks built-in defaults in the text output`)
+	cmd.Flags().StringVar(&provenance, "provenance", "", `include the file that sets each final data value and helm or ytt-pkg value; "all" also lists the myks built-in data value defaults in the text output`)
 	cmd.Flags().Lookup("provenance").NoOptDefVal = provenanceSet
-	cmd.Flags().BoolVar(&opts.Redundant, "redundant", false, "include data values a file sets to the value it already inherits; exit non-zero if any")
+	cmd.Flags().BoolVar(&opts.Redundant, "redundant", false, "include data values and helm or ytt-pkg values a file sets to the value it already inherits; exit non-zero if any")
 	cmd.SetUsageTemplate(inspectAppsUsageTemplate)
 	return cmd
 }
@@ -436,25 +436,46 @@ func printInspectAppInstance(inst *myks.InspectAppInstance, withDefaults bool) {
 	if !withDefaults {
 		sources = slices.DeleteFunc(slices.Clone(sources), func(s myks.InspectValueSource) bool { return s.File == "" })
 	}
-	if len(sources) > 0 {
-		fmt.Println()
-		fmt.Printf("  %s\n", aurora.Yellow("Provenance:"))
-		for _, s := range sources {
-			file := s.File
-			if file == "" {
-				file = "(built-in defaults)"
-			}
-			fmt.Printf("    %s %s\n", aurora.Green(s.Path), aurora.Faint(file))
-		}
+	printInspectProvenance("Provenance:", sources)
+	printInspectRedundant("Redundant Overrides:", inst.Redundant)
+	for _, chart := range slices.Sorted(maps.Keys(inst.HelmProvenance)) {
+		printInspectProvenance("Helm Provenance ("+chart+"):", inst.HelmProvenance[chart])
 	}
+	for _, chart := range slices.Sorted(maps.Keys(inst.HelmRedundant)) {
+		printInspectRedundant("Helm Redundant Overrides ("+chart+"):", inst.HelmRedundant[chart])
+	}
+	for _, pkg := range slices.Sorted(maps.Keys(inst.YttPkgProvenance)) {
+		printInspectProvenance("ytt-pkg Provenance ("+pkg+"):", inst.YttPkgProvenance[pkg])
+	}
+	for _, pkg := range slices.Sorted(maps.Keys(inst.YttPkgRedundant)) {
+		printInspectRedundant("ytt-pkg Redundant Overrides ("+pkg+"):", inst.YttPkgRedundant[pkg])
+	}
+}
 
-	if len(inst.Redundant) > 0 {
-		fmt.Println()
-		fmt.Printf("  %s\n", aurora.Yellow("Redundant Overrides:"))
-		for _, r := range inst.Redundant {
-			value, _ := json.Marshal(r.Value)
-			fmt.Printf("    %s = %s %s\n", aurora.Red(r.Path), value, aurora.Faint(r.File))
+func printInspectProvenance(title string, sources []myks.InspectValueSource) {
+	if len(sources) == 0 {
+		return
+	}
+	fmt.Println()
+	fmt.Printf("  %s\n", aurora.Yellow(title))
+	for _, s := range sources {
+		file := s.File
+		if file == "" {
+			file = "(built-in defaults)"
 		}
+		fmt.Printf("    %s %s\n", aurora.Green(s.Path), aurora.Faint(file))
+	}
+}
+
+func printInspectRedundant(title string, redundant []myks.InspectRedundantOverride) {
+	if len(redundant) == 0 {
+		return
+	}
+	fmt.Println()
+	fmt.Printf("  %s\n", aurora.Yellow(title))
+	for _, r := range redundant {
+		value, _ := json.Marshal(r.Value)
+		fmt.Printf("    %s = %s %s\n", aurora.Red(r.Path), value, aurora.Faint(r.File))
 	}
 }
 
@@ -462,7 +483,14 @@ func countRedundantOverrides(apps []myks.InspectApplication) int {
 	n := 0
 	for _, app := range apps {
 		for i := range app.Instances {
-			n += len(app.Instances[i].Redundant)
+			inst := &app.Instances[i]
+			n += len(inst.Redundant)
+			for _, r := range inst.HelmRedundant {
+				n += len(r)
+			}
+			for _, r := range inst.YttPkgRedundant {
+				n += len(r)
+			}
 		}
 	}
 	return n

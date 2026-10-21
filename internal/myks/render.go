@@ -194,17 +194,10 @@ func genRenderedResourceFileName(resource map[string]any, includeNamespace bool)
 // prepareValuesFile generates values.yaml file from ytt data files and ytt templates
 // from the `helm` or `ytt` directories of the prototype and the application.
 func (a *Application) prepareValuesFile(dirName, chartName string) (string, error) {
-	yttArgs := []string{"-v", "myks.context.helm.chart=" + chartName}
-
-	globalValuesFiles, err := a.collectAllFilesByGlob(filepath.Join(dirName, "_global.*yaml"))
+	valuesFiles, err := a.valuesFiles(dirName, chartName)
 	if err != nil {
 		return "", err
 	}
-	chartValuesFiles, err := a.collectAllFilesByGlob(filepath.Join(dirName, chartName+".*yaml"))
-	if err != nil {
-		return "", err
-	}
-	valuesFiles := slices.Concat(globalValuesFiles, chartValuesFiles)
 
 	if len(valuesFiles) == 0 {
 		log.Debug().Str("resource", chartName).Msg(a.Msg(renderStepName, "No values files found"))
@@ -212,7 +205,7 @@ func (a *Application) prepareValuesFile(dirName, chartName string) (string, erro
 	}
 
 	// render zero or more yaml documents - values files
-	resourceValuesYaml, err := a.ytt(renderStepName, "collect data values file", concatenate(a.yttDataFiles, valuesFiles), yttArgs...)
+	resourceValuesYaml, err := a.renderValuesFiles(chartName, valuesFiles)
 	if err != nil {
 		return "", err
 	}
@@ -230,7 +223,7 @@ func (a *Application) prepareValuesFile(dirName, chartName string) (string, erro
 
 	// merge previously rendered yaml documents into one,
 	// in the way Helm would do that with all values files
-	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandServicePath(unmergedValuesFileName))
+	resourceValues, err := a.mergeValuesYaml(renderStepName, a.expandServicePath(unmergedValuesFileName), nil)
 	if err != nil {
 		return "", err
 	}
@@ -243,6 +236,25 @@ func (a *Application) prepareValuesFile(dirName, chartName string) (string, erro
 	valuesFileName := filepath.Join(dirName, chartName+".yaml")
 	err = a.writeServiceFile(valuesFileName, resourceValues.Stdout)
 	return a.expandServicePath(valuesFileName), err
+}
+
+// valuesFiles returns the values files of chartName in the `helm` or `ytt-pkg` directory dirName,
+// in the order they apply: all global ones, then the chart's own.
+func (a *Application) valuesFiles(dirName, chartName string) ([]string, error) {
+	globalValuesFiles, err := a.collectAllFilesByGlob(filepath.Join(dirName, "_global.*yaml"))
+	if err != nil {
+		return nil, err
+	}
+	chartValuesFiles, err := a.collectAllFilesByGlob(filepath.Join(dirName, chartName+".*yaml"))
+	if err != nil {
+		return nil, err
+	}
+	return slices.Concat(globalValuesFiles, chartValuesFiles), nil
+}
+
+// renderValuesFiles renders values files of chartName as ytt templates on top of the data values.
+func (a *Application) renderValuesFiles(chartName string, valuesFiles []string) (CmdResult, error) {
+	return a.ytt(renderStepName, "collect data values file", concatenate(a.yttDataFiles, valuesFiles), "-v", "myks.context.helm.chart="+chartName)
 }
 
 func (a *Application) collectFilesByGlob(subpathPattern string) ([]string, error) {

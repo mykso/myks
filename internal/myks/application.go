@@ -229,11 +229,10 @@ func (a *Application) renderDataYaml(dataFiles []string, extraArgs ...string) ([
 	return dataYaml, nil
 }
 
-func (a *Application) mergeValuesYaml(step, valueFilesYaml string) (CmdResult, error) {
-	return runYttWithFilesAndStdin(step, nil, nil, func(name string, err error, stderr string, args []string) {
-		cmd := msgRunCmd("merge data values file", name, args)
-		a.logCmd(step, cmd, err, stderr)
-	}, "--data-values-file="+valueFilesYaml, "--data-values-inspect")
+// mergeValuesYaml merges the YAML documents of valuesFile, or of stdin if valuesFile is "-", in
+// the way Helm merges values files.
+func (a *Application) mergeValuesYaml(step, valuesFile string, stdin io.Reader) (CmdResult, error) {
+	return a.runCmd(step, "merge data values file", myksFullPath(), stdin, []string{"ytt", "--data-values-file=" + valuesFile, "--data-values-inspect"})
 }
 
 func (a *Application) ytt(step, purpose string, paths []string, args ...string) (CmdResult, error) {
