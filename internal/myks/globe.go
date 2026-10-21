@@ -300,6 +300,14 @@ func (g *Globe) processApp(app *Application, doSync, doRender bool, vendirSyncer
 		}
 	}
 
+	if doRender && !doSync {
+		if reason, err := app.unsyncedReason(); err != nil {
+			log.Warn().Err(err).Str("app", appID).Msg("Unable to check whether the application is synced")
+		} else if reason != "" {
+			log.Warn().Str("app", appID).Msgf("Application may render with missing sources: %s; run with --sync", reason)
+		}
+	}
+
 	if doRender {
 		yamlTemplatingTools := []YamlTemplatingTool{
 			NewHelmRenderer(app, lock),
