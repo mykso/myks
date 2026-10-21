@@ -46,7 +46,34 @@ func normalizeOnlyPrint(raw string) (string, error) {
 	}
 }
 
-func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
+// detectChangedEnvsAndApps sets envAppMap from Smart Mode and exits when nothing changed.
+func detectChangedEnvsAndApps(cmd *cobra.Command, onlyPrint string) (err error) {
+	// Commands without the --sync flag (plugins) read false here.
+	syncOnly, _ := cmd.Flags().GetBool("sync")
+	envAppMap, err = getGlobe().DetectChangedEnvsAndApps(viper.GetString("smart-mode.base-revision"), syncOnly)
+	if err != nil {
+		if onlyPrint != "" {
+			return fmt.Errorf("smart mode detection failed: %w", err)
+		}
+		log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
+		return nil
+	}
+	if len(envAppMap) > 0 {
+		return nil
+	}
+	switch onlyPrint {
+	case outputFormatJSON:
+		fmt.Println("{}")
+	case outputFormatText:
+		fmt.Println(aurora.Bold("\nSmart Mode detected no changes."))
+	default:
+		log.Warn().Msg("Smart Mode did not find any changes. Exiting.")
+	}
+	os.Exit(0)
+	return nil
+}
+
+func initTargetEnvsAndApps(cmd *cobra.Command, args []string) (err error) {
 	// Check positional arguments for Smart Mode:
 	// 1. Comma-separated list of environment search paths/IDs or ALL to search everywhere (default: ALL)
 	// 2. Comma-separated list of application names or none to process all applications (default: none)
@@ -58,25 +85,8 @@ func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 
 	switch len(args) {
 	case 0:
-		g := getGlobe()
-		envAppMap, err = g.DetectChangedEnvsAndApps(viper.GetString("smart-mode.base-revision"))
-		if err != nil {
-			if onlyPrint != "" {
-				return fmt.Errorf("smart mode detection failed: %w", err)
-			}
-			log.Warn().Err(err).Msg("Unable to run Smart Mode. Rendering everything.")
-		} else if len(envAppMap) == 0 {
-			switch onlyPrint {
-			case outputFormatJSON:
-				fmt.Println("{}")
-				os.Exit(0)
-			case outputFormatText:
-				fmt.Println(aurora.Bold("\nSmart Mode detected no changes."))
-				os.Exit(0)
-			default:
-				log.Warn().Msg("Smart Mode did not find any changes. Exiting.")
-				os.Exit(0)
-			}
+		if err := detectChangedEnvsAndApps(cmd, onlyPrint); err != nil {
+			return err
 		}
 	case 1:
 		if args[0] != allEnvsToken {
@@ -122,9 +132,12 @@ func initTargetEnvsAndApps(_ *cobra.Command, args []string) (err error) {
 		Interface("envAppMap", envAppMap).
 		Msg("Parsed arguments")
 
+	return printEnvAppMap(onlyPrint)
+}
+
+// printEnvAppMap prints envAppMap in the onlyPrint format and exits; it does nothing when onlyPrint is empty.
+func printEnvAppMap(onlyPrint string) error {
 	switch onlyPrint {
-	case "":
-		// not set, proceed to render
 	case outputFormatJSON:
 		out, err := json.MarshalIndent(envAppMap, "", "  ")
 		if err != nil {
