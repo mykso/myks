@@ -127,7 +127,7 @@ func Test_inspectOverrides(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
 		return path
 	}
-	schema := write("prototypes/test-proto/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  name: \"\"\n  version: \"1.0\"\n  hosts: [\"\"]\n")
+	schema := write("prototypes/test-proto/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  #@schema/validation min_len=1\n  name: \"\"\n  version: \"1.0\"\n  hosts: [\"\"]\n")
 	proto := write("prototypes/test-proto/app-data.yaml", "#@data/values\n---\napplication:\n  name: #@ \"app\"\n  version: \"1.0\"\n")
 	env := write("envs/test-env/_apps/test-app/app-data.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  hosts: [a]\n  extra: x\n")
 	again := write("envs/test-env/_apps/test-app/app-data.again.yaml", "#@data/values\n---\napplication:\n  #@overlay/replace\n  hosts: [a]\n  name: app\n")

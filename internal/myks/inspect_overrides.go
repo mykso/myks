@@ -92,7 +92,9 @@ func (a *Application) inspectOverrides() ([]InspectValueSource, []InspectRedunda
 
 	values := make([]any, 0, len(layers)+1)
 	for i := 0; i <= len(layers); i++ {
-		dataYaml, err := a.renderDataYaml(concatenate(base, layers[:i]))
+		// Validations hold for the final data values only; a partial level may legitimately miss a
+		// required value that a later file sets.
+		dataYaml, err := a.renderDataYaml(concatenate(base, layers[:i]), "--dangerous-data-values-disable-validation")
 		if err != nil {
 			return nil, nil, fmt.Errorf("rendering data values up to level %d: %w", i, err)
 		}
