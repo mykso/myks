@@ -7,7 +7,7 @@
   ],
   postUpdateOptions: [
     "gomodTidy",
-    "goModUpdateImportPaths",
+    "gomodUpdateImportPaths",
   ],
   packageRules: [
     // Enable automerging for non-major updates to all dependencies
