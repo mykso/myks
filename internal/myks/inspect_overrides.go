@@ -30,6 +30,9 @@ type InspectRedundantOverride struct {
 	Path  string `json:"path"`
 	File  string `json:"file"`
 	Value any    `json:"value"`
+	// InheritedFrom is the last earlier file that changed the value, so redundant files in between
+	// are skipped; empty means the myks built-in defaults.
+	InheritedFrom string `json:"inheritedFrom"`
 }
 
 // inspectOverrides resolves the application's data values one schema or data-values file at a
@@ -53,19 +56,16 @@ func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, [
 			dataFiles = append(dataFiles, f)
 		}
 	}
-	schemas, layers, setPaths, err := splitDataFiles(dataFiles)
+	levels, setPaths, err := dataFileLevels(dataFiles)
 	if err != nil {
 		return nil, nil, err
 	}
-	// Schemas are the first levels, so each default is traced to the schema that declares it.
-	// Levels are cumulative, so a schema extending an earlier one still loads.
-	levels := slices.Concat(schemas, layers)
 	values, err := a.renderLevels(base, levels)
 	if err != nil {
 		return nil, nil, err
 	}
 	sources := valueSources(levels, values)
-	redundant := redundantOverrides(layers, values[len(schemas):], setPaths)
+	redundant := redundantOverrides(levels, values, setPaths)
 	if !withVendir {
 		return sources, redundant, nil
 	}
@@ -82,48 +82,59 @@ func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, [
 		}
 		vendirFiles = append(vendirFiles, files...)
 	}
-	vendirSchemas, vendirLayers, vendirSetPaths, err := splitDataFiles(vendirFiles)
+	vendirLevels, vendirSetPaths, err := dataFileLevels(vendirFiles)
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(vendirLayers) == 0 {
+	if !slices.ContainsFunc(vendirSetPaths, func(p [][]string) bool { return len(p) > 0 }) {
 		return sources, redundant, nil
 	}
 	// Only the vendir config sees these data values, on top of the application's final ones;
 	// the render steps never do, so they are no source of a final value.
-	vendirValues, err := a.renderLevels(slices.Concat(base, schemas, vendirSchemas, layers), vendirLayers)
+	vendirValues, err := a.renderLevels(slices.Concat(base, levels), vendirLevels)
 	if err != nil {
 		return nil, nil, err
 	}
-	redundant = append(redundant, redundantOverrides(vendirLayers, vendirValues, vendirSetPaths)...)
+	// vendirValues[0] is the application's final data values, so the vendir levels continue the
+	// application's ones and a value no vendir file changed is traced back through them. The
+	// application's levels were checked above.
+	redundant = append(redundant, redundantOverrides(
+		slices.Concat(levels, vendirLevels),
+		slices.Concat(values, vendirValues[1:]),
+		slices.Concat(make([][][]string, len(levels)), vendirSetPaths),
+	)...)
 	return sources, redundant, nil
 }
 
 // runtimeDataKey holds the data values myks detects from the checkout, e.g. the git remote.
 const runtimeDataKey = "myks"
 
-// splitDataFiles separates data-values schemas from data values and reads the keys each data
-// values file sets, except runtime data. ytt applies every schema before any data values, whatever the file order.
-func splitDataFiles(files []string) (schemas, layers []string, setPaths [][][]string, err error) {
+// dataFileLevels orders data-values files the way ytt applies them, every schema before any data
+// values whatever the file order, and reads the keys each data values file sets, except runtime
+// data. Schemas set no keys of their own, but stay levels so an inherited default names its
+// schema; levels are cumulative, so a schema extending an earlier one still loads.
+func dataFileLevels(files []string) (levels []string, setPaths [][][]string, err error) {
+	var layers []string
+	var layerPaths [][][]string
 	for _, f := range files {
 		content, err := os.ReadFile(f)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("reading data file %s: %w", f, err)
+			return nil, nil, fmt.Errorf("reading data file %s: %w", f, err)
 		}
 		if schemaDocRe.Match(content) {
-			schemas = append(schemas, f)
+			levels = append(levels, f)
 			continue
 		}
 		paths, err := dataFileSetPaths(content)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("reading data value keys of %s: %w", f, err)
+			return nil, nil, fmt.Errorf("reading data value keys of %s: %w", f, err)
 		}
 		// A file pins runtime data because another checkout may detect something else.
 		paths = slices.DeleteFunc(paths, func(p []string) bool { return p[0] == runtimeDataKey })
 		layers = append(layers, f)
-		setPaths = append(setPaths, paths)
+		layerPaths = append(layerPaths, paths)
 	}
-	return schemas, layers, setPaths, nil
+	return slices.Concat(levels, layers), slices.Concat(make([][][]string, len(levels)), layerPaths), nil
 }
 
 // renderLevels returns the data values of base alone, then of base plus each further layer.
@@ -150,19 +161,23 @@ func (a *Application) renderLevels(base, layers []string) ([]any, error) {
 func valueSources(layers []string, values []any) []InspectValueSource {
 	var sources []InspectValueSource
 	for _, path := range leafPaths(values[len(values)-1], nil) {
-		source := InspectValueSource{Path: strings.Join(path, ".")}
-		for i := len(layers); i > 0; i-- {
-			cur, curOk := lookupPath(values[i], path)
-			prev, prevOk := lookupPath(values[i-1], path)
-			if curOk != prevOk || !reflect.DeepEqual(cur, prev) {
-				source.File = layers[i-1]
-				break
-			}
-		}
-		sources = append(sources, source)
+		sources = append(sources, InspectValueSource{Path: strings.Join(path, "."), File: lastChange(layers, values, len(layers), path)})
 	}
 	sort.Slice(sources, func(i, j int) bool { return sources[i].Path < sources[j].Path })
 	return sources
+}
+
+// lastChange returns the last of layers[:n] that changed the value at path, or "" if none did.
+// values[i] holds the data values of the defaults plus layers[:i].
+func lastChange(layers []string, values []any, n int, path []string) string {
+	for i := n; i > 0; i-- {
+		cur, curOk := lookupPath(values[i], path)
+		prev, prevOk := lookupPath(values[i-1], path)
+		if curOk != prevOk || !reflect.DeepEqual(cur, prev) {
+			return layers[i-1]
+		}
+	}
+	return ""
 }
 
 // redundantOverrides lists the keys layers[i] sets, setPaths[i], whose value is the same before
@@ -174,7 +189,12 @@ func redundantOverrides(layers []string, values []any, setPaths [][][]string) []
 			prev, prevOk := lookupPath(values[i], path)
 			cur, curOk := lookupPath(values[i+1], path)
 			if prevOk && curOk && reflect.DeepEqual(cur, prev) {
-				redundant = append(redundant, InspectRedundantOverride{Path: strings.Join(path, "."), File: layers[i], Value: cur})
+				redundant = append(redundant, InspectRedundantOverride{
+					Path:          strings.Join(path, "."),
+					File:          layers[i],
+					Value:         cur,
+					InheritedFrom: lastChange(layers, values, i, path),
+				})
 			}
 		}
 	}
