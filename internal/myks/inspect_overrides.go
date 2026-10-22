@@ -56,20 +56,16 @@ func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, [
 			dataFiles = append(dataFiles, f)
 		}
 	}
-	schemas, layers, setPaths, err := splitDataFiles(dataFiles)
+	levels, setPaths, err := dataFileLevels(dataFiles)
 	if err != nil {
 		return nil, nil, err
 	}
-	// Schemas are the first levels, so each default is traced to the schema that declares it.
-	// Levels are cumulative, so a schema extending an earlier one still loads.
-	levels := slices.Concat(schemas, layers)
 	values, err := a.renderLevels(base, levels)
 	if err != nil {
 		return nil, nil, err
 	}
 	sources := valueSources(levels, values)
-	// Schemas set no keys of their own, but stay levels so an inherited default names its schema.
-	redundant := redundantOverrides(levels, values, slices.Concat(make([][][]string, len(schemas)), setPaths))
+	redundant := redundantOverrides(levels, values, setPaths)
 	if !withVendir {
 		return sources, redundant, nil
 	}
@@ -86,59 +82,59 @@ func (a *Application) inspectOverrides(withVendir bool) ([]InspectValueSource, [
 		}
 		vendirFiles = append(vendirFiles, files...)
 	}
-	vendirSchemas, vendirLayers, vendirSetPaths, err := splitDataFiles(vendirFiles)
+	vendirLevels, vendirSetPaths, err := dataFileLevels(vendirFiles)
 	if err != nil {
 		return nil, nil, err
 	}
-	if len(vendirLayers) == 0 {
+	if !slices.ContainsFunc(vendirSetPaths, func(p [][]string) bool { return len(p) > 0 }) {
 		return sources, redundant, nil
 	}
 	// Only the vendir config sees these data values, on top of the application's final ones;
 	// the render steps never do, so they are no source of a final value.
-	vendirLevels := slices.Concat(vendirSchemas, vendirLayers)
 	vendirValues, err := a.renderLevels(slices.Concat(base, levels), vendirLevels)
 	if err != nil {
 		return nil, nil, err
 	}
-	// A value no vendir file changed is inherited from the application's final data values.
-	sourceOf := map[string]string{}
-	for _, s := range sources {
-		sourceOf[s.Path] = s.File
-	}
-	for _, r := range redundantOverrides(vendirLevels, vendirValues, slices.Concat(make([][][]string, len(vendirSchemas)), vendirSetPaths)) {
-		if r.InheritedFrom == "" {
-			r.InheritedFrom = sourceOf[r.Path]
-		}
-		redundant = append(redundant, r)
-	}
+	// vendirValues[0] is the application's final data values, so the vendir levels continue the
+	// application's ones and a value no vendir file changed is traced back through them. The
+	// application's levels were checked above.
+	redundant = append(redundant, redundantOverrides(
+		slices.Concat(levels, vendirLevels),
+		slices.Concat(values, vendirValues[1:]),
+		slices.Concat(make([][][]string, len(levels)), vendirSetPaths),
+	)...)
 	return sources, redundant, nil
 }
 
 // runtimeDataKey holds the data values myks detects from the checkout, e.g. the git remote.
 const runtimeDataKey = "myks"
 
-// splitDataFiles separates data-values schemas from data values and reads the keys each data
-// values file sets, except runtime data. ytt applies every schema before any data values, whatever the file order.
-func splitDataFiles(files []string) (schemas, layers []string, setPaths [][][]string, err error) {
+// dataFileLevels orders data-values files the way ytt applies them, every schema before any data
+// values whatever the file order, and reads the keys each data values file sets, except runtime
+// data. Schemas set no keys of their own, but stay levels so an inherited default names its
+// schema; levels are cumulative, so a schema extending an earlier one still loads.
+func dataFileLevels(files []string) (levels []string, setPaths [][][]string, err error) {
+	var layers []string
+	var layerPaths [][][]string
 	for _, f := range files {
 		content, err := os.ReadFile(f)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("reading data file %s: %w", f, err)
+			return nil, nil, fmt.Errorf("reading data file %s: %w", f, err)
 		}
 		if schemaDocRe.Match(content) {
-			schemas = append(schemas, f)
+			levels = append(levels, f)
 			continue
 		}
 		paths, err := dataFileSetPaths(content)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("reading data value keys of %s: %w", f, err)
+			return nil, nil, fmt.Errorf("reading data value keys of %s: %w", f, err)
 		}
 		// A file pins runtime data because another checkout may detect something else.
 		paths = slices.DeleteFunc(paths, func(p []string) bool { return p[0] == runtimeDataKey })
 		layers = append(layers, f)
-		setPaths = append(setPaths, paths)
+		layerPaths = append(layerPaths, paths)
 	}
-	return schemas, layers, setPaths, nil
+	return slices.Concat(levels, layers), slices.Concat(make([][][]string, len(levels)), layerPaths), nil
 }
 
 // renderLevels returns the data values of base alone, then of base plus each further layer.

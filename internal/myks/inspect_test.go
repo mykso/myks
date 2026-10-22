@@ -132,12 +132,12 @@ func Test_inspectOverrides(t *testing.T) {
 	app.e.extraYttPaths = []string{"./assets/data-schema.ytt.yaml"}
 	schema := writeAppFile(t, app, "prototypes/test-proto/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  #@schema/validation min_len=1\n  name: \"\"\n  version: \"1.0\"\n  hosts: [\"\"]\n  port: 80\n  replicas: 1\n")
 	proto := writeAppFile(t, app, "prototypes/test-proto/app-data.yaml", "#@data/values\n---\napplication:\n  name: #@ \"app\"\n  version: \"1.0\"\nmyks:\n  gitRepoBranch: \"\"\n")
-	env := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.yaml", "#@data/values\n---\napplication:\n  name: app\n  version: \"2.0\"\n  hosts: [a]\n  extra: x\n")
+	env := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.yaml", "#@data/values\n---\napplication:\n  name: app\n  version: \"2.0\"\n  hosts: [a]\n  extra: x\n  labels:\n    team: t\n")
 	// The second document sets name again: one finding per file and key.
 	again := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.again.yaml", "#@data/values\n---\napplication:\n  #@overlay/replace\n  hosts: [a]\n  name: app\n#@data/values\n---\napplication:\n  name: app\n")
 	// A schema applies before every data value, even one in an earlier file.
-	lateSchema := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  extra: \"\"\n  replicas: 2\n")
-	vendir := writeAppFile(t, app, "prototypes/test-proto/vendir/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  chart: \"1.2\"\n  repo: r\n")
+	lateSchema := writeAppFile(t, app, "envs/test-env/_apps/test-app/app-data.schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  extra: \"\"\n  replicas: 2\n  labels:\n    team: \"\"\n")
+	vendir := writeAppFile(t, app, "prototypes/test-proto/vendir/values.yaml", "#@data/values\n---\napplication:\n  version: \"2.0\"\n  chart: \"1.2\"\n  repo: r\n  labels: {}\n")
 	vendirSchema := writeAppFile(t, app, "prototypes/test-proto/vendir/schema.yaml", "#@data/values-schema\n---\n#@overlay/match-child-defaults missing_ok=True\napplication:\n  chart: \"\"\n  repo: r\n")
 	writeAppFile(t, app, "prototypes/test-proto/vendir/vendir.yaml", "apiVersion: vendir.k14s.io/v1alpha1\nkind: Config\n")
 	// Data values of a private library never reach the root.
@@ -166,6 +166,8 @@ func Test_inspectOverrides(t *testing.T) {
 		{Path: "application.hosts", File: again, Value: []any{"a"}, InheritedFrom: env},
 		// The redundant env file in between is skipped: proto holds the value.
 		{Path: "application.name", File: again, Value: "app", InheritedFrom: proto},
+		// An empty mapping sets the whole mapping, which no final value names as its own path.
+		{Path: "application.labels", File: vendir, Value: map[string]any{"team": "t"}, InheritedFrom: env},
 		{Path: "application.repo", File: vendir, Value: "r", InheritedFrom: vendirSchema},
 		{Path: "application.version", File: vendir, Value: "2.0", InheritedFrom: env},
 	}, redundant)
