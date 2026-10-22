@@ -1,5 +1,26 @@
 # Changelog
 
+## [5.16.0](https://github.com/mykso/myks/compare/v5.15.2...v5.16.0) (2026-10-22)
+
+
+### Features
+
+* **inspect:** name the file a redundant override inherits from ([#948](https://github.com/mykso/myks/issues/948)) ([6650f0d](https://github.com/mykso/myks/commit/6650f0d3013333204f4fb0c8ac50711a8145c8b9))
+* **inspect:** report data value provenance and redundant overrides ([#938](https://github.com/mykso/myks/issues/938)) ([79b17b5](https://github.com/mykso/myks/commit/79b17b5b5697d95c856671e5e783488c21c53c8e))
+* **inspect:** trace helm and ytt-pkg values files ([#947](https://github.com/mykso/myks/issues/947)) ([131683a](https://github.com/mykso/myks/commit/131683a1deeed27851a9b9679d353330f30608fe))
+* **inspect:** trace schema defaults to their schema file ([#945](https://github.com/mykso/myks/issues/945)) ([7570920](https://github.com/mykso/myks/commit/7570920319f6e33345e782c3ea932be4c1885dfb))
+* **render:** warn about unsynced apps when rendering without sync ([#934](https://github.com/mykso/myks/issues/934)) ([a5cbb45](https://github.com/mykso/myks/commit/a5cbb45cc5b7fc7c8134a08d4ac7aea20fd91919))
+* **smart-mode:** ignore render-only changes for render --sync ([#928](https://github.com/mykso/myks/issues/928)) ([4334e0c](https://github.com/mykso/myks/commit/4334e0c6aa97e8cf90403a1d5fedb0b33b5b2f72))
+
+
+### Bug Fixes
+
+* **nix:** export mise env in devShell instead of activating ([#929](https://github.com/mykso/myks/issues/929)) ([dd8f6e8](https://github.com/mykso/myks/commit/dd8f6e8e5a11b43f6794f7086aebc42c3a4c8918))
+* propagate filepath.Glob errors instead of exiting or dropping them ([#931](https://github.com/mykso/myks/issues/931)) ([e6fe6ee](https://github.com/mykso/myks/commit/e6fe6ee1a95725d8f25227a566f6547ab6086e36))
+* **renovate:** correct gomodUpdateImportPaths option name ([#950](https://github.com/mykso/myks/issues/950)) ([815aedd](https://github.com/mykso/myks/commit/815aedd349e32c42c007f3e3f77f742f073d81bf))
+* **smart-mode:** attribute app changes only to envs having the app ([#932](https://github.com/mykso/myks/issues/932)) ([60e07e5](https://github.com/mykso/myks/commit/60e07e56015439a36a781d2b99ba02f440476ba5))
+* **vendir:** reject configs that vendir itself would reject ([#933](https://github.com/mykso/myks/issues/933)) ([953c70e](https://github.com/mykso/myks/commit/953c70e123354a330d1fd676a97307703336f5ec))
+
 ## [5.15.2](https://github.com/mykso/myks/compare/v5.15.1...v5.15.2) (2026-10-20)
 
 
