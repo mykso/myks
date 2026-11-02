@@ -7,7 +7,14 @@ name: 'job-docker'
 
 jobs:
   docker:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
     steps:
@@ -24,8 +31,8 @@ jobs:
       - name: Build image
         run: |
           ctx="$RUNNER_TEMP/docker"
-          CGO_ENABLED=0 go build -trimpath -o "$ctx/linux/amd64/myks" .
-          docker build --platform linux/amd64 --file Dockerfile --tag myks:pr "$ctx"
+          CGO_ENABLED=0 go build -trimpath -o "$ctx/linux/${{ matrix.arch }}/myks" .
+          docker build --platform "linux/${{ matrix.arch }}" --file Dockerfile --tag myks:pr "$ctx"
 
       - name: Smoke test
         run: |
