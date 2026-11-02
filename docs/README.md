@@ -289,6 +289,9 @@ Here are some of the requirements we had:
 - to have automatic updates and version management;
 - to provide a single source of truth for the configuration.
 
+For why the configuration layer moved from ytt data values to KCL, see
+[Why KCL](/docs/why-kcl.md).
+
 [//]: # 'Links'
 [ArgoCD]: https://argoproj.github.io/cd/
 [helm]: https://helm.sh/
