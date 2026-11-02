@@ -5,6 +5,9 @@
     "config:best-practices",
     "helpers:pinGitHubActionDigestsToSemver",
   ],
+  // The nix-update job in flow-pr.yml commits to Renovate branches as Mykso Bot. Without this,
+  // Renovate treats those branches as modified and stops rebasing them.
+  gitIgnoredAuthors: ["135390787+mykso-bot@users.noreply.github.com"],
   postUpdateOptions: [
     "gomodTidy",
     "gomodUpdateImportPaths",
