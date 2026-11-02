@@ -1,0 +1,36 @@
+# Scheduled and manual sweeps of Renovate pull requests against .github/pr-autopilot.toml.
+# The token comes from octo-sts at sts.zebradil.dev (trust policy in mykso/.github), so the
+# repository carries no secret; see pr-autopilot docs/manual.md, "octo-sts".
+name: pr-autopilot sweep
+
+'on':
+  schedule:
+    - cron: '17 6 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Show verdicts without acting
+        type: boolean
+        default: false
+
+permissions:
+  id-token: write
+
+concurrency:
+  group: pr-autopilot-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-slim
+    steps:
+      - uses: octo-sts/action@f603d3be9d8dd9871a265776e625a27b00effe05 # v1.1.1
+        id: sts
+        with:
+          domain: sts.zebradil.dev
+          scope: ${{ github.repository_owner }}
+          identity: pr-autopilot
+      - uses: Zebradil/pr-autopilot@4bcc29c03641a86a6bee67f9cb8c999d7ca4df5d # v1.4.0
+        with:
+          dry-run: ${{ inputs.dry_run || false }}
+          token: ${{ steps.sts.outputs.token }}
