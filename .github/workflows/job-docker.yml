@@ -1,0 +1,33 @@
+---
+name: 'job-docker'
+
+'on':
+  workflow_call:
+  workflow_dispatch:
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # GoReleaser builds the image only at release; this builds it the same way, from a context
+      # holding the binary at $TARGETPLATFORM/myks, so base image and tool bumps fail here instead.
+      - name: Build image
+        run: |
+          ctx="$RUNNER_TEMP/docker"
+          CGO_ENABLED=0 go build -trimpath -o "$ctx/linux/amd64/myks" .
+          docker build --platform linux/amd64 --file Dockerfile --tag myks:pr "$ctx"
+
+      - name: Smoke test
+        run: |
+          docker run --rm myks:pr --help
+          docker run --rm --entrypoint helm myks:pr version

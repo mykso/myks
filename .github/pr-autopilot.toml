@@ -1,0 +1,38 @@
+# Policy for pr-autopilot (https://github.com/Zebradil/pr-autopilot), which merges bot pull requests
+# by update class once their checks are green. See its docs/manual.md.
+enabled = true
+
+# Documentation only — the engine never reads this table. It records what onboarding concluded about
+# the repository, and why the policy below looks the way it does.
+[risk]
+# A push to main only refreshes the release-please pull request; GoReleaser publishes (GHCR, AUR,
+# Homebrew, packages) when a human merges that one. The KCL package publishes on kcl/myks/kcl.mod,
+# which no bot touches.
+release_mode      = "release-please"
+deploys_from_main = false
+# go test -race plus internal/integration render the example projects through the whole
+# vendir/helm/ytt/kbld pipeline, and golangci-lint runs at the version pinned in .mise.toml.
+# Not covered on pull requests: actions used only by flow-main.yml, flow-kcl-package.yml,
+# check-links*.yaml and flow-pr-meta.yml (pull_request_target runs the base version), and the
+# KCL_CLI_VERSION pin. Those break at release time, never before a human merges the release PR.
+test_confidence   = "high"
+criticality       = "normal"
+
+# The only thing the engine consults. Values are verdicts; an update class that is absent here
+# escalates.
+[policy]
+patch    = "merge"
+minor    = "merge"
+major    = "escalate"
+digest   = "merge"
+pin      = "merge"
+lockfile = "merge"
+
+[limits]
+max_merges    = 10   # merges per sweep
+max_repairs   = 3    # agent dispatches per sweep
+attempt_cap   = 2    # repair attempts per pull request, then escalate for good
+lease_minutes = 30   # how long one sweep's claim on a pull request lasts; also the repair agent's time limit
+
+[repair]
+strategy = "bot-branch"   # bot-branch | side-pr
