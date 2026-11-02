@@ -9,6 +9,9 @@
     "gomodTidy",
     "gomodUpdateImportPaths",
   ],
+  // Machine-readable update classes for pr-autopilot. prHeader, not prBodyNotes: notes are rendered
+  // per upgrade, so the upgrades loop would come out empty.
+  prHeader: "<!-- pr-autopilot:upgrades [{{#each upgrades}}{\"depName\":\"{{{depName}}}\",\"updateType\":\"{{{updateType}}}\",\"currentValue\":\"{{{currentValue}}}\",\"newValue\":\"{{{newValue}}}\",\"manager\":\"{{{manager}}}\"}{{#unless @last}},{{/unless}}{{/each}}] -->",
   packageRules: [
     // Enable automerging for non-major updates to all dependencies
     {
