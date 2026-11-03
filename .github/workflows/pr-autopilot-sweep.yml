@@ -30,7 +30,7 @@ jobs:
           domain: sts.zebradil.dev
           scope: ${{ github.repository_owner }}
           identity: pr-autopilot
-      - uses: Zebradil/pr-autopilot@4bcc29c03641a86a6bee67f9cb8c999d7ca4df5d # v1.4.0
+      - uses: Zebradil/pr-autopilot@72c127fbe12993ba1914831c31113e860c09f48d # v1.5.0
         with:
           dry-run: ${{ inputs.dry_run || false }}
           token: ${{ steps.sts.outputs.token }}
