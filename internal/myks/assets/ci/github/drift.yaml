@@ -1,0 +1,48 @@
+# Fails when the default branch has stale rendered output, for example after
+# two pull requests that touch the same application merged one after the other.
+# See https://github.com/mykso/myks/blob/main/docs/gitops-ci.md
+name: Check rendered manifests
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    env:
+      # renovate: datasource=github-releases depName=mykso/myks
+      MYKS_VERSION: __MYKS_VERSION__
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: mykso/setup-action@v3.0.16
+        with:
+          myks: ${{ env.MYKS_VERSION }}
+
+      - name: Restore the source cache
+        uses: actions/cache@v6
+        with:
+          path: .myks/vendir-cache
+          key: myks-vendir-${{ github.run_id }}
+          restore-keys: myks-vendir-
+
+      - name: Render
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # The first push of a branch has no previous commit to compare with.
+          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            myks render --smart-mode.base-revision="$BEFORE"
+          else
+            myks render ALL ALL
+          fi
+
+      - name: Fail on drift
+        run: |
+          git add --intent-to-add rendered
+          git diff --exit-code --stat rendered

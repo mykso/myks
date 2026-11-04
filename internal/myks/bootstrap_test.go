@@ -59,3 +59,27 @@ func TestBootstrapScaffold(t *testing.T) {
 		})
 	}
 }
+
+func TestGitHubWorkflowsPinVersion(t *testing.T) {
+	tests := []struct {
+		version string
+		want    string
+	}{
+		{"5.16.0", "MYKS_VERSION: v5.16.0"},
+		{"dev", "MYKS_VERSION: latest"},
+		{"5.16.1-SNAPSHOT-abc1234", "MYKS_VERSION: latest"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.version, func(t *testing.T) {
+			g := NewWithDefaults()
+			g.RootDir = t.TempDir()
+			require.NoError(t, g.Bootstrap(false, false, []string{"ci-github"}, tt.version))
+			for _, name := range []string{"render.yaml", "drift.yaml"} {
+				content, err := os.ReadFile(filepath.Join(g.RootDir, ".github", "workflows", name))
+				require.NoError(t, err)
+				assert.Contains(t, string(content), tt.want)
+				assert.NotContains(t, string(content), "__MYKS_VERSION__")
+			}
+		})
+	}
+}

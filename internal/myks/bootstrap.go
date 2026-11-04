@@ -8,6 +8,7 @@ import (
 	"reflect"
 	"strings"
 
+	gv "github.com/hashicorp/go-version"
 	"github.com/rs/zerolog/log"
 )
 
@@ -30,6 +31,9 @@ var environmentsFs embed.FS
 //
 //go:embed all:assets/argocd
 var argocdFs embed.FS
+
+//go:embed assets/ci/github
+var githubWorkflowsFs embed.FS
 
 // ErrBootstrapTargetExists is returned when a bootstrap target path already exists.
 type ErrBootstrapTargetExists struct {
@@ -88,7 +92,65 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 		}
 	}
 
+	if compMap["ci-github"] {
+		workflows, err := githubWorkflows(version)
+		if err != nil {
+			return err
+		}
+		for _, wf := range workflows {
+			if onlyPrint {
+				printFileNicely(wf.path, wf.content, "YAML")
+			} else if err := g.writeNewFile(force, wf.path, wf.content); err != nil {
+				return fmt.Errorf("creating GitHub workflows: %w", err)
+			}
+		}
+	}
+
 	return nil
+}
+
+type bootstrapFile struct {
+	path    string
+	content string
+}
+
+// githubWorkflows returns the CI workflows of docs/gitops-ci.md, pinned to the myks release that writes them.
+func githubWorkflows(version string) ([]bootstrapFile, error) {
+	tag := "latest"
+	if v, err := gv.NewSemver(version); err == nil && v.Prerelease() == "" {
+		tag = "v" + v.String()
+	}
+	entries, err := githubWorkflowsFs.ReadDir("assets/ci/github")
+	if err != nil {
+		return nil, err
+	}
+	files := make([]bootstrapFile, 0, len(entries))
+	for _, e := range entries {
+		content, err := githubWorkflowsFs.ReadFile("assets/ci/github/" + e.Name())
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, bootstrapFile{
+			path:    filepath.Join(".github", "workflows", e.Name()),
+			content: strings.ReplaceAll(string(content), "__MYKS_VERSION__", tag),
+		})
+	}
+	return files, nil
+}
+
+func (g *Globe) writeNewFile(force bool, path, content string) error {
+	path = filepath.Join(g.RootDir, path)
+	if !force {
+		if ok, err := isExist(path); err != nil {
+			return err
+		} else if ok {
+			return ErrBootstrapTargetExists{target: path}
+		}
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return err
+	}
+	return os.WriteFile(path, []byte(content), 0o600)
 }
 
 func (g *Globe) createBaseFileStructure(force bool, myksConfig string) error {

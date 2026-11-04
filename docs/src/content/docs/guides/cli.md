@@ -100,7 +100,7 @@ variables, see [sources.md](../../guides/sources/).
 ## init
 
 ```shell
-myks init [--force] [--argocd] [--print] [--components <list>]
+myks init [--force] [--argocd] [--ci github] [--print] [--components <list>]
 ```
 
 Creates `envs/`, `prototypes/`, `rendered/envs/`, `.gitignore` and `.myks.yaml`
@@ -108,12 +108,13 @@ in the current directory, plus two sample environments (`dev` and `prod`) that
 run one sample Helm chart. It refuses to overwrite any of these unless you pass
 `--force`.
 
-| Flag                  | Effect                                                                                                                                                            |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `-f, --force`         | Overwrite existing files.                                                                                                                                         |
-| `--argocd`            | Also generate [Argo CD resources](../../guides/argocd/) for both environments, and add an Argo CD installation to `dev`. Without it, `argocd.enabled` is `false`. |
-| `--print`             | Print files instead of writing them. Applies to the `config`, `gitignore` and `schema` components.                                                                |
-| `--components <list>` | Comma-separated subset of `config`, `environments`, `gitignore`, `prototypes`, `schema`. Default: all. `environments` and `prototypes` control the samples.       |
+| Flag                  | Effect                                                                                                                                                                                   |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `-f, --force`         | Overwrite existing files.                                                                                                                                                                |
+| `--argocd`            | Also generate [Argo CD resources](../../guides/argocd/) for both environments, and add an Argo CD installation to `dev`. Without it, `argocd.enabled` is `false`.                        |
+| `--ci github`         | Also write GitHub Actions workflows that render pull requests and catch stale output on the default branch, see [GitOps and CI](../../guides/gitops-ci/).                                |
+| `--print`             | Print files instead of writing them. Applies to the `config`, `gitignore`, `schema` and `ci-github` components.                                                                          |
+| `--components <list>` | Comma-separated subset of `config`, `environments`, `gitignore`, `prototypes`, `schema`, `ci-github`. Default: all but `ci-github`. `environments` and `prototypes` control the samples. |
 
 `myks init --print --components schema` prints the built-in data-values schema,
 which is the reference for every myks setting (`argocd`, `helm`, `kbld`,

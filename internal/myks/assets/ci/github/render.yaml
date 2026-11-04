@@ -1,0 +1,55 @@
+# Renders what a pull request changes and pushes the output to its branch,
+# so contributors do not need myks installed.
+# See https://github.com/mykso/myks/blob/main/docs/gitops-ci.md
+name: Render manifests
+on:
+  pull_request:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    env:
+      # renovate: datasource=github-releases depName=mykso/myks
+      MYKS_VERSION: __MYKS_VERSION__
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - uses: mykso/setup-action@v3.0.16
+        with:
+          myks: ${{ env.MYKS_VERSION }}
+
+      - name: Restore the source cache
+        uses: actions/cache@v6
+        with:
+          path: .myks/vendir-cache
+          key: myks-vendir-${{ github.run_id }}
+          restore-keys: myks-vendir-
+
+      - name: Render
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          base=$(git merge-base "origin/$BASE_REF" HEAD)
+          myks render --smart-mode.base-revision="$base"
+          myks cleanup --manifests
+
+      # Commits pushed with GITHUB_TOKEN do not trigger workflow runs. If other
+      # required checks must run on this commit, push with a GitHub App token.
+      - name: Commit the rendered output
+        run: |
+          git add rendered
+          git diff --cached --quiet && exit 0
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore: render manifests'
+          git push
