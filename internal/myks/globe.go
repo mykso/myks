@@ -130,13 +130,13 @@ func (g *Globe) initGitData() {
 		}
 
 		if gitRepoBranch, err := getGitRepoBranch(g.RootDir); err != nil {
-			log.Warn().Err(err).Msg("Unable to set git repo url")
+			log.Warn().Err(err).Msg("Unable to set git repo branch")
 		} else {
 			g.GitRepoBranch = gitRepoBranch
 		}
 
 		if gitRepoURL, err := getGitRepoURL(g.RootDir); err != nil {
-			log.Warn().Err(err).Msg("Unable to set git repo branch")
+			log.Warn().Err(err).Msg("Unable to set git repo url")
 		} else {
 			g.GitRepoURL = gitRepoURL
 		}
