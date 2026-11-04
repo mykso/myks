@@ -71,16 +71,18 @@ installation relies on.
 | Tool              | Fetch sources | Cache | Parallel render | Tree inheritance | Sliced output to Git | Argo CD generation | Image mirroring | Pluggable steps |
 | ----------------- | :-----------: | :---: | :-------------: | :--------------: | :------------------: | :----------------: | :-------------: | :-------------: |
 | **myks**          |       ●       |   ●   |        ●        |        ●         |          ●           |         ●          |        ●        |        ●        |
-| Holos             |       ◐       |   ●   |        ●        |        ●         |          ◐           |         ●          |        ○        |        ◐        |
-| Helmfile          |       ●       |   ●   |        ●        |        ●         |          ●           |         ◐          |        ◐        |        ◐        |
-| Kustomize         |       ●       |   ○   |        ○        |        ●         |          ◐           |         ○          |        ●        |        ◐        |
+| Holos             |       ◐       |   ●   |        ●        |        ●         |          ◐           |         ●          |        ◐        |        ◐        |
+| Helmfile          |       ●       |   ●   |        ●        |        ●         |          ◐           |         ◐          |        ◐        |        ◐        |
+| Kustomize         |       ●       |   ○   |        ○        |        ●         |          ●           |         ○          |        ●        |        ◐        |
 | kluctl            |       ●       |   ◐   |        ●        |        ●         |          ◐           |         ○          |        ◐        |        ○        |
 | Timoni            |       ◐       |   ●   |        ○        |        ◐         |          ○           |         ○          |        ○        |        ○        |
 | cdk8s             |       ◐       |   ○   |        ○        |        ◐         |          ●           |         ◐          |        ○        |        ○        |
 | Argo CD plugins\* |       ●       |   ○   |       n/a       |       n/a        |          ○           |         ◐          |       n/a       |        ●        |
 
 ● native · ◐ partial, or buildable on top · ○ none. \*Config management plugins
-render at sync time, not to Git.
+render at sync time, not to Git. "Sliced output" means one file per resource:
+`kustomize build -o <dir>` writes that, `helmfile template --output-dir` writes
+one file per chart template.
 
 In short:
 
@@ -90,10 +92,11 @@ In short:
 - **Kustomize** is strong at patching, which myks covers with ytt overlays. It
   has no shared download cache, no parallel rendering, and no Argo CD
   generation.
-- **Helmfile** is the closest fit for Helm-only setups. Image mirroring and Argo
-  CD generation are partial and need work on top.
+- **Helmfile** is the closest fit for Helm-only setups. Per-resource output,
+  image mirroring and Argo CD generation are partial and need work on top.
 - **Holos** shares the architecture (render to Git, Argo CD generation,
-  inheritance in CUE), without image mirroring or automatic per-resource output.
+  inheritance in CUE), without per-resource output; image rewriting goes through
+  its Kustomize step.
 - **Argo CD ApplicationSets and config management plugins** template at sync
   time. Reviewers see inputs, not manifests.
 
