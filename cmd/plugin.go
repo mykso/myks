@@ -17,13 +17,22 @@ const pluginPrefix = "myks-"
 // findPlugins searches for plugins in the PATH and in configured plugin-sources.
 // Executables in PATH must have the prefix defined in pluginPrefix.
 // Executables in plugin-sources can have any name.
+// Relative plugin-sources resolve against root-dir: plugins are collected before myks changes into it.
 func findPlugins() []myks.Plugin {
 	path := filepath.SplitList(os.Getenv("PATH"))
 	pluginsPath := myks.FindPluginsInPaths(path, pluginPrefix)
 
+	rootDir := viper.GetString("root-dir")
 	sources := viper.GetStringSlice("plugin-sources")
 	for i, source := range sources {
-		sources[i] = os.ExpandEnv(source)
+		source = os.ExpandEnv(source)
+		if source != "" && !filepath.IsAbs(source) {
+			// Absolute, because plugins run after myks changes into root-dir.
+			if abs, err := filepath.Abs(filepath.Join(rootDir, source)); err == nil {
+				source = abs
+			}
+		}
+		sources[i] = source
 	}
 	pluginsLocal := myks.FindPluginsInPaths(sources, "")
 
