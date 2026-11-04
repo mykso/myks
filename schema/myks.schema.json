@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "$id": "https://raw.githubusercontent.com/mykso/myks/main/schema/myks.schema.json",
+  "title": "myks configuration (.myks.yaml)",
+  "description": "Project-wide settings of the myks CLI. Every option can also be set as a MYKS_* environment variable. https://mykso.github.io/myks/guides/configuration/",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "async": {
+      "type": "integer",
+      "minimum": 0,
+      "default": 0,
+      "description": "Number of applications processed in parallel; 0 means no limit. Env: MYKS_ASYNC, flag: --async."
+    },
+    "buffer-plugin-output": {
+      "type": "boolean",
+      "default": false,
+      "description": "Buffer plugin output instead of streaming it, for parallel runs. Env: MYKS_BUFFER_PLUGIN_OUTPUT."
+    },
+    "config-in-root": {
+      "type": "boolean",
+      "default": false,
+      "description": "Make the directory of this file the project root, so myks works from any subdirectory. Env: MYKS_CONFIG_IN_ROOT."
+    },
+    "log-level": {
+      "enum": [
+        "trace",
+        "debug",
+        "info",
+        "warn",
+        "error",
+        "fatal",
+        "panic"
+      ],
+      "default": "info",
+      "description": "zerolog level. Env: MYKS_LOG_LEVEL, flag: --log-level."
+    },
+    "min-version": {
+      "type": "string",
+      "description": "Minimum myks version the project needs, for example v5.16.0. An older myks logs an error and continues. Env: MYKS_MIN_VERSION."
+    },
+    "plugin-sources": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Directories whose executables become myks plugins. Relative paths resolve against root-dir; environment variables are expanded. Env: MYKS_PLUGIN_SOURCES, separated like PATH."
+    },
+    "print-stats": {
+      "type": "boolean",
+      "default": false,
+      "description": "Print tool resource statistics to stdout. Env: MYKS_PRINT_STATS."
+    },
+    "root-dir": {
+      "type": "string",
+      "default": ".",
+      "description": "Project root; set automatically when config-in-root is true. Env: MYKS_ROOT_DIR."
+    },
+    "smart-mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Smart Mode settings, usually given as flags.",
+      "properties": {
+        "base-revision": {
+          "type": "string",
+          "description": "Git revision to compare the working tree with. Env: MYKS_SMART_MODE_BASE_REVISION."
+        },
+        "only-print": {
+          "enum": [
+            "",
+            "text",
+            "json",
+            "true",
+            "1",
+            "yes",
+            "false",
+            "0",
+            "no"
+          ],
+          "default": "",
+          "description": "Print what Smart Mode would process, then exit. Env: MYKS_SMART_MODE_ONLY_PRINT."
+        }
+      }
+    },
+    "naming-conventions": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Names of the files and directories myks recognizes. Paths are relative to the project root.",
+      "properties": {
+        "environment-base-dir": {
+          "type": "string",
+          "minLength": 1,
+          "default": "envs",
+          "description": "Root of the environment tree."
+        },
+        "prototypes-dir": {
+          "type": "string",
+          "minLength": 1,
+          "default": "prototypes",
+          "description": "Prototypes directory."
+        },
+        "ytt-library-dir-name": {
+          "type": "string",
+          "minLength": 1,
+          "default": "lib",
+          "description": "ytt library directory, at the root and in prototypes and applications."
+        },
+        "rendered-envs-dir": {
+          "type": "string",
+          "minLength": 1,
+          "default": "rendered/envs",
+          "description": "Output directory for manifests."
+        },
+        "rendered-argo-dir": {
+          "type": "string",
+          "minLength": 1,
+          "default": "rendered/argocd",
+          "description": "Output directory for Argo CD resources."
+        },
+        "apps-dir": {
+          "type": "string",
+          "minLength": 1,
+          "default": "_apps",
+          "description": "Application directories inside an environment."
+        },
+        "envs-dir": {
+          "type": "string",
+          "minLength": 1,
+          "default": "_env",
+          "description": "Environment-wide directory inside an environment."
+        },
+        "prototype-override-dir": {
+          "type": "string",
+          "minLength": 1,
+          "default": "_proto",
+          "description": "Prototype override directories inside an environment."
+        },
+        "application-data-file-name": {
+          "type": "string",
+          "minLength": 1,
+          "default": "app-data*.yaml",
+          "description": "Glob of application data-values files."
+        },
+        "environment-data-file-name": {
+          "type": "string",
+          "minLength": 1,
+          "default": "env-data*.yaml",
+          "description": "Glob of environment data-values files."
+        },
+        "plugin-argocd-dir-name": {
+          "type": "string",
+          "minLength": 1,
+          "default": "argocd",
+          "description": "Argo CD overlays directory."
+        },
+        "plugin-helm-dir-name": {
+          "type": "string",
+          "minLength": 1,
+          "default": "helm",
+          "description": "Helm values directory."
+        },
+        "plugin-static-dir-name": {
+          "type": "string",
+          "minLength": 1,
+          "default": "static",
+          "description": "Static files directory."
+        },
+        "plugin-vendir-dir-name": {
+          "type": "string",
+          "minLength": 1,
+          "default": "vendir",
+          "description": "vendir configuration directory."
+        },
+        "plugin-ytt-dir-name": {
+          "type": "string",
+          "minLength": 1,
+          "default": "ytt",
+          "description": "ytt templates and overlays directory."
+        }
+      }
+    }
+  }
+}

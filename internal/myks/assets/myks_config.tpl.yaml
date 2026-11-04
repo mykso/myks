@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mykso/myks/main/schema/myks.schema.json
 ---
 # Sets the number of applications to be processed in parallel.
 # The default (0) is no limit.
