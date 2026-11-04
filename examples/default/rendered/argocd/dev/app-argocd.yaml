@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    app.kubernetes.io/source: git@github.com:mykso/myks.git
+    myks.dev/environment: dev
+  finalizers: []
+  name: app-dev-argocd
+  namespace: argocd
+spec:
+  destination:
+    name: dev
+    namespace: argocd
+  project: env-dev
+  source:
+    path: examples/default/rendered/envs/dev/argocd
+    repoURL: git@github.com:mykso/myks.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

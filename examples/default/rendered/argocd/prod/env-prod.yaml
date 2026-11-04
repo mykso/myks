@@ -1,0 +1,39 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: env-prod
+  namespace: argocd
+  finalizers:
+  - resources-finalizer.argocd.argoproj.io
+  annotations:
+    myks.dev/environment: prod
+    app.kubernetes.io/source: git@github.com:mykso/myks.git
+spec:
+  description: Project for "prod" environment
+  clusterResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  destinations:
+  - namespace: '*'
+    name: prod
+  namespaceResourceWhitelist:
+  - group: '*'
+    kind: '*'
+  sourceRepos:
+  - '*'
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+  name: prod
+  namespace: argocd
+  annotations:
+    myks.dev/environment: prod
+    app.kubernetes.io/source: git@github.com:mykso/myks.git
+stringData:
+  config: ARGOCD_CLUSTER_CONNECT_CONFIG
+  name: prod
+  project: env-prod
+  server: ARGOCD_CLUSTER_SERVER_URL

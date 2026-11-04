@@ -8,23 +8,19 @@
 #@data/values
 ---
 argocd:
-  namespace: system-argocd
   app:
     prefix: app-
-    #! Disable finalizers to preserve resources after deleting the ArgoCD application.
+    #! Disable finalizers to preserve resources after deleting the Argo CD application.
     #! ytt appends to lists in data values; replace the list to clear the default.
     #@overlay/replace
     finalizers: []
     source:
-      plugin:
-        name: argocd-vault-plugin-v1.0.0
-      #! Fixed config to run tests successfull in pipeline
+      #! Fixed git config to run tests successfully in pipeline.
       targetRevision: main
       repoURL: git@github.com:mykso/myks.git
   project:
     prefix: env-
-
-#! Fixed git config to run tests successfull in pipeline.
 myks:
-  gitRepoBranch: "main"
-  gitRepoUrl: "git@github.com:mykso/myks.git"
+  #! Fixed git config to run tests successfully in pipeline.
+  gitRepoBranch: main
+  gitRepoUrl: git@github.com:mykso/myks.git

@@ -30,10 +30,11 @@ are applied.
 Change a value, run `myks render`, and look at the diff:
 
 ```console
-$ echo 'replicaCount: 3' > envs/mykso/prod/_apps/httpbingo/helm/httpbingo.yaml
+$ mkdir -p envs/prod/_apps/httpbingo/helm
+$ echo 'replicaCount: 3' > envs/prod/_apps/httpbingo/helm/httpbingo.yaml
 $ myks render
 $ git diff --stat
- rendered/envs/mykso-prod/httpbingo/deployment-httpbingo.yaml | 2 +-
+ rendered/envs/prod/httpbingo/deployment-httpbingo.yaml | 2 +-
 $ git diff rendered/
 -  replicas: 1
 +  replicas: 3
@@ -126,7 +127,7 @@ Create a project and render it:
 ```shell
 mkdir my-gitops && cd my-gitops
 git init && git commit --allow-empty -m 'Initial commit'
-myks init     # scaffolds a sample environment with Argo CD and a demo app
+myks init     # scaffolds two environments, dev and prod, with a demo app
 myks render   # downloads the charts and renders every manifest
 find rendered -type f
 ```

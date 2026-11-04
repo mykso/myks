@@ -8,15 +8,5 @@
 #@data/values
 ---
 argocd:
-  namespace: system-argocd
-  app:
-    prefix: app-
-    #! Disable finalizers to preserve resources after deleting the ArgoCD application.
-    #! ytt appends to lists in data values; replace the list to clear the default.
-    #@overlay/replace
-    finalizers: []
-    source:
-      plugin:
-        name: argocd-vault-plugin-v1.0.0
-  project:
-    prefix: env-
+  #! Do not generate Argo CD resources. `myks init --argocd` creates a project that uses Argo CD.
+  enabled: false

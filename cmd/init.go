@@ -13,7 +13,11 @@ func newInitCmd(version string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "init",
 		Short: "Initialize new myks project",
-		Long:  "Initialize new myks project",
+		Long: `Initialize a new myks project in the current directory.
+
+Creates .myks.yaml, .gitignore, envs/, prototypes/ and rendered/envs/, with two
+sample environments (dev and prod) that run one sample Helm chart.
+With --argocd, the project also generates Argo CD resources and installs Argo CD in dev.`,
 		Run: func(cmd *cobra.Command, args []string) {
 			force, err := cmd.Flags().GetBool("force")
 			if err != nil {
@@ -30,6 +34,14 @@ func newInitCmd(version string) *cobra.Command {
 				log.Fatal().Err(err).Msg("Failed to read flag")
 			}
 
+			argocd, err := cmd.Flags().GetBool("argocd")
+			if err != nil {
+				log.Fatal().Err(err).Msg("Failed to read flag")
+			}
+			if argocd {
+				components = append(components, "argocd")
+			}
+
 			if err := myks.NewWithDefaults().Bootstrap(force, onlyPrint, components, version); errors.As(err, &myks.ErrBootstrapTargetExists{}) {
 				log.Error().Err(err).Msg("The target already exists. Use --force to overwrite data.")
 			} else if err != nil {
@@ -39,6 +51,7 @@ func newInitCmd(version string) *cobra.Command {
 	}
 
 	cmd.Flags().BoolP("force", "f", false, "overwrite existing data")
+	cmd.Flags().Bool("argocd", false, "add an Argo CD installation and generate Argo CD resources for the sample environments")
 
 	printHelp := "print configuration instead of creating files\n" +
 		"applicable only to the following components: gitingore, config, schema"

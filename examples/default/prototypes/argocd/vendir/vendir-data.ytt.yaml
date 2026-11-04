@@ -7,4 +7,4 @@ application:
   #!          See renovate.json for more details.
   #! renovate: datasource=git-tags
   url: https://github.com/argoproj/argo-cd
-  version: v2.7.3
+  version: v3.6.1
