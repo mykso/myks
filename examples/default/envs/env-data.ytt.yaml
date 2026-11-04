@@ -12,6 +12,8 @@ argocd:
   app:
     prefix: app-
     #! Disable finalizers to preserve resources after deleting the ArgoCD application.
+    #! ytt appends to lists in data values; replace the list to clear the default.
+    #@overlay/replace
     finalizers: []
     source:
       plugin:

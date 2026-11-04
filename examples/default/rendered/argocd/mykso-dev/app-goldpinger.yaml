@@ -4,8 +4,7 @@ metadata:
   annotations:
     app.kubernetes.io/source: git@github.com:mykso/myks.git
     myks.dev/environment: mykso-dev
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  finalizers: []
   name: app-mykso-dev-goldpinger
   namespace: system-argocd
 spec:
