@@ -206,6 +206,7 @@ func checkMinVersion(current string) {
 	v1, err := gv.NewVersion(minVersion)
 	if err != nil {
 		log.Error().Err(err).Str("min-version", minVersion).Msg("Invalid min-version specified in config file")
+		return
 	}
 	v2, err := gv.NewVersion(current)
 	if err != nil {

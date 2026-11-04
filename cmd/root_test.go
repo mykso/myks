@@ -3,6 +3,7 @@ package cmd
 import (
 	"testing"
 
+	"github.com/spf13/viper"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,4 +26,12 @@ func TestConfigFlagValue(t *testing.T) {
 			assert.Equal(t, tt.want, configFlagValue(tt.args))
 		})
 	}
+}
+
+func TestCheckMinVersionInvalid(t *testing.T) {
+	prev := viper.GetString("min-version")
+	t.Cleanup(func() { viper.Set("min-version", prev) })
+
+	viper.Set("min-version", "dev")
+	assert.NotPanics(t, func() { checkMinVersion("5.16.0") })
 }
