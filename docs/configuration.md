@@ -10,11 +10,12 @@ data values, see [data-values.md](data-values.md).
 
 myks uses the first `.myks.yaml` it finds in the current directory or any parent
 directory. With `config-in-root: true`, the directory of that file becomes the
-project root, so you can run myks from any subdirectory. `--config <file>`
-skips the search and uses the given file.
+project root, so you can run myks from any subdirectory. `--config <file>` skips
+the search and uses the given file.
 
 Run `myks print-config` to see the settings myks ends up with. The log line
-`Using config file: ...` at the start of every run names the file.
+`Configuration loaded` that `--log-level debug` prints at the start of every run
+names the file.
 
 ## Precedence
 

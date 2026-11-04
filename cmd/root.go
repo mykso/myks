@@ -184,11 +184,8 @@ func initConfig() {
 
 	viper.SetDefault("root-dir", ".")
 	if err := viper.ReadInConfig(); err == nil {
-		log.Info().Msgf("Using config file: %s", viper.ConfigFileUsed())
 		if viper.GetBool("config-in-root") {
-			rootDir := filepath.Dir(viper.ConfigFileUsed())
-			viper.Set("root-dir", rootDir)
-			log.Info().Msgf("Setting root-dir to: %s", rootDir)
+			viper.Set("root-dir", filepath.Dir(viper.ConfigFileUsed()))
 		}
 	} else if notFound := (viper.ConfigFileNotFoundError{}); errors.As(err, &notFound) {
 		log.Debug().Msg("Config file not found, using defaults")
@@ -236,8 +233,9 @@ func initLogger() {
 		log.Fatal().Err(err).Msg("Unable to parse log level")
 	}
 
-	log.Info().Msgf("Setting log level to: %s", logLevel)
+	// The config is read before the log level is known, so its outcome is logged here.
 	zerolog.SetGlobalLevel(logLevel)
+	log.Debug().Str("config", viper.ConfigFileUsed()).Str("root-dir", viper.GetString("root-dir")).Str("log-level", logLevel.String()).Msg("Configuration loaded")
 
 	myks.PrintStats = viper.GetBool("print-stats")
 }
