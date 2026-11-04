@@ -136,7 +136,7 @@ func (g *Globe) initGitData() {
 		}
 
 		if gitRepoURL, err := getGitRepoURL(g.RootDir); err != nil {
-			log.Warn().Err(err).Msg("Unable to set git repo url")
+			log.Warn().Err(err).Msg("Unable to set git repo url from the 'origin' remote")
 		} else {
 			g.GitRepoURL = gitRepoURL
 		}
