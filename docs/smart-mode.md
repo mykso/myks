@@ -1,138 +1,130 @@
 # Smart Mode
 
-Smart Mode looks at the changes you made and figures out which environments and
-applications need syncing or rendering.
+Smart Mode looks at the files you changed and processes only the environments
+and applications those changes can affect. It is what makes `myks render`
+without arguments fast on a large tree, locally and in CI.
 
-It is activated by default.
+Smart Mode is on whenever you run `myks render` or a [plugin](plugins.md)
+without positional arguments. Any selector (`myks render ALL`,
+`myks render prod`) turns it off.
 
 ## How it works
 
-The Smart Mode tries to be as efficient as possible by only processing the parts
-of your configuration that are affected by the changes you made. This is done by
-comparing the last state of your configuration with the current state. The
-decisions are based purely on names of files and directories, not on their
-content. Therefore, it is not always possible to avoid unnecessary processing.
+Smart Mode asks Git for the changed files:
 
-There are several scenarios in which myks will decide to process different parts
-of your configuration:
+- always: `git status --untracked-files`, that is staged, unstaged and untracked
+  changes;
+- with `--smart-mode.base-revision=<rev>`: also `git diff <rev>`, every file
+  that differs between `<rev>` and the working tree.
 
-- nothing
-- one or multiple applications
-- one or multiple environments
-- all environments and all applications
+It then maps every changed path to environments and applications with the rules
+below. Decisions are based on paths, not on file content, so Smart Mode
+sometimes processes more than strictly necessary.
 
-The processing scope goes from the smallest (nothing) to the largest
-(everything). A broader scope always includes the narrower ones. That means, if
-a particular environment is selected for processing, all applications of that
-environment will be processed, no matter if they have changed or not.
+When nothing is affected (for example, only a `README.md` changed), myks exits
+before syncing or rendering anything. When Smart Mode cannot run — the project
+is not in a Git repository, Git fails, or the project uses
+[KCL mode](kcl-mode.md) — myks logs a warning and processes everything; with
+`--smart-mode.only-print`, it fails instead.
 
-## Configuration Options
+## Rules
 
-Smart Mode provides several configuration options for fine-tuning its behavior:
+Paths use the default [naming conventions](configuration.md#naming-conventions).
+`<dir>` stands for any of the per-application directories: `vendir`, `lib`,
+`helm`, `ytt`, `ytt-pkg`, `static`, `argocd`.
 
-### Preview Mode
+### Everything
 
-You can see the scope of processing without actually running the sync and render
-operations using the `--smart-mode.only-print` flag:
+- `lib/**` — the root ytt library
+- `prototypes/_vendir/**` — the shared vendir base, see [sources.md](sources.md)
+
+### All applications of environments
+
+A change at `envs/<path>/` selects every environment at or below `envs/<path>/`,
+with all its applications:
+
+- `envs/<path>/env-data*.yaml`
+- `envs/<path>/_env/ytt/**`
+- `envs/<path>/_env/argocd/**`
+
+A change in `envs/env-data.ytt.yaml` therefore selects every environment.
+
+### Applications of a prototype
+
+- `prototypes/<proto>/app-data*.yaml` and `prototypes/<proto>/<dir>/**` select
+  every application based on `<proto>`, in every environment.
+- `envs/<path>/_proto/<proto>/app-data*.yaml` and
+  `envs/<path>/_proto/<proto>/<dir>/**` select the applications based on
+  `<proto>` in environments at or below `envs/<path>/`.
+
+### Single applications
+
+- `envs/<path>/_apps/<app>/app-data*.yaml` and
+  `envs/<path>/_apps/<app>/<dir>/**` select `<app>` in the environments at or
+  below `envs/<path>/` that have it.
+- `rendered/envs/<env-id>/<app>/**` and
+  `rendered/argocd/<env-id>/app-<app>.yaml` select `<app>` in that environment,
+  so hand-made edits to rendered output are rendered over.
+- An application listed in an environment but missing from
+  `rendered/envs/<env-id>/` is selected, so new applications get rendered.
+
+### Not watched
+
+Changes to anything else select nothing, including `_env/static/`, `.myks.yaml`
+and files outside `envs/`, `prototypes/`, `lib/` and `rendered/`. Render the
+affected environments explicitly after changing them, for example
+`myks render prod`.
+
+## Sync only
+
+With `myks render --sync`, Smart Mode ignores changes that can only affect
+rendering, since they cannot change what gets downloaded:
+
+- `_env/ytt/` and `_env/argocd/` directories;
+- application and prototype directories other than `vendir/` and `lib/`;
+- rendered output, and applications missing from it.
+
+Data-values files, `vendir/` and `lib/` directories, `prototypes/_vendir/` and
+the root `lib/` still count, because they feed the vendir configuration.
+
+## Previewing the selection
+
+`--smart-mode.only-print` prints what would be processed and exits:
 
 ```console
 $ myks render --smart-mode.only-print
 
 Smart Mode detected:
-→ envs/alpha
-    traefik
+→ envs/prod/eu
+    frontend
+→ envs/stage
+    ALL
 ```
-
-For machine-readable output, pass `json` as the value:
 
 ```console
 $ myks render --smart-mode.only-print=json
 {
-  "envs/alpha": [
-    "traefik"
+  "envs/prod/eu": [
+    "frontend"
   ],
-  "envs/beta": null
+  "envs/stage": null
 }
 ```
 
-A `null` value for an environment means all applications in that environment
-would be processed.
+Keys are environment directories; `null` and `ALL` mean all applications of
+every environment at or below that directory. The flag also works with explicit
+selectors, which makes it a quick way to check what `myks render prod frontend`
+would touch.
 
-This is useful for understanding what would be processed before running the
-actual command, especially in CI/CD environments.
+## Smart Mode in CI
 
-### Base Revision Comparison
+Uncommitted changes are rarely what CI should look at. Compare with the branch
+the change goes into:
 
-By default, Smart Mode compares against the current state of your working
-directory. You can specify a different base revision for comparison using the
-`--smart-mode.base-revision` flag:
-
-```console
-$ myks render --smart-mode.base-revision=main
-$ myks render --smart-mode.base-revision=HEAD~1
-$ myks render --smart-mode.base-revision=v1.2.3
+```shell
+myks render --smart-mode.base-revision=origin/main
 ```
 
-This is particularly useful in CI/CD pipelines where you want to compare against
-a specific branch or tag rather than just local changes.
-
-### Nothing to process
-
-If there are no changes that would have an impact on the rendered output of your
-workloads (e.g. only `Dockerfile` is modified), myks will exit immediately,
-before any syncing or rendering happens.
-
-### Processing of one or multiple applications
-
-An application of a specific environment gets processed in any of the following
-cases:
-
-- The `app-data.ytt.yaml` of that application has changed, for example:
-  - `envs/env-1/_apps/app-1/app-data.ytt.yaml`
-- Any files of the known plugins have changed, for example:
-  - `.../app-1/ytt/...`
-  - `.../app-1/helm/...`
-- The prototype of that application has changed, for example:
-  - `prototypes/app-1/vendir/...`
-
-> [!NOTE] In the latter case, when a prototype has changed, all applications
-> that use this prototype are selected for processing.
-
-### Processing all applications of one or multiple environments
-
-All applications of an environment are processed in any of the following cases:
-
-- The `env-data.ytt.yaml` of that environment has changed, for example:
-  - `envs/env-group/env-1/env-data.ytt.yaml`
-- The `env-data.ytt.yaml` of any of the parent environments has changed, for
-  example:
-  - `envs/env-group/env-data.ytt.yaml`
-- Any files of the known environment plugins have changed, for example:
-  - `.../env-1/_env/ytt/...`
-  - `.../env-1/_env/argocd/...`
-
-> [!NOTE] Changing the upper-level environment (e.g. `/envs/env-data.ytt.yaml`)
-> will naturally promote the scope of processing to all environments and
-> applications, as all environments depend on the upper-level one.
-
-### Processing all environments and all applications
-
-A complete rendering of all environments and all applications is currently
-required only when the common lib directory has changed, for example:
-
-- `/lib/common.lib.star`
-
-### Sync only
-
-With `myks render --sync`, Smart Mode ignores changes that can only affect
-rendering, since they cannot change what gets downloaded:
-
-- environment plugins: `.../_env/ytt/...`, `.../_env/argocd/...`
-- application and prototype plugins other than `vendir` and `lib`, for example
-  `.../ytt/...`, `.../helm/...`, `.../static/...`
-- rendered output: `rendered/envs/...`, `rendered/argocd/...`
-- applications missing from the rendered output
-
-Changes to data files (`env-data.ytt.yaml`, `app-data.ytt.yaml`), `vendir`
-directories, `prototypes/_vendir`, and the common lib directory are still
-detected, because they feed the vendir configuration.
+The revision must exist in the checkout, so fetch enough history (for example,
+`fetch-depth: 0` with `actions/checkout`). See [gitops-ci.md](gitops-ci.md) for
+complete pipelines.

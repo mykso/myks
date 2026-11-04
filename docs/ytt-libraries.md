@@ -26,10 +26,9 @@ application:
   name: #@ "MyApp-" + env_data.environment.region
 ```
 
-The `@myks` library at the moment is not added when the ytt invocation is not
-scoped to an application, e.g. when rendering environment-level overlays. In
-such cases, you can directly reference the same data values by loading them from
-the standard `@ytt:data` library.
+The `@myks` library is available in every ytt invocation of an application,
+including the `_env/ytt/` overlays of the global-ytt step, and in the
+environment-level Argo CD render.
 
 ## Application and Prototype Libraries
 

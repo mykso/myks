@@ -8,10 +8,14 @@ name: Check Links Quickly
     paths:
       - .github/workflows/check-links-quickly.yaml
       - docs/**.md
+      - README.md
+      - CONTRIBUTING.md
   pull_request:
     paths:
       - .github/workflows/check-links-quickly.yaml
       - docs/**.md
+      - README.md
+      - CONTRIBUTING.md
 
 jobs:
   linkChecker:
@@ -39,7 +43,7 @@ jobs:
             --no-progress
             --cache
             --max-cache-age 3d
-            'docs/**/*.md'
+            'docs/**/*.md' README.md CONTRIBUTING.md
 
       - name: Save lychee cache
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
