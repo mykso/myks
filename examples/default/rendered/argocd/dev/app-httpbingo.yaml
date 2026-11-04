@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    app.kubernetes.io/source: git@github.com:mykso/myks.git
+    myks.dev/environment: dev
+  finalizers: []
+  name: app-dev-httpbingo
+  namespace: argocd
+spec:
+  destination:
+    name: dev
+    namespace: httpbingo
+  project: env-dev
+  source:
+    path: examples/default/rendered/envs/dev/httpbingo
+    repoURL: git@github.com:mykso/myks.git
+    targetRevision: main
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: false
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

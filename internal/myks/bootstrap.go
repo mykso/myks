@@ -26,6 +26,11 @@ var prototypesFs embed.FS
 //go:embed all:assets/envs
 var environmentsFs embed.FS
 
+// argocdFs mirrors assets/envs and assets/prototypes; its files are copied over theirs.
+//
+//go:embed all:assets/argocd
+var argocdFs embed.FS
+
 // ErrBootstrapTargetExists is returned when a bootstrap target path already exists.
 type ErrBootstrapTargetExists struct {
 	target string
@@ -66,7 +71,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 			log.Info().Msg("Skipping printing sample prototypes")
 		} else {
 			log.Info().Msg("Creating sample prototypes")
-			if err := g.createSamplePrototypes(); err != nil {
+			if err := g.createSamplePrototypes(compMap["argocd"]); err != nil {
 				return fmt.Errorf("creating sample prototypes: %w", err)
 			}
 		}
@@ -77,7 +82,7 @@ func (g *Globe) Bootstrap(force, onlyPrint bool, components []string, version st
 			log.Debug().Msg("Skipping printing sample environment")
 		} else {
 			log.Info().Msg("Creating sample environment")
-			if err := g.createSampleEnvironment(); err != nil {
+			if err := g.createSampleEnvironment(compMap["argocd"]); err != nil {
 				return fmt.Errorf("creating sample environment: %w", err)
 			}
 		}
@@ -154,14 +159,20 @@ func (g *Globe) createDataSchemaFile() string {
 	return dataSchemaFilePath
 }
 
-func (g *Globe) createSamplePrototypes() error {
+func (g *Globe) createSamplePrototypes(argocd bool) error {
 	protoDir := filepath.Join(g.RootDir, g.PrototypesDir)
-	return copyFileSystemToPath(prototypesFs, "assets/prototypes", protoDir)
+	if err := copyFileSystemToPath(prototypesFs, "assets/prototypes", protoDir); err != nil || !argocd {
+		return err
+	}
+	return copyFileSystemToPath(argocdFs, "assets/argocd/prototypes", protoDir)
 }
 
-func (g *Globe) createSampleEnvironment() error {
+func (g *Globe) createSampleEnvironment(argocd bool) error {
 	envDir := filepath.Join(g.RootDir, g.EnvironmentBaseDir)
-	return copyFileSystemToPath(environmentsFs, "assets/envs", envDir)
+	if err := copyFileSystemToPath(environmentsFs, "assets/envs", envDir); err != nil || !argocd {
+		return err
+	}
+	return copyFileSystemToPath(argocdFs, "assets/argocd/envs", envDir)
 }
 
 // generateNameConventions extracts mapstructure and default tags from Config struct

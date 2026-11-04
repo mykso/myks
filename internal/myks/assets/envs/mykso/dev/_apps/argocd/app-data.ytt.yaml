@@ -1,5 +1,0 @@
-#@data/values-schema
----
-#@overlay/match-child-defaults missing_ok=True
-application:
-  gcpServiceAccountEmail: argocd-repo-server@mykso-dev.iam.gserviceaccount.com

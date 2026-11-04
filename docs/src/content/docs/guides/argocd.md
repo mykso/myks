@@ -23,8 +23,8 @@ With `argocd.enabled: true` (the default), myks writes the following files to
 
 The cluster `Secret` contains placeholder values
 (`ARGOCD_CLUSTER_CONNECT_CONFIG`, `ARGOCD_CLUSTER_SERVER_URL`), which are meant
-to be replaced with an overlay. `myks init` creates an example of such an
-overlay in `envs/_env/argocd/secret.overlay.ytt.yaml`.
+to be replaced with an overlay. `myks init --argocd` creates an example of such
+an overlay in `envs/_env/argocd/secret.overlay.ytt.yaml`.
 
 ## Configuration
 

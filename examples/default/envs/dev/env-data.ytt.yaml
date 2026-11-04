@@ -1,0 +1,8 @@
+#@data/values
+---
+environment:
+  id: dev
+  applications:
+    - proto: argocd
+    - proto: httpbingo
+    - proto: goldpinger

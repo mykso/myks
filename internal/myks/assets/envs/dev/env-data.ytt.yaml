@@ -1,0 +1,6 @@
+#@data/values
+---
+environment:
+  id: dev
+  applications:
+    - proto: httpbingo

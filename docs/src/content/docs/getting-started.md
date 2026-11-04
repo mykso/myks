@@ -22,7 +22,8 @@ git commit --allow-empty -m 'Initial commit'
 myks init
 ```
 
-`myks init` writes a sample project:
+`myks init` writes a sample project with two clusters, `dev` and `prod`, that
+run the same demo application:
 
 ```text
 .
@@ -30,17 +31,12 @@ myks init
 ├── .gitignore                      # ignores the .myks/ cache directory
 ├── envs/                           # the environment tree
 │   ├── env-data.ytt.yaml           # values every environment inherits
-│   ├── _env/
-│   │   ├── argocd/                 # overlays for the generated Argo CD resources
-│   │   └── ytt/common.ytt.yaml     # overlay applied to every application
-│   └── mykso/
-│       └── dev/                    # an environment: one cluster
-│           ├── env-data.ytt.yaml   # its id and its applications
-│           └── _apps/
-│               └── httpbingo/
-│                   └── helm/httpbingo.yaml   # Helm values for this cluster only
+│   ├── _env/ytt/common.ytt.yaml    # overlay applied to every application
+│   ├── dev/                        # an environment: one cluster
+│   │   └── env-data.ytt.yaml       # its id and its applications
+│   └── prod/
+│       └── env-data.ytt.yaml
 └── prototypes/                     # reusable application definitions
-    ├── argocd/
     └── httpbingo/
         ├── vendir/                 # where to download the chart from
         └── helm/httpbingo.yaml     # default Helm values
@@ -50,21 +46,21 @@ Three ideas are enough to read it:
 
 - A **prototype** (`prototypes/httpbingo/`) says where an application's sources
   come from and holds its defaults.
-- An **environment** (`envs/mykso/dev/`) is one cluster. Its `env-data` file
-  sets its id and lists the applications that run on it.
-- **Inheritance** follows directories: `envs/mykso/dev/` inherits everything
-  from `envs/mykso/` and `envs/`.
+- An **environment** (`envs/prod/`) is one cluster. Its `env-data` file sets its
+  id and lists the applications that run on it.
+- **Inheritance** follows directories: `envs/prod/` inherits everything from
+  `envs/`. Directories in between, such as `envs/eu/prod/`, group environments
+  that share values.
 
 Look at the environment definition:
 
 ```yaml
-#! envs/mykso/dev/env-data.ytt.yaml
+#! envs/prod/env-data.ytt.yaml
 #@data/values
 ---
 environment:
-  id: mykso-dev
+  id: prod
   applications:
-    - proto: argocd
     - proto: httpbingo
 ```
 
@@ -98,82 +94,43 @@ The chart name, version and URL come from `vendir-data.ytt.yaml` next to it.
 myks render
 ```
 
-Myks downloads the charts (the **sync** stage), then renders them (the
-**render** stage). The result is plain YAML, one file per resource:
+Myks downloads the chart once (the **sync** stage), then renders it for each
+environment (the **render** stage). The result is plain YAML, one file per
+resource:
 
 ```text
-rendered/
-├── argocd/mykso-dev/
-│   ├── app-argocd.yaml             # Argo CD Application per application
-│   ├── app-httpbingo.yaml
-│   └── env-mykso-dev.yaml          # AppProject and cluster Secret
-└── envs/mykso-dev/
-    ├── argocd/                     # ~70 files of the Argo CD installation
-    └── httpbingo/
-        ├── deployment-httpbingo.yaml
-        ├── service-httpbingo.yaml
-        └── serviceaccount-httpbingo.yaml
+rendered/envs/
+├── dev/httpbingo/
+│   ├── deployment-httpbingo.yaml
+│   ├── service-httpbingo.yaml
+│   └── serviceaccount-httpbingo.yaml
+└── prod/httpbingo/
+    └── ...                         # the same three files
 ```
 
-Commit everything. From now on, the diff of `rendered/` shows the effect of
-every change.
+Both clusters inherit the same values, so their manifests are identical. Commit
+everything. From now on, the diff of `rendered/` shows the effect of every
+change.
 
 ```shell
-git add -A && git commit -m 'Render dev'
+git add -A && git commit -m 'Render dev and prod'
 ```
 
-## 3. Add a second cluster
-
-Create an environment for production that runs only `httpbingo`:
-
-```shell
-mkdir -p envs/mykso/prod
-cat > envs/mykso/prod/env-data.ytt.yaml <<'EOF'
-#@data/values
----
-environment:
-  id: mykso-prod
-  applications:
-    - proto: httpbingo
-EOF
-```
-
-Before rendering, ask [Smart Mode](../concepts/smart-mode/) what it would
-process:
-
-```console
-$ myks render --smart-mode.only-print
-Smart Mode detected:
-→ envs/mykso/prod
-    ALL
-```
-
-Myks compared the working tree with `HEAD` and selected only the new
-environment. Render and commit:
-
-```shell
-myks render
-git add -A && git commit -m 'Add prod'
-```
-
-`rendered/envs/mykso-prod/httpbingo/` now holds the same manifests as dev: prod
-inherited the prototype's defaults and the root values from `envs/`.
-
-## 4. Override a value for one cluster
+## 3. Override a value for one cluster
 
 Production needs three replicas. Helm values are looked up in the prototype
 first, then in the environment tree, and later files win:
 
 ```shell
-mkdir -p envs/mykso/prod/_apps/httpbingo/helm
-echo 'replicaCount: 3' > envs/mykso/prod/_apps/httpbingo/helm/httpbingo.yaml
+mkdir -p envs/prod/_apps/httpbingo/helm
+echo 'replicaCount: 3' > envs/prod/_apps/httpbingo/helm/httpbingo.yaml
 myks render
 git diff rendered/
 ```
 
 ```diff
---- a/rendered/envs/mykso-prod/httpbingo/deployment-httpbingo.yaml
-+++ b/rendered/envs/mykso-prod/httpbingo/deployment-httpbingo.yaml
+--- a/rendered/envs/prod/httpbingo/deployment-httpbingo.yaml
++++ b/rendered/envs/prod/httpbingo/deployment-httpbingo.yaml
 @@ -11,7 +11,7 @@ metadata:
      helm.sh/chart: httpbingo-0.1.1
    name: httpbingo
@@ -188,7 +145,7 @@ The values file is named after the chart directory (`charts/httpbingo`), so one
 application can render several charts, each with its own values. See
 [Helm](../guides/helm/) for the full lookup order.
 
-## 5. Patch the output of a chart
+## 4. Patch the output of a chart
 
 Some changes cannot be made through chart values: a label the chart does not
 expose, a field it does not template. Myks applies [ytt] overlays to the
@@ -196,8 +153,9 @@ rendered output. An overlay in `_env/ytt/` of an environment applies to every
 application of that environment:
 
 ```shell
-mkdir -p envs/mykso/prod/_env/ytt
-cat > envs/mykso/prod/_env/ytt/labels.ytt.yaml <<'EOF'
+git add -A && git commit -m 'Scale prod'
+mkdir -p envs/prod/_env/ytt
+cat > envs/prod/_env/ytt/labels.ytt.yaml <<'EOF'
 #@ load("@ytt:overlay", "overlay")
 
 #! Label every resource of every application in this environment.
@@ -214,30 +172,30 @@ git diff --stat rendered/
 ```
 
 ```text
- rendered/envs/mykso-prod/httpbingo/deployment-httpbingo.yaml     | 1 +
- rendered/envs/mykso-prod/httpbingo/service-httpbingo.yaml        | 1 +
- rendered/envs/mykso-prod/httpbingo/serviceaccount-httpbingo.yaml | 1 +
+ rendered/envs/prod/httpbingo/deployment-httpbingo.yaml     | 1 +
+ rendered/envs/prod/httpbingo/service-httpbingo.yaml        | 1 +
+ rendered/envs/prod/httpbingo/serviceaccount-httpbingo.yaml | 1 +
 ```
 
 Overlays can also live in an application (`_apps/<app>/ytt/`) or in a prototype
 (`prototypes/<proto>/ytt/`). See [ytt](../guides/ytt/).
 
-## 6. Pin a chart version for one cluster
+## 5. Pin a chart version for one cluster
 
 The chart version is a data value of the prototype's vendir configuration, so an
 environment can override it like any other value:
 
 ```shell
 git add -A && git commit -m 'Label prod resources'
-mkdir -p envs/mykso/prod/_apps/httpbingo/vendir
-cat > envs/mykso/prod/_apps/httpbingo/vendir/vendir-data.ytt.yaml <<'EOF'
+mkdir -p envs/prod/_apps/httpbingo/vendir
+cat > envs/prod/_apps/httpbingo/vendir/vendir-data.ytt.yaml <<'EOF'
 #@data/values
 ---
 application:
   version: 0.1.0
 EOF
 myks render
-git diff rendered/ | grep helm.sh/chart
+git diff rendered/ | grep -m2 helm.sh/chart
 ```
 
 ```diff
@@ -248,16 +206,54 @@ git diff rendered/ | grep helm.sh/chart
 Dev still renders 0.1.1. When you bump the version in the prototype, every
 environment that does not pin it follows.
 
+## 6. Add a cluster
+
+Create a staging environment that runs `httpbingo`:
+
+```shell
+git add -A && git commit -m 'Pin the chart in prod'
+mkdir -p envs/staging
+cat > envs/staging/env-data.ytt.yaml <<'EOF'
+#@data/values
+---
+environment:
+  id: staging
+  applications:
+    - proto: httpbingo
+EOF
+```
+
+Before rendering, ask [Smart Mode](../concepts/smart-mode/) what it would
+process:
+
+```console
+$ myks render --smart-mode.only-print
+Smart Mode detected:
+→ envs/staging
+    ALL
+```
+
+Myks compared the working tree with `HEAD` and selected only the new
+environment. Render and commit:
+
+```shell
+myks render
+git add -A && git commit -m 'Add staging'
+```
+
+`rendered/envs/staging/httpbingo/` now holds the same manifests as dev: staging
+inherited the prototype's defaults and the root values from `envs/`.
+
 ## 7. Find out where a value comes from
 
 With several levels of overrides, `myks inspect` tells you which file sets each
 final value:
 
 ```console
-$ myks inspect apps mykso/prod httpbingo --provenance
+$ myks inspect apps prod httpbingo --provenance
 ...
   Helm Provenance (httpbingo):
-    replicaCount envs/mykso/prod/_apps/httpbingo/helm/httpbingo.yaml
+    replicaCount envs/prod/_apps/httpbingo/helm/httpbingo.yaml
     securityContext.allowPrivilegeEscalation prototypes/httpbingo/helm/httpbingo.yaml
     ...
 ```
@@ -266,12 +262,17 @@ See [Inspecting and debugging](../guides/inspect/).
 
 ## Deploying
 
-Myks does not deploy. The generated Argo CD resources in `rendered/argocd/`
-point Argo CD at `rendered/envs/<environment>/<application>/` in this
-repository. Apply them once (or let an Argo CD "app of apps" pick them up), and
-Argo CD deploys every commit you push. To deploy without Argo CD, set
-`argocd.enabled: false` and use a [plugin](../guides/plugins/), for example with
-kapp.
+Myks does not deploy. Point your GitOps controller at
+`rendered/envs/<environment>/`, or deploy with a [plugin](../guides/plugins/),
+for example with kapp.
+
+For Argo CD, start with `myks init --argocd` instead. It also generates an Argo
+CD `Application` per application and an `AppProject` per environment in
+`rendered/argocd/`, pointing Argo CD at
+`rendered/envs/<environment>/<application>/` in this repository, and adds an
+Argo CD installation to `dev`. Apply the generated resources once (or let an
+Argo CD "app of apps" pick them up), and Argo CD deploys every commit you push.
+See [Argo CD](../guides/argocd/).
 
 ## Next steps
 

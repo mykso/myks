@@ -10,5 +10,6 @@ directories:
           url: #@ data.values.application.url
           ref: #@ data.values.application.version
         includePaths:
-          - manifests/ha/install.yaml
-        newRootPath: manifests/ha
+          - manifests/install.yaml
+        lazy: true
+        newRootPath: manifests
