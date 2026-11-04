@@ -1,6 +1,5 @@
 # README demo. Re-record from this directory with: vhs demo.tape
-# Needs myks, helm and git on PATH. The hidden setup scaffolds a project in a temp dir
-# and sets MYKS_LOG_LEVEL=warn to leave out the run statistics myks logs after a render.
+# Needs myks, helm and git on PATH. The hidden setup scaffolds a project in a temp dir.
 Output demo.gif
 Require myks
 Require git
@@ -13,7 +12,7 @@ Set TypingSpeed 35ms
 Set Theme "Catppuccin Mocha"
 
 Hide
-Type `export PS1='$ ' GIT_PAGER=cat MYKS_LOG_LEVEL=warn && cd "$(mktemp -d)" && git init -q -b main && git commit -q --allow-empty -m init`
+Type `export PS1='$ ' GIT_PAGER=cat && cd "$(mktemp -d)" && git init -q -b main && git commit -q --allow-empty -m init`
 Enter
 Type "git remote add origin https://github.com/example/my-gitops.git && myks init 2>/dev/null && grep -v '^min-version' .myks.yaml > c && mv c .myks.yaml"
 Enter
