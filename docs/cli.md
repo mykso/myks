@@ -152,12 +152,7 @@ over environment variables, which win over the config file. See
 | `--smart-mode.only-print[=fmt]`    | `MYKS_SMART_MODE_ONLY_PRINT`    | off     | Print what Smart Mode (or the given selectors) would process and exit. `text` (default without a value) or `json`.                                 |
 | `--buffer-plugin-output`           | `MYKS_BUFFER_PLUGIN_OUTPUT`     | `false` | Collect each plugin run's stdout and stderr and print them when it finishes, instead of streaming. Keeps output of parallel plugin runs apart.     |
 | `--print-stats`                    | `MYKS_PRINT_STATS`              | `false` | Print the run summary (tool calls, timings, memory, parallelism, lock contention, sync deduplication) to stdout instead of the log on stderr.      |
-| `--config <file>`                  | —                               | none    | Path to a config file. See the warning below.                                                                                                      |
-
-> [!WARNING]  
-> `--config` is evaluated before myks parses its flags, so it currently has no
-> effect: myks always uses the first `.myks.yaml` found in the current directory
-> or its parents.
+| `--config <file>`                  | —                               | none    | Config file to use instead of the first `.myks.yaml` found in the current directory or its parents.                                                |
 
 Set `NO_COLOR` to disable colored output; it is also disabled when stdout is not
 a terminal.
