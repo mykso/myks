@@ -3,6 +3,8 @@
 **Render the Kubernetes manifests for every cluster you run from one Git
 repository, and review the exact YAML each change produces before it ships.**
 
+![One value changed for prod, myks render, a one-line diff in one cluster](docs/assets/demo.gif)
+
 Myks (**M**anage (**my**) **y**aml for **K**ubernetes **s**imply) takes upstream
 Helm charts, Git repositories and plain YAML, applies your per-cluster
 configuration, and writes plain Kubernetes manifests to a `rendered/` directory.
