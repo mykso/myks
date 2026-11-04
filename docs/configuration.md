@@ -78,11 +78,8 @@ logs an error at startup and continues.
 
 Directories whose executables become myks [plugins](plugins.md), whatever their
 names. Environment variables in the paths are expanded (`$HOME/myks-plugins`).
-
-> [!IMPORTANT]  
-> Relative paths are resolved against the current working directory, not the
-> project root. With `config-in-root: true`, running myks from a subdirectory
-> does not find `./plugins`; use an absolute path or run myks from the root.
+Relative paths are resolved against [`root-dir`](#root-dir), so with
+`config-in-root: true` myks finds `./plugins` from any subdirectory.
 
 ### `root-dir`
 
