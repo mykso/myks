@@ -183,6 +183,15 @@ collected and merged exactly like
 [Helm values files](../../guides/helm/#values-files). `yttPkg.dirs` lists
 sub-paths of each package to pass to ytt instead of the whole directory.
 
+The isolation is deliberate. A package declares its own data-values schema, and
+ytt overlays every schema it is given onto the first: with the myks schema in
+front, a package that declares `application` itself fails with
+`Expected number of matched nodes to be 1, but was 0`, and every other package
+would see the myks keys in its data values. Myks data reaches a package the same
+way it reaches a chart, through the values files, which are
+[ytt templates](https://mykso.github.io/myks/guides/helm/#values-files-are-ytt-templates)
+rendered with the application's data values.
+
 Use it for upstream configuration distributed as a ytt package with its own data
 values. To modify YAML you download, put it under `ytt/` instead: the ytt step
 renders it together with your overlays and data values.
