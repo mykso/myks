@@ -29,12 +29,19 @@ jobs:
       - name: Run lychee
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2.9.0
         with:
+          # The remaps check docs-site links against this checkout, so a link to a page or file
+          # added in the same change passes before it is deployed: site-relative links between
+          # pages (../../guides/helm/), the site URL, and blob/tree URLs of this repository on main.
           args: >-
             --root-dir $PWD
             --verbose
             --no-progress
             --cache
             --max-cache-age 3d
+            --remap '^file://(.*)/docs/src/content/((getting-started|guides|concepts|reference)[^#]*?)/?(#.*)?$ file://$1/docs/src/content/docs/$2.md'
+            --remap '^https://mykso\.github\.io/myks/?$ file://'"$PWD"'/docs/site.yaml'
+            --remap '^https://mykso\.github\.io/myks/([^#]*?)/?(#.*)?$ file://'"$PWD"'/docs/src/content/docs/$1.md'
+            --remap '^https://github\.com/mykso/myks/(blob|tree)/main/([^#]*)(#.*)?$ file://'"$PWD"'/$2'
             'docs/**/*.md' README.md CONTRIBUTING.md
 
       - name: Save lychee cache
