@@ -227,10 +227,19 @@ func TestPrintCmdMetrics_PrintStatsFlag(t *testing.T) {
 	defer func() { PrintStats = origPrintStats }()
 
 	PrintStats = false
-	PrintCmdMetrics()
+	origLevel := zerolog.GlobalLevel()
+	defer zerolog.SetGlobalLevel(origLevel)
 
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	PrintCmdMetrics()
+	if logBuf.Len() != 0 {
+		t.Errorf("expected no summary at info level, got: %s", logBuf.String())
+	}
+
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	PrintCmdMetrics()
 	if !strings.Contains(logBuf.String(), "helm") {
-		t.Errorf("expected helm in log output when PrintStats=false, got: %s", logBuf.String())
+		t.Errorf("expected helm in debug log output when PrintStats=false, got: %s", logBuf.String())
 	}
 }
 

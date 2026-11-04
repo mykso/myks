@@ -146,7 +146,7 @@ func buildMetricsSummary(m map[string]*StepMetric) string {
 
 // PrintCmdMetrics prints a summary of all tracked command metrics, pipeline concurrency
 // statistics, and lock contention data. Output goes to stdout when PrintStats is true,
-// or to the log otherwise.
+// or to the debug log otherwise.
 func PrintCmdMetrics() {
 	var combined strings.Builder
 
@@ -215,7 +215,8 @@ func PrintCmdMetrics() {
 	if PrintStats {
 		fmt.Print(summary)
 	} else {
-		log.Info().Msg(summary)
+		// Debug: the summary is longer than the rest of a normal run's output.
+		log.Debug().Msg(summary)
 	}
 }
 
