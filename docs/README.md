@@ -1,50 +1,13 @@
 # Myks documentation
 
-Myks renders the Kubernetes manifests of many clusters from one Git repository.
-New here? Read [Why myks](why-myks.md), then follow
-[Getting started](getting-started.md).
+The user documentation is published at **https://mykso.github.io/myks/**. Its
+pages live in [`src/content/docs/`](src/content/docs/), and
+[`site.yaml`](site.yaml) holds the landing page. Build the site locally with
+`npm ci && npx astro build` from this directory; the
+[docs-kit](https://github.com/Zebradil/docs-kit) package does the rest.
 
-## Start here
+The rest of this directory is about developing myks, not using it:
 
-- [Why myks](why-myks.md): the rendered manifests workflow, and how myks
-  compares with Helm, Kustomize, Helmfile and others.
-- [Installation](installation.md): Homebrew, Nix, Docker, packages, CI.
-- [Getting started](getting-started.md): a ten-minute tutorial with two
-  clusters.
-- [Concepts](concepts.md): prototypes, applications, environments, inheritance
-  and the render pipeline.
-
-## Guides
-
-- [Data values](data-values.md): configure applications and environments, and
-  add your own values.
-- [Sources](sources.md): download charts and manifests from Helm, OCI, Git,
-  GitHub releases and private repositories.
-- [Cookbook](cookbook.md): recipes for common tasks.
-- [GitOps and CI](gitops-ci.md): render in pull requests, validate the output,
-  and catch drift.
-- [Optimizations](optimizations.md): parallelism, caching and selective
-  rendering.
-- [Migrating to KCL](migration.md): convert a ytt project to KCL mode.
-
-## Reference
-
-- [CLI](cli.md): commands, arguments, flags and environment variables.
-- [Configuration](configuration.md): `.myks.yaml` and naming conventions.
-- Render steps: [Helm](helm.md), [ytt](ytt.md),
-  [ytt libraries](ytt-libraries.md), [Static files](static-files.md),
-  [kbld](kbld.md), [Argo CD](argocd.md).
-- [Smart Mode](smart-mode.md): which changes select which environments and
-  applications.
-- [Plugins](plugins.md): extend myks with your own commands.
-- [Inspecting and debugging](inspect.md): see which files and values an
-  application uses.
-- [KCL mode](kcl-mode.md): the typed configuration layer (preview).
-
-## Project
-
-- [Contributing](../CONTRIBUTING.md): build, test, and release.
-- [Changelog](../CHANGELOG.md).
 - [Why KCL](why-kcl.md): how the new configuration language was chosen.
 - Configuration-layer redesign: [requirements](redesign/requirements.md),
   [research findings](redesign/research-findings.md),
@@ -61,3 +24,4 @@ New here? Read [Why myks](why-myks.md), then follow
 - [Running embedded tools in-process](in-process-embedded-tools/README.md): an
   investigation.
 - [Notes for AI agents](agents/domain.md).
+- [Contributing](../CONTRIBUTING.md) and the [Changelog](../CHANGELOG.md).

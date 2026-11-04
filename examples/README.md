@@ -10,6 +10,6 @@ test fixtures.
   and render step, including multiple sources, per-chart Helm settings, static
   files and ytt libraries.
 - [kcl-skeleton](./kcl-skeleton/README.md): a minimal project in
-  [KCL mode](../docs/kcl-mode.md).
+  [KCL mode](https://mykso.github.io/myks/guides/kcl-mode/).
 - [kcl-integration-tests](./kcl-integration-tests/README.md): the integration
   tests ported to KCL mode, rendering byte-identically to the ytt version.

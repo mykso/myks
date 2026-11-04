@@ -1,4 +1,8 @@
-# GitOps and CI
+---
+title: GitOps and CI
+sidebar:
+  order: 12
+---
 
 Myks writes its output to `rendered/`, and your deployment tool applies what is
 committed there. Two things keep that safe: every change to the inputs arrives
@@ -18,11 +22,11 @@ examples that translate to any CI system.
 
 ## Rendering only what changed
 
-[Smart Mode](smart-mode.md) selects what to render from the files that differ
-from a base revision. It compares that revision with the working tree, so in a
-pull request use the merge base, not the tip of the target branch. Otherwise
-commits that landed on the target branch after the branch was created count as
-changes too:
+[Smart Mode](../../concepts/smart-mode/) selects what to render from the files
+that differ from a base revision. It compares that revision with the working
+tree, so in a pull request use the merge base, not the tip of the target branch.
+Otherwise commits that landed on the target branch after the branch was created
+count as changes too:
 
 ```shell
 base=$(git merge-base origin/main HEAD)
@@ -100,10 +104,13 @@ Commits pushed with the default `GITHUB_TOKEN` do not trigger new workflow runs.
 If other required checks must run on the rendered commit, push with a GitHub App
 token or a deploy key instead.
 
-> [!TIP]  
-> A Smart Mode render deletes the output of applications removed from an
-> environment, but not of environments that no longer exist.
-> `myks cleanup --manifests` removes both.
+:::tip
+
+A Smart Mode render deletes the output of applications removed from an
+environment, but not of environments that no longer exist.
+`myks cleanup --manifests` removes both.
+
+:::
 
 ## Pull requests: verify the output
 
@@ -124,8 +131,8 @@ application fails the check too.
 
 Rendering succeeds long before the result is deployable. A chart can emit a
 manifest the API server rejects, or a ytt directive can end up in the output
-verbatim. Run validators on the rendered output as a [plugin](plugins.md), with
-the same selection as the render:
+verbatim. Run validators on the rendered output as a
+[plugin](../../guides/plugins/), with the same selection as the render:
 
 ```yaml
 - name: Validate
@@ -134,13 +141,13 @@ the same selection as the render:
     myks validate --smart-mode.base-revision="$base"
 ```
 
-The [plugins page](plugins.md) has a `validate` plugin built on kubeconform. The
-same mechanism runs `promtool check rules` on Prometheus rules, `conftest`
-policies, or any other tool that takes file paths.
+The [plugins page](../../guides/plugins/) has a `validate` plugin built on
+kubeconform. The same mechanism runs `promtool check rules` on Prometheus rules,
+`conftest` policies, or any other tool that takes file paths.
 
 `myks inspect apps --redundant` exits non-zero when a values file sets a value
 to what it already inherits. Run it in CI to keep overrides minimal (see
-[Inspecting and debugging](inspect.md)).
+[Inspecting and debugging](../../guides/inspect/)).
 
 ## The default branch: catch drift
 
@@ -193,7 +200,7 @@ change without any commit in your repository.
 Pass credentials for protected chart repositories and Git servers as
 `VENDIR_SECRET_<NAME>_USERNAME` and `VENDIR_SECRET_<NAME>_PASSWORD` environment
 variables from CI secrets (see
-[Sources](sources.md#private-repositories-and-registries)):
+[Sources](../../guides/sources/#private-repositories-and-registries)):
 
 ```yaml
 - name: Render
@@ -212,4 +219,4 @@ variables from CI secrets (see
 - `--print-stats` prints how much CPU and memory each tool used, to find the
   expensive applications.
 
-See [Optimizations](optimizations.md).
+See [Optimizations](../../guides/optimizations/).

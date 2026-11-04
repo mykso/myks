@@ -1,4 +1,8 @@
-# Why myks
+---
+title: Why myks
+sidebar:
+  order: 1
+---
 
 Myks exists for one workflow: you manage many clusters from Git, most of what
 runs on them is third-party software, and you want to review the exact manifests
@@ -33,26 +37,26 @@ What you get from it:
 
 The cost is a bigger repository and the need to keep `rendered/` in sync with
 its inputs. Myks keeps the output deterministic, one file per resource, and only
-re-renders what changed; [GitOps and CI](gitops-ci.md) shows how to keep it in
-sync automatically.
+re-renders what changed; [GitOps and CI](../../guides/gitops-ci/) shows how to
+keep it in sync automatically.
 
 ## What myks adds
 
 Rendering many applications for many clusters needs more than a templating
 engine. Myks covers the whole job:
 
-| Need                                      | How myks covers it                                                                             |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Fetch Helm charts, Git trees, files       | [vendir](sources.md): Helm and OCI repositories, Git, GitHub releases, HTTP                    |
-| Avoid downloading the same thing twice    | Shared cache in `.myks/vendir-cache/`, lazy syncing                                            |
-| Render hundreds of applications quickly   | Parallel processing, [Smart Mode](smart-mode.md) renders only what changed                     |
-| Configure clusters without copy-paste     | [Inheritance](concepts.md#inheritance) over a directory tree of any depth, reusable prototypes |
-| Change upstream charts without forking    | [ytt overlays](ytt.md) per application, per prototype, per environment                         |
-| Reviewable output                         | Sorted keys, one file per resource, stale files removed                                        |
-| Argo CD integration                       | [Generated](argocd.md) `Application`, `AppProject` and cluster `Secret`                        |
-| Image pinning and registry mirrors        | [kbld](kbld.md): tags to digests, registry and repository rewrites                             |
-| Understand where configuration comes from | [`myks inspect`](inspect.md): file lists, value provenance, redundant overrides                |
-| Custom checks and deployment              | [Plugins](plugins.md) that run per application                                                 |
+| Need                                      | How myks covers it                                                                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Fetch Helm charts, Git trees, files       | [vendir](../../guides/sources/): Helm and OCI repositories, Git, GitHub releases, HTTP                  |
+| Avoid downloading the same thing twice    | Shared cache in `.myks/vendir-cache/`, lazy syncing                                                     |
+| Render hundreds of applications quickly   | Parallel processing, [Smart Mode](../../concepts/smart-mode/) renders only what changed                 |
+| Configure clusters without copy-paste     | [Inheritance](../../concepts/core/#inheritance) over a directory tree of any depth, reusable prototypes |
+| Change upstream charts without forking    | [ytt overlays](../../guides/ytt/) per application, per prototype, per environment                       |
+| Reviewable output                         | Sorted keys, one file per resource, stale files removed                                                 |
+| Argo CD integration                       | [Generated](../../guides/argocd/) `Application`, `AppProject` and cluster `Secret`                      |
+| Image pinning and registry mirrors        | [kbld](../../guides/kbld/): tags to digests, registry and repository rewrites                           |
+| Understand where configuration comes from | [`myks inspect`](../../guides/inspect/): file lists, value provenance, redundant overrides              |
+| Custom checks and deployment              | [Plugins](../../guides/plugins/) that run per application                                               |
 
 A production installation renders about 680 Argo CD Applications for 25 clusters
 from 61 prototypes, about 22,500 manifest files.
@@ -60,9 +64,9 @@ from 61 prototypes, about 22,500 manifest files.
 ## Compared with other tools
 
 The comparison below comes from the landscape survey behind the
-[configuration-layer redesign](redesign/research-findings.md) (2025–2026). It
-rates each tool against the eight capabilities above that a myks installation
-relies on.
+[configuration-layer redesign](https://github.com/mykso/myks/blob/main/docs/redesign/research-findings.md)
+(2025–2026). It rates each tool against the eight capabilities above that a myks
+installation relies on.
 
 | Tool              | Fetch sources | Cache | Parallel render | Tree inheritance | Sliced output to Git | Argo CD generation | Image mirroring | Pluggable steps |
 | ----------------- | :-----------: | :---: | :-------------: | :--------------: | :------------------: | :----------------: | :-------------: | :-------------: |
@@ -117,8 +121,9 @@ environment below it.
 
 - Myks does not connect to clusters, build images, or decrypt secrets.
 - Data values use [ytt](https://carvel.dev/ytt/), which takes time to learn. A
-  typed configuration layer in KCL is in preview ([KCL mode](kcl-mode.md), and
-  [why KCL](why-kcl.md)).
+  typed configuration layer in KCL is in preview
+  ([KCL mode](../../guides/kcl-mode/), and
+  [why KCL](https://github.com/mykso/myks/blob/main/docs/why-kcl.md)).
 - Committing rendered output makes large upgrades produce large diffs. Myks
   keeps them minimal, but a chart major version can still touch hundreds of
   files.

@@ -1,4 +1,8 @@
-# Kbld Integration
+---
+title: kbld
+sidebar:
+  order: 8
+---
 
 [kbld](https://carvel.dev/kbld/) is a tool that resolves image tags to immutable
 digests, improving security and reproducibility of Kubernetes deployments. Myks
@@ -10,10 +14,13 @@ kbld can also build images from source using various build tools. See
 [official docs](https://carvel.dev/kbld/docs/develop/building/) for more
 information.
 
-> [!NOTE]  
-> This feature is currently experimental and may change in future releases. The
-> configuration schema and behavior may evolve. It is disabled by default and
-> can be enabled via data-values files.
+:::note
+
+This feature is currently experimental and may change in future releases. The
+configuration schema and behavior may evolve. It is disabled by default and can
+be enabled via data-values files.
+
+:::
 
 ## Configuration
 
@@ -244,10 +251,16 @@ destinations:
     newImage: your.oci.registry.dev/something/something/caddy
 ```
 
-> [!IMPORTANT]  
-> Note that `sources.*.path` is relative to the project root.
+:::caution[Important]
 
-> [!INFO]  
-> Check the
-> [official documentation](https://carvel.dev/kbld/docs/develop/building/) for
-> more options.
+Note that `sources.*.path` is relative to the project root.
+
+:::
+
+:::note
+
+Check the
+[official documentation](https://carvel.dev/kbld/docs/develop/building/) for
+more options.
+
+:::

@@ -57,8 +57,11 @@ output. Do not edit them by hand; re-render them when a change is intended.
   [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
   `docs:`, …). Release notes and version numbers are generated from them.
 - CI runs lint and tests on every pull request; both must pass.
-- Update the documentation in [`docs/`](docs/README.md) together with the
-  behavior it describes.
+- Update the documentation in [`docs/src/content/docs/`](docs/src/content/docs/)
+  together with the behavior it describes. Pages under `reference/cli/` are
+  generated: rebuild myks and run
+  `npx help2md --bin ../bin/myks --out src/content/docs/reference/cli` from
+  `docs/` after changing a command's help.
 
 ## Releases
 

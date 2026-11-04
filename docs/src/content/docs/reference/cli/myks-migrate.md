@@ -18,8 +18,8 @@ The legacy files are left untouched; with kcl.mod present, myks switches to the
 KCL path and ignores them. Re-running needs --force, which reads the legacy files
 again and overwrites the generated ones; hand-written KCL is lost, so keep the
 conversion under version control. Verify the conversion by rendering and diffing the
-rendered/ output, hand-finish following docs/migration.md, then delete the
-legacy data-values files.
+rendered/ output, hand-finish following the migration guide, then delete the legacy
+data-values files: https://mykso.github.io/myks/guides/migration/
 
 Usage:
   myks migrate [flags]

@@ -1,11 +1,15 @@
-# Argo CD Integration
+---
+title: Argo CD
+sidebar:
+  order: 9
+---
 
 Myks generates Argo CD resources for every environment and application it
 renders. The `argocd` scope of the data values exposes the commonly used fields
 (see `argocd:` in
-[data-schema.ytt.yaml](/internal/myks/assets/data-schema.ytt.yaml)). Any other
-field of the Argo CD `Application` or `AppProject` can be set with ytt overlays,
-as described below.
+[data-schema.ytt.yaml](https://github.com/mykso/myks/blob/main/internal/myks/assets/data-schema.ytt.yaml)).
+Any other field of the Argo CD `Application` or `AppProject` can be set with ytt
+overlays, as described below.
 
 ## Generated resources
 
@@ -64,10 +68,13 @@ Each sync option accepts only the values Argo CD documents for it, for example
 `Prune: confirm` or `PrunePropagationPolicy: foreground`; the schema rejects
 others.
 
-> [!TIP]  
-> In CI, a checkout is often a detached `HEAD`, which makes the current branch
-> `HEAD`. Set `argocd.app.source.targetRevision` (and `repoURL`, if the CI
-> remote differs) explicitly in the root `env-data` file.
+:::tip
+
+In CI, a checkout is often a detached `HEAD`, which makes the current branch
+`HEAD`. Set `argocd.app.source.targetRevision` (and `repoURL`, if the CI remote
+differs) explicitly in the root `env-data` file.
+
+:::
 
 ## Overlays
 
@@ -161,5 +168,6 @@ spec:
 ## KCL mode
 
 The same overlay directories and rules apply when the configuration layer is
-written in KCL (see [migration](/docs/migration.md)): the `argocd` values from
-KCL feed the same templates, and `argocd/` overlays are collected the same way.
+written in KCL (see [migration](../../guides/migration/)): the `argocd` values
+from KCL feed the same templates, and `argocd/` overlays are collected the same
+way.

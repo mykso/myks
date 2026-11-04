@@ -1,4 +1,8 @@
-# Plugins
+---
+title: Plugins
+sidebar:
+  order: 10
+---
 
 A plugin is any executable that myks runs once per application, after rendering,
 with the application's context in environment variables. Use plugins to act on
@@ -17,7 +21,7 @@ myks loads plugins from two places:
 
 - **`PATH`**: executables named `myks-<name>` become the `myks <name>` command.
 - **`plugin-sources`**: every executable in the directories listed in
-  [`.myks.yaml`](configuration.md#plugin-sources), whatever its name.
+  [`.myks.yaml`](../../guides/configuration/#plugin-sources), whatever its name.
   `myks init` configures `./plugins`.
 
 ```yaml
@@ -38,11 +42,11 @@ myks <plugin> [environments [applications]] [-- <plugin-args>...]
 ```
 
 The positional arguments select applications the same way as for `render`, see
-[cli.md](cli.md#selecting-environments-and-applications). Without them,
-[Smart Mode](smart-mode.md) selects the applications affected by your changes,
-including those whose rendered output changed, so `myks render && myks validate`
-checks exactly what was just rendered. Everything after `--` is passed to the
-plugin as arguments.
+[cli.md](../../guides/cli/#selecting-environments-and-applications). Without
+them, [Smart Mode](../../concepts/smart-mode/) selects the applications affected
+by your changes, including those whose rendered output changed, so
+`myks render && myks validate` checks exactly what was just rendered. Everything
+after `--` is passed to the plugin as arguments.
 
 ```shell
 myks validate                          # applications affected by local changes
@@ -51,8 +55,8 @@ myks validate prod/eu frontend -- -verbose
 ```
 
 myks runs the plugin once per selected application, in parallel up to
-[`--async`](configuration.md#async). It runs every selected application even
-when some fail, and exits non-zero if any run failed.
+[`--async`](../../guides/configuration/#async). It runs every selected
+application even when some fail, and exits non-zero if any run failed.
 
 By default plugin output is streamed as it comes, so the output of parallel runs
 interleaves. `--buffer-plugin-output` collects each run's stdout and stderr and
@@ -63,14 +67,14 @@ prints them when the run finishes.
 Paths are relative to the project root, which is also the plugin's working
 directory.
 
-| Variable                | Content                                                         | Example                          |
-| ----------------------- | --------------------------------------------------------------- | -------------------------------- |
-| `MYKS_ENV`              | Environment ID                                                  | `prod-eu`                        |
-| `MYKS_ENV_DIR`          | Environment directory                                           | `envs/prod/eu`                   |
-| `MYKS_APP`              | Application name                                                | `frontend`                       |
-| `MYKS_APP_PROTOTYPE`    | Prototype directory                                             | `prototypes/webapp`              |
-| `MYKS_RENDERED_APP_DIR` | Rendered output of the application                              | `rendered/envs/prod-eu/frontend` |
-| `MYKS_DATA_VALUES`      | Final [data values](data-values.md) of the application, as YAML |                                  |
+| Variable                | Content                                                                    | Example                          |
+| ----------------------- | -------------------------------------------------------------------------- | -------------------------------- |
+| `MYKS_ENV`              | Environment ID                                                             | `prod-eu`                        |
+| `MYKS_ENV_DIR`          | Environment directory                                                      | `envs/prod/eu`                   |
+| `MYKS_APP`              | Application name                                                           | `frontend`                       |
+| `MYKS_APP_PROTOTYPE`    | Prototype directory                                                        | `prototypes/webapp`              |
+| `MYKS_RENDERED_APP_DIR` | Rendered output of the application                                         | `rendered/envs/prod-eu/frontend` |
+| `MYKS_DATA_VALUES`      | Final [data values](../../guides/data-values/) of the application, as YAML |                                  |
 
 `MYKS_DATA_VALUES` lets a plugin take its settings from the configuration tree:
 define them under a scope of your own, give them defaults at the root, and

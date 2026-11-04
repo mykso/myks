@@ -1,11 +1,15 @@
-# Installation
+---
+title: Installation
+sidebar:
+  order: 1
+---
 
 Myks is a single binary with [ytt], [vendir] and [kbld] built in. Two external
 tools are needed at runtime:
 
 - [helm] 3.12 or newer, only if your applications render Helm charts;
-- [git], for [Smart Mode](smart-mode.md) and for the Argo CD defaults that are
-  read from the repository (URL and branch).
+- [git], for [Smart Mode](../../concepts/smart-mode/) and for the Argo CD
+  defaults that are read from the repository (URL and branch).
 
 Myks does not track compatibility with specific Helm versions. Recent versions
 work.
@@ -60,8 +64,8 @@ docker run --rm -v "$PWD:/app" ghcr.io/mykso/myks:latest render
 ## GitHub Actions
 
 [mykso/setup-action](https://github.com/mykso/setup-action) installs a pinned
-version of myks in a workflow. See [GitOps and CI](gitops-ci.md) for complete
-workflows.
+version of myks in a workflow. See [GitOps and CI](../../guides/gitops-ci/) for
+complete workflows.
 
 ## Binary archives
 
@@ -94,7 +98,7 @@ myks completion fish | source
 ## Pinning the version for a project
 
 Set `min-version` in the project's `.myks.yaml` so that older binaries refuse to
-run it (see [Configuration](configuration.md#min-version)):
+run it (see [Configuration](../../guides/configuration/#min-version)):
 
 ```yaml
 min-version: 'v5.16.0'

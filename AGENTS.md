@@ -36,7 +36,7 @@ gofumpt -w .
 cmd/                    CLI commands (cobra). Entry points for render, init, cleanup, smart-mode, etc.
 cmd/embedded/           Embedded vendir/ytt/kbld tool runners
 internal/myks/          Core logic: Globe, Environment, Application, rendering, sync, plugins
-docs/                   User documentation
+docs/                   Docs site (docs-kit): pages in docs/src/content/docs/, design docs and ADRs beside them
 examples/               Example projects and integration test fixtures
 testData/               Test fixtures
 ```

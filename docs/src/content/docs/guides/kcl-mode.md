@@ -1,4 +1,8 @@
-# KCL mode (preview)
+---
+title: KCL mode (preview)
+sidebar:
+  order: 15
+---
 
 KCL mode replaces the ytt data values files (`env-data*.yaml`, `app-data*.yaml`)
 with a configuration tree written in [KCL], a typed configuration language with
@@ -6,11 +10,14 @@ a Python-like syntax and editor support. Everything else stays: prototypes,
 `vendir/`, `helm/`, `ytt/`, `static/` and `argocd/` directories, overlays, the
 render pipeline and the output.
 
-> [!WARNING]  
-> KCL mode is a preview. It is complete enough to render real repositories
-> byte-identically to their ytt setup, but Smart Mode, `myks init` and value
-> provenance do not support it yet, and the schema package can still change
-> before the next major release.
+:::caution
+
+KCL mode is a preview. It is complete enough to render real repositories
+byte-identically to their ytt setup, but Smart Mode, `myks init` and value
+provenance do not support it yet, and the schema package can still change before
+the next major release.
+
+:::
 
 ## Why
 
@@ -19,7 +26,8 @@ value. Real repositories work around that with values set twice and keys
 hard-coded across prototypes. KCL evaluates the whole tree at once: a value can
 derive from any other value of its application, its environment, or a sibling
 application, and schemas catch mistakes with types and checks. See
-[Why KCL](why-kcl.md) for how KCL was chosen over CUE, Pkl and Jsonnet.
+[Why KCL](https://github.com/mykso/myks/blob/main/docs/why-kcl.md) for how KCL
+was chosen over CUE, Pkl and Jsonnet.
 
 ## How it works
 
@@ -85,23 +93,26 @@ environments = {
 }
 ```
 
-The [kcl-skeleton](../examples/kcl-skeleton/README.md) example is a complete
-minimal project;
-[kcl-integration-tests](../examples/kcl-integration-tests/README.md) exercises
-every render step.
+The
+[kcl-skeleton](https://github.com/mykso/myks/blob/main/examples/kcl-skeleton/README.md)
+example is a complete minimal project;
+[kcl-integration-tests](https://github.com/mykso/myks/blob/main/examples/kcl-integration-tests/README.md)
+exercises every render step.
 
 The `myks` schema package (`Environment`, `App`, `Apps`, `with_apps`,
 `finalize`) is published to `oci://ghcr.io/mykso/myks`; see its
-[README](../kcl/myks/README.md). Myks checks at evaluation time that the
-project's schema version matches the one it supports.
+[README](https://github.com/mykso/myks/blob/main/kcl/myks/README.md). Myks
+checks at evaluation time that the project's schema version matches the one it
+supports.
 
 ## Getting started
 
 - **Existing ytt project:** run `myks migrate`. It writes the KCL tree next to
   the ytt files and renders byte-identically. Then hand-finish it. Follow the
-  [migration guide](migration.md).
-- **New project:** copy [examples/kcl-skeleton](../examples/kcl-skeleton/) and
-  pin the published schema package:
+  [migration guide](../../guides/migration/).
+- **New project:** copy
+  [examples/kcl-skeleton](https://github.com/mykso/myks/tree/main/examples/kcl-skeleton/)
+  and pin the published schema package:
 
   ```shell
   kcl mod add oci://ghcr.io/mykso/myks
@@ -123,7 +134,8 @@ Delete `kcl.mod` to switch a migrated project back to its ytt files.
   directory on first use. On read-only filesystems, point `KCL_LIB_HOME` at a
   writable directory.
 
-The design and its decisions are in [redesign/design.md](redesign/design.md) and
-the [ADRs](adr/).
+The design and its decisions are in
+[redesign/design.md](https://github.com/mykso/myks/blob/main/docs/redesign/design.md)
+and the [ADRs](https://github.com/mykso/myks/tree/main/docs/adr/).
 
 [KCL]: https://www.kcl-lang.io/

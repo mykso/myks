@@ -1,20 +1,24 @@
-# Helm
+---
+title: Helm
+sidebar:
+  order: 4
+---
 
 The Helm step renders every Helm chart an application has downloaded with
 `helm template`, using values files assembled along the inheritance tree. Use it
 to deploy any upstream chart: set per-environment values without copying the
-chart, and patch what the chart cannot configure with [ytt overlays](ytt.md)
-afterwards.
+chart, and patch what the chart cannot configure with
+[ytt overlays](../../guides/ytt/) afterwards.
 
 `helm` is called as an external binary and must be on your `PATH`. The
-[container image](installation.md) includes it.
+[container image](../../guides/installation/) includes it.
 
 ## Getting a chart
 
 myks renders every directory under the application's `vendor/charts/` that
 contains a `Chart.yaml`; other entries are skipped with a warning. Charts get
 there through a vendir source whose `path` starts with `charts/`, see
-[sources.md](sources.md):
+[sources.md](../../guides/sources/):
 
 ```yaml
 #! prototypes/webapp/vendir/base.ytt.yaml
@@ -32,11 +36,14 @@ directories:
             url: https://stefanprodan.github.io/podinfo
 ```
 
-> [!IMPORTANT]  
-> myks identifies a chart by its **directory name** under `vendor/charts/`, not
-> by the `name` in its `Chart.yaml`. Values files and per-chart settings use
-> that directory name. This lets one application render the same chart twice,
-> for example as `charts/redis-cache` and `charts/redis-queue`.
+:::caution[Important]
+
+myks identifies a chart by its **directory name** under `vendor/charts/`, not by
+the `name` in its `Chart.yaml`. Values files and per-chart settings use that
+directory name. This lets one application render the same chart twice, for
+example as `charts/redis-cache` and `charts/redis-queue`.
+
+:::
 
 Charts are rendered in alphabetical order of their directory names and their
 output is concatenated.
@@ -82,15 +89,19 @@ chart, so they belong to a prototype or an application. Use
 `_proto/<prototype>/helm/` to change all applications of a prototype at one
 level of the tree.
 
-> [!TIP]  
-> `myks inspect apps prod/eu frontend` lists the values files of each chart in
-> merge order, and `--provenance` shows which file sets each values key. See
-> [inspect.md](inspect.md).
+:::tip
+
+`myks inspect apps prod/eu frontend` lists the values files of each chart in
+merge order, and `--provenance` shows which file sets each values key. See
+[Inspecting and debugging](../../guides/inspect/).
+
+:::
 
 ### Values files are ytt templates
 
 Each values file is rendered by ytt together with the application's
-[data values](data-values.md) before merging, so values can be computed:
+[data values](../../guides/data-values/) before merging, so values can be
+computed:
 
 ```yaml
 #! prototypes/webapp/helm/podinfo.yaml
@@ -176,4 +187,4 @@ Charts taken from a Git repository often do not. Set `buildDependencies: true`
 2. `helm dependencies build --skip-refresh` for the chart.
 
 A chart shared by several applications through the
-[cache](optimizations.md#centralized-cache) is built once per run.
+[cache](../../guides/optimizations/#centralized-cache) is built once per run.

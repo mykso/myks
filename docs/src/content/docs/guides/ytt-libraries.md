@@ -1,4 +1,8 @@
-# Ytt Libraries
+---
+title: ytt libraries
+sidebar:
+  order: 6
+---
 
 Myks provides flexible ways to use
 [ytt libraries](https://carvel.dev/ytt/docs/latest/lang-ref-ytt-library/) in

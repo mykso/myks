@@ -1,12 +1,16 @@
-# Smart Mode
+---
+title: Smart Mode
+sidebar:
+  order: 3
+---
 
 Smart Mode looks at the files you changed and processes only the environments
 and applications those changes can affect. It is what makes `myks render`
 without arguments fast on a large tree, locally and in CI.
 
-Smart Mode is on whenever you run `myks render` or a [plugin](plugins.md)
-without positional arguments. Any selector (`myks render ALL`,
-`myks render prod`) turns it off.
+Smart Mode is on whenever you run `myks render` or a
+[plugin](../../guides/plugins/) without positional arguments. Any selector
+(`myks render ALL`, `myks render prod`) turns it off.
 
 ## How it works
 
@@ -24,19 +28,21 @@ sometimes processes more than strictly necessary.
 When nothing is affected (for example, only a `README.md` changed), myks exits
 before syncing or rendering anything. When Smart Mode cannot run — the project
 is not in a Git repository, Git fails, or the project uses
-[KCL mode](kcl-mode.md) — myks logs a warning and processes everything; with
-`--smart-mode.only-print`, it fails instead.
+[KCL mode](../../guides/kcl-mode/) — myks logs a warning and processes
+everything; with `--smart-mode.only-print`, it fails instead.
 
 ## Rules
 
-Paths use the default [naming conventions](configuration.md#naming-conventions).
-`<dir>` stands for any of the per-application directories: `vendir`, `lib`,
-`helm`, `ytt`, `ytt-pkg`, `static`, `argocd`.
+Paths use the default
+[naming conventions](../../guides/configuration/#naming-conventions). `<dir>`
+stands for any of the per-application directories: `vendir`, `lib`, `helm`,
+`ytt`, `ytt-pkg`, `static`, `argocd`.
 
 ### Everything
 
 - `lib/**` — the root ytt library
-- `prototypes/_vendir/**` — the shared vendir base, see [sources.md](sources.md)
+- `prototypes/_vendir/**` — the shared vendir base, see
+  [sources.md](../../guides/sources/)
 
 ### All applications of environments
 
@@ -73,8 +79,7 @@ A change in `envs/env-data.ytt.yaml` therefore selects every environment.
 
 Changes to anything else select nothing, including `.myks.yaml` and files
 outside `envs/`, `prototypes/`, `lib/` and `rendered/`. Render the affected
-environments explicitly after changing them, for example
-`myks render prod`.
+environments explicitly after changing them, for example `myks render prod`.
 
 ## Sync only
 
@@ -127,5 +132,5 @@ myks render --smart-mode.base-revision=origin/main
 ```
 
 The revision must exist in the checkout, so fetch enough history (for example,
-`fetch-depth: 0` with `actions/checkout`). See [gitops-ci.md](gitops-ci.md) for
-complete pipelines.
+`fetch-depth: 0` with `actions/checkout`). See
+[gitops-ci.md](../../guides/gitops-ci/) for complete pipelines.

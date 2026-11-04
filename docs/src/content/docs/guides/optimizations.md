@@ -1,4 +1,8 @@
-# Myks Optimizations
+---
+title: Optimizations
+sidebar:
+  order: 14
+---
 
 This page lists myks' features that help to optimize performance and resource
 usage. Some of those features are enabled by default, while others require
@@ -30,7 +34,7 @@ Smart Mode supports advanced options:
   environments and applications that would be rendered without actually
   processing them.
 
-See the [Smart Mode](/docs/smart-mode.md) page for more details.
+See the [Smart Mode](../../concepts/smart-mode/) page for more details.
 
 ### Manual Selection
 

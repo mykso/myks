@@ -1,4 +1,8 @@
-# Data values
+---
+title: Data values
+sidebar:
+  order: 2
+---
 
 Data values are the configuration of an application: its chart versions, the
 values its templates read, the settings of the render steps. Myks computes one
@@ -7,16 +11,19 @@ prototype and from every level of the environment tree. Every step of the
 pipeline reads the result: vendir configurations, Helm values files, ytt
 templates and the Argo CD templates.
 
-> [!NOTE]  
-> This page describes the ytt data values files that `myks init` scaffolds. The
-> preview [KCL mode](kcl-mode.md) replaces them with typed KCL code.
+:::note
+
+This page describes the ytt data values files that `myks init` scaffolds. The
+preview [KCL mode](../../guides/kcl-mode/) replaces them with typed KCL code.
+
+:::
 
 ## Files and merge order
 
 Data values come from files named `env-data*.yaml` and `app-data*.yaml` (the
-patterns are [configurable](configuration.md#naming-conventions)). For an
-application `frontend` of prototype `webapp` in `envs/prod/eu/`, myks merges, in
-this order:
+patterns are [configurable](../../guides/configuration/#naming-conventions)).
+For an application `frontend` of prototype `webapp` in `envs/prod/eu/`, myks
+merges, in this order:
 
 1. the built-in schema of myks;
 2. `env-data*.yaml` of every level: `envs/`, `envs/prod/`, `envs/prod/eu/`;
@@ -52,16 +59,16 @@ environment:
 
 Top-level keys are scopes. `application` is yours; the others configure myks:
 
-| Scope         | Purpose                                                                                   |
-| ------------- | ----------------------------------------------------------------------------------------- |
-| `application` | Your values. Empty by default.                                                            |
-| `environment` | `id` of the environment and its `applications` list. Set in `env-data` files.             |
-| `argocd`      | Generated Argo CD resources ([Argo CD](argocd.md)).                                       |
-| `helm`        | Helm step settings: namespace, release names, CRDs, Kubernetes version ([Helm](helm.md)). |
-| `kbld`        | Image resolution and rewriting ([kbld](kbld.md)).                                         |
-| `render`      | Output settings (`includeNamespace`).                                                     |
-| `yttPkg`      | ytt-pkg step settings ([ytt](ytt.md#ytt-packages)).                                       |
-| `myks`        | Read-only runtime values: Git repository URL and branch, current step and app.            |
+| Scope         | Purpose                                                                                              |
+| ------------- | ---------------------------------------------------------------------------------------------------- |
+| `application` | Your values. Empty by default.                                                                       |
+| `environment` | `id` of the environment and its `applications` list. Set in `env-data` files.                        |
+| `argocd`      | Generated Argo CD resources ([Argo CD](../../guides/argocd/)).                                       |
+| `helm`        | Helm step settings: namespace, release names, CRDs, Kubernetes version ([Helm](../../guides/helm/)). |
+| `kbld`        | Image resolution and rewriting ([kbld](../../guides/kbld/)).                                         |
+| `render`      | Output settings (`includeNamespace`).                                                                |
+| `yttPkg`      | ytt-pkg step settings ([ytt](../../guides/ytt/#ytt-packages)).                                       |
+| `myks`        | Read-only runtime values: Git repository URL and branch, current step and app.                       |
 
 Print the built-in schema with its defaults and comments:
 
@@ -209,8 +216,8 @@ application:
     host: #@ "shop." + env_data.environment.id + ".example.com"
 ```
 
-See [ytt libraries](ytt-libraries.md) for this and for sharing functions between
-files.
+See [ytt libraries](../../guides/ytt-libraries/) for this and for sharing
+functions between files.
 
 ## Sharing values between applications
 
@@ -252,7 +259,7 @@ myks inspect apps prod/eu frontend --provenance
 myks inspect apps --redundant
 ```
 
-See [Inspecting and debugging](inspect.md).
+See [Inspecting and debugging](../../guides/inspect/).
 
 [ytt data values]: https://carvel.dev/ytt/docs/latest/how-to-use-data-values/
 [ytt schema annotations]:

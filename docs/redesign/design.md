@@ -1,8 +1,9 @@
 # Config-layer redesign — implementation design
 
-The design for replacing ytt data-values composition with KCL. Decisions behind it: ADR 0002
-(KCL), ADR 0003 (whole-tree eval), ADR 0004 (pure-language surface), ADR 0005 (Go host, evolve in
-place), ADR 0006 (engine integration). Evidence: [bakeoff-results.md](bakeoff-results.md).
+The design for replacing ytt data-values composition with KCL. Decisions behind
+it: ADR 0002 (KCL), ADR 0003 (whole-tree eval), ADR 0004 (pure-language
+surface), ADR 0005 (Go host, evolve in place), ADR 0006 (engine integration).
+Evidence: [bakeoff-results.md](bakeoff-results.md).
 
 ## Big picture
 
@@ -13,9 +14,10 @@ phase 1 — evaluate:  kcl.Run(<repo root>)  →  frozen resolved tree (JSON)
 phase 2 — fan out:   per-app parallel sync + render, read-only over the frozen tree
 ```
 
-The frozen tree is the **sole discovery mechanism**: environment list, app list, and every app's
-resolved configuration are read from the evaluation output. The engine performs no filesystem walk
-to discover environments or applications; the user's in-language imports (ADR 0004) are the wiring.
+The frozen tree is the **sole discovery mechanism**: environment list, app list,
+and every app's resolved configuration are read from the evaluation output. The
+engine performs no filesystem walk to discover environments or applications; the
+user's in-language imports (ADR 0004) are the wiring.
 
 ## User surface
 
@@ -40,24 +42,29 @@ lib/                         user-local shared logic (importable)
 kcl.mod                      KCL module manifest; pins the myks schema package
 ```
 
-- **One file per application per level is the default; collapsing several into one file is
-  free.** A KCL package is a directory, so every `.k` file of a level shares its namespace and
-  a schema-typed declaration of the same name unifies across them: each file adds to the
-  level's `_apps: myks.Apps` accumulator, which `env.k` folds into `applications`. Nothing
-  registers a file anywhere, and file names are not package paths — `app-cert-manager.k`
-  needs no renaming.
-- The fold is a dict comprehension (`{k: v for k, v in _apps}`): a schema instance on the
-  right of `|` or `:` replaces instead of merging, dropping the parent level's values.
-- **The fold belongs in the `env =` line, never in `_level`.** The level's application files
-  read `_level` to derive their values from the environment — which is what the legacy
-  `@myks:data.lib.yaml` did — and they are what `_apps` is built from, so a `_level` carrying
-  the fold is undefined for the very files that feed it.
-- Directory names must be KCL identifiers (`central_forwarder/`, not `central-forwarder/`) —
-  under `prototypes/` too, for a prototype that owns a base schema;
-  display names live in the config body (`name = "central-forwarder"`).
-- No `_apps/` directory convention: imports disambiguate sub-environments from applications (ADR 0004).
-- Variable-depth trees work: intermediate directories need no `.k` files; a child package can
-  import its ancestor.
+- **One file per application per level is the default; collapsing several into
+  one file is free.** A KCL package is a directory, so every `.k` file of a
+  level shares its namespace and a schema-typed declaration of the same name
+  unifies across them: each file adds to the level's `_apps: myks.Apps`
+  accumulator, which `env.k` folds into `applications`. Nothing registers a file
+  anywhere, and file names are not package paths — `app-cert-manager.k` needs no
+  renaming.
+- The fold is a dict comprehension (`{k: v for k, v in _apps}`): a schema
+  instance on the right of `|` or `:` replaces instead of merging, dropping the
+  parent level's values.
+- **The fold belongs in the `env =` line, never in `_level`.** The level's
+  application files read `_level` to derive their values from the environment —
+  which is what the legacy `@myks:data.lib.yaml` did — and they are what `_apps`
+  is built from, so a `_level` carrying the fold is undefined for the very files
+  that feed it.
+- Directory names must be KCL identifiers (`central_forwarder/`, not
+  `central-forwarder/`) — under `prototypes/` too, for a prototype that owns a
+  base schema; display names live in the config body
+  (`name = "central-forwarder"`).
+- No `_apps/` directory convention: imports disambiguate sub-environments from
+  applications (ADR 0004).
+- Variable-depth trees work: intermediate directories need no `.k` files; a
+  child package can import its ancestor.
 
 ### Authoring pattern
 
@@ -90,27 +97,31 @@ env = f.finalize(_level {
 KCL idioms and papercuts to respect (details in
 [bakeoff-results.md](bakeoff-results.md#key-kcl-findings-carried-into-designmd)):
 
-- Derived defaults and `check` blocks re-evaluate on every override — guard derivations against
-  not-yet-set intermediate state, or validate only in the finalizer.
-- Patch list elements with dict-union (`a | _patch`), not config-override on a typed variable.
-- Keep nested schemas free of eagerly-instantiated defaults so `check` doesn't fire on
-  intermediates.
+- Derived defaults and `check` blocks re-evaluate on every override — guard
+  derivations against not-yet-set intermediate state, or validate only in the
+  finalizer.
+- Patch list elements with dict-union (`a | _patch`), not config-override on a
+  typed variable.
+- Keep nested schemas free of eagerly-instantiated defaults so `check` doesn't
+  fire on intermediates.
 
 ### Helm values
 
-Static helm values copied from upstream chart docs stay **plain YAML** files, passed through
-(ADR 0004's one exception). Values that need logic (cross-reference, conditionals, introspection)
-are computed in KCL and merged by the engine over the static YAML.
+Static helm values copied from upstream chart docs stay **plain YAML** files,
+passed through (ADR 0004's one exception). Values that need logic
+(cross-reference, conditionals, introspection) are computed in KCL and merged by
+the engine over the static YAML.
 
 ## myks schema package
 
-myks ships its KCL schemas (`Environment`, `App`, `Apps`, the `with_apps` and `finalize` helpers) as a
-**KCL package on an OCI registry** (ADR 0006). Prototype bases are not shipped: each repo owns
-them, one package per prototype (`prototypes/<name>/proto.k`, subclassing `App` — see
-[ADR 0007](../adr/0007-prototype-bases-as-packages.md)). User repos depend on it via `kcl.mod`
-(`kcl mod add …`), pinned by version; the LSP resolves it like any dependency. The evaluated tree
-carries the schema version; the engine asserts compatibility at eval time and fails fast on
-mismatch.
+myks ships its KCL schemas (`Environment`, `App`, `Apps`, the `with_apps` and
+`finalize` helpers) as a **KCL package on an OCI registry** (ADR 0006).
+Prototype bases are not shipped: each repo owns them, one package per prototype
+(`prototypes/<name>/proto.k`, subclassing `App` — see
+[ADR 0007](../adr/0007-prototype-bases-as-packages.md)). User repos depend on it
+via `kcl.mod` (`kcl mod add …`), pinned by version; the LSP resolves it like any
+dependency. The evaluated tree carries the schema version; the engine asserts
+compatibility at eval time and fails fast on mismatch.
 
 ## Frozen tree contract
 
@@ -130,46 +141,58 @@ environments:
         <resolved values...>
 ```
 
-Requirements on the shape (they exist so later phases bolt on without breaking it):
+Requirements on the shape (they exist so later phases bolt on without breaking
+it):
 
-- **Per-app resolved config is a self-contained, diffable unit** — deferred smart-mode will diff
-  these units between runs; nothing outside an app's entry may be needed to render it.
-- Everything the fan-out consumes (sync sources, helm values, ytt data-values, ArgoCD app fields)
-  is present in resolved form; no back-references into KCL land after phase 1.
+- **Per-app resolved config is a self-contained, diffable unit** — deferred
+  smart-mode will diff these units between runs; nothing outside an app's entry
+  may be needed to render it.
+- Everything the fan-out consumes (sync sources, helm values, ytt data-values,
+  ArgoCD app fields) is present in resolved form; no back-references into KCL
+  land after phase 1.
 
 ## Engine integration (ADR 0006)
 
-- **Evaluation**: in-process via `kcl-lang.io/kcl-go` (native lib loaded via purego, no CGO;
-  adds ~16 MB to the binary; kcl-go version is in lockstep with the KCL language version).
-  Document `KCL_LIB_HOME` for read-only-rootfs environments — the SDK extracts its native lib to
-  a writable cache dir on first run.
-- **Mode detection is per-repo**: presence of the KCL tree marker (`kcl.mod` at the config root)
-  selects the new path; otherwise the legacy ytt data-values path runs. No per-environment mixed
-  mode.
-- **Pipeline in KCL mode**: frozen tree → per-app fan-out → vendir sync (sources from tree) →
-  helm template (values file generated from tree) → ytt overlay step → plugins → slice → ArgoCD
-  app generation (fields from tree). Existing embedded tools (ytt, vendir, kbld) are unchanged.
-- **ytt bridge**: for each app the engine writes the resolved config as a generated data-values
-  YAML file and passes it to the ytt step (`--data-value-file`). Existing ytt templates and
-  overlays keep reading `#@ data.values.…` unchanged — data-values *authoring* dies, data-values
-  as ytt's input API stays.
+- **Evaluation**: in-process via `kcl-lang.io/kcl-go` (native lib loaded via
+  purego, no CGO; adds ~16 MB to the binary; kcl-go version is in lockstep with
+  the KCL language version). Document `KCL_LIB_HOME` for read-only-rootfs
+  environments — the SDK extracts its native lib to a writable cache dir on
+  first run.
+- **Mode detection is per-repo**: presence of the KCL tree marker (`kcl.mod` at
+  the config root) selects the new path; otherwise the legacy ytt data-values
+  path runs. No per-environment mixed mode.
+- **Pipeline in KCL mode**: frozen tree → per-app fan-out → vendir sync (sources
+  from tree) → helm template (values file generated from tree) → ytt overlay
+  step → plugins → slice → ArgoCD app generation (fields from tree). Existing
+  embedded tools (ytt, vendir, kbld) are unchanged.
+- **ytt bridge**: for each app the engine writes the resolved config as a
+  generated data-values YAML file and passes it to the ytt step
+  (`--data-value-file`). Existing ytt templates and overlays keep reading
+  `#@ data.values.…` unchanged — data-values _authoring_ dies, data-values as
+  ytt's input API stays.
 
 ## Migration
 
-User-facing steps: [docs/migration.md](../migration.md).
+User-facing steps:
+[docs/migration.md](https://mykso.github.io/myks/guides/migration/).
 
-- **Converter**: `myks migrate` subcommand. Machine-seeds the KCL tree from an existing repo:
-  `kcl import` for the plain-YAML data-values files, re-parenting onto the level/import structure,
-  roster generation from the existing `_apps` layout. Hand-finishing (typed schemas, derivations)
-  is guided by migration docs.
-- **Gate**: byte-identical rendered manifests between legacy and KCL mode, waived per app only
-  where derivations intentionally change values. The gate harness renders a repo in both modes and
-  diffs `rendered/`; it doubles as the converter's test suite.
-- **Legacy**: previous major frozen on a branch, bugfixes + trivial features backported on demand
-  for 12 months from the first stable new-major release (ADR 0005).
+- **Converter**: `myks migrate` subcommand. Machine-seeds the KCL tree from an
+  existing repo: `kcl import` for the plain-YAML data-values files, re-parenting
+  onto the level/import structure, roster generation from the existing `_apps`
+  layout. Hand-finishing (typed schemas, derivations) is guided by migration
+  docs.
+- **Gate**: byte-identical rendered manifests between legacy and KCL mode,
+  waived per app only where derivations intentionally change values. The gate
+  harness renders a repo in both modes and diffs `rendered/`; it doubles as the
+  converter's test suite.
+- **Legacy**: previous major frozen on a branch, bugfixes + trivial features
+  backported on demand for 12 months from the first stable new-major release
+  (ADR 0005).
 
 ## Deferred (designed around, not built now)
 
-- **Smart mode**: new path ships with full render. Tree-diff smart mode bolts on later; the frozen
-  tree contract above is what makes that possible without a schema break.
-- **vendir/kbld replacement**: both stay embedded as-is; not required by the config layer.
+- **Smart mode**: new path ships with full render. Tree-diff smart mode bolts on
+  later; the frozen tree contract above is what makes that possible without a
+  schema break.
+- **vendir/kbld replacement**: both stay embedded as-is; not required by the
+  config layer.

@@ -1,4 +1,8 @@
-# Cookbook
+---
+title: Cookbook
+sidebar:
+  order: 13
+---
 
 Short recipes for common tasks. Each one names the file to create and links to
 the page that explains the mechanism. The examples use a prototype `webapp`
@@ -41,8 +45,8 @@ prototypes/webapp/
 ```
 
 An empty directory is a valid prototype too: every file can come from the
-application instead. See [Sources](sources.md) and
-[Data values](data-values.md).
+application instead. See [Sources](../../guides/sources/) and
+[Data values](../../guides/data-values/).
 
 ### Add an environment
 
@@ -62,7 +66,7 @@ environment:
 
 The directory inherits everything from `envs/prod/` and `envs/`. A directory
 without `environment.id` is only an inheritance level. See
-[Concepts](concepts.md#environments).
+[Concepts](../../concepts/core/#environments).
 
 ### Add an application
 
@@ -87,7 +91,7 @@ environment:
 Each instance has its own `_apps/<name>/` directories, output directory and Argo
 CD Application. The Helm release name defaults to the chart directory name and
 the namespace to the application name, so the instances do not collide (see
-[Helm](helm.md)).
+[Helm](../../guides/helm/)).
 
 ## Values
 
@@ -110,7 +114,7 @@ ui:
   message: #@ "Hello from " + data.values.environment.id
 ```
 
-See [Helm](helm.md#values-files) for the full lookup order.
+See [Helm](../../guides/helm/#values-files) for the full lookup order.
 
 ### Change every application of a prototype in a subtree
 
@@ -152,7 +156,7 @@ application:
   host: #@ "shop." + env_data.environment.id + ".example.com"
 ```
 
-See [ytt libraries](ytt-libraries.md#environment-data-library).
+See [ytt libraries](../../guides/ytt-libraries/#environment-data-library).
 
 ## Sources
 
@@ -170,25 +174,26 @@ application:
 ```
 
 Otherwise overlay the vendir configuration. See
-[Sources](sources.md#overriding-a-source-for-one-environment).
+[Sources](../../guides/sources/#overriding-a-source-for-one-environment).
 
 ### Try an unreleased chart
 
 Point the application at a Git branch with an overlay on its vendir
 configuration, and set `lazy: false`. See
-[Sources](sources.md#testing-an-unreleased-chart-from-a-branch).
+[Sources](../../guides/sources/#testing-an-unreleased-chart-from-a-branch).
 
 ### Add a second chart to one application
 
 Overlay the vendir configuration to add a directory under `charts/`, and add a
 values file named after it in `helm/`. See
-[Sources](sources.md#overriding-a-source-for-one-environment).
+[Sources](../../guides/sources/#overriding-a-source-for-one-environment).
 
 ## Manifests
 
-These recipes use [ytt overlays](ytt.md). An overlay in `_apps/<app>/ytt/`
-changes one application, in `prototypes/<proto>/ytt/` every application of the
-prototype, and in `_env/ytt/` every application of an environment subtree.
+These recipes use [ytt overlays](../../guides/ytt/). An overlay in
+`_apps/<app>/ytt/` changes one application, in `prototypes/<proto>/ytt/` every
+application of the prototype, and in `_env/ytt/` every application of an
+environment subtree.
 
 ### Patch a field the chart does not expose
 
@@ -245,7 +250,7 @@ spec:
 
 An application without any chart works the same way: its manifests come only
 from `ytt/` directories, or from plain YAML synced to `vendor/ytt/`
-([Sources](sources.md#plain-manifests-from-git)).
+([Sources](../../guides/sources/#plain-manifests-from-git)).
 
 ### Change every application of an environment
 
@@ -263,14 +268,15 @@ metadata:
 ```
 
 `_env/ytt/` overlays run after each application's own ytt step. See
-[ytt](ytt.md#where-myks-looks-for-files).
+[ytt](../../guides/ytt/#where-myks-looks-for-files).
 
 ## Images
 
 ### Pull images through a mirror
 
-Enable [kbld](kbld.md) and add an override. Overrides are regular expressions on
-the registry, repository and tag of every image; the first match wins:
+Enable [kbld](../../guides/kbld/) and add an override. Overrides are regular
+expressions on the registry, repository and tag of every image; the first match
+wins:
 
 ```yaml
 #! envs/prod/env-data.kbld.yaml
@@ -321,13 +327,13 @@ argocd:
 ```
 
 Other fields are set with an overlay in an `argocd/` directory. See
-[Argo CD](argocd.md).
+[Argo CD](../../guides/argocd/).
 
 ### Ship encrypted secrets
 
 Put sops-encrypted files into a `static/` directory. Myks copies them to the
 output unchanged, and the deployment tool decrypts them (for example Argo CD
-with a sops plugin). See [Static files](static-files.md).
+with a sops plugin). See [Static files](../../guides/static-files/).
 
 ### Render for a specific Kubernetes version
 
@@ -344,4 +350,4 @@ helm:
     - monitoring.coreos.com/v1
 ```
 
-See [Helm](helm.md#configuration).
+See [Helm](../../guides/helm/#configuration).

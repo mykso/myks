@@ -1,4 +1,8 @@
-# Inspecting and debugging
+---
+title: Inspecting and debugging
+sidebar:
+  order: 11
+---
 
 `myks inspect` answers "where does this come from?" without running a render:
 which environments and applications exist, which files feed each step of an
@@ -11,7 +15,7 @@ overlay, kbld or Argo CD step. It writes intermediate files to `.myks/`, like
 any other command.
 
 The outputs below come from
-[`examples/integration-tests`](../examples/integration-tests).
+[`examples/integration-tests`](https://github.com/mykso/myks/tree/main/examples/integration-tests).
 
 ## Environments
 
@@ -45,8 +49,8 @@ myks inspect apps [env-selector [app-selector]] [flags]
 ```
 
 The selectors work as for `render`, see
-[cli.md](cli.md#selecting-environments-and-applications). Without them, every
-application of every environment is shown.
+[cli.md](../../guides/cli/#selecting-environments-and-applications). Without
+them, every application of every environment is shown.
 
 ```console
 $ myks inspect apps dev helm-installation
@@ -122,8 +126,9 @@ The file named is the last one in merge order that sets the value, so it is the
 file to edit.
 
 Some defaults are filled in only when a step runs, for example the Argo CD
-application name and source path (see [argocd.md](argocd.md#configuration)).
-They show as empty strings in `--data-values`.
+application name and source path (see
+[argocd.md](../../guides/argocd/#configuration)). They show as empty strings in
+`--data-values`.
 
 ### Finding redundant overrides
 

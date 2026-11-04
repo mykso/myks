@@ -1,10 +1,14 @@
-# Configuration reference
+---
+title: Configuration
+sidebar:
+  order: 17
+---
 
 `.myks.yaml` holds project-wide settings for the myks CLI: parallelism, logging,
 plugin directories, and the names of the files and directories myks recognizes.
 `myks init` creates one with every option spelled out. Settings for rendering
 itself — Helm flags, Argo CD fields, image overrides — are not here: they are
-data values, see [data-values.md](data-values.md).
+data values, see [data-values.md](../../guides/data-values/).
 
 ## Where myks finds the file
 
@@ -21,8 +25,8 @@ names the file.
 
 Every top-level option can also be set as an environment variable (`MYKS_`
 prefix, upper case, `-` and `.` replaced with `_`) and most as a
-[command-line flag](cli.md#global-flags). A flag wins over an environment
-variable, which wins over the file:
+[command-line flag](../../guides/cli/#global-flags). A flag wins over an
+environment variable, which wins over the file:
 
 ```shell
 MYKS_ASYNC=4 myks render         # same as `async: 4` in .myks.yaml
@@ -60,7 +64,7 @@ any subdirectory of the project.
 - **Flag**: `--log-level`, `-l`
 
 `debug` logs every command myks runs, see
-[inspect.md](inspect.md#debugging-a-render).
+[inspect.md](../../guides/inspect/#debugging-a-render).
 
 ### `min-version`
 
@@ -78,10 +82,11 @@ logs an error at startup and continues.
 - **Environment variable**: `MYKS_PLUGIN_SOURCES` (separated like `PATH`: by
   `:`, or `;` on Windows)
 
-Directories whose executables become myks [plugins](plugins.md), whatever their
-names. Environment variables in the paths are expanded (`$HOME/myks-plugins`).
-Relative paths are resolved against [`root-dir`](#root-dir), so with
-`config-in-root: true` myks finds `./plugins` from any subdirectory.
+Directories whose executables become myks [plugins](../../guides/plugins/),
+whatever their names. Environment variables in the paths are expanded
+(`$HOME/myks-plugins`). Relative paths are resolved against
+[`root-dir`](#root-dir), so with `config-in-root: true` myks finds `./plugins`
+from any subdirectory.
 
 ### `root-dir`
 
@@ -129,7 +134,7 @@ always scaffolds the default layout.
 ## Smart Mode options
 
 Smart Mode is controlled by flags or environment variables; see
-[smart-mode.md](smart-mode.md) for what it does.
+[smart-mode.md](../../concepts/smart-mode/) for what it does.
 
 ### `smart-mode.base-revision`
 

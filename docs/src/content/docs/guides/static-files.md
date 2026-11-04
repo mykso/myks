@@ -1,4 +1,8 @@
-# Static files
+---
+title: Static files
+sidebar:
+  order: 7
+---
 
 The static step copies files to the rendered output of an application as they
 are: no templating, no slicing into one file per resource, no image resolution.

@@ -333,9 +333,8 @@ func (m *migrator) renderProtoK(proto string) (string, error) {
 }
 
 // migrationDocsURL is where the hand-finish steps are documented. The generated files point
-// at it rather than at a repo-relative path: docs/migration.md is a file of myks, not of the
-// repository being converted.
-const migrationDocsURL = "https://github.com/mykso/myks/blob/main/docs/migration.md"
+// at the published guide because they live in the repository being converted, not in myks.
+const migrationDocsURL = "https://mykso.github.io/myks/guides/migration/"
 
 // pathKey addresses a value in a prototype's default tree. The separator cannot occur in a
 // data key, so a key never spans two path elements.

@@ -25,7 +25,7 @@ import (
 // environment data, and values produced by ytt logic (which cannot be translated) are frozen
 // as literals in a leaf-level patch marked with TODO comments. The byte-identical gate
 // (render both modes, diff rendered/) validates the result; hand-finishing is guided by
-// docs/migration.md.
+// the migration guide (migrationDocsURL).
 //
 // schemaPackage selects the myks KCL schema package dependency: an oci:// reference or a
 // local path. force re-runs the conversion over an already converted repo: the legacy sources

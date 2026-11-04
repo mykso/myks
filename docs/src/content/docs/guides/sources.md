@@ -1,10 +1,15 @@
-# Sources
+---
+title: Sources
+sidebar:
+  order: 3
+---
 
 The sync stage downloads what an application is built from: Helm charts, Git
 repositories, GitHub release assets, single files. Myks hands the work to
 [vendir], adding three things on top: the vendir configuration is a ytt template
-with access to the application's [data values](data-values.md), downloads are
-cached and shared between applications, and applications sync in parallel.
+with access to the application's [data values](../../guides/data-values/),
+downloads are cached and shared between applications, and applications sync in
+parallel.
 
 ## Where the configuration comes from
 
@@ -23,11 +28,11 @@ The rendered configuration is written to
 would. Sources land in the application's `vendor/` directory, where each render
 step looks for its input:
 
-| Path in `vendor/` | Used by                                              |
-| ----------------- | ---------------------------------------------------- |
-| `charts/<name>/`  | [helm](helm.md): one chart per directory             |
-| `ytt/`            | [ytt](ytt.md): files added before your own templates |
-| `ytt-pkg/<name>/` | [ytt-pkg](ytt.md#ytt-packages)                       |
+| Path in `vendor/` | Used by                                                         |
+| ----------------- | --------------------------------------------------------------- |
+| `charts/<name>/`  | [helm](../../guides/helm/): one chart per directory             |
+| `ytt/`            | [ytt](../../guides/ytt/): files added before your own templates |
+| `ytt-pkg/<name>/` | [ytt-pkg](../../guides/ytt/#ytt-packages)                       |
 
 No step reads other paths of `vendor/`, so the `path` of a vendir directory
 decides which step uses it.
@@ -91,7 +96,7 @@ directories:
 
 Charts in Git often do not bundle their dependencies. Enable
 `helm.buildDependencies` so that myks runs `helm dependency build` after the
-sync (see [Helm](helm.md)).
+sync (see [Helm](../../guides/helm/)).
 
 ### Plain manifests from Git
 
@@ -278,7 +283,7 @@ myks cleanup --cache             # delete them
 ```
 
 To speed up CI, persist `.myks/vendir-cache/` between runs (see
-[Optimizations](optimizations.md#speed-up-cicd-pipelines)).
+[Optimizations](../../guides/optimizations/#speed-up-cicd-pipelines)).
 
 ## Private repositories and registries
 

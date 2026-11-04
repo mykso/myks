@@ -1,4 +1,8 @@
-# Concepts
+---
+title: Core concepts
+sidebar:
+  order: 2
+---
 
 Myks is two things: a set of directory conventions for a GitOps repository, and
 a CLI that turns such a repository into plain Kubernetes manifests. The CLI
@@ -6,8 +10,8 @@ orchestrates a few well-known tools: [vendir] downloads sources, [Helm] renders
 charts, [ytt] computes values and patches YAML, and [kbld] pins images. Myks
 decides which files each tool sees, in which order, and for which cluster.
 
-This page explains the model. The [getting started](getting-started.md) tutorial
-shows it in action.
+This page explains the model. The [getting started](../../getting-started/)
+tutorial shows it in action.
 
 ## Core entities
 
@@ -47,7 +51,7 @@ one directory per environment, with one directory per application inside.
 ```
 
 Directory names (`envs`, `prototypes`, `_apps`, …) can be changed with
-[`naming-conventions`](configuration.md#naming-conventions).
+[`naming-conventions`](../../guides/configuration/#naming-conventions).
 
 ### Prototypes and applications
 
@@ -147,22 +151,22 @@ envs/prod/eu/_apps/frontend/helm/podinfo.yaml    # 7  frontend in prod/eu
 
 The same pattern holds for every kind of file, with small differences per step:
 
-| Files               | Prototype | `_proto/<proto>/` | `_env/` | `_apps/<app>/` | Details                           |
-| ------------------- | :-------: | :---------------: | :-----: | :------------: | --------------------------------- |
-| Data values         |     ●     |         ●         |    —    |       ●        | [Data values](data-values.md)     |
-| Sources (`vendir/`) |     ●     |         —         |    —    |       ●        | [Sources](sources.md)             |
-| Helm values         |     ●     |         ●         |    —    |       ●        | [Helm](helm.md)                   |
-| ytt overlays        |     ●     |         ●         |    ●    |       ●        | [ytt](ytt.md)                     |
-| Static files        |     ●     |         ●         |    ●    |       ●        | [Static files](static-files.md)   |
-| Argo CD overlays    |     ●     |         —         |    ●    |       ●        | [Argo CD](argocd.md)              |
-| ytt libraries       |     ●     |         ●         |    —    |       ●        | [ytt libraries](ytt-libraries.md) |
+| Files               | Prototype | `_proto/<proto>/` | `_env/` | `_apps/<app>/` | Details                                      |
+| ------------------- | :-------: | :---------------: | :-----: | :------------: | -------------------------------------------- |
+| Data values         |     ●     |         ●         |    —    |       ●        | [Data values](../../guides/data-values/)     |
+| Sources (`vendir/`) |     ●     |         —         |    —    |       ●        | [Sources](../../guides/sources/)             |
+| Helm values         |     ●     |         ●         |    —    |       ●        | [Helm](../../guides/helm/)                   |
+| ytt overlays        |     ●     |         ●         |    ●    |       ●        | [ytt](../../guides/ytt/)                     |
+| Static files        |     ●     |         ●         |    ●    |       ●        | [Static files](../../guides/static-files/)   |
+| Argo CD overlays    |     ●     |         —         |    ●    |       ●        | [Argo CD](../../guides/argocd/)              |
+| ytt libraries       |     ●     |         ●         |    —    |       ●        | [ytt libraries](../../guides/ytt-libraries/) |
 
 `_env/ytt/` overlays are applied in a separate step, after the application's own
 ytt step (see [render pipeline](#render-pipeline)).
 
 `myks inspect apps <env> <app>` lists the exact files used for one application,
 and `--provenance` shows which file sets each final value. See
-[Inspecting and debugging](inspect.md).
+[Inspecting and debugging](../../guides/inspect/).
 
 ## Processing stages
 
@@ -173,7 +177,7 @@ per application, in parallel across applications:
 1. **Sync** downloads the application's sources with vendir into
    `.myks/envs/<path>/_apps/<app>/vendor/`, through a cache shared by all
    applications (`.myks/vendir-cache/`). Helm chart dependencies are built here
-   when enabled. See [Sources](sources.md).
+   when enabled. See [Sources](../../guides/sources/).
 2. **Render** runs the render pipeline below and writes the result to
    `rendered/`.
 
@@ -187,16 +191,16 @@ The render pipeline is a fixed sequence of steps. **Additive** steps produce new
 YAML that is added to the output so far. **Mutative** steps take the output so
 far as input and transform it.
 
-| Step                                            | Kind     | What it does                                                                                           |
-| ----------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| [helm](helm.md)                                 | additive | `helm template` for every chart in `vendor/charts/`                                                    |
-| [ytt-pkg](ytt.md#ytt-packages)                  | additive | renders vendored ytt packages from `vendor/ytt-pkg/`                                                   |
-| [ytt](ytt.md)                                   | mutative | renders the application's ytt templates and overlays, together with the output so far                  |
-| [global-ytt](ytt.md#where-myks-looks-for-files) | mutative | applies `_env/ytt/` overlays of the environment tree                                                   |
-| [kbld](kbld.md)                                 | mutative | resolves image tags to digests and rewrites image references (off by default)                          |
-| slice                                           | —        | sorts keys and writes one file per resource to `rendered/envs/<env-id>/<app>/`                         |
-| [static](static-files.md)                       | —        | copies static files to `rendered/envs/<env-id>/<app>/static/`                                          |
-| [argocd](argocd.md)                             | —        | writes the Argo CD `Application` to `rendered/argocd/<env-id>/` (and once per environment its project) |
+| Step                                                       | Kind     | What it does                                                                                           |
+| ---------------------------------------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
+| [helm](../../guides/helm/)                                 | additive | `helm template` for every chart in `vendor/charts/`                                                    |
+| [ytt-pkg](../../guides/ytt/#ytt-packages)                  | additive | renders vendored ytt packages from `vendor/ytt-pkg/`                                                   |
+| [ytt](../../guides/ytt/)                                   | mutative | renders the application's ytt templates and overlays, together with the output so far                  |
+| [global-ytt](../../guides/ytt/#where-myks-looks-for-files) | mutative | applies `_env/ytt/` overlays of the environment tree                                                   |
+| [kbld](../../guides/kbld/)                                 | mutative | resolves image tags to digests and rewrites image references (off by default)                          |
+| slice                                                      | —        | sorts keys and writes one file per resource to `rendered/envs/<env-id>/<app>/`                         |
+| [static](../../guides/static-files/)                       | —        | copies static files to `rendered/envs/<env-id>/<app>/static/`                                          |
+| [argocd](../../guides/argocd/)                             | —        | writes the Argo CD `Application` to `rendered/argocd/<env-id>/` (and once per environment its project) |
 
 The ytt step can produce resources on its own, so an application without any
 Helm chart (plain YAML from Git, or templates written in the repository) works
@@ -224,7 +228,8 @@ not. `myks cleanup --manifests` does both explicitly.
 of every step: rendered vendir configurations, merged Helm values, the data
 values schema (`.myks/tmp/data-schema.ytt.yaml`). It is safe to delete, at the
 cost of downloading everything again. `myks init` adds it to `.gitignore`. To
-speed up CI, cache it between runs (see [Optimizations](optimizations.md)).
+speed up CI, cache it between runs (see
+[Optimizations](../../guides/optimizations/)).
 
 ## Data values
 
@@ -236,22 +241,25 @@ ytt templates and the Argo CD templates.
 
 Some top-level keys configure myks itself (`environment`, `argocd`, `helm`,
 `kbld`, `render`, `yttPkg`); `application` is free for your own values. See
-[Data values](data-values.md).
+[Data values](../../guides/data-values/).
 
-> [!NOTE]  
-> Data values are written as ytt data values files today. A new configuration
-> layer in [KCL](https://www.kcl-lang.io/) is available as a preview: it
-> replaces the data values files with typed KCL code and keeps everything else
-> on this page unchanged. See [KCL mode](kcl-mode.md).
+:::note
+
+Data values are written as ytt data values files today. A new configuration
+layer in [KCL](https://www.kcl-lang.io/) is available as a preview: it replaces
+the data values files with typed KCL code and keeps everything else on this page
+unchanged. See [KCL mode](../../guides/kcl-mode/).
+
+:::
 
 ## What myks does not do
 
 - It does not connect to clusters. Output is files; deploy them with Argo CD,
-  Flux, kapp, `kubectl`, or a [plugin](plugins.md).
+  Flux, kapp, `kubectl`, or a [plugin](../../guides/plugins/).
 - It does not build container images.
 - It does not decrypt secrets. Keep them encrypted in the output (for example
-  sops files as [static files](static-files.md)) and decrypt them at deploy
-  time, or use an operator such as External Secrets.
+  sops files as [static files](../../guides/static-files/)) and decrypt them at
+  deploy time, or use an operator such as External Secrets.
 
 [Helm]: https://helm.sh/
 [kbld]: https://carvel.dev/kbld/
