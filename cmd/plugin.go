@@ -24,6 +24,10 @@ func findPlugins() []myks.Plugin {
 
 	rootDir := viper.GetString("root-dir")
 	sources := viper.GetStringSlice("plugin-sources")
+	// MYKS_PLUGIN_SOURCES arrives as one string; split it like PATH, so paths may contain spaces.
+	if value, ok := viper.Get("plugin-sources").(string); ok {
+		sources = filepath.SplitList(value)
+	}
 	for i, source := range sources {
 		source = os.ExpandEnv(source)
 		if source != "" && !filepath.IsAbs(source) {

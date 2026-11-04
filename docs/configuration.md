@@ -74,7 +74,8 @@ logs an error at startup and continues.
 
 - **Type**: list of strings
 - **Default**: none (`myks init` writes `['./plugins']`)
-- **Environment variable**: `MYKS_PLUGIN_SOURCES` (space-separated)
+- **Environment variable**: `MYKS_PLUGIN_SOURCES` (separated like `PATH`: by
+  `:`, or `;` on Windows)
 
 Directories whose executables become myks [plugins](plugins.md), whatever their
 names. Environment variables in the paths are expanded (`$HOME/myks-plugins`).
