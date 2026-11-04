@@ -46,6 +46,7 @@ with all its applications:
 - `envs/<path>/env-data*.yaml`
 - `envs/<path>/_env/ytt/**`
 - `envs/<path>/_env/argocd/**`
+- `envs/<path>/_env/static/**`
 
 A change in `envs/env-data.ytt.yaml` therefore selects every environment.
 
@@ -70,9 +71,9 @@ A change in `envs/env-data.ytt.yaml` therefore selects every environment.
 
 ### Not watched
 
-Changes to anything else select nothing, including `_env/static/`, `.myks.yaml`
-and files outside `envs/`, `prototypes/`, `lib/` and `rendered/`. Render the
-affected environments explicitly after changing them, for example
+Changes to anything else select nothing, including `.myks.yaml` and files
+outside `envs/`, `prototypes/`, `lib/` and `rendered/`. Render the affected
+environments explicitly after changing them, for example
 `myks render prod`.
 
 ## Sync only
@@ -80,7 +81,7 @@ affected environments explicitly after changing them, for example
 With `myks render --sync`, Smart Mode ignores changes that can only affect
 rendering, since they cannot change what gets downloaded:
 
-- `_env/ytt/` and `_env/argocd/` directories;
+- `_env/ytt/`, `_env/argocd/` and `_env/static/` directories;
 - application and prototype directories other than `vendir/` and `lib/`;
 - rendered output, and applications missing from it.
 

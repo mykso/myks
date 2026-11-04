@@ -161,6 +161,7 @@ func (g *Globe) buildSmartModeRegexps(syncOnly bool) map[string][]*regexp.Regexp
 		regexps["env"] = append(regexps["env"],
 			e("("+g.EnvironmentBaseDir+".*)/"+g.EnvsDir+"/"+g.YttStepDirName+"/.*"),
 			e("("+g.EnvironmentBaseDir+".*)/"+g.EnvsDir+"/"+g.ArgoCDDataDirName+"/.*"),
+			e("("+g.EnvironmentBaseDir+".*)/"+g.EnvsDir+"/"+g.StaticFilesDirName+"/.*"),
 		)
 	}
 	return regexps

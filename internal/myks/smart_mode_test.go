@@ -335,6 +335,16 @@ func TestGlobe_runSmartMode(t *testing.T) {
 			},
 		},
 		{
+			"changes in _env/static",
+			ChangedFiles{
+				"envs/env2/_env/static/some-file.txt": "A",
+			},
+			renderedEnvApps,
+			EnvAppMap{
+				"envs/env2": nil,
+			},
+		},
+		{
 			"changes in root _env",
 			ChangedFiles{
 				"envs/_env/argocd/some-file.yaml": "?",
@@ -517,6 +527,7 @@ func TestGlobe_runSmartMode_syncOnly(t *testing.T) {
 			ChangedFiles{
 				"envs/env1/_env/ytt/some-file.yaml":       "M",
 				"envs/env1/_env/argocd/some-file.yaml":    "M",
+				"envs/env1/_env/static/file.txt":          "M",
 				"prototypes/app1/ytt/some-file.yaml":      "M",
 				"prototypes/app1/helm/values.yaml":        "M",
 				"envs/env1/_apps/app2/static/file.txt":    "M",

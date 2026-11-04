@@ -54,8 +54,3 @@ The step runs after the manifests are sliced into
 `rendered/envs/<env-id>/<app>/` and before the Argo CD step. It copies files
 from your repository only: sources downloaded by vendir are not read by this
 step.
-
-> [!NOTE]  
-> [Smart Mode](smart-mode.md) does not watch `_env/static/` directories: after
-> changing files there, render the affected environments explicitly, for example
-> `myks render prod/eu`.
