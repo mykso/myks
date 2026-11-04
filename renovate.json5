@@ -64,6 +64,13 @@
       groupSlug: "github-actions",
       addLabels: ["github-actions", "dependencies"],
     },
+    // docs/package.json and .github/workflows/docs.yml pin the same docs-kit tag: the workflow
+    // runs the help2md the package installs. Last, so it wins over other groups.
+    {
+      description: "Bump the docs-kit package and its reusable workflow together",
+      matchPackageNames: ["Zebradil/docs-kit"],
+      groupName: "docs-kit",
+    },
   ],
   customManagers: [{
       customType: "regex",
