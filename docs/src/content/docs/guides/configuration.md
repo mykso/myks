@@ -23,10 +23,10 @@ names the file.
 
 ## Editor support
 
-[`schema/myks.schema.json`](/schema/myks.schema.json) is a JSON schema of the
-file. Editors with the YAML language server (VS Code, Neovim, JetBrains) use it
-for completion and validation when the file starts with the line `myks init`
-writes:
+[`schema/myks.schema.json`](https://github.com/mykso/myks/blob/main/schema/myks.schema.json)
+is a JSON schema of the file. Editors with the YAML language server (VS Code,
+Neovim, JetBrains) use it for completion and validation when the file starts
+with the line `myks init` writes:
 
 ```yaml
 # yaml-language-server: $schema=https://raw.githubusercontent.com/mykso/myks/main/schema/myks.schema.json
