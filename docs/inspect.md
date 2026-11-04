@@ -234,10 +234,10 @@ diff .myks/envs/prod/eu/_apps/frontend/steps/00-helm.yaml \
 
 ### Run statistics
 
-At the end of every run, myks logs a summary: calls and timing per tool and
-step, parallelism achieved, lock contention, and how many vendir syncs were
-skipped thanks to the cache. `--print-stats` writes the same summary to stdout
-instead of the log:
+At the end of every run, myks logs a summary at debug level
+(`--log-level debug`): calls and timing per tool and step, parallelism achieved,
+lock contention, and how many vendir syncs were skipped thanks to the cache.
+`--print-stats` writes the same summary to stdout at any log level:
 
 ```console
 $ myks render ALL --print-stats
