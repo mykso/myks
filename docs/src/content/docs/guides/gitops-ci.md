@@ -10,6 +10,10 @@ together with its rendered output, and nothing reaches the default branch with
 stale output. This page shows CI workflows for both, with GitHub Actions
 examples that translate to any CI system.
 
+`myks init --ci github` writes the two workflows below into
+`.github/workflows/`, pinned to the running myks release. In an existing
+project, `myks init --print --components ci-github` prints them.
+
 ## The workflow
 
 1. A contributor changes inputs in a branch and runs `myks render`, or lets CI
@@ -57,6 +61,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: render-${{ github.head_ref }}
+  cancel-in-progress: true
+
 jobs:
   render:
     runs-on: ubuntu-latest
@@ -72,7 +80,6 @@ jobs:
       - uses: mykso/setup-action@v3.0.16
         with:
           myks: ${{ env.MYKS_VERSION }}
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Restore the source cache
         uses: actions/cache@v6
@@ -82,11 +89,15 @@ jobs:
           restore-keys: myks-vendir-
 
       - name: Render
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
-          base=$(git merge-base "origin/${{ github.base_ref }}" HEAD)
+          base=$(git merge-base "origin/$BASE_REF" HEAD)
           myks render --smart-mode.base-revision="$base"
           myks cleanup --manifests
 
+      # Commits pushed with GITHUB_TOKEN do not trigger workflow runs. If other
+      # required checks must run on this commit, push with a GitHub App token.
       - name: Commit the rendered output
         run: |
           git add rendered
@@ -154,18 +165,25 @@ to what it already inherits. Run it in CI to keep overrides minimal (see
 Even with checks on pull requests, the default branch can end up with stale
 output: two pull requests that touch the same application merged one after the
 other, a check that was skipped, a direct push. Render every push to the default
-branch against the previous commit, and fail when the output changes:
+branch against the previous commit, and fail when the output changes. The first
+push of the branch has no previous commit, so it renders everything:
 
 ```yaml
 # .github/workflows/drift.yaml
 name: Check rendered manifests
 on:
   push:
-    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   drift:
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
+    env:
+      # renovate: datasource=github-releases depName=mykso/myks
+      MYKS_VERSION: v5.16.0
     steps:
       - uses: actions/checkout@v7
         with:
@@ -173,11 +191,25 @@ jobs:
 
       - uses: mykso/setup-action@v3.0.16
         with:
-          myks: v5.16.0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          myks: ${{ env.MYKS_VERSION }}
+
+      - name: Restore the source cache
+        uses: actions/cache@v6
+        with:
+          path: .myks/vendir-cache
+          key: myks-vendir-${{ github.run_id }}
+          restore-keys: myks-vendir-
 
       - name: Render
-        run: myks render --smart-mode.base-revision=${{ github.event.before }}
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          # The first push of a branch has no previous commit to compare with.
+          if git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            myks render --smart-mode.base-revision="$BEFORE"
+          else
+            myks render ALL ALL
+          fi
 
       - name: Fail on drift
         run: |
