@@ -32,3 +32,23 @@ func TestFindPluginsResolvesRelativeSourcesAgainstRootDir(t *testing.T) {
 	}
 	assert.Equal(t, []string{"hello"}, names)
 }
+
+func TestFindPluginsSplitsEnvSourcesLikePath(t *testing.T) {
+	tmp := t.TempDir()
+	one := filepath.Join(tmp, "p1")
+	two := filepath.Join(tmp, "plugins with spaces")
+	for dir, plugin := range map[string]string{one: "one", two: "two"} {
+		require.NoError(t, os.Mkdir(dir, 0o750))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, plugin), []byte("#!/bin/sh\n"), 0o700))
+	}
+	t.Setenv("PATH", "")
+	t.Setenv("MYKS_PLUGIN_SOURCES", one+string(os.PathListSeparator)+two)
+	t.Chdir(tmp)
+	initConfig()
+
+	var names []string
+	for _, p := range findPlugins() {
+		names = append(names, p.Name())
+	}
+	assert.ElementsMatch(t, []string{"one", "two"}, names)
+}
