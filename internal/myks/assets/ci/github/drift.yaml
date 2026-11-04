@@ -1,6 +1,6 @@
 # Fails when the default branch has stale rendered output, for example after
 # two pull requests that touch the same application merged one after the other.
-# See https://github.com/mykso/myks/blob/main/docs/gitops-ci.md
+# See https://mykso.github.io/myks/guides/gitops-ci/
 name: Check rendered manifests
 on:
   push:
