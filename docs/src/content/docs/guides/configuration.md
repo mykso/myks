@@ -21,6 +21,17 @@ Run `myks print-config` to see the settings myks ends up with. The log line
 `Configuration loaded` that `--log-level debug` prints at the start of every run
 names the file.
 
+## Editor support
+
+[`schema/myks.schema.json`](/schema/myks.schema.json) is a JSON schema of the
+file. Editors with the YAML language server (VS Code, Neovim, JetBrains) use it
+for completion and validation when the file starts with the line `myks init`
+writes:
+
+```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mykso/myks/main/schema/myks.schema.json
+```
+
 ## Precedence
 
 Every top-level option can also be set as an environment variable (`MYKS_`
