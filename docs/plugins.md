@@ -1,85 +1,132 @@
 # Plugins
 
-With plugins the rendered output of `myks` can be acted on with additional
-tools. To name but a few use cases where this is useful:
+A plugin is any executable that myks runs once per application, after rendering,
+with the application's context in environment variables. Use plugins to act on
+the rendered output with other tools, for example:
 
-- You are using `myks` without a GitOps CD tool like ArgoCD. With a `myks`
-  plugin you can leverage a local deployment tool like `kubectl` or `kapp` to
-  deploy your rendered K8s manifests to locally accessible clusters.
-- You are using `myks` without a secret management system like HashiCorp Vault.
-  With a `myks` plugin you can decrypt your locally held secrets before applying
-  them and re-encrypt them afterward.
-- You would like to validate your rendered K8s manifests with a tool like
-  `kubeconform` or `conftest`.
+- validate manifests with `kubeconform`, `conftest` or `promtool`;
+- deploy without a GitOps controller, with `kubectl` or `kapp`;
+- decrypt secrets before applying them and re-encrypt them afterwards.
 
-## Installation
+A plugin cannot change how myks renders: it runs as a separate command and reads
+what `myks render` wrote.
 
-Myks recognizes all executables on your `PATH` that are prefixed with `myks-` as
-plugins.
+## Installing a plugin
 
-Additionally, you can put executables of any name in a local `plugins` directory
-in the root of your project. Further plugin source directories can be configured
-in your `.myks.yaml`:
+myks loads plugins from two places:
+
+- **`PATH`**: executables named `myks-<name>` become the `myks <name>` command.
+- **`plugin-sources`**: every executable in the directories listed in
+  [`.myks.yaml`](configuration.md#plugin-sources), whatever its name.
+  `myks init` configures `./plugins`.
 
 ```yaml
-# Load all binaries from the following folders as myks plugins.
 plugin-sources:
   - ./plugins
-  - ./custom-tools
-  - /usr/local/share/myks-plugins
+  - $HOME/myks-plugins
 ```
 
-The default plugin directory is `./plugins` relative to your project root. You
-can specify multiple directories, and myks will search them all for executable
-files to load as plugins.
+The command name is the file name without the `myks-` prefix (for `PATH`) and
+without its extension: `plugins/validate.sh` becomes `myks validate`. When two
+plugins have the same name, the one from `PATH` wins and myks logs a warning.
+Plugins are listed under **Plugin Subcommands** in `myks help`.
 
-## Plugin execution logic and environment variables
+## Running a plugin
 
-Like myks' render logic, a plugin is executed for every environment and
-application provided during the invocation of `myks` or for whatever environment
-and application is detected by the Smart Mode.
+```shell
+myks <plugin> [environments [applications]] [-- <plugin-args>...]
+```
 
-For every plugin execution, the following environment variables are injected to
-enable your plugin to act on the rendered YAMLs of the current environment and
-application:
+The positional arguments select applications the same way as for `render`, see
+[cli.md](cli.md#selecting-environments-and-applications). Without them,
+[Smart Mode](smart-mode.md) selects the applications affected by your changes,
+including those whose rendered output changed, so `myks render && myks validate`
+checks exactly what was just rendered. Everything after `--` is passed to the
+plugin as arguments.
 
-| Variable              | Description                                                        |
-| --------------------- | ------------------------------------------------------------------ |
-| MYKS_ENV              | ID of currently selected environment                               |
-| MYKS_APP              | Name of currently selected application                             |
-| MYKS_ENV_DIR          | Path to config directory of currently selected environment         |
-| MYKS_APP_PROTOTYPE    | Path to prototype directory of currently selected application      |
-| MYKS_RENDERED_APP_DIR | Path to render directory of currently selected application         |
-| MYKS_DATA_VALUES      | Yaml with the configuration data values of the current application |
+```shell
+myks validate                          # applications affected by local changes
+myks validate prod ALL                 # every application under envs/prod
+myks validate prod/eu frontend -- -verbose
+```
 
-## Example: `myks-kapp` plugin
+myks runs the plugin once per selected application, in parallel up to
+[`--async`](configuration.md#async). It runs every selected application even
+when some fail, and exits non-zero if any run failed.
 
-The following is an example of a `myks` plugin that uses `kapp` to deploy your
-rendered K8s manifests to a locally accessible cluster.
+By default plugin output is streamed as it comes, so the output of parallel runs
+interleaves. `--buffer-plugin-output` collects each run's stdout and stderr and
+prints them when the run finishes.
 
-1. Create a file named `kapp` in a `plugins` directory sitting at the root of
-   your GitOps repository with the following content:
+## Environment variables
 
-   ```bash
-     #!/usr/bin/env bash
-     kapp --yes deploy --wait -a "$MYKS_APP" -f "$MYKS_RENDERED_APP_DIR"
-   ```
+Paths are relative to the project root, which is also the plugin's working
+directory.
 
-1. Make the file executable:
+| Variable                | Content                                                         | Example                          |
+| ----------------------- | --------------------------------------------------------------- | -------------------------------- |
+| `MYKS_ENV`              | Environment ID                                                  | `prod-eu`                        |
+| `MYKS_ENV_DIR`          | Environment directory                                           | `envs/prod/eu`                   |
+| `MYKS_APP`              | Application name                                                | `frontend`                       |
+| `MYKS_APP_PROTOTYPE`    | Prototype directory                                             | `prototypes/webapp`              |
+| `MYKS_RENDERED_APP_DIR` | Rendered output of the application                              | `rendered/envs/prod-eu/frontend` |
+| `MYKS_DATA_VALUES`      | Final [data values](data-values.md) of the application, as YAML |                                  |
 
-   ```bash
-   chmod +x plugins/kapp
-   ```
+`MYKS_DATA_VALUES` lets a plugin take its settings from the configuration tree:
+define them under a scope of your own, give them defaults at the root, and
+override them per environment or application like any other value.
 
-1. Test whether myks successfully picks up your plugin. It should appear in the
-   output of `myks help`:
+## Example: validate manifests with kubeconform
 
-   ```bash
-   myks help
-   ```
+`plugins/validate`:
 
-1. Run the plugin:
+```bash
+#!/usr/bin/env bash
+# Validates the rendered manifests of one application against Kubernetes schemas.
+set -euo pipefail
 
-   ```bash
-   myks kapp my-env my-app
-   ```
+kube_version=$(yq '.helm.kubeVersion // ""' <<<"$MYKS_DATA_VALUES")
+args=(-strict -summary)
+if [[ -n $kube_version ]]; then
+  args+=(-kubernetes-version "${kube_version#v}")
+fi
+
+# Schemas of Kubernetes kinds, then of common CRDs.
+args+=(
+  -schema-location default
+  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+)
+
+# Only the sliced manifests: static/ holds files that are not resources.
+shopt -s nullglob
+manifests=("$MYKS_RENDERED_APP_DIR"/*.yaml)
+if ((${#manifests[@]} == 0)); then
+  exit 0
+fi
+kubeconform "${args[@]}" "$@" "${manifests[@]}"
+```
+
+```shell
+chmod +x plugins/validate
+myks render && myks validate
+```
+
+The script reads the Kubernetes version from `helm.kubeVersion`, so each
+environment is validated against the version its cluster runs. Kinds without a
+published schema fail validation, `CustomResourceDefinition` among them; skip
+them with `myks validate -- -skip CustomResourceDefinition`, or pass
+`-ignore-missing-schemas`. The script needs `kubeconform` and `yq` on `PATH`.
+
+## Example: deploy with kapp
+
+`plugins/kapp`:
+
+```bash
+#!/usr/bin/env bash
+kapp deploy --yes --wait -a "$MYKS_APP" -f "$MYKS_RENDERED_APP_DIR" "$@"
+```
+
+```shell
+chmod +x plugins/kapp
+myks kapp prod/eu frontend
+```
