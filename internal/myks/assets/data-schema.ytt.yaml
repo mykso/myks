@@ -221,11 +221,11 @@ kbld:
         repository: ''
         tag: ''
 #! Configuration of the step that renders ytt-packages.
+#! Every directory in vendor/ytt-pkg/ is a package, rendered with its own ytt call.
 yttPkg:
-  #! A ytt-package can be rendered as a whole, or can contain multiple sub-packages that should be rendered separately.
-  #! This option defines which sub-packages to render separately.
-  #! If empty, the whole package is rendered at once.
-  #! Example: ["sub1", "sub2", "nested/sub3", "nested/sub4"]
+  #! Sub-paths of each package to pass to ytt, instead of the whole package directory.
+  #! Applies to every package of the application.
+  #! Example: ["config", "overlays/prod"]
   dirs:
     - ''
 #! Configuration options for the render step.
@@ -246,7 +246,8 @@ myks:
     app: ''
     #! name of prototype including full path (e.g. prototypes/argocd)
     prototype: ''
-    #! rendering step: init, argocd, global_ytt, helm, ytt-pkg, ytt
+    #! Step that runs ytt: init, sync-vendir, sync-helm, render (Helm and ytt-pkg values files),
+    #! render-helm, render-ytt, global-ytt, render-kbld, argocd, or a plugin name.
     step: ''
     #! information related to the helm step
     helm:
