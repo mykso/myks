@@ -45,3 +45,44 @@ jobs:
         with:
           header: pr-title-lint-error
           delete: true
+
+  release-note:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # pull_request_target checks out the base branch: the check never runs code from the pull request.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Check the release note
+        id: check
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          go build -o "$RUNNER_TEMP/release-highlights" ./tools/release-highlights
+          if ! "$RUNNER_TEMP/release-highlights" check 2>"$RUNNER_TEMP/problem"; then
+            echo "problem=$(sed 's/^release-highlights: //' "$RUNNER_TEMP/problem")" >>"$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - if: always() && steps.check.outputs.problem != ''
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: release-note-error
+          message: |
+            `feat`, `fix` and `perf` pull requests need a release note: ${{ steps.check.outputs.problem }}.
+
+            Add a `## Release note` section to the description, as in the [pull request template](https://github.com/mykso/myks/blob/main/.github/pull_request_template.md). It becomes part of the highlights of the next release.
+
+      - if: steps.check.outputs.problem == ''
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: release-note-error
+          delete: true

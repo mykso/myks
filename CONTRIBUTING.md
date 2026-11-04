@@ -56,6 +56,11 @@ output. Do not edit them by hand; re-render them when a change is intended.
 - Pull request titles follow
   [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`,
   `docs:`, …). Release notes and version numbers are generated from them.
+- `feat`, `fix` and `perf` pull requests need a `## Release note` section in the
+  description (see the
+  [pull request template](.github/pull_request_template.md)): what a user
+  notices, or "none". The release pull request collects these notes as the
+  highlights of the release.
 - CI runs lint and tests on every pull request; both must pass.
 - Update the documentation in [`docs/src/content/docs/`](docs/src/content/docs/)
   together with the behavior it describes. Pages under `reference/cli/` are
