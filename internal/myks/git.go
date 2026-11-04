@@ -134,7 +134,8 @@ func getGitPathPrefix(root string) (string, error) {
 
 func getGitRepoURL(root string) (string, error) {
 	args := []string{"remote", "get-url", "origin"}
-	return runGitCmd(args, root, false)
+	// A repository without remotes is normal for a new project; the caller warns once.
+	return runGitCmd(args, root, true)
 }
 
 func getGitRepoBranch(root string) (string, error) {
