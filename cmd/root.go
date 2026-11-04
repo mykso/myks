@@ -64,35 +64,20 @@ func newRootCmd(version, commit, date string) *cobra.Command {
 	rootCmd := &cobra.Command{
 		Use:   "myks",
 		Short: "Myks generates Kubernetes manifests",
-		// TODO: Launch the documentation website and add a link here
-		Long: `
-Myks - Kubernetes Manifest Generator
+		Long: `Myks renders the Kubernetes manifests of many clusters from one Git repository.
 
-OVERVIEW
-  Myks simplifies Kubernetes manifest management through a standardized toolset
-  and GitOps-ready conventions.
+It downloads Helm charts, Git repositories and plain YAML (vendir), renders them
+for each environment with Helm and ytt, optionally pins images by digest (kbld),
+and writes plain YAML to rendered/, plus Argo CD Applications when enabled.
+Commit that output, and every change is a reviewable diff.
 
-CORE FEATURES
-  • External source management (via vendir)
-  • Helm chart rendering
-  • YAML templating and validation (via ytt)
-  • Idempotent output
-  • Automatic ArgoCD resource generation
-  • Environment-based configuration inheritance
-  • Intelligent change detection
+Start with:
+  myks init      create a sample project
+  myks render    download sources and render manifests (Smart Mode: only what changed)
+  myks inspect   show environments and applications, and which file sets each value
 
-BASIC COMMANDS
-  init     Create a new Myks project in the current directory
-  render   Download external sources and render manifests for specified environments and applications
-
-GETTING STARTED
-  1. Create a new project: myks init
-  2. Download dependencies and render manifests: myks render [environments [applications]]
-
-LEARN MORE
-  • Use 'myks <command> --help' for detailed information about a command
-  • Report issues at https://github.com/mykso/myks/issues
-`,
+Documentation: https://mykso.github.io/myks/
+Issues:        https://github.com/mykso/myks/issues`,
 	}
 
 	rootCmd.Version = fmt.Sprintf(`%s
