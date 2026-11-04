@@ -10,6 +10,8 @@ env = m.Environment {
         namespace = "system-argocd"
         app = {
             prefix = "app-"
+            # Disable finalizers to preserve resources after deleting the ArgoCD application.
+            finalizers = []
             source = {
                 plugin = {name = "argocd-vault-plugin-v1.0.0"}
                 # Fixed config to run tests successfully in pipeline

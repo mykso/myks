@@ -1,8 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
+  finalizers: []
   name: app-mykso-dev-argocd-tests
   namespace: system-argocd
 spec:

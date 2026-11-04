@@ -133,15 +133,13 @@ environment. `--redundant` lists such overrides together with the file they
 repeat:
 
 ```console
-$ myks inspect apps dev argocd-tests --redundant
+$ myks inspect apps dev helm-installation --redundant
   ...
-  Redundant Overrides:
-    kept in (built-in defaults)
-    repeated in envs/env-data.ytt.yaml
-      argocd.app.finalizers = ["resources-finalizer.argocd.argoproj.io"]
-    kept in envs/env-data.ytt.yaml
-    repeated in envs/dev/env-data.ytt.yaml
-      argocd.namespace = "system-argocd"
+  Helm Redundant Overrides (render-test):
+    kept in envs/_proto/helm-render-test/helm/render-test.yaml
+    repeated in envs/dev/_proto/helm-render-test/helm/render-test.yaml
+      outputYaml.fromPrototypeOverride = true
+      outputYaml.fromPrototypeOverrideFromAppData = true
 Error: found 2 redundant overrides
 ```
 
@@ -151,11 +149,10 @@ The command exits with status 1 when it finds any, so it works as a CI check:
 myks inspect apps --redundant > /dev/null
 ```
 
-The first finding above shows that `--redundant` also catches overrides that do
-not do what they look like: `envs/env-data.ytt.yaml` sets
-`argocd.app.finalizers: []`, but in ytt data values an empty list does not clear
-an inherited list, so the result equals the built-in default. Put
-`#@overlay/replace` above the key to replace a list.
+`--redundant` also catches overrides that do not do what they look like. In ytt
+data values an empty list does not clear an inherited list, so an override such
+as `argocd.app.finalizers: []` leaves the built-in default in place and shows up
+as redundant. Put `#@overlay/replace` above the key to replace a list.
 
 ## Prototypes
 
