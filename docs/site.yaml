@@ -1,0 +1,45 @@
+# yaml-language-server: $schema=node_modules/@zebradil/starlight-kit/schema/site.schema.json
+name: myks
+tagline: Render the Kubernetes manifests for every cluster you run from one Git repository, and review the exact YAML each change produces before it ships.
+headline: Reviewable manifests for every cluster # guessed: shortened from README's opening sentence
+eyebrow: GitOps for Kubernetes fleets # guessed: category label, not stated in README
+description: Myks takes upstream Helm charts, Git repositories and plain YAML, applies your per-cluster configuration, and writes plain Kubernetes manifests to `rendered/`. You commit that output, so every pull request shows what changes in which cluster. # guessed: README's second paragraph, condensed
+theme: default
+repo: https://github.com/mykso/myks
+install:
+  - { label: Homebrew, code: "brew install --cask mykso/tap/myks" }
+  - { label: Nix, code: "nix profile install github:mykso/myks" } # guessed: flake has packages.default; installation.md shows nix shell instead
+  - { label: AUR, code: "yay -S myks-bin" }
+  - { label: Docker, code: "docker pull ghcr.io/mykso/myks:latest" }
+features:
+  - title: Every change is reviewable
+    body: Output is sorted, deterministic and split into one file per resource, so a pull request diff is the change the cluster receives.
+  - title: Define once, override where needed
+    body: Environments form a directory tree that inherits from its parents, and applications are instances of reusable prototypes.
+  - title: Patch charts without forking
+    body: ytt overlays modify the rendered output of a chart for one application, one prototype, or every application of an environment.
+  - title: Fast on large fleets
+    body: Smart Mode renders only the applications your changes affect, and applications render in parallel.
+  - title: Argo CD built in
+    body: Generates an Application per application, plus an AppProject and a cluster Secret per environment.
+  - title: Know where each value comes from
+    body: "`myks inspect apps --provenance` names the file that sets every final value; `--redundant` reports overrides that change nothing."
+flow:
+  highlight: myks
+  steps:
+    - { from: "Helm, Git, HTTP", to: myks, label: sync }
+    - { from: myks, to: rendered/, label: render }
+    - { from: rendered/, to: Argo CD / Flux, label: commit + review }
+    - { from: Argo CD / Flux, to: clusters, label: deploy } # guessed: README's diagram draws this edge without a label
+components:
+  items:
+    - { name: myks render, body: Download sources and render manifests for environments and applications. }
+    - { name: myks init, body: Create a new project. }
+    - { name: myks inspect, body: "Show environments, applications and prototypes, and where their values come from." }
+    - { name: myks cleanup, body: Remove obsolete rendered manifests and cache entries. }
+    - { name: myks migrate, body: Seed a KCL configuration tree from the ytt data-values files. }
+links:
+  - { label: Changelog, href: "https://github.com/mykso/myks/blob/main/CHANGELOG.md" }
+  - { label: Discussions, href: "https://github.com/mykso/myks/discussions" }
+reference:
+  cli: { bin: myks, build: "go build -o bin/myks .", path: bin/myks }

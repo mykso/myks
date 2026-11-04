@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "astro build"
+  },
+  "dependencies": {
+    "@zebradil/starlight-kit": "github:Zebradil/docs-kit#v0.5.0"
+  }
+}
