@@ -53,6 +53,7 @@ func NewMyksCmd(version, commit, date string) *cobra.Command {
 	cmd.AddCommand(embedded.Cmd("vendir", "Vendir is embedded in myks to manage vendir.yaml files."))
 	cmd.AddCommand(embedded.Cmd("ytt", "Ytt is embedded in myks to manage yaml files."))
 	cmd.AddCommand(embedded.Cmd("kbld", "Kbld is embedded in myks to manage container image references."))
+	cfgFile = configFlagValue(os.Args[1:])
 	initConfig()
 	addPlugins(cmd)
 
@@ -137,6 +138,25 @@ LEARN MORE
 		return initTargetEnvsAndApps(cmd, args)
 	}
 	return rootCmd
+}
+
+// configFlagValue returns the value of the last --config flag in args, ignoring arguments after "--".
+// Cobra parses flags only in Execute, but the config file has to be read before that: its
+// plugin-sources register the plugin subcommands that cobra then parses the command line against.
+func configFlagValue(args []string) string {
+	value := ""
+	for i := 0; i < len(args); i++ {
+		switch arg := args[i]; {
+		case arg == "--":
+			return value
+		case arg == "--config" && i+1 < len(args):
+			i++
+			value = args[i]
+		case strings.HasPrefix(arg, "--config="):
+			value = strings.TrimPrefix(arg, "--config=")
+		}
+	}
+	return value
 }
 
 func initConfig() {
