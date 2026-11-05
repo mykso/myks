@@ -1,5 +1,30 @@
 # Changelog
 
+## [5.17.0](https://github.com/mykso/myks/compare/v5.16.0...v5.17.0) (2026-11-05)
+
+
+### Features
+
+* describe the pipeline and link the docs in the root help ([9021098](https://github.com/mykso/myks/commit/90210989996c4d407f03c61ec39129749da1c6a8))
+* **init:** add --ci github to scaffold the GitOps workflows ([#976](https://github.com/mykso/myks/issues/976)) ([edc289e](https://github.com/mykso/myks/commit/edc289e7c69b4c55a23115535fbb3ab30a187a43))
+* **init:** scaffold dev and prod without Argo CD, add --argocd ([#975](https://github.com/mykso/myks/issues/975)) ([ca7a384](https://github.com/mykso/myks/commit/ca7a38481bc6599d5a166eba82f905c7c161cdea))
+* publish a JSON schema for .myks.yaml ([#982](https://github.com/mykso/myks/issues/982)) ([405fa4e](https://github.com/mykso/myks/commit/405fa4e247a2b4f650c63ee6deb94c86aeec225d))
+
+
+### Bug Fixes
+
+* do not log an error for a repository without an origin remote ([#978](https://github.com/mykso/myks/issues/978)) ([10121d5](https://github.com/mykso/myks/commit/10121d54928ff45cdf697b3d059b958f5412a8e1))
+* do not panic on an invalid min-version ([#977](https://github.com/mykso/myks/issues/977)) ([3d70170](https://github.com/mykso/myks/commit/3d701702ee9e29840930ce235d40710b6fae72a4))
+* honor the --config flag ([#971](https://github.com/mykso/myks/issues/971)) ([d26b489](https://github.com/mykso/myks/commit/d26b489968dd3101a0791f995361c038401311ed))
+* **init:** clear the Argo CD finalizer with #@overlay/replace ([#970](https://github.com/mykso/myks/issues/970)) ([30a6f6b](https://github.com/mykso/myks/commit/30a6f6b39c4dffb583b43c5cfd8e16020bab0270))
+* log the run summary at debug level ([#988](https://github.com/mykso/myks/issues/988)) ([34c97c5](https://github.com/mykso/myks/commit/34c97c552e2cadec438f106d04984f94b973f805))
+* **plugins:** resolve relative plugin-sources against root-dir ([#972](https://github.com/mykso/myks/issues/972)) ([221329d](https://github.com/mykso/myks/commit/221329d8891d444215af88d605ee851e345ef81f))
+* **plugins:** split MYKS_PLUGIN_SOURCES like PATH ([#973](https://github.com/mykso/myks/issues/973)) ([11562a7](https://github.com/mykso/myks/commit/11562a74ea981d032d17aac67d2d9cc28e2be771))
+* respect the log level for the startup messages ([#984](https://github.com/mykso/myks/issues/984)) ([c207730](https://github.com/mykso/myks/commit/c207730ddebb4ebcbd13515a65d819a7b49a39ee))
+* **schema:** describe yttPkg.dirs and myks.context.step as implemented ([#969](https://github.com/mykso/myks/issues/969)) ([c4c7edd](https://github.com/mykso/myks/commit/c4c7eddc97694fbf0b17e5e5e43ac2687e0e88c9))
+* **smart-mode:** detect changes in _env/static/ ([#968](https://github.com/mykso/myks/issues/968)) ([8038c0f](https://github.com/mykso/myks/commit/8038c0f62c9b553d63718dacf0770e28414697e4))
+* swap git branch and URL warning messages ([#967](https://github.com/mykso/myks/issues/967)) ([4295cc8](https://github.com/mykso/myks/commit/4295cc8eedda2ce0d5056e417d3072ec568c52b4))
+
 ## [5.16.0](https://github.com/mykso/myks/compare/v5.15.2...v5.16.0) (2026-11-03)
 
 
