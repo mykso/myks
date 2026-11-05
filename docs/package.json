@@ -5,6 +5,6 @@
     "build": "astro build"
   },
   "dependencies": {
-    "@zebradil/starlight-kit": "github:Zebradil/docs-kit#a72034d8fe316bd20a798b7594c464df39a957fd"
+    "@zebradil/starlight-kit": "github:Zebradil/docs-kit#v0.6.0"
   }
 }
