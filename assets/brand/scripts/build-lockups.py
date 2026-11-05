@@ -2,7 +2,7 @@
 # requires-python = ">=3.11,<3.14"  # uharfbuzz has no free-threaded 3.14t build
 # dependencies = ["fonttools", "uharfbuzz"]
 # ///
-"""Builds the outlined myks lockups in ../logo/ from the Outfit font.
+"""Builds the outlined myks lockups in ../logo/ and the social card in ../social/ from the Outfit font.
 
 Run from anywhere: uv run assets/brand/scripts/build-lockups.py
 """
@@ -48,7 +48,16 @@ PALETTES = {
     "mono": {"arcs": ["currentColor"] * 3, "word": "currentColor"},
 }
 
-OUT = pathlib.Path(__file__).resolve().parent.parent / "logo"
+# Social card: GitHub's recommended social preview size, in px.
+CARD_W, CARD_H = 1280, 640
+CARD_BG = "#1C1030"
+CARD_MARK = 1.7  # mark height in px per mark unit
+TAGLINE = "Reviewable manifests for every cluster"  # the docs hero title
+TAGLINE_SIZE = 44
+TAGLINE_GAP = 56  # lockup ink to tagline ink
+
+BRAND = pathlib.Path(__file__).resolve().parent.parent
+OUT = BRAND / "logo"
 
 
 def fetch_font() -> bytes:
@@ -77,26 +86,26 @@ def mark_bounds():
     return min(xs) - h, min(ys) - h, max(xs) + h, max(ys) + h
 
 
-def wordmark(font_data: bytes):
-    """Returns the wordmark as one SVG path (origin at the first glyph, baseline y=0) and its ink bounds."""
+def outline(font_data: bytes, text: str, weight: int, tracking: float, size: float):
+    """Returns text as one SVG path (origin at the first glyph, baseline y=0) and its ink bounds."""
     face = hb.Face(hb.Blob(font_data))
     font = hb.Font(face)
-    font.set_variations({"wght": WEIGHT})
+    font.set_variations({"wght": weight})
     buf = hb.Buffer()
-    buf.add_str(WORD)
+    buf.add_str(text)
     buf.guess_segment_properties()
     hb.shape(font, buf, {"kern": True, "liga": True})
-    assert len(buf.glyph_infos) == len(WORD), "unexpected shaping result"
-    assert all(i.codepoint for i in buf.glyph_infos), "font lacks a glyph of the wordmark"
+    assert len(buf.glyph_infos) == len(text), f"unexpected shaping result for {text!r}"
+    assert all(i.codepoint for i in buf.glyph_infos), f"font lacks a glyph of {text!r}"
 
-    scale = EM / face.upem
+    scale = size / face.upem
     svg, bounds = SVGPathPen(None, ntos=lambda v: f"{v:.2f}".rstrip("0").rstrip(".")), BoundsPen(None)
     x = 0.0
     for info, pos in zip(buf.glyph_infos, buf.glyph_positions):
         matrix = (scale, 0, 0, -scale, x + pos.x_offset * scale, -pos.y_offset * scale)
         for pen in (svg, bounds):
             font.draw_glyph_with_pen(info.codepoint, TransformPen(pen, matrix))
-        x += pos.x_advance * scale + TRACKING * EM
+        x += pos.x_advance * scale + tracking * size
     return svg.getCommands(), bounds.bounds
 
 
@@ -117,8 +126,33 @@ def svg(view, mark_transform, word_transform, word_d, colors) -> str:
     )
 
 
+def card(font_data, ink, word_h, word_d) -> str:
+    """The social card: the on-dark horizontal lockup over the tagline, centred on plum."""
+    ix0, iy0, ix1, iy1 = ink
+    tag_d, (tx0, ty0, tx1, ty1) = outline(font_data, TAGLINE, 500, -0.01, TAGLINE_SIZE)
+    k = CARD_MARK
+    top = (CARD_H - ((iy1 - iy0) * k + TAGLINE_GAP + ty1 - ty0)) / 2
+    lx, ly = CARD_W / 2 - (ix0 + ix1) / 2 * k, top - iy0 * k
+    tag_y = top + (iy1 - iy0) * k + TAGLINE_GAP - ty0
+    arcs = "".join(f'<path d="{d}" stroke="{c}"/>' for (_, d), c in zip(ARCS, PALETTES["on-dark"]["arcs"]))
+    return (
+        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {CARD_W} {CARD_H}" width="{CARD_W}" height="{CARD_H}"'
+        f' role="img" aria-label="myks: {TAGLINE}"><title>myks: {TAGLINE}</title>'
+        '<defs><radialGradient id="glow"><stop offset="0" stop-color="#FF5A4E" stop-opacity="0.22"/>'
+        '<stop offset="1" stop-color="#FF5A4E" stop-opacity="0"/></radialGradient></defs>'
+        f'<rect width="{CARD_W}" height="{CARD_H}" fill="{CARD_BG}"/>'
+        f'<circle cx="{num(lx + 50 * k)}" cy="{num(ly + 50 * k)}" r="{num(110 * k)}" fill="url(#glow)"/>'
+        f'<g transform="translate({num(lx)} {num(ly)}) scale({k})">'
+        f'<g fill="none" stroke-width="{STROKE}" stroke-linecap="round">{arcs}</g>'
+        f'<path transform="{word_h}" d="{word_d}" fill="{PALETTES["on-dark"]["word"]}"/></g>'
+        f'<path transform="translate({num(CARD_W / 2 - (tx0 + tx1) / 2)} {num(tag_y)})" d="{tag_d}" fill="#C9C1D8"/>'
+        "</svg>\n"
+    )
+
+
 def main():
-    word_d, (wx0, wy0, wx1, wy1) = wordmark(fetch_font())
+    font_data = fetch_font()
+    word_d, (wx0, wy0, wx1, wy1) = outline(font_data, WORD, WEIGHT, TRACKING, EM)
     mx0, my0, mx1, my1 = mark_bounds()
     pad = 1  # keeps antialiased edges inside the viewBox
 
@@ -149,6 +183,12 @@ def main():
             assert "<text" not in text
             (OUT / file).write_text(text)
             print(OUT / file)
+
+    ink = (mx0, min(my0, wy0 + ty), wx1 + tx, max(my1, wy1 + ty))
+    social = BRAND / "social" / "myks-social.svg"
+    social.parent.mkdir(exist_ok=True)
+    social.write_text(card(font_data, ink, word_h, word_d))
+    print(social)
 
 
 if __name__ == "__main__":
