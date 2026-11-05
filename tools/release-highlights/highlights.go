@@ -19,9 +19,10 @@ var (
 	// titleTypeRe matches the Conventional Commits type of a pull request title.
 	titleTypeRe = regexp.MustCompile(`^(\w+)(\([^)]*\))?!?:`)
 	sectionRe   = regexp.MustCompile(`(?i)^##\s+release note\s*$`)
-	// otherSectionRe ends the release note: the next level-one or level-two heading.
-	otherSectionRe = regexp.MustCompile(`^#{1,2}\s`)
-	commentRe      = regexp.MustCompile(`(?s)<!--.*?-->`)
+	// noteEndRe ends the release note: the next level-one or level-two heading, a thematic break,
+	// or the "🤖 Generated with …" footer that agents put at the end of a description.
+	noteEndRe = regexp.MustCompile(`^(#{1,2}\s|\s{0,3}([-*_])(\s*[-*_]){2,}\s*$|\s*🤖\s)`)
+	commentRe = regexp.MustCompile(`(?s)<!--.*?-->`)
 	// prRefRe matches the pull request links release-please writes into changelog lines.
 	prRefRe = regexp.MustCompile(`\[#(\d+)\]\(https://github\.com/[^/]+/[^/]+/(?:issues|pull)/\d+\)`)
 	// versionHeadingRe is release-please's own pattern for the heading that starts the notes.
@@ -60,7 +61,7 @@ func releaseNote(body string) (text string, found bool) {
 		switch {
 		case !inFence && sectionRe.MatchString(line):
 			inSection, found = true, true
-		case inSection && !inFence && otherSectionRe.MatchString(line):
+		case inSection && !inFence && noteEndRe.MatchString(line):
 			inSection = false
 		case inSection:
 			lines = append(lines, line)
