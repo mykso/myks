@@ -6,7 +6,7 @@ Require git
 Set Shell "bash"
 Set FontSize 18
 Set Width 1100
-Set Height 620
+Set Height 760
 Set Padding 24
 Set TypingSpeed 35ms
 Set Theme "Catppuccin Mocha"
