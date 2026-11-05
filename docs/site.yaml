@@ -4,7 +4,7 @@ tagline: Render the Kubernetes manifests for every cluster you run from one Git 
 headline: Reviewable manifests for every cluster # guessed: shortened from README's opening sentence
 eyebrow: GitOps for Kubernetes fleets # guessed: category label, not stated in README
 description: Myks takes upstream Helm charts, Git repositories and plain YAML, applies your per-cluster configuration, and writes plain Kubernetes manifests to `rendered/`. You commit that output, so every pull request shows what changes in which cluster. # guessed: README's second paragraph, condensed
-theme: default
+theme: vortex
 logo: { light: ./src/assets/myks-mark-on-light.svg, dark: ./src/assets/myks-mark-on-dark.svg }
 repo: https://github.com/mykso/myks
 install:
