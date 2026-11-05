@@ -1,0 +1,43 @@
+---
+name: Release highlights
+
+# Rewrites the "Highlights" of the open release-please pull request from the "## Release note"
+# sections of the pull requests it releases. release-please rewrites its pull request body on every
+# push to main, so this runs after each of those, and again when a merged pull request's release
+# note or "highlight" label changes.
+'on':
+  workflow_run:
+    workflows: [Release Please and GoReleaser]
+    types: [completed]
+  pull_request_target:
+    types: [edited, labeled, unlabeled]
+  workflow_dispatch:
+
+concurrency:
+  group: release-highlights
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  apply:
+    # Open pull requests are not in a release yet.
+    if: github.event_name != 'pull_request_target' || github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      # The default branch, also under pull_request_target: no code from pull requests runs here.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Apply the highlights
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: go run ./tools/release-highlights apply

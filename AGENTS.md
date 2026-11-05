@@ -64,6 +64,10 @@ resolution → ArgoCD generation
   `*_test.go`
 - **Struct defaults**: Use `creasty/defaults` tags
 - **Commit messages**: Conventional Commits (enforced by commitlint)
+- **Pull request descriptions**: `feat`, `fix` and `perf` pull requests carry a
+  `## Release note` section, written as in `.github/pull_request_template.md`.
+  CI checks it, and the release highlights are assembled from these sections
+  (`tools/release-highlights`).
 
 ## Testing
 
