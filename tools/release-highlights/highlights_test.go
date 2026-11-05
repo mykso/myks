@@ -64,6 +64,9 @@ func TestReleaseNote(t *testing.T) {
 		{"ends at the next section", "## Release note\nOne.\n\nTwo.\n## Evidence\nx", "One.\n\nTwo.", true},
 		{"keeps subheadings and code", "## release note\r\nText.\r\n### Example\r\n```sh\r\n## not a heading\r\nmyks render\r\n```\r\n# Other", "Text.\n### Example\n```sh\n## not a heading\nmyks render\n```", true},
 		{"drops comments", "## Release note\n<!-- hint\nspanning lines -->\nText.", "Text.", true},
+		{"stops at the agent footer", "## Release note\n\nText.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_x", "Text.", true},
+		{"stops at a thematic break", "## Release note\nText.\n\n---\nSigned-off-by: someone", "Text.", true},
+		{"keeps a break inside code", "## Release note\n```yaml\n---\na: 1\n```", "```yaml\n---\na: 1\n```", true},
 		{"missing", "## Summary\nx", "", false},
 	}
 	for _, tt := range tests {
