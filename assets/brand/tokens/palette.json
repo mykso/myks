@@ -1,0 +1,57 @@
+{
+  "myks": {
+    "color": {
+      "plum": {
+        "$type": "color",
+        "$value": "#1C1030",
+        "$description": "Primary dark ground; text on light backgrounds"
+      },
+      "deep": {
+        "$type": "color",
+        "$value": "#120A1F",
+        "$description": "Deepest ground (dark-mode page background)"
+      },
+      "coral": {
+        "$type": "color",
+        "$value": "#FF5A4E",
+        "$description": "Primary accent; outer arc"
+      },
+      "amber": {
+        "$type": "color",
+        "$value": "#FFB020",
+        "$description": "Secondary accent; middle arc"
+      },
+      "violet": {
+        "$type": "color",
+        "$value": "#A27BFF",
+        "$description": "Tertiary accent; inner arc"
+      },
+      "coral-on-light": {
+        "$type": "color",
+        "$value": "#E8443A",
+        "$description": "Coral for white/light backgrounds (3.9:1 on white)"
+      },
+      "amber-on-light": {
+        "$type": "color",
+        "$value": "#C77700",
+        "$description": "Amber for white/light backgrounds (3.5:1 on white)"
+      },
+      "violet-on-light": {
+        "$type": "color",
+        "$value": "#7B3FF2",
+        "$description": "Violet for white/light backgrounds (5.5:1 on white)"
+      }
+    },
+    "font": {
+      "wordmark": {
+        "$type": "fontFamily",
+        "$value": [
+          "Outfit",
+          "system-ui",
+          "sans-serif"
+        ],
+        "$description": "Wordmark: Outfit SemiBold (600), letter-spacing -0.035em, lowercase"
+      }
+    }
+  }
+}
