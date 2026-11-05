@@ -1,4 +1,9 @@
-# Myks
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo/myks-logo-on-dark.svg">
+    <img src="assets/brand/logo/myks-logo-on-light.svg" alt="myks" height="64">
+  </picture>
+</h1>
 
 **Render the Kubernetes manifests for every cluster you run from one Git
 repository, and review the exact YAML each change produces before it ships.**

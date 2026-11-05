@@ -1,0 +1,11 @@
+/* myks brand palette. Source of truth: palette.json */
+:root {
+  --myks-plum: #1C1030;
+  --myks-deep: #120A1F;
+  --myks-coral: #FF5A4E;
+  --myks-amber: #FFB020;
+  --myks-violet: #A27BFF;
+  --myks-coral-on-light: #E8443A;
+  --myks-amber-on-light: #C77700;
+  --myks-violet-on-light: #7B3FF2;
+}

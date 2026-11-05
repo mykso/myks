@@ -4,7 +4,9 @@ tagline: Render the Kubernetes manifests for every cluster you run from one Git 
 headline: Reviewable manifests for every cluster # guessed: shortened from README's opening sentence
 eyebrow: GitOps for Kubernetes fleets # guessed: category label, not stated in README
 description: Myks takes upstream Helm charts, Git repositories and plain YAML, applies your per-cluster configuration, and writes plain Kubernetes manifests to `rendered/`. You commit that output, so every pull request shows what changes in which cluster. # guessed: README's second paragraph, condensed
-theme: default
+theme: vortex
+logo: { light: ./src/assets/myks-mark-on-light.svg, dark: ./src/assets/myks-mark-on-dark.svg }
+art: ./src/assets/hero.svg
 repo: https://github.com/mykso/myks
 install:
   - { label: Homebrew, code: "brew install --cask mykso/tap/myks" }
@@ -26,11 +28,96 @@ features:
     body: "`myks inspect apps --provenance` names the file that sets every final value; `--redundant` reports overrides that change nothing."
 flow:
   highlight: myks
+  art: ./src/assets/flow.svg
+  note: Helm charts, Git repositories and plain YAML go in; plain manifests come out, committed next to the configuration that produced them.
   steps:
     - { from: "Helm, Git, HTTP", to: myks, label: sync }
     - { from: myks, to: rendered/, label: render }
     - { from: rendered/, to: Argo CD / Flux, label: commit + review }
     - { from: Argo CD / Flux, to: clusters, label: deploy } # guessed: README's diagram draws this edge without a label
+diff:
+  title: What the pull request shows
+  intro: "A pull request adds resource limits to a prototype's Helm values and raises the replica count in production. `myks render` writes the result for every cluster, so reviewers see what each one will receive. The diffs are real output from `examples/simple`."
+  change:
+    label: You change
+    files:
+      - path: prototypes/httpbingo/helm/httpbingo.yaml
+        diff: |
+          @@ -9,3 +9,9 @@ securityContext:
+             runAsNonRoot: true
+             runAsUser: 1000
+           replicaCount: 1
+          +resources:
+          +  requests:
+          +    cpu: 50m
+          +    memory: 64Mi
+          +  limits:
+          +    memory: 128Mi
+      - path: envs/prod/_apps/httpbingo/helm/httpbingo.yaml
+        diff: |
+          @@ -1,2 +1,2 @@
+           ---
+          -replicaCount: #@ 1 + 1
+          +replicaCount: 3
+  label: Reviewers see
+  tabs:
+    - label: mykso-dev
+      files:
+        - path: rendered/envs/mykso-dev/httpbingo/deployment-httpbingo.yaml
+          diff: |
+            @@ -37,5 +37,10 @@ spec:
+                           path: /
+                           port: http
+            -          resources: {}
+            +          resources:
+            +            limits:
+            +              memory: 128Mi
+            +            requests:
+            +              cpu: 50m
+            +              memory: 64Mi
+                       securityContext:
+                         allowPrivilegeEscalation: false
+    - label: mykso-prod
+      files:
+        - path: rendered/envs/mykso-prod/httpbingo/deployment-httpbingo.yaml
+          diff: |
+            @@ -10,5 +10,5 @@ metadata:
+               name: httpbingo
+             spec:
+            -  replicas: 2
+            +  replicas: 3
+               selector:
+                 matchLabels:
+            @@ -37,5 +37,10 @@ spec:
+                           path: /
+                           port: http
+            -          resources: {}
+            +          resources:
+            +            limits:
+            +              memory: 128Mi
+            +            requests:
+            +              cpu: 50m
+            +              memory: 64Mi
+                       securityContext:
+                         allowPrivilegeEscalation: false
+tree:
+  title: Environments inherit down the tree
+  intro: "Environments are directories under `envs/`, and each inherits the data values of every directory above it. A grouping level such as `prod/` holds what all production clusters share. `myks render prod` renders both production clusters, `myks render prod/eu` only one."
+  root:
+    name: envs/
+    file: env-data.ytt.yaml
+    note: defaults for everything
+    children:
+      - name: prod/
+        file: env-data.ytt.yaml
+        note: production defaults
+        children:
+          - { name: eu/, file: env-data.ytt.yaml, note: "`environment.id: prod-eu`", id: prod-eu }
+          - { name: us/, file: env-data.ytt.yaml, note: "`environment.id: prod-us`", id: prod-us }
+      - name: staging/
+        note: grouping level, renders nothing
+        children:
+          - { name: eu/, file: env-data.ytt.yaml, note: "`environment.id: staging-eu`", id: staging-eu }
 components:
   items:
     - { name: myks render, body: Download sources and render manifests for environments and applications. }

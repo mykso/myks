@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-14 -14 128 128" class="myks-vortex">
+  <style>
+    .myks-vortex .orbit { fill: none; stroke: var(--sl-color-gray-5); stroke-width: 0.4; stroke-dasharray: 1 2.5; }
+    .myks-vortex .glow { stop-color: #ff5a4e; }
+    .myks-vortex .arc { fill: none; stroke-width: 9; stroke-linecap: round; transform-box: view-box; transform-origin: 50px 50px; }
+    .myks-vortex .a { stroke: #ff5a4e; animation: myks-vortex-a 1.8s cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .myks-vortex .b { stroke: #ffb020; animation: myks-vortex-b 2.2s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both; }
+    .myks-vortex .c { stroke: #a27bff; animation: myks-vortex-c 2.6s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both; }
+    :root[data-theme='light'] .myks-vortex .glow { stop-color: #e8443a; }
+    :root[data-theme='light'] .myks-vortex .a { stroke: #e8443a; }
+    :root[data-theme='light'] .myks-vortex .b { stroke: #c77700; }
+    :root[data-theme='light'] .myks-vortex .c { stroke: #7b3ff2; }
+    /* Each arc spins in at its own speed, the inner ones against each other, and settles into the mark. */
+    @keyframes myks-vortex-a { from { transform: rotate(-300deg); stroke-dashoffset: 100; } }
+    @keyframes myks-vortex-b { from { transform: rotate(420deg); stroke-dashoffset: 100; } }
+    @keyframes myks-vortex-c { from { transform: rotate(-560deg); stroke-dashoffset: 100; } }
+    @media (prefers-reduced-motion: reduce) {
+      .myks-vortex .arc { animation: none; }
+    }
+  </style>
+  <defs>
+    <radialGradient id="myks-vortex-glow">
+      <stop class="glow" offset="0" stop-opacity="0.22" />
+      <stop class="glow" offset="1" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="62" fill="url(#myks-vortex-glow)" />
+  <circle class="orbit" cx="50" cy="50" r="48" />
+  <circle class="orbit" cx="50" cy="50" r="58" />
+  <path class="arc a" pathLength="100" stroke-dasharray="100" d="M50 14 A36 36 0 1 1 16.17 62.31" />
+  <path class="arc b" pathLength="100" stroke-dasharray="100" d="M70.78 62 A24 24 0 1 1 54.17 26.36" />
+  <path class="arc c" pathLength="100" stroke-dasharray="100" d="M39.61 56 A12 12 0 1 1 59.19 57.71" />
+</svg>
