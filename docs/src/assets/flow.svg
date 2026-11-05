@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 320" class="myks-flow">
+  <style>
+    .myks-flow text { font-family: var(--sl-font); font-size: 14px; font-weight: 600; fill: var(--sl-color-gray-1); text-anchor: middle; dominant-baseline: central; }
+    .myks-flow .label { font-family: var(--sl-font-mono); font-size: 11.5px; font-weight: 400; fill: var(--sl-color-gray-3); text-anchor: start; }
+    .myks-flow .word { font-family: var(--kit-font-display, var(--sl-font)); font-size: 22px; letter-spacing: -0.035em; fill: var(--sl-color-white); }
+    .myks-flow .chip { fill: var(--sl-color-black); stroke: var(--sl-color-gray-4); stroke-width: 1.5; }
+    .myks-flow .wire { fill: none; stroke: var(--sl-color-gray-4); stroke-width: 1.5; }
+    .myks-flow .head { fill: var(--sl-color-gray-4); }
+    .myks-flow .src { fill: none; stroke-width: 3; stroke-linecap: round; }
+    .myks-flow .faint { opacity: 0.35; }
+    .myks-flow .pulse { stroke-dasharray: 3 11; animation: myks-flow-pulse 1.4s linear infinite; }
+    .myks-flow .arc { fill: none; stroke-width: 9; stroke-linecap: round; }
+    .myks-flow .a { stroke: #ff5a4e; }
+    .myks-flow .b { stroke: #ffb020; }
+    .myks-flow .c { stroke: #a27bff; }
+    :root[data-theme='light'] .myks-flow .a { stroke: #e8443a; }
+    :root[data-theme='light'] .myks-flow .b { stroke: #c77700; }
+    :root[data-theme='light'] .myks-flow .c { stroke: #7b3ff2; }
+    @keyframes myks-flow-pulse { to { stroke-dashoffset: -14; } }
+    @media (prefers-reduced-motion: reduce) {
+      .myks-flow .pulse { animation: none; }
+    }
+  </style>
+
+  <!-- Each source flows into the arc of its color, entering along the arc's direction. -->
+  <path class="src faint a" d="M126 60 C165 60 170 119 205 119" />
+  <path class="src faint b" d="M126 160 C175 160 240.78 141 225.78 167" />
+  <path class="src faint c" d="M126 260 C170 260 209.61 187 194.61 161" />
+  <path class="src pulse a" d="M126 60 C165 60 170 119 205 119" />
+  <path class="src pulse b" d="M126 160 C175 160 240.78 141 225.78 167" />
+  <path class="src pulse c" d="M126 260 C170 260 209.61 187 194.61 161" />
+
+  <rect class="chip a" x="8" y="43" width="118" height="34" rx="9" />
+  <rect class="chip b" x="8" y="143" width="118" height="34" rx="9" />
+  <rect class="chip c" x="8" y="243" width="118" height="34" rx="9" />
+  <text x="67" y="60">Helm charts</text>
+  <text x="67" y="160">Git repos</text>
+  <text x="67" y="260">plain YAML</text>
+
+  <g transform="translate(155 105)">
+    <path class="arc a" d="M50 14 A36 36 0 1 1 16.17 62.31" />
+    <path class="arc b" d="M70.78 62 A24 24 0 1 1 54.17 26.36" />
+    <path class="arc c" d="M39.61 56 A12 12 0 1 1 59.19 57.71" />
+  </g>
+  <text class="word" x="215" y="86">myks</text>
+
+  <path class="wire" d="M250 155 C295 155 300 60 334 60" />
+  <polygon class="head" points="333,54.5 341,60 333,65.5" />
+  <text class="label" x="300" y="128">render</text>
+
+  <path class="wire" d="M406 77 V136" />
+  <polygon class="head" points="400.5,135 406,143 411.5,135" />
+  <text class="label" x="414" y="102">commit +</text>
+  <text class="label" x="414" y="117">review</text>
+
+  <path class="wire" d="M406 177 V236" />
+  <polygon class="head" points="400.5,235 406,243 411.5,235" />
+  <text class="label" x="414" y="210">deploy</text>
+
+  <rect class="chip" x="341" y="43" width="130" height="34" rx="9" />
+  <rect class="chip" x="341" y="143" width="130" height="34" rx="9" />
+  <rect class="chip" x="341" y="243" width="130" height="34" rx="9" />
+  <text x="406" y="60">rendered/</text>
+  <text x="406" y="160">Argo CD / Flux</text>
+  <text x="406" y="260">clusters</text>
+</svg>
