@@ -20,6 +20,7 @@ repos, plain YAML) mixed into one rendered output.
 | `icon/favicon.svg`                                                    | Favicon, simplified to two thicker arcs for 16 px                       |
 | `icon/favicon.ico`                                                    | 16 (simplified), 32 and 48 px                                           |
 | `icon/apple-touch-icon.png`, `icon/icon-192.png`, `icon/icon-512.png` | Touch and web-manifest icons                                            |
+| `social/myks-social.svg`, `social/myks-social.png`                    | Social preview card, 1280×640: lockup over the docs tagline, on plum    |
 | `tokens/palette.json`                                                 | Palette as design tokens (W3C DTCG format), source of truth             |
 | `tokens/palette.css`                                                  | The same palette as CSS custom properties (`--myks-*`)                  |
 
@@ -48,12 +49,17 @@ the font. In the horizontal lockup the wordmark's ink is centered vertically on
 the mark's ink; in the stacked one the mark is 1.5× the font size, centered over
 the wordmark.
 
-`scripts/build-lockups.py` generates every `logo/myks-logo-*.svg` from a pinned
-copy of Outfit, shaped with HarfBuzz at weight 600. Rebuild them with:
+`scripts/build-lockups.py` generates every `logo/myks-logo-*.svg` and
+`social/myks-social.svg` from a pinned copy of Outfit, shaped with HarfBuzz.
+Rebuild them, then render the card's PNG, with:
 
 ```sh
 uv run assets/brand/scripts/build-lockups.py
+nix shell nixpkgs#resvg -c resvg assets/brand/social/myks-social.svg assets/brand/social/myks-social.png
 ```
+
+The PNG is the repository's social preview. GitHub has no API for it: upload it
+under Settings → General → Social preview.
 
 ## Usage rules
 
