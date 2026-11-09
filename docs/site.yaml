@@ -9,6 +9,12 @@ logo: { light: ./src/assets/myks-mark-on-light.svg, dark: ./src/assets/myks-mark
 art: ./src/assets/hero.svg
 repo: https://github.com/mykso/myks
 domain: myks.dev
+analytics:
+  script: https://stats.zebradil.dev/app.js
+  attributes:
+    data-website-id: 67004e7a-3b67-4da3-a5c8-1827cfd24ff3
+    # Counts only the published site, not local dev or preview builds.
+    data-domains: myks.dev
 install:
   - { label: Homebrew, code: "brew install --cask mykso/tap/myks" }
   - { label: Nix, code: "nix profile install github:mykso/myks" } # guessed: flake has packages.default; installation.md shows nix shell instead
