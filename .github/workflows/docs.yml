@@ -5,4 +5,4 @@ on:
 permissions: { contents: read, pages: write, id-token: write }
 jobs:
   docs:
-    uses: Zebradil/docs-kit/.github/workflows/docs.yml@5ead4fcfb197397d1d55eca79ee59f76fdb2326f # v0.6.0
+    uses: Zebradil/docs-kit/.github/workflows/docs.yml@61b11c3727968c45b16cb9eb749898eb61e43b38 # v0.7.0
