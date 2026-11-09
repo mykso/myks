@@ -1,10 +1,10 @@
 # Myks documentation
 
-The user documentation is published at **https://mykso.github.io/myks/**. Its
-pages live in [`src/content/docs/`](src/content/docs/), and
-[`site.yaml`](site.yaml) holds the landing page. Build the site locally with
-`npm ci && npx astro build` from this directory; the
-[docs-kit](https://github.com/Zebradil/docs-kit) package does the rest.
+The user documentation is published at **https://myks.dev/**. Its pages live in
+[`src/content/docs/`](src/content/docs/), and [`site.yaml`](site.yaml) holds the
+landing page. Build the site locally with `npm ci && npx astro build` from this
+directory; the [docs-kit](https://github.com/Zebradil/docs-kit) package does the
+rest.
 
 The rest of this directory is about developing myks, not using it:
 
