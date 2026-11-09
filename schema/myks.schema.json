@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft-07/schema#",
   "$id": "https://raw.githubusercontent.com/mykso/myks/main/schema/myks.schema.json",
   "title": "myks configuration (.myks.yaml)",
-  "description": "Project-wide settings of the myks CLI. Every option can also be set as a MYKS_* environment variable. https://mykso.github.io/myks/guides/configuration/",
+  "description": "Project-wide settings of the myks CLI. Every option can also be set as a MYKS_* environment variable. https://myks.dev/guides/configuration/",
   "type": "object",
   "additionalProperties": false,
   "properties": {

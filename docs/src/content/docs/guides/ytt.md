@@ -189,7 +189,7 @@ front, a package that declares `application` itself fails with
 `Expected number of matched nodes to be 1, but was 0`, and every other package
 would see the myks keys in its data values. Myks data reaches a package the same
 way it reaches a chart, through the values files, which are
-[ytt templates](https://mykso.github.io/myks/guides/helm/#values-files-are-ytt-templates)
+[ytt templates](../../guides/helm/#values-files-are-ytt-templates)
 rendered with the application's data values.
 
 Use it for upstream configuration distributed as a ytt package with its own data

@@ -173,8 +173,7 @@ it):
 
 ## Migration
 
-User-facing steps:
-[docs/migration.md](https://mykso.github.io/myks/guides/migration/).
+User-facing steps: [docs/migration.md](https://myks.dev/guides/migration/).
 
 - **Converter**: `myks migrate` subcommand. Machine-seeds the KCL tree from an
   existing repo: `kcl import` for the plain-YAML data-values files, re-parenting

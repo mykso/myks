@@ -1,6 +1,6 @@
 # Renders what a pull request changes and pushes the output to its branch,
 # so contributors do not need myks installed.
-# See https://mykso.github.io/myks/guides/gitops-ci/
+# See https://myks.dev/guides/gitops-ci/
 name: Render manifests
 on:
   pull_request:

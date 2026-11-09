@@ -19,7 +19,7 @@ KCL path and ignores them. Re-running needs --force, which reads the legacy file
 again and overwrites the generated ones; hand-written KCL is lost, so keep the
 conversion under version control. Verify the conversion by rendering and diffing the
 rendered/ output, hand-finish following the migration guide, then delete the legacy
-data-values files: https://mykso.github.io/myks/guides/migration/
+data-values files: https://myks.dev/guides/migration/
 
 Usage:
   myks migrate [flags]

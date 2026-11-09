@@ -18,7 +18,7 @@ Start with:
   myks render    download sources and render manifests (Smart Mode: only what changed)
   myks inspect   show environments and applications, and which file sets each value
 
-Documentation: https://mykso.github.io/myks/
+Documentation: https://myks.dev/
 Issues:        https://github.com/mykso/myks/issues
 
 Usage:
