@@ -2,7 +2,7 @@
 name: flow-pr-meta
 
 'on':
-  pull_request_target:
+  pull_request:
     types:
       - opened
       - edited
@@ -22,7 +22,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      # Fork pull requests get a read-only token: their comment steps fail, the checks still count.
       - uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        continue-on-error: true
         # When the previous steps fails, the workflow would stop. By adding this
         # condition you can continue the execution with the populated error message.
         if: always() && (steps.lint_pr_title.outputs.error_message != null)
@@ -41,6 +43,7 @@ jobs:
 
       # Delete a previous comment when the issue has been resolved
       - if: ${{ steps.lint_pr_title.outputs.error_message == null }}
+        continue-on-error: true
         uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           header: pr-title-lint-error
@@ -52,7 +55,6 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      # pull_request_target checks out the base branch: the check never runs code from the pull request.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -73,6 +75,7 @@ jobs:
           fi
 
       - if: always() && steps.check.outputs.problem != ''
+        continue-on-error: true
         uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           header: release-note-error
@@ -82,6 +85,7 @@ jobs:
             Add a `## Release note` section to the description, as in the [pull request template](https://github.com/mykso/myks/blob/main/.github/pull_request_template.md). It becomes part of the highlights of the next release.
 
       - if: steps.check.outputs.problem == ''
+        continue-on-error: true
         uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
         with:
           header: release-note-error
