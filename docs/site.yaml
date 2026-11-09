@@ -8,6 +8,7 @@ theme: vortex
 logo: { light: ./src/assets/myks-mark-on-light.svg, dark: ./src/assets/myks-mark-on-dark.svg }
 art: ./src/assets/hero.svg
 repo: https://github.com/mykso/myks
+domain: myks.dev
 install:
   - { label: Homebrew, code: "brew install --cask mykso/tap/myks" }
   - { label: Nix, code: "nix profile install github:mykso/myks" } # guessed: flake has packages.default; installation.md shows nix shell instead
