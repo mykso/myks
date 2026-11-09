@@ -12,9 +12,9 @@ release_mode      = "release-please"
 deploys_from_main = false
 # go test -race plus internal/integration render the example projects through the whole
 # vendir/helm/ytt/kbld pipeline, and golangci-lint runs at the version pinned in .mise.toml.
-# Not covered on pull requests: actions used only by flow-main.yml, flow-kcl-package.yml,
-# check-links*.yaml and flow-pr-meta.yml (pull_request_target runs the base version), and the
-# KCL_CLI_VERSION pin. Those break at release time, never before a human merges the release PR.
+# Not covered on pull requests: actions used only by flow-main.yml, flow-kcl-package.yml and
+# check-links*.yaml, and the KCL_CLI_VERSION pin. Those break at release time, never before a
+# human merges the release PR.
 test_confidence   = "high"
 criticality       = "normal"
 

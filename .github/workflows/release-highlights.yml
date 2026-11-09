@@ -3,14 +3,12 @@ name: Release highlights
 
 # Rewrites the "Highlights" of the open release-please pull request from the "## Release note"
 # sections of the pull requests it releases. release-please rewrites its pull request body on every
-# push to main, so this runs after each of those, and again when a merged pull request's release
-# note or "highlight" label changes.
+# push to main, so this runs after each of those. A release note or "highlight" label changed after
+# merge shows up on the next push to main, or at once through workflow_dispatch.
 'on':
   workflow_run:
     workflows: [Release Please and GoReleaser]
     types: [completed]
-  pull_request_target:
-    types: [edited, labeled, unlabeled]
   workflow_dispatch:
 
 concurrency:
@@ -21,14 +19,12 @@ permissions: {}
 
 jobs:
   apply:
-    # Open pull requests are not in a release yet.
-    if: github.event_name != 'pull_request_target' || github.event.pull_request.merged
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
     steps:
-      # The default branch, also under pull_request_target: no code from pull requests runs here.
+      # workflow_dispatch may name another ref; the highlights are always built by main's tool.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.repository.default_branch }}
