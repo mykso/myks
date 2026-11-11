@@ -1,1 +1,1 @@
-export { collections } from '@zebradil/starlight-kit/content';
+export { collections } from '@zebradil/docs-kit/content';

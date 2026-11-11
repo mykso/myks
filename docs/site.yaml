@@ -1,4 +1,4 @@
-# yaml-language-server: $schema=node_modules/@zebradil/starlight-kit/schema/site.schema.json
+# yaml-language-server: $schema=node_modules/@zebradil/docs-kit/schema/site.schema.json
 name: myks
 tagline: Render the Kubernetes manifests for every cluster you run from one Git repository, and review the exact YAML each change produces before it ships.
 headline: Reviewable manifests for every cluster # guessed: shortened from README's opening sentence
