@@ -1,5 +1,15 @@
 # Changelog
 
+## [5.17.1](https://github.com/mykso/myks/compare/v5.17.0...v5.17.1) (2026-11-13)
+
+
+### Bug Fixes
+
+* **deps:** update docs-kit to v0.9.0 ([#1010](https://github.com/mykso/myks/issues/1010)) ([9e3922a](https://github.com/mykso/myks/commit/9e3922a0d4d668ea7b1266c2938d308cbf813a78))
+* **deps:** update module github.com/spf13/pflag to v1.1.0 ([#1015](https://github.com/mykso/myks/issues/1015)) ([0b9abf4](https://github.com/mykso/myks/commit/0b9abf4f7805a63227d3c8811dd8691f3479fec1))
+* **deps:** update module golang.org/x/sync to v0.25.0 ([#1005](https://github.com/mykso/myks/issues/1005)) ([9826ca6](https://github.com/mykso/myks/commit/9826ca6d5bbb62e4648c86fed4b5d3c3268bcf16))
+* **docs:** sync package-lock with docs-kit v0.9.0 ([#1011](https://github.com/mykso/myks/issues/1011)) ([fcd4c2b](https://github.com/mykso/myks/commit/fcd4c2bf72881c9d2894419083afa7ceba33b6f3))
+
 ## [5.17.0](https://github.com/mykso/myks/compare/v5.16.0...v5.17.0) (2026-11-05)
 
 
