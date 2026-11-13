@@ -10,7 +10,7 @@ jobs:
   docker:
     uses: ./.github/workflows/job-docker.yml
 
-  nix-update:
+  autofix:
     runs-on: ubuntu-latest
     concurrency:
       group: ${{ github.workflow }}-${{ github.ref }}
@@ -62,7 +62,7 @@ jobs:
         id: commit
         uses: stefanzweifel/git-auto-commit-action@d0b01107b5db882071f96de5dd4b54961ea93f4c # v7.2.1
         with:
-          commit_message: 'chore: nix-update and CLI reference'
+          commit_message: 'chore: regenerate nix hash and CLI reference'
           commit_user_name: Mykso Bot
           commit_user_email: 135390787+mykso-bot@users.noreply.github.com
 
@@ -79,5 +79,5 @@ jobs:
         run: |
           gh api repos/${{ github.repository }}/statuses/"$COMMIT_SHA" \
             -f state=success \
-            -f context=nix-update \
+            -f context=autofix \
             -f "description=$DESCRIPTION"

@@ -5,7 +5,7 @@
     "config:best-practices",
     "helpers:pinGitHubActionDigestsToSemver",
   ],
-  // Bots that commit to Renovate branches: the nix-update job in flow-pr.yml (Mykso Bot) and
+  // Bots that commit to Renovate branches: the autofix job in flow-pr.yml (Mykso Bot) and
   // pr-autopilot, which merges main into a branch left behind. Without these, Renovate treats
   // those branches as modified and stops rebasing them.
   gitIgnoredAuthors: [
