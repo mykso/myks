@@ -12,5 +12,5 @@ Usage:
   ytt version [flags]
 
 Flags:
-  -h, --help   help for version
+  -h, --help[=true|false]   help for version
 ```

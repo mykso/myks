@@ -12,8 +12,8 @@ Usage:
   ytt fmt [flags]
 
 Flags:
-      --debug              Enable debug output
-  -f, --file stringArray   File (ie local path, HTTP URL, -) (can be specified multiple times)
-  -h, --help               help for fmt
-  -s, --strict             Configure to use _strict_ YAML subset
+      --debug[=true|false]    Enable debug output
+  -f, --file stringArray      File (ie local path, HTTP URL, -) (can be specified multiple times)
+  -h, --help[=true|false]     help for fmt
+  -s, --strict[=true|false]   Configure to use _strict_ YAML subset
 ```

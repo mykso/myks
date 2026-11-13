@@ -20,13 +20,13 @@ Available Commands:
   version     Print client version
 
 Flags:
-      --color            Set color output (default true)
-      --column strings   Filter to show only given columns
-  -h, --help             help for vendir
-      --json             Output as JSON
-      --tty              Force TTY-like output
-  -v, --version          version for vendir
-  -y, --yes              Assume yes for any prompt
+      --color[=true|false]     Set color output (default true)
+      --column strings         Filter to show only given columns
+  -h, --help[=true|false]      help for vendir
+      --json[=true|false]      Output as JSON
+      --tty[=true|false]       Force TTY-like output
+  -v, --version[=true|false]   version for vendir
+  -y, --yes[=true|false]       Assume yes for any prompt
 
 Use "vendir [command] --help" for more information about a command.
 

@@ -24,31 +24,31 @@ Available Commands:
   website     Starts website HTTP server
 
 Flags:
-      --allow-symlink-destination strings           File paths to which symlinks are allowed (can be specified multiple times)
-      --bulk-in string                              Accept files in bulk format
-      --bulk-out                                    Output files in bulk format
-      --dangerous-allow-all-symlink-destinations    Symlinks to all destinations are allowed
-      --dangerous-data-values-disable-validation    Skip validating data values (not recommended: may result in templates failing or invalid output)
-      --dangerous-emptied-output-directory string   Delete given directory, and then create it with output files
-  -v, --data-value stringArray                      Set specific data value to given value, as string (format: all.key1.subkey=123) (can be specified multiple times)
-      --data-value-file stringArray                 Set specific data value to contents of a file (format: [@lib1:]all.key1.subkey={file path, HTTP URL, or '-' (i.e. stdin)}) (can be specified multiple times)
-      --data-value-yaml stringArray                 Set specific data value to given value, parsed as YAML (format: all.key1.subkey=true) (can be specified multiple times)
-      --data-values-env stringArray                 Extract data values (as strings) from prefixed env vars (format: PREFIX for PREFIX_all__key1=str) (can be specified multiple times)
-      --data-values-env-yaml stringArray            Extract data values (parsed as YAML) from prefixed env vars (format: PREFIX for PREFIX_all__key1=true) (can be specified multiple times)
-      --data-values-file stringArray                Set multiple data values via plain YAML files (format: [@lib1:]{file path, HTTP URL, or '-' (i.e. stdin)}) (can be specified multiple times)
-      --data-values-inspect                         Determine the final data values (applying any overlays) and display that result
-      --data-values-schema-inspect                  Determine the complete schema for data values (applying any overlays) and display the result (only OpenAPI v3.0 is supported, see --output)
-      --debug                                       Enable debug output
-  -f, --file stringArray                            File(s) to process {filepath, HTTP URL, or '-' (i.e. stdin)} (can be specified multiple times)
-      --file-mark stringArray                       File mark (ie change file path, mark as non-template) (format: file:key=value) (can be specified multiple times)
-      --files-inspect                               Determine the set of files that would be processed and display that result
-  -h, --help                                        help for ytt
-      --ignore-unknown-comments                     Configure whether unknown comments are considered as errors (comments that do not start with '#@' or '#!')
-      --implicit-map-key-overrides                  Configure whether implicit map keys overrides are allowed
-  -o, --output strings                              Configure output format. Can specify file format (yaml, json, pos) and/or schema type (openapi-v3) (can be specified multiple times) (default [yaml])
-      --output-files string                         Add output files to given directory
-  -s, --strict                                      Configure to use _strict_ YAML subset
-      --version                                     version for ytt
+      --allow-symlink-destination strings                       File paths to which symlinks are allowed (can be specified multiple times)
+      --bulk-in string                                          Accept files in bulk format
+      --bulk-out[=true|false]                                   Output files in bulk format
+      --dangerous-allow-all-symlink-destinations[=true|false]   Symlinks to all destinations are allowed
+      --dangerous-data-values-disable-validation[=true|false]   Skip validating data values (not recommended: may result in templates failing or invalid output)
+      --dangerous-emptied-output-directory string               Delete given directory, and then create it with output files
+  -v, --data-value stringArray                                  Set specific data value to given value, as string (format: all.key1.subkey=123) (can be specified multiple times)
+      --data-value-file stringArray                             Set specific data value to contents of a file (format: [@lib1:]all.key1.subkey={file path, HTTP URL, or '-' (i.e. stdin)}) (can be specified multiple times)
+      --data-value-yaml stringArray                             Set specific data value to given value, parsed as YAML (format: all.key1.subkey=true) (can be specified multiple times)
+      --data-values-env stringArray                             Extract data values (as strings) from prefixed env vars (format: PREFIX for PREFIX_all__key1=str) (can be specified multiple times)
+      --data-values-env-yaml stringArray                        Extract data values (parsed as YAML) from prefixed env vars (format: PREFIX for PREFIX_all__key1=true) (can be specified multiple times)
+      --data-values-file stringArray                            Set multiple data values via plain YAML files (format: [@lib1:]{file path, HTTP URL, or '-' (i.e. stdin)}) (can be specified multiple times)
+      --data-values-inspect[=true|false]                        Determine the final data values (applying any overlays) and display that result
+      --data-values-schema-inspect[=true|false]                 Determine the complete schema for data values (applying any overlays) and display the result (only OpenAPI v3.0 is supported, see --output)
+      --debug[=true|false]                                      Enable debug output
+  -f, --file stringArray                                        File(s) to process {filepath, HTTP URL, or '-' (i.e. stdin)} (can be specified multiple times)
+      --file-mark stringArray                                   File mark (ie change file path, mark as non-template) (format: file:key=value) (can be specified multiple times)
+      --files-inspect[=true|false]                              Determine the set of files that would be processed and display that result
+  -h, --help[=true|false]                                       help for ytt
+      --ignore-unknown-comments[=true|false]                    Configure whether unknown comments are considered as errors (comments that do not start with '#@' or '#!')
+      --implicit-map-key-overrides[=true|false]                 Configure whether implicit map keys overrides are allowed
+  -o, --output strings                                          Configure output format. Can specify file format (yaml, json, pos) and/or schema type (openapi-v3) (can be specified multiple times) (default [yaml])
+      --output-files string                                     Add output files to given directory
+  -s, --strict[=true|false]                                     Configure to use _strict_ YAML subset
+      --version[=true|false]                                    version for ytt
 
 Use "ytt [command] --help" for more information about a command.
 ```

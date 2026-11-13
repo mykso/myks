@@ -12,7 +12,7 @@ Usage:
   ytt website [flags]
 
 Flags:
-  -h, --help                 help for website
-      --listen-addr string   Listen address (default "localhost:8080")
-      --redirect-to-https    Redirect to HTTPs address (default true)
+  -h, --help[=true|false]                help for website
+      --listen-addr string               Listen address (default "localhost:8080")
+      --redirect-to-https[=true|false]   Redirect to HTTPs address (default true)
 ```

@@ -19,14 +19,14 @@ Available Commands:
   sort-semver Sort semver versions
 
 Flags:
-  -h, --help   help for tools
+  -h, --help[=true|false]   help for tools
 
 Global Flags:
-      --color            Set color output (default true)
-      --column strings   Filter to show only given columns
-      --json             Output as JSON
-      --tty              Force TTY-like output
-  -y, --yes              Assume yes for any prompt
+      --color[=true|false]   Set color output (default true)
+      --column strings       Filter to show only given columns
+      --json[=true|false]    Output as JSON
+      --tty[=true|false]     Force TTY-like output
+  -y, --yes[=true|false]     Assume yes for any prompt
 
 Use "vendir tools [command] --help" for more information about a command.
 

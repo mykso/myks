@@ -13,17 +13,17 @@ Usage:
 
 Flags:
   -c, --constraint strings              Constraints (e.g. '>=v1.0, <v2.0')
-  -h, --help                            help for sort-semver
-      --prerelease                      Include prerelease versions
+  -h, --help[=true|false]               help for sort-semver
+      --prerelease[=true|false]         Include prerelease versions
       --prerelease-identifier strings   Include prerelease version identifier
   -v, --version strings                 List of versions
 
 Global Flags:
-      --color            Set color output (default true)
-      --column strings   Filter to show only given columns
-      --json             Output as JSON
-      --tty              Force TTY-like output
-  -y, --yes              Assume yes for any prompt
+      --color[=true|false]   Set color output (default true)
+      --column strings       Filter to show only given columns
+      --json[=true|false]    Output as JSON
+      --tty[=true|false]     Force TTY-like output
+  -y, --yes[=true|false]     Assume yes for any prompt
 
 Succeeded
 ```

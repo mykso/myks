@@ -40,11 +40,11 @@ Available Commands:
 Flags:
   -a, --async int                               sets the number of applications to be processed in parallel
                                                 the default (0) is no limit
-      --buffer-plugin-output                    buffer plugin output instead of streaming (useful for parallel execution)
+      --buffer-plugin-output[=true|false]       buffer plugin output instead of streaming (useful for parallel execution)
       --config string                           config file (default is the first .myks.yaml up the directory tree)
-  -h, --help                                    help for myks
+  -h, --help[=true|false]                       help for myks
   -l, --log-level string                        set the logging level (default "info")
-      --print-stats                             print tool resource statistics directly to stdout
+      --print-stats[=true|false]                print tool resource statistics directly to stdout
       --smart-mode.base-revision string         base revision to compare against in Smart Mode
                                                 if not provided, only local changes will be considered
       --smart-mode.only-print string[="text"]   only print the list of environments and applications that would be rendered in Smart Mode
@@ -52,7 +52,7 @@ Flags:
                                                 legacy boolean values (true, 1, yes) are treated as "text" for backward compatibility
                                                 legacy falsey values (false, 0, no) disable Smart Mode only-print (same as leaving it empty)
                                                 when used without a value (--smart-mode.only-print), defaults to "text"
-  -v, --version                                 version for myks
+  -v, --version[=true|false]                    version for myks
 
 Use "myks [command] --help" for more information about a command.
 ```

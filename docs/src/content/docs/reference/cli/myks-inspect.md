@@ -22,16 +22,16 @@ Available Commands:
   prototypes  Inspect prototypes
 
 Flags:
-  -h, --help            help for inspect
-  -o, --output string   output format: "text" or "json" (default "text")
+  -h, --help[=true|false]   help for inspect
+  -o, --output string       output format: "text" or "json" (default "text")
 
 Global Flags:
   -a, --async int                               sets the number of applications to be processed in parallel
                                                 the default (0) is no limit
-      --buffer-plugin-output                    buffer plugin output instead of streaming (useful for parallel execution)
+      --buffer-plugin-output[=true|false]       buffer plugin output instead of streaming (useful for parallel execution)
       --config string                           config file (default is the first .myks.yaml up the directory tree)
   -l, --log-level string                        set the logging level (default "info")
-      --print-stats                             print tool resource statistics directly to stdout
+      --print-stats[=true|false]                print tool resource statistics directly to stdout
       --smart-mode.base-revision string         base revision to compare against in Smart Mode
                                                 if not provided, only local changes will be considered
       --smart-mode.only-print string[="text"]   only print the list of environments and applications that would be rendered in Smart Mode
