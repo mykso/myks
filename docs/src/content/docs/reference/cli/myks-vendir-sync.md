@@ -12,21 +12,21 @@ Usage:
   vendir sync [flags]
 
 Flags:
-      --chdir string                               Set current directory for process
-      --dangerous-allow-all-symlink-destinations   Symlinks to all destinations are allowed
-  -d, --directory strings                          Sync specific directory (format: dir/sub-dir[=local-dir])
-  -f, --file strings                               Set configuration file (default [vendir.yml])
-  -h, --help                                       help for sync
-      --lazy                                       Set to 'false' it ignores the 'lazy' flag in the directory content configuration (default true)
-      --lock-file string                           Set lock file (default "vendir.lock.yml")
-  -l, --locked                                     Consult lock file to pull exact references (e.g. use git sha instead of branch name)
+      --chdir string                                            Set current directory for process
+      --dangerous-allow-all-symlink-destinations[=true|false]   Symlinks to all destinations are allowed
+  -d, --directory strings                                       Sync specific directory (format: dir/sub-dir[=local-dir])
+  -f, --file strings                                            Set configuration file (default [vendir.yml])
+  -h, --help[=true|false]                                       help for sync
+      --lazy[=true|false]                                       Set to 'false' it ignores the 'lazy' flag in the directory content configuration (default true)
+      --lock-file string                                        Set lock file (default "vendir.lock.yml")
+  -l, --locked[=true|false]                                     Consult lock file to pull exact references (e.g. use git sha instead of branch name)
 
 Global Flags:
-      --color            Set color output (default true)
-      --column strings   Filter to show only given columns
-      --json             Output as JSON
-      --tty              Force TTY-like output
-  -y, --yes              Assume yes for any prompt
+      --color[=true|false]   Set color output (default true)
+      --column strings       Filter to show only given columns
+      --json[=true|false]    Output as JSON
+      --tty[=true|false]     Force TTY-like output
+  -y, --yes[=true|false]     Assume yes for any prompt
 
 Succeeded
 ```

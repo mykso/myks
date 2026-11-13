@@ -28,16 +28,16 @@ Arguments:
 Flags:
   -a, --async int                               sets the number of applications to be processed in parallel
                                                 the default (0) is no limit
-      --buffer-plugin-output                    buffer plugin output instead of streaming (useful for parallel execution)
+      --buffer-plugin-output[=true|false]       buffer plugin output instead of streaming (useful for parallel execution)
       --config string                           config file (default is the first .myks.yaml up the directory tree)
-      --data-values                             include final resolved ytt data values
-  -h, --help                                    help for apps
+      --data-values[=true|false]                include final resolved ytt data values
+  -h, --help[=true|false]                       help for apps
   -l, --log-level string                        set the logging level (default "info")
   -o, --output string                           output format: "text" or "json" (default "text")
-      --print-stats                             print tool resource statistics directly to stdout
+      --print-stats[=true|false]                print tool resource statistics directly to stdout
       --provenance string[="set"]               include the file that sets each final data value and helm or ytt-pkg value; "all" also lists the myks built-in data value defaults in the text output
-      --redundant                               include data values and helm or ytt-pkg values a file sets to the value it already inherits; exit non-zero if any
-      --rendered                                include rendered artifacts from .myks/ if available
+      --redundant[=true|false]                  include data values and helm or ytt-pkg values a file sets to the value it already inherits; exit non-zero if any
+      --rendered[=true|false]                   include rendered artifacts from .myks/ if available
       --smart-mode.base-revision string         base revision to compare against in Smart Mode
                                                 if not provided, only local changes will be considered
       --smart-mode.only-print string[="text"]   only print the list of environments and applications that would be rendered in Smart Mode

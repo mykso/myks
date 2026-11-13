@@ -33,12 +33,12 @@ Arguments:
 Flags:
   -a, --async int                               sets the number of applications to be processed in parallel
                                                 the default (0) is no limit
-      --buffer-plugin-output                    buffer plugin output instead of streaming (useful for parallel execution)
+      --buffer-plugin-output[=true|false]       buffer plugin output instead of streaming (useful for parallel execution)
       --config string                           config file (default is the first .myks.yaml up the directory tree)
-  -h, --help                                    help for render
+  -h, --help[=true|false]                       help for render
   -l, --log-level string                        set the logging level (default "info")
-      --print-stats                             print tool resource statistics directly to stdout
-  -r, --render                                  only render manifests
+      --print-stats[=true|false]                print tool resource statistics directly to stdout
+  -r, --render[=true|false]                     only render manifests
       --smart-mode.base-revision string         base revision to compare against in Smart Mode
                                                 if not provided, only local changes will be considered
       --smart-mode.only-print string[="text"]   only print the list of environments and applications that would be rendered in Smart Mode
@@ -46,7 +46,7 @@ Flags:
                                                 legacy boolean values (true, 1, yes) are treated as "text" for backward compatibility
                                                 legacy falsey values (false, 0, no) disable Smart Mode only-print (same as leaving it empty)
                                                 when used without a value (--smart-mode.only-print), defaults to "text"
-  -s, --sync                                    only sync external sources
+  -s, --sync[=true|false]                       only sync external sources
 
 Examples:
   # Process all apps in production and staging

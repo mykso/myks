@@ -15,17 +15,17 @@ Aliases:
   inspect, i, is, insp
 
 Flags:
-  -f, --file strings                    Set file (format: /tmp/foo, https://..., -) (can be specified multiple times)
-  -h, --help                            help for inspect
-      --registry-ca-cert-path strings   Add CA certificates for registry API (format: /tmp/foo) (can be specified multiple times)
-      --registry-insecure               Allow the use of http when interacting with registries
-      --registry-verify-certs           Set whether to verify server's certificate chain and host name (default true)
-      --sort                            Sort by namespace, name, etc. (default true)
+  -f, --file strings                         Set file (format: /tmp/foo, https://..., -) (can be specified multiple times)
+  -h, --help[=true|false]                    help for inspect
+      --registry-ca-cert-path strings        Add CA certificates for registry API (format: /tmp/foo) (can be specified multiple times)
+      --registry-insecure[=true|false]       Allow the use of http when interacting with registries
+      --registry-verify-certs[=true|false]   Set whether to verify server's certificate chain and host name (default true)
+      --sort[=true|false]                    Sort by namespace, name, etc. (default true)
 
 Global Flags:
-      --color            Set color output (default true)
-      --column strings   Filter to show only given columns
-      --json             Output as JSON
-      --tty              Force TTY-like output
-  -y, --yes              Assume yes for any prompt
+      --color[=true|false]   Set color output (default true)
+      --column strings       Filter to show only given columns
+      --json[=true|false]    Output as JSON
+      --tty[=true|false]     Force TTY-like output
+  -y, --yes[=true|false]     Assume yes for any prompt
 ```

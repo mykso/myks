@@ -18,27 +18,27 @@ Available Commands:
   version     Print client version
 
 Flags:
-      --build                           Allow building of images (default true)
-      --build-concurrency int           Set maximum number of concurrent builds (default 4)
-      --color                           Set color output (default true)
-      --column strings                  Filter to show only given columns
-  -f, --file strings                    Set file (format: /tmp/foo, https://..., -) (can be specified multiple times)
-  -h, --help                            help for kbld
-      --image-map-file string           Set image map file (/cnab/app/relocation-mapping.json in CNAB)
-      --images-annotation               Annotate resources with images annotation (default true)
-      --imgpkg-lock-output string       File path to emit images lockfile with resolved image references
-      --json                            Output as JSON
-      --lock-output string              File path to emit configuration with resolved image references
-      --origins-annotation              Include origins annotation (default true)
-      --platform string                 Apply platform selection to image indexes
-      --registry-ca-cert-path strings   Add CA certificates for registry API (format: /tmp/foo) (can be specified multiple times)
-      --registry-insecure               Allow the use of http when interacting with registries
-      --registry-verify-certs           Set whether to verify server's certificate chain and host name (default true)
-      --sort                            Sort by namespace, name, etc. (default true)
-      --tty                             Force TTY-like output
-      --unresolved-inspect              List image references found in inputs
-  -v, --version                         version for kbld
-  -y, --yes                             Assume yes for any prompt
+      --build[=true|false]                   Allow building of images (default true)
+      --build-concurrency int                Set maximum number of concurrent builds (default 4)
+      --color[=true|false]                   Set color output (default true)
+      --column strings                       Filter to show only given columns
+  -f, --file strings                         Set file (format: /tmp/foo, https://..., -) (can be specified multiple times)
+  -h, --help[=true|false]                    help for kbld
+      --image-map-file string                Set image map file (/cnab/app/relocation-mapping.json in CNAB)
+      --images-annotation[=true|false]       Annotate resources with images annotation (default true)
+      --imgpkg-lock-output string            File path to emit images lockfile with resolved image references
+      --json[=true|false]                    Output as JSON
+      --lock-output string                   File path to emit configuration with resolved image references
+      --origins-annotation[=true|false]      Include origins annotation (default true)
+      --platform string                      Apply platform selection to image indexes
+      --registry-ca-cert-path strings        Add CA certificates for registry API (format: /tmp/foo) (can be specified multiple times)
+      --registry-insecure[=true|false]       Allow the use of http when interacting with registries
+      --registry-verify-certs[=true|false]   Set whether to verify server's certificate chain and host name (default true)
+      --sort[=true|false]                    Sort by namespace, name, etc. (default true)
+      --tty[=true|false]                     Force TTY-like output
+      --unresolved-inspect[=true|false]      List image references found in inputs
+  -v, --version[=true|false]                 version for kbld
+  -y, --yes[=true|false]                     Assume yes for any prompt
 
 Use "kbld [command] --help" for more information about a command.
 ```
