@@ -6,3 +6,4 @@ dist
 .vendor
 coverage.txt
 .claude/*
+node_modules

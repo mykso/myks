@@ -36,3 +36,12 @@ tasks:
       - |
         export PATH="{{.ROOT_DIR}}/bin:$PATH"
         go test -failfast -race ./... {{.CLI_ARGS}}
+
+  docs:refgen:
+    desc: Regenerate the CLI reference pages in the docs
+    dir: docs
+    cmds:
+      # Same build as reference.cli in docs/site.yaml, which the docs CI check uses.
+      - go build -o ../bin/{{.BIN_NAME}} ..
+      - npm ci
+      - npx --no-install help2md --bin ../bin/{{.BIN_NAME}} --out src/content/docs/reference/cli
