@@ -137,3 +137,6 @@ links:
   - { label: Discussions, href: "https://github.com/mykso/myks/discussions" }
 reference:
   cli: { bin: myks, build: "go build -o bin/myks .", path: bin/myks }
+
+# Past releases next to the default branch: the newest minor versions and the newest minor of each major.
+versions: { minors: 3, majors: 3 }
