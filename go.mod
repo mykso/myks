@@ -21,7 +21,7 @@ require (
 	go.starlark.net v0.0.0-20261021141710-4f4267fb140d
 	golang.org/x/sync v0.25.0
 	golang.org/x/sys v0.50.0
-	golang.org/x/term v0.47.0
+	golang.org/x/term v0.48.0
 	gopkg.in/yaml.v3 v3.0.1
 	kcl-lang.io/kcl-go v0.13.2
 	sigs.k8s.io/yaml v1.6.0
