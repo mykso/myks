@@ -70,6 +70,9 @@
       description: "Bump the docs-kit package and its reusable workflow together",
       matchPackageNames: ["@zebradil/docs-kit", "Zebradil/docs-kit"],
       groupName: "docs-kit",
+      // Own package: skip best-practices' 3-day npm delay so the package and workflow bumps
+      // arrive in the same run instead of the workflow landing alone.
+      minimumReleaseAge: "0 days",
     },
   ],
   customManagers: [{
