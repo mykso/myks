@@ -5,7 +5,7 @@ import (
 	"iter"
 	"os"
 
-	"github.com/alecthomas/chroma/v2/quick"
+	"github.com/alecthomas/chroma/v3/quick"
 	aurora "github.com/logrusorgru/aurora/v4"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/sync/errgroup"
