@@ -6,7 +6,7 @@ require (
 	carvel.dev/kbld v0.49.2
 	carvel.dev/vendir v0.46.3
 	carvel.dev/ytt v0.55.4
-	github.com/alecthomas/chroma/v2 v2.27.0
+	github.com/alecthomas/chroma/v3 v3.0.0
 	github.com/cppforlife/go-cli-ui v0.0.0-20250603184554-47874c9078ad
 	github.com/creasty/defaults v1.11.0
 	github.com/google/go-containerregistry v0.22.1
@@ -68,7 +68,7 @@ require (
 	github.com/cppforlife/cobrautil v0.0.0-20221021151949-d60711905d65 // indirect
 	github.com/cppforlife/color v1.9.1-0.20200716202919-6706ac40b835 // indirect
 	github.com/dimchansky/utfbom v1.1.0 // indirect
-	github.com/dlclark/regexp2/v2 v2.2.1 // indirect
+	github.com/dlclark/regexp2/v2 v2.10.1 // indirect
 	github.com/docker/cli v29.7.2+incompatible // indirect
 	github.com/docker/docker-credential-helpers v0.9.5 // indirect
 	github.com/ebitengine/purego v0.11.2 // indirect
